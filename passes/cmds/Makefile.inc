@@ -59,3 +59,6 @@ OBJS += passes/cmds/timeest.o
 OBJS += passes/cmds/linecoverage.o
 OBJS += passes/cmds/publish.o
 OBJS += passes/cmds/icell_liberty.o
+OBJS += passes/cmds/sdc.o
+
+$(eval $(call add_share_file,share/sdc,passes/cmds/stubs.sdc))
