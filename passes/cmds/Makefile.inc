@@ -56,3 +56,6 @@ OBJS += passes/cmds/setenv.o
 OBJS += passes/cmds/abstract.o
 OBJS += passes/cmds/test_select.o
 OBJS += passes/cmds/timeest.o
+OBJS += passes/cmds/sdc.o
+
+$(eval $(call add_share_file,share/sdc,passes/cmds/stubs.sdc))
