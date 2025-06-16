@@ -149,7 +149,7 @@ parser::symbol_type char_tok(char c, parser::location_type loc) {
 		case 'z': return parser::make_TOK_z(loc);
 		case 0: return parser::make_FRONTEND_VERILOG_YYEOF(loc);
 		default:
-			std::cout << ".." << +c << "..\n"; return parser::make_ch_t(c, loc);
+			return parser::make_ch_t(c, loc);
 	}
 }
 

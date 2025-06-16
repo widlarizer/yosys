@@ -491,15 +491,15 @@
 	// end requires
 }
 
-%token <string_t> string_t
+%token <string_t> string_t "string"
 %token <ast_t> ast_t
 %token <al_t> al_t
-%token <specify_target_ptr_t> specify_target_ptr_t
-%token <specify_triple_ptr_t> specify_triple_ptr_t
-%token <specify_rise_fall_ptr_t> specify_rise_fall_ptr_t
-%token <boolean_t> boolean_t
-%token <ch_t> ch_t
-%token <integer_t> integer_t
+%token <specify_target_ptr_t> specify_target_ptr_t "specify target"
+%token <specify_triple_ptr_t> specify_triple_ptr_t "specify triple"
+%token <specify_rise_fall_ptr_t> specify_rise_fall_ptr_t "specify rise and fall"
+%token <boolean_t> boolean_t "boolean"
+%token <ch_t> ch_t "invalid token"
+%token <integer_t> integer_t "integer"
 %token <ast_node_type_t> ast_node_type_t
 
 %token <string_t> TOK_STRING TOK_ID TOK_CONSTVAL TOK_REALVAL TOK_PRIMITIVE
@@ -531,37 +531,37 @@
 %token TOK_SHL_ASSIGN TOK_SHR_ASSIGN TOK_SSHL_ASSIGN TOK_SSHR_ASSIGN
 %token TOK_BIND TOK_TIME_SCALE
 
-%token TOK_EXCL "!"
-%token TOK_HASH "#"
-%token TOK_PERC "%"
-%token TOK_AMP "&"
-%token TOK_LPAREN "("
-%token TOK_RPAREN ")"
-%token TOK_ASTER "*"
-%token TOK_PLUS "+"
-%token TOK_COMMA ","
-%token TOK_MINUS "-"
-%token TOK_DOT "."
-%token TOK_SLASH "/"
-%token TOK_COL ":"
-%token TOK_SEMICOL ";"
-%token TOK_LT "<"
-%token TOK_EQ "="
-%token TOK_GT ">"
-%token TOK_QUE "?"
-%token TOK_AT "@"
-%token TOK_LBRA "["
-%token TOK_RBRA "]"
-%token TOK_CARET "^"
-%token TOK_UNDER "_"
-%token TOK_LCURL "{"
-%token TOK_PIPE "|"
-%token TOK_RCURL "}"
-%token TOK_TILDE "~"
-%token TOK_n "n"
-%token TOK_p "p"
-%token TOK_x "x"
-%token TOK_z "z"
+%token TOK_EXCL "'!'"
+%token TOK_HASH "'#'"
+%token TOK_PERC "'%'"
+%token TOK_AMP "'&'"
+%token TOK_LPAREN "'('"
+%token TOK_RPAREN "')'"
+%token TOK_ASTER "'*'"
+%token TOK_PLUS "'+'"
+%token TOK_COMMA "','"
+%token TOK_MINUS "'-'"
+%token TOK_DOT "'.'"
+%token TOK_SLASH "'/'"
+%token TOK_COL "':'"
+%token TOK_SEMICOL "';'"
+%token TOK_LT "'<'"
+%token TOK_EQ "'='"
+%token TOK_GT "'>'"
+%token TOK_QUE "'?'"
+%token TOK_AT "'@'"
+%token TOK_LBRA "'['"
+%token TOK_RBRA "']'"
+%token TOK_CARET "'^'"
+%token TOK_UNDER "'_'"
+%token TOK_LCURL "'{'"
+%token TOK_PIPE "'|'"
+%token TOK_RCURL "'}'"
+%token TOK_TILDE "'~'"
+%token TOK_n "'n'"
+%token TOK_p "'p'"
+%token TOK_x "'x'"
+%token TOK_z "'z'"
 
 %type <ast_t> range range_or_multirange non_opt_range non_opt_multirange
 %type <ast_t> wire_type expr basic_expr concat_list rvalue lvalue lvalue_concat_list non_io_wire_type io_wire_type
@@ -597,7 +597,7 @@
 %precedence OP_CAST
 %precedence UNARY_OPS
 
-%define parse.error verbose
+%define parse.error detailed
 %define parse.lac full
 
 %precedence FAKE_THEN
