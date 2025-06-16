@@ -5679,11 +5679,6 @@ static void sigspec_parse_split(std::vector<std::string> &tokens, const std::str
 	tokens.push_back(text.substr(start));
 }
 
-static int sigspec_parse_get_dummy_line_num()
-{
-	return 0;
-}
-
 bool RTLIL::SigSpec::parse(RTLIL::SigSpec &sig, RTLIL::Module *module, std::string str)
 {
 	cover("kernel.rtlil.sigspec.parse");

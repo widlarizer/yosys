@@ -226,14 +226,14 @@ TIME_SCALE_SUFFIX [munpf]?s
 	else if (!strcmp(p, "wire"))
 		extra->default_nettype_wire = true;
 	else
-		frontend_verilog_yyerror("Unsupported default nettype: %s", p);
+		err("Unsupported default nettype: %s", p);
 }
 
 "`protect"[^\n]* /* ignore `protect*/
 "`endprotect"[^\n]* /* ignore `endprotect*/
 
 "`"[a-zA-Z_$][a-zA-Z0-9_$]* {
-	frontend_verilog_yyerror("Unimplemented compiler directive or undefined macro %s.", YYText());
+	err("Unimplemented compiler directive or undefined macro %s.", YYText());
 }
 
 "module"       { return parser::make_TOK_MODULE(out_loc); }

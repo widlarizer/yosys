@@ -776,21 +776,33 @@ struct VerilogFileList : public Pass {
 
 #endif
 
-// the yyerror function used by bison to report parser errors
-void VERILOG_FRONTEND::frontend_verilog_yyerror(char const *fmt, ...)
+[[noreturn]]
+void VERILOG_FRONTEND::verr_at(std::string filename, int begin_line, char const *fmt, va_list ap)
 {
-	va_list ap;
-	char buffer[1024];
-	char *p = buffer;
-	va_start(ap, fmt);
-	p += vsnprintf(p, buffer + sizeof(buffer) - p, fmt, ap);
-	va_end(ap);
-	p += snprintf(p, buffer + sizeof(buffer) - p, "\n");
-	// TODO fix loc
-	YOSYS_NAMESPACE_PREFIX log_file_error(YOSYS_NAMESPACE_PREFIX AST::current_filename, 999,
-											"%s", buffer);
-	exit(1);
+    char buffer[1024];
+    char *p = buffer;
+    p += vsnprintf(p, buffer + sizeof(buffer) - p, fmt, ap);
+    p += snprintf(p, buffer + sizeof(buffer) - p, "\n");
+    YOSYS_NAMESPACE_PREFIX log_file_error(filename, begin_line, "%s", buffer);
+    exit(1);
+}
+
+[[noreturn]]
+void VERILOG_FRONTEND::err_at_loc(parser::location_type loc, char const *fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	verr_at(AST::current_filename, loc.begin.line, fmt, args);
+	va_end(args);
+}
+
+[[noreturn]]
+void VERILOG_FRONTEND::err_at_ast(AstSrcLocType loc, char const *fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	verr_at(AST::current_filename, loc.first_line, fmt, args);
+	va_end(args);
 }
 
 YOSYS_NAMESPACE_END
-std::string fmt(const char *format, ...)  YS_ATTRIBUTE(format(printf, 1, 2));
