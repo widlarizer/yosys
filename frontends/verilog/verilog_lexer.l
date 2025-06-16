@@ -85,7 +85,6 @@ YOSYS_NAMESPACE_END
 // 	result = readsome(*extra->lexin, buf, max_size)
 
 #define YY_USER_ACTION \
-		old_loc = real_loc; \
 		real_loc.begin = real_loc.end; \
 		for(int i = 0; YYText()[i] != '\0'; ++i){ \
 				if(YYText()[i] == '\n') { \
@@ -95,10 +94,10 @@ YOSYS_NAMESPACE_END
 				else { \
 						real_loc.end.column++; \
 				} \
-		}
+		} \
+		out_loc = real_loc;
 
 #define YY_BREAK \
-    out_loc = old_loc; \
     break;
 
 #undef YY_BUF_SIZE
@@ -372,7 +371,7 @@ TIME_SCALE_SUFFIX [munpf]?s
 }
 
 \"		{ BEGIN(STRING); }
-<STRING>\\.	{ yymore(); real_loc = old_loc; }
+<STRING>\\.	{ yymore(); }
 <STRING>\"	{
 	BEGIN(0);
 	char *yystr = strdup(YYText());
@@ -412,7 +411,7 @@ TIME_SCALE_SUFFIX [munpf]?s
 	free(yystr);
 	return parser::make_TOK_STRING(val, out_loc);
 }
-<STRING>.	{ yymore(); real_loc = old_loc; }
+<STRING>.	{ yymore();}
 
 and|nand|or|nor|xor|xnor|not|buf|bufif0|bufif1|notif0|notif1 {
 	auto val = new std::string(YYText());
