@@ -266,7 +266,6 @@ static int sdc_get_ports_cmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_
 	for (auto pat : patterns) {
 		bool found = false;
 		for (auto name : objects->design_ports) {
-			log("design port .%s. pat .%s.\n", name.c_str(), pat.c_str());
 			if (matches(name, pat, config)) {
 				found = true;
 				resolved.push_back(name);
