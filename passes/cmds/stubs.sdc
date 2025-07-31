@@ -16,7 +16,7 @@ stub ys_err_flag
 proc unknown {args} {
     global sdc_call_index
     global sdc_calls
-    if {![info exists index]} {
+    if {![info exists sdc_call_index]} {
         set sdc_call_index 0
     }
     if {![info exists sdc_calls]} {
