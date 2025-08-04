@@ -70,7 +70,7 @@ struct SdcObjects {
 				log("\t\t FULL\n");
 			}
 		}
-		bool is_set(size_t idx) {
+		bool is_set(size_t idx) const {
 			if (all)
 				return true;
 			if (idx >= bits.size())
@@ -212,16 +212,6 @@ struct SdcObjects {
 		log("\n");
 	}
 };
-
-template<typename T>
-static bool parse_flag(char* arg, const char* flag_name, T& flag_var) {
-	std::string expected = std::string("-") + flag_name;
-	if (expected == arg) {
-		flag_var = true;
-		return true;
-	}
-	return false;
-}
 
 // TODO vectors
 // TODO cell arrays?
@@ -431,73 +421,115 @@ find_matching(U objects, const MatchConfig& config, const std::vector<std::strin
 	}
 	return resolved;
 }
-static int sdc_get_pins_cmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj* const objv[])
-{
-	auto* objects = (SdcObjects*)data;
-	// When this flag is present, the search for the pattern is made in all positions in the hierarchy.
+struct GetterOpts {
 	bool hierarchical_flag = false;
 	bool regexp_flag = false;
 	bool nocase_flag = false;
 	std::string separator = "/";
 	Tcl_Obj* of_objects = nullptr;
-	std::vector<std::string> patterns;
-	int i = 1;
-	for (; i < objc; i++) {
-		if (parse_flag(Tcl_GetString(objv[i]), "hierarchical", hierarchical_flag)) continue;
-		if (parse_flag(Tcl_GetString(objv[i]), "hier", hierarchical_flag)) continue;
-		if (parse_flag(Tcl_GetString(objv[i]), "regexp", regexp_flag)) continue;
-		if (parse_flag(Tcl_GetString(objv[i]), "nocase", nocase_flag)) continue;
-		if (!strcmp(Tcl_GetString(objv[i]), "-hsc")) {
-			separator = Tcl_GetString(objv[++i]);
-			continue;
+	std::vector<std::string> patterns = {};
+	std::initializer_list<const char*> legals;
+	const char* name;
+	GetterOpts(const char* name, std::initializer_list<const char*> legals) : legals(legals), name(name) {}
+	bool parse_opt(Tcl_Obj* obj, const char* opt_name) {
+		char* arg = Tcl_GetString(obj);
+		std::string expected = std::string("-") + opt_name;
+		if (expected == arg) {
+			if (!std::find_if(legals.begin(), legals.end(),
+                       [&opt_name](const char* str) { return opt_name == str; }))
+				log_cmd_error("Illegal argument %s for %s.\n", expected.c_str(), name);
+			return true;
 		}
-		if (!strcmp(Tcl_GetString(objv[i]), "-of_objects")) {
-			of_objects = objv[++i];
-			continue;
+		return false;
+	}
+	template<typename T>
+	bool parse_flag(Tcl_Obj* obj, const char* flag_name, T& flag_var) {
+		bool ret = parse_opt(obj, flag_name);
+		if (ret)
+			flag_var = true;
+		return ret;
+	}
+	void parse(int objc, Tcl_Obj* const objv[]) {
+		int i = 1;
+		for (; i < objc; i++) {
+			if (parse_flag(objv[i], "hierarchical", hierarchical_flag)) continue;
+			if (parse_flag(objv[i], "hier", hierarchical_flag)) continue;
+			if (parse_flag(objv[i], "regexp", regexp_flag)) continue;
+			if (parse_flag(objv[i], "nocase", nocase_flag)) continue;
+			if (parse_opt(objv[i], "hsc")) {
+				log_assert(i + 1 < objc);
+				separator = Tcl_GetString(objv[++i]);
+				continue;
+			}
+			if (parse_opt(objv[i], "of_objects")) {
+				log_assert(i + 1 < objc);
+				of_objects = objv[++i];
+				continue;
+			}
+			break;
 		}
-		// Onto the next loop
-		break;
-	}
-	for (; i < objc; i++) {
-		patterns.push_back(Tcl_GetString(objv[i]));
-	}
-	if (objects->collect_mode == SdcObjects::CollectMode::SimpleGetter) {
+		for (; i < objc; i++) {
+			patterns.push_back(Tcl_GetString(objv[i]));
+		}
+	};
+	void check_simple() {
 		if (regexp_flag || hierarchical_flag || nocase_flag || separator != "/" || of_objects) {
-			log_error("get_pins got unexpected flags in simple mode\n");
+			log_error("%s got unexpected flags in simple mode\n", name);
 		}
-		if (patterns.size() != 1) {
-			log_error("get_pins got unexpected number of patterns in simple mode\n");
-		}
+		if (patterns.size() != 1)
+			log_error("%s got unexpected number of patterns in simple mode: %zu\n", name, patterns.size());
 	}
+	void check_simple_sep() {
+		if (separator != "/")
+			log_error("Only '/' accepted as separator");
+	}
+};
 
-	MatchConfig config(regexp_flag, nocase_flag, hierarchical_flag);
+void build_normal_result(Tcl_Interp* interp, size_t list_len, size_t width, const std::string& name, Tcl_Obj*& result, const SdcObjects::BitSelection& matching_bits) {
+	if (!result)
+		result = Tcl_NewListObj(list_len, nullptr);
+	for (size_t i = 0; i < width; i++)
+		if (matching_bits.is_set(i))
+			Tcl_ListObjAppendElement(interp, result, Tcl_NewStringObj(name.c_str(), name.size()));
+}
+
+template <typename T>
+void merge_or_init(const T& key, dict<T, SdcObjects::BitSelection>& dst, const SdcObjects::BitSelection& src) {
+	if (dst.count(key) == 0) {
+		dst[key] = src;
+	} else {
+		dst[key].merge(src);
+	}
+}
+
+static int sdc_get_pins_cmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj* const objv[])
+{
+	auto* objects = (SdcObjects*)data;
+	GetterOpts opts("get_pins", {"hierarchical", "hier", "regexp", "nocase", "hsc", "of_objects"});
+	opts.parse(objc, objv);
+	if (objects->collect_mode == SdcObjects::CollectMode::SimpleGetter)
+		opts.check_simple();
+	opts.check_simple_sep();
+
+	MatchConfig config(opts.regexp_flag, opts.nocase_flag, opts.hierarchical_flag);
 	std::vector<std::tuple<std::string, SdcObjects::CellPin, SdcObjects::BitSelection>> resolved;
 	const auto& pins = objects->design_pins;
-	resolved = find_matching<SdcObjects::CellPin, decltype(pins)>(pins, config, patterns, "pin");
-
-	if (separator != "/") {
-		Tcl_SetResult(interp, (char *)"Only '/' accepted as separator", TCL_STATIC);
-		return TCL_ERROR;
-	}
+	resolved = find_matching<SdcObjects::CellPin, decltype(pins)>(pins, config, opts.patterns, "pin");
 
 	Tcl_Obj *result = nullptr;
 	for (auto [name, pin, matching_bits] : resolved) {
 		if (objects->value_mode == SdcObjects::ValueMode::Normal) {
-			if (!result)
-				result = Tcl_NewListObj(resolved.size(), nullptr);
 			size_t width = (size_t)pin.first->getPort(pin.second).size();
-			for (size_t i = 0; i < width; i++)
-				if (matching_bits.is_set(i))
-					Tcl_ListObjAppendElement(interp, result, Tcl_NewStringObj(name.c_str(), name.size()));
+			build_normal_result(interp, resolved.size(), width, name, result, matching_bits);
 		}
 
 		if (objects->collect_mode != SdcObjects::CollectMode::FullConstraint)
-			objects->constrained_pins[std::make_pair(name, pin)].merge(matching_bits);
+			merge_or_init(std::make_pair(name, pin), objects->constrained_pins, matching_bits);
 	}
 
-	if (objects->value_mode == SdcObjects::ValueMode::Graph) {
+	if (objects->value_mode == SdcObjects::ValueMode::Graph)
 		return redirect_unknown(interp, objc, objv);
-	}
+
 	if (result)
 		Tcl_SetObjResult(interp, result);
 	return TCL_OK;
@@ -506,57 +538,30 @@ static int sdc_get_pins_cmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_O
 static int sdc_get_ports_cmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj* const objv[])
 {
 	auto* objects = (SdcObjects*)data;
-	bool regexp_flag = false;
-	bool nocase_flag = false;
-	std::vector<std::string> patterns;
-	int i = 1;
-	for (; i < objc; i++) {
-		if (parse_flag(Tcl_GetString(objv[i]), "regexp", regexp_flag)) continue;
-		if (parse_flag(Tcl_GetString(objv[i]), "nocase", nocase_flag)) continue;
-		// Onto the next loop
-		break;
-	}
-	for (; i < objc; i++) {
-		patterns.push_back(Tcl_GetString(objv[i]));
-	}
-	if (objects->collect_mode == SdcObjects::CollectMode::SimpleGetter) {
-		if (regexp_flag || nocase_flag) {
-			log_error("get_ports got unexpected flags in simple mode\n");
-		}
-		if (patterns.size() != 1) {
-			log_error("get_ports got unexpected number of patterns in simple mode\n");
-		}
-	}
+	GetterOpts opts("get_ports", {"regexp", "nocase"});
+	opts.parse(objc, objv);
+	if (objects->collect_mode == SdcObjects::CollectMode::SimpleGetter)
+		opts.check_simple();
 
-	MatchConfig config(regexp_flag, nocase_flag, false);
+	MatchConfig config(opts.regexp_flag, opts.nocase_flag, false);
 	std::vector<std::tuple<std::string, Wire*, SdcObjects::BitSelection>> resolved;
 	const auto& ports = objects->design_ports;
-	resolved = find_matching<Wire*, decltype(ports)>(ports, config, patterns, "port");
+	resolved = find_matching<Wire*, decltype(ports)>(ports, config, opts.patterns, "port");
 
 	Tcl_Obj *result = nullptr;
 	for (auto [name, wire, matching_bits] : resolved) {
-		if (objects->value_mode == SdcObjects::ValueMode::Normal) {
-			if (!result)
-				result = Tcl_NewListObj(resolved.size(), nullptr);
-			size_t width = wire->width;
-			for (size_t i = 0; i < width; i++)
-				if (matching_bits.is_set(i))
-					Tcl_ListObjAppendElement(interp, result, Tcl_NewStringObj(name.c_str(), name.size()));
-		}
-		if (objects->collect_mode != SdcObjects::CollectMode::FullConstraint) {
-			if (objects->constrained_ports.count(name) == 0) {
-				objects->constrained_ports[name] = matching_bits;
-			} else {
-				objects->constrained_ports[name].merge(matching_bits);
-			}
-		}
+		if (objects->value_mode == SdcObjects::ValueMode::Normal)
+			build_normal_result(interp, resolved.size(), wire->width, name, result, matching_bits);
+
+		if (objects->collect_mode != SdcObjects::CollectMode::FullConstraint)
+			merge_or_init(name, objects->constrained_ports, matching_bits);
 	}
 
 	if (objects->value_mode == SdcObjects::ValueMode::Graph) {
 		return redirect_unknown(interp, objc, objv);
 	}
-
-	Tcl_SetObjResult(interp, result);
+	if (result)
+		Tcl_SetObjResult(interp, result);
 	return TCL_OK;
 }
 
