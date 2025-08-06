@@ -1,10 +1,8 @@
 #include "kernel/register.h"
-#include "kernel/celltypes.h"
 #include "kernel/rtlil.h"
 #include "kernel/log.h"
 #include <tcl.h>
 #include <list>
-#include <regex>
 #include <optional>
 #include <iostream>
 
@@ -12,6 +10,76 @@
 USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
+struct TclCall {
+	Tcl_Interp *interp;
+	int objc;
+	Tcl_Obj* const* objv;
+};
+
+static int redirect_unknown(TclCall call);
+static size_t get_node_count(Tcl_Interp* interp);
+
+struct BitSelection {
+	bool all = false;
+	std::vector<bool> bits = {};
+	void set_all() {
+		bits.clear();
+		all = true;
+	}
+	void clear() {
+		bits.clear();
+		all = false;
+	}
+	void set(size_t idx) {
+		if (all)
+			return;
+		if (idx >= bits.size())
+			bits.resize(idx + 1);
+		bits[idx] = true;
+	}
+	void merge(const BitSelection& other) {
+		if (all)
+			return;
+		if (other.all) {
+			set_all();
+			return;
+		}
+		if (other.bits.size() > bits.size())
+			bits.resize(other.bits.size());
+		for (size_t other_idx = 0; other_idx < other.bits.size(); other_idx++) {
+			bool other_bit = other.bits[other_idx];
+			if (other_bit)
+				set(other_idx);
+		}
+	}
+	void dump() {
+		if (!all) {
+			for (size_t i = 0; i < bits.size(); i++)
+				if (bits[i])
+					log("\t\t [%zu]\n", i);
+		} else {
+			log("\t\t FULL\n");
+		}
+	}
+	bool is_set(size_t idx) const {
+		if (all)
+			return true;
+		if (idx >= bits.size())
+			return false;
+		return bits[idx];
+	}
+	// TODO actually use this
+	void compress(size_t size) {
+		if (bits.size() < size)
+			return;
+		for (size_t i = 0; i < size; i++)
+			if (!bits[i])
+				return;
+		bits.clear();
+		bits.shrink_to_fit();
+		all = true;
+	}
+};
 
 struct SdcObjects {
 	enum CollectMode {
@@ -28,74 +96,19 @@ struct SdcObjects {
 		// return a new graph node assuming unknown is overridden
 		Graph,
 	} value_mode;
-	struct BitSelection {
-		bool all = false;
-		std::vector<bool> bits = {};
-		void set_all() {
-			bits.clear();
-			all = true;
-		}
-		void clear() {
-			bits.clear();
-			all = false;
-		}
-		void set(size_t idx) {
-			if (all)
-				return;
-			if (idx >= bits.size())
-				bits.resize(idx + 1);
-			bits[idx] = true;
-		}
-		void merge(const BitSelection& other) {
-			if (all)
-				return;
-			if (other.all) {
-				set_all();
-				return;
-			}
-			if (other.bits.size() > bits.size())
-				bits.resize(other.bits.size());
-			for (size_t other_idx = 0; other_idx < other.bits.size(); other_idx++) {
-				bool other_bit = other.bits[other_idx];
-				if (other_bit)
-					set(other_idx);
-			}
-		}
-		void dump() {
-			if (!all) {
-				for (size_t i = 0; i < bits.size(); i++)
-					if (bits[i])
-						log("\t\t [%zu]\n", i);
-			} else {
-				log("\t\t FULL\n");
-			}
-		}
-		bool is_set(size_t idx) const {
-			if (all)
-				return true;
-			if (idx >= bits.size())
-				return false;
-			return bits[idx];
-		}
-		// TODO actually use this
-		void compress(size_t size) {
-			if (bits.size() < size)
-				return;
-			for (size_t i = 0; i < size; i++)
-				if (!bits[i])
-					return;
-			bits.clear();
-			bits.shrink_to_fit();
-			all = true;
-		}
-	};
 	using CellPin = std::pair<Cell*, IdString>;
 	std::vector<std::pair<std::string, Wire*>> design_ports;
 	std::vector<std::pair<std::string, Cell*>> design_cells;
 	std::vector<std::pair<std::string, CellPin>> design_pins;
 	std::vector<std::pair<std::string, Wire*>> design_nets;
 
-	dict<std::string, BitSelection> constrained_ports;
+	using PortPattern = std::tuple<std::string, Wire*, BitSelection>;
+	using PinPattern = std::tuple<std::string, SdcObjects::CellPin, BitSelection>;
+	std::vector<std::vector<PortPattern>> resolved_port_pattern_sets;
+	std::vector<std::vector<PinPattern>> resolved_pin_pattern_sets;
+	// TODO
+
+	dict<std::pair<std::string, Wire*>, BitSelection> constrained_ports;
 	pool<std::pair<std::string, Cell*>> constrained_cells;
 	dict<std::pair<std::string, CellPin>, BitSelection> constrained_pins;
 	dict<std::pair<std::string, Wire*>, BitSelection> constrained_nets;
@@ -156,6 +169,28 @@ struct SdcObjects {
 		sniff_module(hierarchy, top);
 	}
 	~SdcObjects() = default;
+
+	template <typename T, typename U>
+	void build_normal_result(Tcl_Interp* interp, std::vector<std::tuple<std::string, T, BitSelection>>&& resolved, U& tgt, std::function<size_t(T&)> width, Tcl_Obj*& result) {
+		if (!result)
+			result = Tcl_NewListObj(resolved.size(), nullptr);
+		for (auto [name, obj, matching_bits] : resolved) {
+			for (size_t i = 0; i < width(obj); i++)
+				if (matching_bits.is_set(i))
+					Tcl_ListObjAppendElement(interp, result, Tcl_NewStringObj(name.c_str(), name.size()));
+
+		}
+		size_t node_count = get_node_count(interp);
+		tgt.emplace_back(std::move(resolved));
+		log("%zu %zu\n", node_count, tgt.size());
+		log_assert(node_count == tgt.size());
+	}
+	template <typename T>
+	void merge_as_constrained(std::vector<std::tuple<std::string, T, BitSelection>>&& resolved) {
+		for (auto [name, obj, matching_bits] : resolved) {
+			merge_or_init(std::make_pair(name, obj), objects->constrained_pins, matching_bits)
+		}
+	}
 	void dump() {
 		std::sort(design_ports.begin(), design_ports.end());
 		std::sort(design_cells.begin(), design_cells.end());
@@ -186,7 +221,9 @@ struct SdcObjects {
 		// }
 		// log("\n");
 		log("Constrained ports:\n");
-		for (auto [name, bits] : constrained_ports) {
+		for (auto [ref, bits] : constrained_ports) {
+			auto [name, port] = ref;
+			(void)port;
 			log("\t%s\n", name.c_str());
 			bits.dump();
 		}
@@ -231,7 +268,7 @@ struct MatchConfig {
 		hier(hierarchical_flag ? FLAT : TREE) { }
 };
 
-static std::pair<bool, SdcObjects::BitSelection> matches(std::string name, const std::string& pat, const MatchConfig& config) {
+static std::pair<bool, BitSelection> matches(std::string name, const std::string& pat, const MatchConfig& config) {
 	(void)config;
 	bool got_bit_index = false;;
 	int bit_idx;
@@ -248,7 +285,7 @@ static std::pair<bool, SdcObjects::BitSelection> matches(std::string name, const
 		bit_idx = std::stoi(bit_selector);
 
 	}
-	SdcObjects::BitSelection bits = {};
+	BitSelection bits = {};
 	if (name == pat_base) {
 		if (got_bit_index) {
 			bits.set(bit_idx);
@@ -263,33 +300,38 @@ static std::pair<bool, SdcObjects::BitSelection> matches(std::string name, const
 	}
 }
 
+static int graph_node(TclCall call) {
+	// TODO is that it?
+	return redirect_unknown(call);
+}
 
-static int redirect_unknown(Tcl_Interp *interp, int objc, Tcl_Obj* const objv[]) {
-    Tcl_Obj *newCmd = Tcl_NewStringObj("unknown", -1);
-	auto newObjc = objc + 1;
-    Tcl_Obj **newObjv = new Tcl_Obj*[newObjc];
-    newObjv[0] = newCmd;
-    for (int i = 1; i < newObjc; i++) {
-        newObjv[i] = objv[i - 1];
-		log("newObjv %s\n", Tcl_GetString(newObjv[i]));
-    }
-    int result = Tcl_EvalObjv(interp, newObjc, newObjv, 0);
-    Tcl_DecrRefCount(newCmd);
-    delete[] newObjv;
+static int redirect_unknown(TclCall call) {
+	// TODO redirect to different command
+	Tcl_Obj *newCmd = Tcl_NewStringObj("unknown", -1);
+	auto newObjc = call.objc + 1;
+	Tcl_Obj **newObjv = new Tcl_Obj*[newObjc];
+	newObjv[0] = newCmd;
+	for (int i = 1; i < newObjc; i++) {
+		newObjv[i] = call.objv[i - 1];
+	}
+	int result = Tcl_EvalObjv(call.interp, newObjc, newObjv, 0);
+	Tcl_DecrRefCount(newCmd);
+	delete[] newObjv;
 	return result;
 }
 
+
 struct SdcGraphNode {
-    using Child = std::variant<SdcGraphNode*, std::string>;
-    std::vector<Child> children;
-    SdcGraphNode() = default;
-    void addChild(SdcGraphNode* child) {
-        children.push_back(child);
-    }
-    void addChild(std::string tcl_string) {
-        children.push_back(tcl_string);
-    }
-    void dump(std::ostream& os) const {
+	using Child = std::variant<SdcGraphNode*, std::string>;
+	std::vector<Child> children;
+	SdcGraphNode() = default;
+	void addChild(SdcGraphNode* child) {
+		children.push_back(child);
+	}
+	void addChild(std::string tcl_string) {
+		children.push_back(tcl_string);
+	}
+	void dump(std::ostream& os) const {
 		bool first = true;
 		for (auto child : children) {
 			if (first) {
@@ -307,13 +349,20 @@ struct SdcGraphNode {
 				log_assert(false);
 			}
 		}
-    }
+	}
 };
 
+static size_t get_node_count(Tcl_Interp* interp) {
+	const char* idx_raw = Tcl_GetVar(interp, "sdc_call_index", TCL_GLOBAL_ONLY);
+	log_assert(idx_raw);
+	std::string idx(idx_raw);
+	for (auto c : idx)
+		if (!std::isdigit(c))
+			log_error("sdc_call_index non-numeric value %s\n", idx.c_str());
+	return std::stoi(idx);
+}
+
 std::vector<std::vector<std::string>> gather_nested_calls(Tcl_Interp* interp) {
-	const char* idx_s = Tcl_GetVar(interp, "sdc_call_index", TCL_GLOBAL_ONLY);
-	log_assert(idx_s);
-	size_t node_count = std::stoi(idx_s);
 
 	Tcl_Obj* listObj = Tcl_GetVar2Ex(interp, "sdc_calls", nullptr, TCL_GLOBAL_ONLY);
 	int listLength;
@@ -344,7 +393,7 @@ std::vector<std::vector<std::string>> gather_nested_calls(Tcl_Interp* interp) {
 			sdc_calls.push_back(subList);
 		}
 	}
-	log_assert(sdc_calls.size() == node_count);
+	log_assert(sdc_calls.size() == get_node_count(interp));
 	return sdc_calls;
 }
 
@@ -402,11 +451,13 @@ void inspect_globals(Tcl_Interp* interp) {
 	std::vector<SdcGraphNode> graph = build_graph(sdc_calls);
 	dump_sdc_graph(graph, node_ownership(graph));
 }
+
+// patterns -> (pattern-object-bit)s
 template <typename T, typename U>
-std::vector<std::tuple<std::string, T, SdcObjects::BitSelection>>
+std::vector<std::tuple<std::string, T, BitSelection>>
 find_matching(U objects, const MatchConfig& config, const std::vector<std::string> &patterns, const char* obj_type)
 {
-	std::vector<std::tuple<std::string, T, SdcObjects::BitSelection>> resolved;
+	std::vector<std::tuple<std::string, T, BitSelection>> resolved;
 	for (auto pat : patterns) {
 		bool found = false;
 		for (auto [name, obj] : objects) {
@@ -414,6 +465,7 @@ find_matching(U objects, const MatchConfig& config, const std::vector<std::strin
 			if (does_match) {
 				found = true;
 				resolved.push_back(std::make_tuple(name, obj, matching_bits));
+				// TODO add a continue statement, conditional on config
 			}
 		}
 		if (!found)
@@ -436,7 +488,7 @@ struct GetterOpts {
 		std::string expected = std::string("-") + opt_name;
 		if (expected == arg) {
 			if (!std::find_if(legals.begin(), legals.end(),
-                       [&opt_name](const char* str) { return opt_name == str; }))
+					   [&opt_name](const char* str) { return opt_name == str; }))
 				log_cmd_error("Illegal argument %s for %s.\n", expected.c_str(), name);
 			return true;
 		}
@@ -485,16 +537,16 @@ struct GetterOpts {
 	}
 };
 
-void build_normal_result(Tcl_Interp* interp, size_t list_len, size_t width, const std::string& name, Tcl_Obj*& result, const SdcObjects::BitSelection& matching_bits) {
-	if (!result)
-		result = Tcl_NewListObj(list_len, nullptr);
-	for (size_t i = 0; i < width; i++)
-		if (matching_bits.is_set(i))
-			Tcl_ListObjAppendElement(interp, result, Tcl_NewStringObj(name.c_str(), name.size()));
-}
+// void build_normal_result(Tcl_Interp* interp, size_t list_len, size_t width, const std::string& name, Tcl_Obj*& result, const BitSelection& matching_bits) {
+// 	if (!result)
+// 		result = Tcl_NewListObj(list_len, nullptr);
+// 	for (size_t i = 0; i < width; i++)
+// 		if (matching_bits.is_set(i))
+// 			Tcl_ListObjAppendElement(interp, result, Tcl_NewStringObj(name.c_str(), name.size()));
+// }
 
 template <typename T>
-void merge_or_init(const T& key, dict<T, SdcObjects::BitSelection>& dst, const SdcObjects::BitSelection& src) {
+void merge_or_init(const T& key, dict<T, BitSelection>& dst, const BitSelection& src) {
 	if (dst.count(key) == 0) {
 		dst[key] = src;
 	} else {
@@ -512,23 +564,27 @@ static int sdc_get_pins_cmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_O
 	opts.check_simple_sep();
 
 	MatchConfig config(opts.regexp_flag, opts.nocase_flag, opts.hierarchical_flag);
-	std::vector<std::tuple<std::string, SdcObjects::CellPin, SdcObjects::BitSelection>> resolved;
+	std::vector<std::tuple<std::string, SdcObjects::CellPin, BitSelection>> resolved;
 	const auto& pins = objects->design_pins;
 	resolved = find_matching<SdcObjects::CellPin, decltype(pins)>(pins, config, opts.patterns, "pin");
 
 	Tcl_Obj *result = nullptr;
-	for (auto [name, pin, matching_bits] : resolved) {
-		if (objects->value_mode == SdcObjects::ValueMode::Normal) {
-			size_t width = (size_t)pin.first->getPort(pin.second).size();
-			build_normal_result(interp, resolved.size(), width, name, result, matching_bits);
-		}
+	if (objects->value_mode == SdcObjects::ValueMode::Normal) {
+		auto width = [](SdcObjects::CellPin& pin) -> size_t {
+			return (size_t)pin.first->getPort(pin.second).size();
+		};
+		objects->build_normal_result<SdcObjects::CellPin, decltype(objects->resolved_pin_pattern_sets)>(interp, std::move(resolved), objects->resolved_pin_pattern_sets, width, result);
+	} else if (objects->value_mode == SdcObjects::ValueMode::Graph)
+		return graph_node(TclCall{interp, objc, objv});
 
-		if (objects->collect_mode != SdcObjects::CollectMode::FullConstraint)
-			merge_or_init(std::make_pair(name, pin), objects->constrained_pins, matching_bits);
-	}
+	if (objects->collect_mode != SdcObjects::CollectMode::FullConstraint)
+		objects->merge_as_constrained(std::move(resolved));
+		// merge_or_init(std::make_pair(name, pin), objects->constrained_pins, matching_bits);
+		// TODO
+	// }
 
-	if (objects->value_mode == SdcObjects::ValueMode::Graph)
-		return redirect_unknown(interp, objc, objv);
+	
+		// return objects->graph_node(interp, objc, objv, std::move(resolved), objects->resolved_pin_pattern_sets);
 
 	if (result)
 		Tcl_SetObjResult(interp, result);
@@ -544,7 +600,7 @@ static int sdc_get_ports_cmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_
 		opts.check_simple();
 
 	MatchConfig config(opts.regexp_flag, opts.nocase_flag, false);
-	std::vector<std::tuple<std::string, Wire*, SdcObjects::BitSelection>> resolved;
+	std::vector<std::tuple<std::string, Wire*, BitSelection>> resolved;
 	const auto& ports = objects->design_ports;
 	resolved = find_matching<Wire*, decltype(ports)>(ports, config, opts.patterns, "port");
 
@@ -558,7 +614,7 @@ static int sdc_get_ports_cmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_
 	}
 
 	if (objects->value_mode == SdcObjects::ValueMode::Graph) {
-		return redirect_unknown(interp, objc, objv);
+		return objects->graph_node(interp, objc, objv, std::move(resolved), objects->resolved_port_pattern_sets);
 	}
 	if (result)
 		Tcl_SetObjResult(interp, result);
@@ -597,10 +653,10 @@ static int ys_track_typed_key_cmd(ClientData data, Tcl_Interp *interp, int objc,
 	if (objects->collect_mode != SdcObjects::CollectMode::FullConstraint)
 		return TCL_OK;
 
-	std::string key_name         = Tcl_GetString(objv[1]);
-	Tcl_Obj* key_value           = objv[2];
+	std::string key_name		 = Tcl_GetString(objv[1]);
+	Tcl_Obj* key_value		   = objv[2];
 	std::string key_expect_type  = Tcl_GetString(objv[3]);
-	std::string proc_name        = Tcl_GetString(objv[4]);
+	std::string proc_name		= Tcl_GetString(objv[4]);
 
 	auto track_typed = [key_expect_type, objects, proc_name, key_name](const char* str) -> void {
 		auto split = split_at(str);
@@ -613,7 +669,7 @@ static int ys_track_typed_key_cmd(ClientData data, Tcl_Interp *interp, int objc,
 			bool found = false;
 			for (auto [name, pin] : objects->design_pins) {
 				log_error("TODO temporarily disabled due to working on a different flow\n");
-				// if (name + "/" + pin->name.str() == str) {
+				// if (name + "/" + pin.name.str() == str) {
 				// 	found = true;
 				// 	objects->constrained_pins.insert(std::make_pair(name, pin));
 				// 	break; // resolved, expected unique
