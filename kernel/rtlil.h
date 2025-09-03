@@ -1328,6 +1328,8 @@ public:
 	bool is_chunk() const;
 	inline bool is_bit() const { return width_ == 1; }
 
+	bool known_driver() const;
+
 	bool is_fully_const() const;
 	bool is_fully_zero() const;
 	bool is_fully_ones() const;
@@ -2057,6 +2059,8 @@ public:
 	RTLIL::Module *module;
 	int width, start_offset, port_id;
 	bool port_input, port_output, upto, is_signed;
+
+	bool known_driver() const { return driverCell_ != nullptr; }
 
 	RTLIL::Cell *driverCell() const    { log_assert(driverCell_); return driverCell_; };
 	RTLIL::IdString driverPort() const { log_assert(driverCell_); return driverPort_; };
