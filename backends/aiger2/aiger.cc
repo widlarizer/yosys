@@ -1196,9 +1196,10 @@ struct XAigerWriter : AigerWriter {
 		if (w->port_output)
 		for (int i = 0; i < w->width; i++) {
 			if (map_file.is_open() && !driven_by_opaque_box.count(SigBit(w, i))) {
-				map_file << "po " << proper_pos_counter++ << " " << i
+				map_file << "po " << proper_pos_counter << " " << i
 							<< " " << w->name.c_str() << "\n";
 			}
+			proper_pos_counter++;
 			pos.push_back(std::make_pair(SigBit(w, i), HierCursor{}));
 		}
 
