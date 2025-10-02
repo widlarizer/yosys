@@ -176,8 +176,10 @@ struct SdcObjects {
 			result = Tcl_NewListObj(resolved.size(), nullptr);
 		for (auto [name, obj, matching_bits] : resolved) {
 			for (size_t i = 0; i < width(obj); i++)
-				if (matching_bits.is_set(i))
+				if (matching_bits.is_set(i)) {
 					Tcl_ListObjAppendElement(interp, result, Tcl_NewStringObj(name.c_str(), name.size()));
+					break;
+				}
 
 		}
 		size_t node_count = get_node_count(interp);
@@ -188,7 +190,7 @@ struct SdcObjects {
 	template <typename T>
 	void merge_as_constrained(std::vector<std::tuple<std::string, T, BitSelection>>&& resolved) {
 		for (auto [name, obj, matching_bits] : resolved) {
-			merge_or_init(std::make_pair(name, obj), objects->constrained_pins, matching_bits)
+			merge_or_init(std::make_pair(name, obj), constrained_pins, matching_bits);
 		}
 	}
 	void dump() {
@@ -570,6 +572,7 @@ static int sdc_get_pins_cmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_O
 
 	Tcl_Obj *result = nullptr;
 	if (objects->value_mode == SdcObjects::ValueMode::Normal) {
+		log_error("TODO normal\n");
 		auto width = [](SdcObjects::CellPin& pin) -> size_t {
 			return (size_t)pin.first->getPort(pin.second).size();
 		};
@@ -607,14 +610,16 @@ static int sdc_get_ports_cmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_
 	Tcl_Obj *result = nullptr;
 	for (auto [name, wire, matching_bits] : resolved) {
 		if (objects->value_mode == SdcObjects::ValueMode::Normal)
-			build_normal_result(interp, resolved.size(), wire->width, name, result, matching_bits);
+			log_error("TODO normal\n");
+			// objects->build_normal_result(interp, resolved.size(), wire->width, name, result, matching_bits);
 
 		if (objects->collect_mode != SdcObjects::CollectMode::FullConstraint)
-			merge_or_init(name, objects->constrained_ports, matching_bits);
+			merge_or_init(std::make_pair(name, wire), objects->constrained_ports, matching_bits);
 	}
 
 	if (objects->value_mode == SdcObjects::ValueMode::Graph) {
-		return objects->graph_node(interp, objc, objv, std::move(resolved), objects->resolved_port_pattern_sets);
+		return graph_node(TclCall{interp, objc, objv});
+		// return objects->graph_node(interp, objc, objv, std::move(resolved), objects->resolved_port_pattern_sets);
 	}
 	if (result)
 		Tcl_SetObjResult(interp, result);
@@ -735,7 +740,7 @@ public:
 struct SdcPass : public Pass {
 	// TODO help
 	SdcPass() : Pass("sdc", "sniff at some SDC") { }
-void execute(std::vector<std::string> args, RTLIL::Design *design) override {
+	void execute(std::vector<std::string> args, RTLIL::Design *design) override {
 		log_header(design, "Executing SDC pass.\n");
 		size_t argidx;
 		std::vector<std::string> opensta_stubs_paths;
