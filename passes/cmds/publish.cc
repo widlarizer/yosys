@@ -28,11 +28,14 @@ public:
 	{
 		log_header(design, "Executing PUBLISH pass. (make cell types public)\n");
 		extra_args(args, 1, design);
-		for (auto& [name, mod] : design->modules_) {
-			publish(name);
+		auto saved_modules = design->modules_;
+		design->modules_.clear();
+		for (auto& [name, mod] : saved_modules) {
 			publish(mod->name);
-			for (auto* cell : mod->cells())
+			design->modules_[mod->name] = mod;
+			for (auto* cell : mod->cells()) {
 				publish(cell->type);
+			}
 		}
 	}
 } PublishPass;
