@@ -41,7 +41,7 @@ struct SigSnippets
 	dict<SigBit, Snippet> bit2snippet;
 	pool<int> snippets;
 
-	void insert(SigSpec sig, Const src)
+	void insert(SigSpec sig)
 	{
 		if (sig.empty())
 			return;
@@ -106,7 +106,7 @@ struct SigSnippets
 	void insert(const RTLIL::CaseRule *cs)
 	{
 		for (auto &action : cs->actions)
-			insert(action.lhs, action.src);
+			insert(action.lhs);
 
 		for (auto sw : cs->switches)
 		for (auto cs2 : sw->cases)
@@ -118,6 +118,7 @@ struct SnippetSwCache
 {
 	dict<RTLIL::SwitchRule*, pool<RTLIL::SigBit>> full_case_bits_cache;
 	dict<RTLIL::SwitchRule*, pool<int>> cache;
+	dict<std::pair<int, const RTLIL::CaseRule*>, Const> snippet_case_sources;
 	const SigSnippets *snippets;
 	int current_snippet;
 
@@ -128,13 +129,15 @@ struct SnippetSwCache
 
 	void insert(const RTLIL::CaseRule *cs, vector<RTLIL::SwitchRule*> &sw_stack)
 	{
-		for (auto &action : cs->actions)
-		for (auto bit : action.lhs) {
-			int sn = snippets->bit2snippet.at(bit, {-1, Const("")}).idx;
-			if (sn < 0)
-				continue;
-			for (auto sw : sw_stack)
-				cache[sw].insert(sn);
+		for (auto &action : cs->actions) {
+			for (auto bit : action.lhs) {
+				int sn = snippets->bit2snippet.at(bit, {-1, Const("")}).idx;
+				if (sn < 0)
+					continue;
+				snippet_case_sources[std::make_pair(sn, cs)] = action.src;
+				for (auto sw : sw_stack)
+					cache[sw].insert(sn);
+			}
 		}
 
 		for (auto sw : cs->switches) {
@@ -168,7 +171,7 @@ void apply_attrs(RTLIL::Cell *cell, const RTLIL::SwitchRule *sw, const RTLIL::Ca
 	log_debug("result: %s\n", cell->get_string_attribute(ID::src));
 }
 
-RTLIL::SigSpec gen_cmp(RTLIL::Module *mod, const RTLIL::SigSpec &signal, const std::vector<RTLIL::SigSpec> &compare, RTLIL::SwitchRule *sw, RTLIL::CaseRule *cs, bool ifxmode)
+RTLIL::SigSpec gen_cmp(RTLIL::Module *mod, const RTLIL::SigSpec &signal, const std::vector<RTLIL::SigSpec> &compare, RTLIL::SwitchRule *sw, const RTLIL::CaseRule *cs, bool ifxmode)
 {
 	std::stringstream sstr;
 	sstr << "$procmux$" << (autoidx++);
@@ -236,7 +239,7 @@ RTLIL::SigSpec gen_cmp(RTLIL::Module *mod, const RTLIL::SigSpec &signal, const s
 	return RTLIL::SigSpec(ctrl_wire);
 }
 
-RTLIL::SigSpec gen_mux(RTLIL::Module *mod, const RTLIL::SigSpec &signal, const std::vector<RTLIL::SigSpec> &compare, RTLIL::SigSpec when_signal, RTLIL::SigSpec else_signal, RTLIL::Cell *&last_mux_cell, RTLIL::SwitchRule *sw, RTLIL::CaseRule *cs, bool ifxmode)
+RTLIL::SigSpec gen_mux(RTLIL::Module *mod, const RTLIL::SigSpec &signal, const std::vector<RTLIL::SigSpec> &compare, RTLIL::SigSpec when_signal, RTLIL::SigSpec else_signal, RTLIL::Cell *&last_mux_cell, RTLIL::SwitchRule *sw, const RTLIL::CaseRule *cs, bool ifxmode, dict<std::pair<int, const RTLIL::CaseRule*>, Const> sources, int current_snippet)
 {
 	log_assert(when_signal.size() == else_signal.size());
 
@@ -267,7 +270,7 @@ RTLIL::SigSpec gen_mux(RTLIL::Module *mod, const RTLIL::SigSpec &signal, const s
 	mux_cell->setPort(ID::S, ctrl_sig);
 	mux_cell->setPort(ID::Y, RTLIL::SigSpec(result_wire));
 	// TODO inefficient
-	// mux_cell->set_src_attribute(ctrl_sig->get_src_attribute());
+	mux_cell->attributes[ID::src] = sources[std::make_pair(current_snippet, cs)];
 
 	last_mux_cell = mux_cell;
 	return RTLIL::SigSpec(result_wire);
@@ -338,20 +341,28 @@ const pool<SigBit> &get_full_case_bits(SnippetSwCache &swcache, RTLIL::SwitchRul
 
 	return swcache.full_case_bits_cache.at(sw);
 }
+struct MuxTreeContext {
+	RTLIL::Module* mod;
+	SnippetSwCache& swcache;
+	dict<RTLIL::SwitchRule*, bool> &swpara;
+	RTLIL::CaseRule *cs;
+	const RTLIL::SigSpec &sig;
+	RTLIL::SigSpec defval;
+	const bool ifxmode;
+};
 
-RTLIL::SigSpec signal_to_mux_tree(RTLIL::Module *mod, SnippetSwCache &swcache, dict<RTLIL::SwitchRule*, bool> &swpara,
-		RTLIL::CaseRule *cs, const RTLIL::SigSpec &sig, const RTLIL::SigSpec &defval, bool ifxmode)
+RTLIL::SigSpec signal_to_mux_tree(MuxTreeContext ctx)
 {
-	RTLIL::SigSpec result = defval;
+	RTLIL::SigSpec result = ctx.defval;
 
-	for (auto &action : cs->actions) {
-		sig.replace(action.lhs, action.rhs, &result);
-		action.lhs.remove2(sig, &action.rhs);
+	for (auto &action : ctx.cs->actions) {
+		ctx.sig.replace(action.lhs, action.rhs, &result);
+		action.lhs.remove2(ctx.sig, &action.rhs);
 	}
 
-	for (auto sw : cs->switches)
+	for (auto sw : ctx.cs->switches)
 	{
-		if (!swcache.check(sw))
+		if (!ctx.swcache.check(sw))
 			continue;
 
 		// detect groups of parallel cases
@@ -359,7 +370,7 @@ RTLIL::SigSpec signal_to_mux_tree(RTLIL::Module *mod, SnippetSwCache &swcache, d
 		bool is_simple_parallel_case = true;
 
 		if (!sw->get_bool_attribute(ID::parallel_case)) {
-			if (!swpara.count(sw)) {
+			if (!ctx.swpara.count(sw)) {
 				pool<Const> case_values;
 				for (size_t i = 0; i < sw->cases.size(); i++) {
 					RTLIL::CaseRule *cs2 = sw->cases[i];
@@ -375,9 +386,9 @@ RTLIL::SigSpec signal_to_mux_tree(RTLIL::Module *mod, SnippetSwCache &swcache, d
 				if (0)
 			not_simple_parallel_case:
 					is_simple_parallel_case = false;
-				swpara[sw] = is_simple_parallel_case;
+				ctx.swpara[sw] = is_simple_parallel_case;
 			} else {
-				is_simple_parallel_case = swpara.at(sw);
+				is_simple_parallel_case = ctx.swpara.at(sw);
 			}
 		}
 
@@ -403,15 +414,15 @@ RTLIL::SigSpec signal_to_mux_tree(RTLIL::Module *mod, SnippetSwCache &swcache, d
 				for (auto pat : cs2->compare)
 					if (!pat.is_fully_const())
 						extra_group_for_next_case = true;
-					else if (!ifxmode)
+					else if (!ctx.ifxmode)
 						pool.take(pat);
 			}
 		}
 
 		// mask default bits that are irrelevant because the output is driven by a full case
-		const pool<SigBit> &full_case_bits = get_full_case_bits(swcache, sw);
-		for (int i = 0; i < GetSize(sig); i++)
-			if (full_case_bits.count(sig[i]))
+		const pool<SigBit> &full_case_bits = get_full_case_bits(ctx.swcache, sw);
+		for (int i = 0; i < GetSize(ctx.sig); i++)
+			if (full_case_bits.count(ctx.sig[i]))
 				result[i] = State::Sx;
 
 		// evaluate in reverse order to give the first entry the top priority
@@ -419,13 +430,15 @@ RTLIL::SigSpec signal_to_mux_tree(RTLIL::Module *mod, SnippetSwCache &swcache, d
 		RTLIL::Cell *last_mux_cell = NULL;
 		for (size_t i = 0; i < sw->cases.size(); i++) {
 			int case_idx = sw->cases.size() - i - 1;
-			RTLIL::CaseRule *cs2 = sw->cases[case_idx];
-			RTLIL::SigSpec value = signal_to_mux_tree(mod, swcache, swpara, cs2, sig, initial_val, ifxmode);
+			MuxTreeContext new_ctx = ctx;
+			new_ctx.cs = sw->cases[case_idx];
+			new_ctx.defval = initial_val;
+			RTLIL::SigSpec value = signal_to_mux_tree(new_ctx);
 			log_debug("meow sw->signal %s\n", log_signal(sw->signal));
 			if (last_mux_cell && pgroups[case_idx] == pgroups[case_idx+1])
-				append_pmux(mod, sw->signal, cs2->compare, value, last_mux_cell, sw, cs2, ifxmode);
+				append_pmux(ctx.mod, sw->signal, new_ctx.cs->compare, value, last_mux_cell, sw, new_ctx.cs, ctx.ifxmode);
 			else
-				result = gen_mux(mod, sw->signal, cs2->compare, value, result, last_mux_cell, sw, cs2, ifxmode);
+				result = gen_mux(ctx.mod, sw->signal, new_ctx.cs->compare, value, result, last_mux_cell, sw, new_ctx.cs, ctx.ifxmode, ctx.swcache.snippet_case_sources, ctx.swcache.current_snippet);
 		}
 	}
 
@@ -453,7 +466,15 @@ void proc_mux(RTLIL::Module *mod, RTLIL::Process *proc, bool ifxmode)
 
 		log_debug("%6d/%d: %s\n", ++cnt, GetSize(sigsnip.snippets), log_signal(sig));
 
-		RTLIL::SigSpec value = signal_to_mux_tree(mod, swcache, swpara, &proc->root_case, sig, RTLIL::SigSpec(RTLIL::State::Sx, sig.size()), ifxmode);
+		RTLIL::SigSpec value = signal_to_mux_tree({
+			mod,
+			swcache,
+			swpara,
+			&proc->root_case,
+			sig,
+			RTLIL::SigSpec(RTLIL::State::Sx, sig.size()),
+			ifxmode
+		});
 		mod->connect(RTLIL::SigSig(sig, value));
 	}
 }
