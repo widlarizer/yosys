@@ -27,13 +27,21 @@
 USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
+struct Snippet {
+	int idx;
+	Const src;
+};
+struct SigLoc {
+	int idx;
+	Const src;
+};
 struct SigSnippets
 {
 	idict<SigSpec> sigidx;
-	dict<SigBit, int> bit2snippet;
+	dict<SigBit, Snippet> bit2snippet;
 	pool<int> snippets;
 
-	void insert(SigSpec sig)
+	void insert(SigSpec sig, Const src)
 	{
 		if (sig.empty())
 			return;
@@ -46,9 +54,9 @@ struct SigSnippets
 
 		for (int i = 0; i < GetSize(sig); i++)
 		{
-			int other_key = bit2snippet.at(sig[i], -1);
+			auto other_key = bit2snippet.at(sig[i], {-1, Const("")});
 
-			if (other_key < 0) {
+			if (other_key.idx < 0) {
 				new_sig.append(sig[i]);
 				continue;
 			}
@@ -57,11 +65,11 @@ struct SigSnippets
 				int new_key = sigidx(new_sig);
 				snippets.insert(new_key);
 				for (auto bit : new_sig)
-					bit2snippet[bit] = new_key;
+					bit2snippet[bit].idx = new_key;
 				new_sig = SigSpec();
 			}
 
-			SigSpec other_sig = sigidx[other_key];
+			SigSpec other_sig = sigidx[other_key.idx];
 			int k = 0, n = 1;
 
 			while (other_sig[k] != sig[i]) {
@@ -78,7 +86,7 @@ struct SigSnippets
 
 			for (auto bit : other_sig)
 				bit2snippet.erase(bit);
-			snippets.erase(other_key);
+			snippets.erase(other_key.idx);
 
 			insert(sig1);
 			insert(sig2);
@@ -91,14 +99,14 @@ struct SigSnippets
 			int new_key = sigidx(new_sig);
 			snippets.insert(new_key);
 			for (auto bit : new_sig)
-				bit2snippet[bit] = new_key;
+				bit2snippet[bit].idx = new_key;
 		}
 	}
 
 	void insert(const RTLIL::CaseRule *cs)
 	{
 		for (auto &action : cs->actions)
-			insert(action.first);
+			insert(action.lhs, action.src);
 
 		for (auto sw : cs->switches)
 		for (auto cs2 : sw->cases)
@@ -121,8 +129,8 @@ struct SnippetSwCache
 	void insert(const RTLIL::CaseRule *cs, vector<RTLIL::SwitchRule*> &sw_stack)
 	{
 		for (auto &action : cs->actions)
-		for (auto bit : action.first) {
-			int sn = snippets->bit2snippet.at(bit, -1);
+		for (auto bit : action.lhs) {
+			int sn = snippets->bit2snippet.at(bit, {-1, Const("")}).idx;
 			if (sn < 0)
 				continue;
 			for (auto sw : sw_stack)
@@ -146,8 +154,18 @@ struct SnippetSwCache
 
 void apply_attrs(RTLIL::Cell *cell, const RTLIL::SwitchRule *sw, const RTLIL::CaseRule *cs)
 {
+	// TODO inefficient
+	std::string old_src = cell->get_src_attribute();
 	cell->attributes = sw->attributes;
+	log_debug("copying attributes to %s\n", cell->name);
+	for (auto str : sw->get_strpool_attribute(ID::src))
+		log_debug("meow adding switchrule src %s\n", str);
+	for (auto str : cs->get_strpool_attribute(ID::src))
+		log_debug("meow adding caserule src %s\n", str);
 	cell->add_strpool_attribute(ID::src, cs->get_strpool_attribute(ID::src));
+	if (old_src.size())
+		cell->set_src_attribute(old_src);
+	log_debug("result: %s\n", cell->get_string_attribute(ID::src));
 }
 
 RTLIL::SigSpec gen_cmp(RTLIL::Module *mod, const RTLIL::SigSpec &signal, const std::vector<RTLIL::SigSpec> &compare, RTLIL::SwitchRule *sw, RTLIL::CaseRule *cs, bool ifxmode)
@@ -241,12 +259,15 @@ RTLIL::SigSpec gen_mux(RTLIL::Module *mod, const RTLIL::SigSpec &signal, const s
 	// create the multiplexer itself
 	RTLIL::Cell *mux_cell = mod->addCell(sstr.str(), ID($mux));
 	apply_attrs(mux_cell, sw, cs);
+	// mux_cell->set_src_attribute(action);
 
 	mux_cell->parameters[ID::WIDTH] = RTLIL::Const(when_signal.size());
 	mux_cell->setPort(ID::A, else_signal);
 	mux_cell->setPort(ID::B, when_signal);
 	mux_cell->setPort(ID::S, ctrl_sig);
 	mux_cell->setPort(ID::Y, RTLIL::SigSpec(result_wire));
+	// TODO inefficient
+	// mux_cell->set_src_attribute(ctrl_sig->get_src_attribute());
 
 	last_mux_cell = mux_cell;
 	return RTLIL::SigSpec(result_wire);
@@ -290,7 +311,7 @@ const pool<SigBit> &get_full_case_bits(SnippetSwCache &swcache, RTLIL::SwitchRul
 				pool<SigBit> case_bits;
 
 				for (auto it : cs->actions) {
-					for (auto bit : it.first)
+					for (auto bit : it.lhs)
 						case_bits.insert(bit);
 				}
 
@@ -324,8 +345,8 @@ RTLIL::SigSpec signal_to_mux_tree(RTLIL::Module *mod, SnippetSwCache &swcache, d
 	RTLIL::SigSpec result = defval;
 
 	for (auto &action : cs->actions) {
-		sig.replace(action.first, action.second, &result);
-		action.first.remove2(sig, &action.second);
+		sig.replace(action.lhs, action.rhs, &result);
+		action.lhs.remove2(sig, &action.rhs);
 	}
 
 	for (auto sw : cs->switches)
@@ -400,6 +421,7 @@ RTLIL::SigSpec signal_to_mux_tree(RTLIL::Module *mod, SnippetSwCache &swcache, d
 			int case_idx = sw->cases.size() - i - 1;
 			RTLIL::CaseRule *cs2 = sw->cases[case_idx];
 			RTLIL::SigSpec value = signal_to_mux_tree(mod, swcache, swpara, cs2, sig, initial_val, ifxmode);
+			log_debug("meow sw->signal %s\n", log_signal(sw->signal));
 			if (last_mux_cell && pgroups[case_idx] == pgroups[case_idx+1])
 				append_pmux(mod, sw->signal, cs2->compare, value, last_mux_cell, sw, cs2, ifxmode);
 			else
@@ -429,7 +451,7 @@ void proc_mux(RTLIL::Module *mod, RTLIL::Process *proc, bool ifxmode)
 		swcache.current_snippet = idx;
 		RTLIL::SigSpec sig = sigsnip.sigidx[idx];
 
-		log("%6d/%d: %s\n", ++cnt, GetSize(sigsnip.snippets), log_signal(sig));
+		log_debug("%6d/%d: %s\n", ++cnt, GetSize(sigsnip.snippets), log_signal(sig));
 
 		RTLIL::SigSpec value = signal_to_mux_tree(mod, swcache, swpara, &proc->root_case, sig, RTLIL::SigSpec(RTLIL::State::Sx, sig.size()), ifxmode);
 		mod->connect(RTLIL::SigSig(sig, value));

@@ -189,7 +189,8 @@ void RTLIL_BACKEND::dump_cell(std::ostream &f, std::string indent, const RTLIL::
 
 void RTLIL_BACKEND::dump_proc_case_body(std::ostream &f, std::string indent, const RTLIL::CaseRule *cs)
 {
-	for (const auto& [lhs, rhs] : cs->actions) {
+	// TODO use loc
+	for (const auto& [lhs, rhs, _] : cs->actions) {
 		f << stringf("%s" "assign ", indent);
 		dump_sigspec(f, lhs);
 		f << stringf(" ");
@@ -197,6 +198,7 @@ void RTLIL_BACKEND::dump_proc_case_body(std::ostream &f, std::string indent, con
 		f << stringf("\n");
 	}
 
+	f << "# dump_proc_switch\n";
 	for (const auto& sw : cs->switches)
 		dump_proc_switch(f, indent, sw);
 }
@@ -243,7 +245,8 @@ void RTLIL_BACKEND::dump_proc_sync(std::ostream &f, std::string indent, const RT
 	case RTLIL::STi: f << stringf("init\n"); break;
 	}
 
-	for (const auto& [lhs, rhs] : sy->actions) {
+	// TODO
+	for (const auto& [lhs, rhs, _] : sy->actions) {
 		f << stringf("%s  update ", indent);
 		dump_sigspec(f, lhs);
 		f << stringf(" ");
@@ -269,7 +272,9 @@ void RTLIL_BACKEND::dump_proc(std::ostream &f, std::string indent, const RTLIL::
 {
 	dump_attributes(f, indent, proc);
 	f << stringf("%s" "process %s\n", indent, proc->name);
+	f << "# root_cause\n";
 	dump_proc_case_body(f, indent + "  ", &proc->root_case);
+	f << "# syncs\n";
 	for (auto* sync : proc->syncs)
 		dump_proc_sync(f, indent + "  ", sync);
 	f << stringf("%s" "end\n", indent);
