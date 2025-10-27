@@ -119,21 +119,14 @@ struct ProcPass : public Pass {
 			Pass::call(design, "proc_arst -global_arst " + global_arst);
 		if (!norom)
 			Pass::call(design, "proc_rom");
-		Pass::call(design, "dump");
 		if (!nomux)
 			Pass::call(design, ifxmode ? "proc_mux -ifx" : "proc_mux");
-		// Pass::call(design, "dump");
 		Pass::call(design, "proc_dlatch");
-		// Pass::call(design, "dump");
 		Pass::call(design, "proc_dff");
-		// Pass::call(design, "dump");
 		Pass::call(design, "proc_memwr");
-		// Pass::call(design, "dump");
 		Pass::call(design, "proc_clean");
-		// Pass::call(design, "dump");
 		if (!noopt)
 			Pass::call(design, "opt_expr -keepdc");
-		// Pass::call(design, "dump");
 
 		log_pop();
 	}

@@ -189,7 +189,6 @@ void RTLIL_BACKEND::dump_cell(std::ostream &f, std::string indent, const RTLIL::
 
 void RTLIL_BACKEND::dump_proc_case_body(std::ostream &f, std::string indent, const RTLIL::CaseRule *cs)
 {
-	// TODO use loc
 	for (const auto& [lhs, rhs, _] : cs->actions) {
 		f << stringf("%s" "assign ", indent);
 		dump_sigspec(f, lhs);
@@ -198,7 +197,6 @@ void RTLIL_BACKEND::dump_proc_case_body(std::ostream &f, std::string indent, con
 		f << stringf("\n");
 	}
 
-	f << "# dump_proc_switch\n";
 	for (const auto& sw : cs->switches)
 		dump_proc_switch(f, indent, sw);
 }
@@ -245,7 +243,6 @@ void RTLIL_BACKEND::dump_proc_sync(std::ostream &f, std::string indent, const RT
 	case RTLIL::STi: f << stringf("init\n"); break;
 	}
 
-	// TODO
 	for (const auto& [lhs, rhs, _] : sy->actions) {
 		f << stringf("%s  update ", indent);
 		dump_sigspec(f, lhs);
@@ -272,9 +269,7 @@ void RTLIL_BACKEND::dump_proc(std::ostream &f, std::string indent, const RTLIL::
 {
 	dump_attributes(f, indent, proc);
 	f << stringf("%s" "process %s\n", indent, proc->name);
-	f << "# root_cause\n";
 	dump_proc_case_body(f, indent + "  ", &proc->root_case);
-	f << "# syncs\n";
 	for (auto* sync : proc->syncs)
 		dump_proc_sync(f, indent + "  ", sync);
 	f << stringf("%s" "end\n", indent);
@@ -380,8 +375,11 @@ void RTLIL_BACKEND::dump_design(std::ostream &f, RTLIL::Design *design, bool onl
 		for (auto* module : design->modules()) {
 			if (design->selected_whole_module(module->name))
 				flag_m = true;
-			if (design->selected(module))
+			if (design->selected(module)) {
 				count_selected_mods++;
+				if (module->has_processes())
+					log_warning("Module %s contains processes. Case action sources attributes will be lost.\n", log_id(module));
+			}
 		}
 		if (count_selected_mods > 1)
 			flag_m = true;

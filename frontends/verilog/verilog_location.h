@@ -42,6 +42,7 @@ struct Position {
 	}
 };
 
+// TODO are we bound to external compatibility? Is this given by a third party tool?
 struct Location {
 	Position begin;
 	Position end;

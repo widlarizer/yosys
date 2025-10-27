@@ -409,8 +409,7 @@ struct AST_INTERNAL::ProcessGenerator
 			RTLIL::SyncRule *syncrule = new RTLIL::SyncRule;
 			syncrule->type = found_global_syncs ? RTLIL::STg : RTLIL::STa;
 			syncrule->signal = RTLIL::SigSpec();
-			// TODO
-			addChunkActions(syncrule->actions, subst_lvalue_from, subst_lvalue_to, nullptr, true);
+			addChunkActions(syncrule->actions, subst_lvalue_from, subst_lvalue_to, always.get(), true);
 			proc->syncs.push_back(syncrule);
 		}
 
@@ -418,8 +417,7 @@ struct AST_INTERNAL::ProcessGenerator
 		if ((flag_nolatches || always->get_bool_attribute(ID::nolatches) || current_module->get_bool_attribute(ID::nolatches)) && !found_clocked_sync) {
 			subst_rvalue_map = subst_lvalue_from.to_sigbit_dict(RTLIL::SigSpec(RTLIL::State::Sx, GetSize(subst_lvalue_from)));
 		} else {
-			// TODO
-			addChunkActions(current_case->actions, subst_lvalue_to, subst_lvalue_from, nullptr);
+			addChunkActions(current_case->actions, subst_lvalue_to, subst_lvalue_from, always.get());
 		}
 
 		// process the AST
@@ -691,15 +689,13 @@ struct AST_INTERNAL::ProcessGenerator
 					last_generated_case->compare.clear();
 			#else
 					default_case = new RTLIL::CaseRule;
-					// TODO
-					addChunkActions(default_case->actions, this_case_eq_ltemp, SigSpec(State::Sx, GetSize(this_case_eq_rvalue)), nullptr);
+					addChunkActions(default_case->actions, this_case_eq_ltemp, SigSpec(State::Sx, GetSize(this_case_eq_rvalue)), ast);
 					sw->cases.push_back(default_case);
 			#endif
 				} else {
 					if (default_case == nullptr) {
 						default_case = new RTLIL::CaseRule;
-						// TODO
-						addChunkActions(default_case->actions, this_case_eq_ltemp, this_case_eq_rvalue, nullptr);
+						addChunkActions(default_case->actions, this_case_eq_ltemp, this_case_eq_rvalue, ast);
 					}
 					sw->cases.push_back(default_case);
 				}
@@ -709,8 +705,7 @@ struct AST_INTERNAL::ProcessGenerator
 
 				this_case_eq_lvalue.replace(subst_lvalue_map.stdmap());
 				removeSignalFromCaseTree(this_case_eq_lvalue, current_case);
-				// TODO
-				addChunkActions(current_case->actions, this_case_eq_lvalue, this_case_eq_ltemp, nullptr);
+				addChunkActions(current_case->actions, this_case_eq_lvalue, this_case_eq_ltemp, ast);
 			}
 			break;
 
