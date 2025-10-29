@@ -31,10 +31,6 @@ struct Snippet {
 	int idx;
 	Const src;
 };
-struct SigLoc {
-	int idx;
-	Const src;
-};
 using SnippetSourceMap = dict<std::pair<int, const RTLIL::CaseRule*>, const Const*>;
 struct SigSnippets
 {
@@ -181,6 +177,7 @@ struct MuxGenCtx {
 	bool ifxmode;
 	const SnippetSourceMap& sources;
 	int current_snippet;
+	pool<std::string>& case_sources;
 
 	RTLIL::SigSpec gen_cmp() {
 		std::stringstream sstr;
@@ -285,10 +282,11 @@ struct MuxGenCtx {
 
 		auto src_it = sources.find(std::make_pair(current_snippet, cs));
 		if (src_it != sources.end()) {
-			log_debug("hit %d: %s\n", current_snippet, src_it->second->decode_string());
-			mux_cell->attributes[ID::src] = *src_it->second;
+			log_debug("hit A %d: %s\n", current_snippet, src_it->second->decode_string());
+			// mux_cell->attributes[ID::src] = *src_it->second;
+			case_sources.insert(src_it->second->decode_string());
 		} else {
-			log_debug("miss %d\n", current_snippet);
+			log_debug("miss A %d\n", current_snippet);
 		}
 
 		last_mux_cell = mux_cell;
@@ -322,10 +320,11 @@ struct MuxGenCtx {
 
 		auto src_it = sources.find(std::make_pair(current_snippet, cs));
 		if (src_it != sources.end()) {
-			log_debug("hit %d: %s\n", current_snippet, src_it->second->decode_string());
-			last_mux_cell->add_strpool_attribute(ID::src, pool<string>({src_it->second->decode_string()}));
+			log_debug("hit B %d: %s\n", current_snippet, src_it->second->decode_string());
+			// last_mux_cell->add_strpool_attribute(ID::src, pool<string>({src_it->second->decode_string()}));
+			case_sources.insert(src_it->second->decode_string());
 		} else {
-			log_debug("miss %d\n", current_snippet);
+			log_debug("miss B %d\n", current_snippet);
 		}
 	}
 };
@@ -401,6 +400,7 @@ RTLIL::SigSpec signal_to_mux_tree(MuxTreeContext ctx)
 
 		// detect groups of parallel cases
 		std::vector<int> pgroups(sw->cases.size());
+		pool<std::string> case_sources;
 		bool is_simple_parallel_case = true;
 
 		if (!sw->get_bool_attribute(ID::parallel_case)) {
@@ -452,7 +452,19 @@ RTLIL::SigSpec signal_to_mux_tree(MuxTreeContext ctx)
 						pool.take(pat);
 			}
 		}
-
+		for (auto cs2 : sw -> cases) {
+			if (cs2->compare.empty()) {
+				int sn = ctx.swcache.current_snippet;
+				auto src_it = ctx.sources.find(std::make_pair(sn, cs2));
+				if (src_it != ctx.sources.end()) {
+					log_debug("hit C %d: %s\n", sn, src_it->second->decode_string());
+					log_assert(case_sources.empty());
+					case_sources.insert(src_it->second->decode_string());
+				} else {
+					log_debug("miss C %d\n", sn);
+				}
+			}
+		}
 		// mask default bits that are irrelevant because the output is driven by a full case
 		const pool<SigBit> &full_case_bits = get_full_case_bits(ctx.swcache, sw);
 		for (int i = 0; i < GetSize(ctx.sig); i++)
@@ -468,7 +480,8 @@ RTLIL::SigSpec signal_to_mux_tree(MuxTreeContext ctx)
 			nullptr,
 			ctx.ifxmode,
 			ctx.sources,
-			ctx.swcache.current_snippet
+			ctx.swcache.current_snippet,
+			case_sources
 		};
 		// evaluate in reverse order to give the first entry the top priority
 		for (size_t i = 0; i < sw->cases.size(); i++) {
@@ -490,6 +503,12 @@ RTLIL::SigSpec signal_to_mux_tree(MuxTreeContext ctx)
 				// mux_cell->add_strpool_attribute(ID::src, {})
 			}
 		}
+		if (mux_gen_ctx.last_mux_cell) {
+			for (auto str : case_sources)
+				log_debug("src str %s\n", str);
+			mux_gen_ctx.last_mux_cell->set_strpool_attribute(ID::src, case_sources);
+		} else
+			log_debug("sad\n");
 	}
 
 	return result;
