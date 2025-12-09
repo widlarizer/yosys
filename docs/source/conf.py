@@ -9,7 +9,7 @@ copyright ='2025 YosysHQ GmbH'
 yosys_ver = "0.60"
 
 # select HTML theme
-html_theme = 'furo-ys'
+html_theme = 'furo'
 html_css_files = ['custom.css']
 html_theme_options: dict[str] = {
     "source_repository": "https://github.com/YosysHQ/yosys/",
