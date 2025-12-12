@@ -188,13 +188,11 @@ namespace AST
 
 		// node content - most of it is unused in most node types
 		std::string str;
-		std::vector<RTLIL::State> bits;
+		std::vector<RTLIL::State> bits; // AST_CONCAT, AST_REPLICATE, AST_CONSTANT, AST_COND*, ...
 		bool is_input, is_output, is_reg, is_logic, is_signed, is_string, is_wand, is_wor, range_valid, range_swapped, was_checked, is_unsized, is_custom_type;
 		int port_id, range_left, range_right;
-		uint32_t integer;
-		double realvalue;
-		// set for IDs typed to an enumeration, not used
-		bool is_enum;
+		uint32_t integer; // AST_IDENTIFIER, AST_CONSTANT, ...
+		double realvalue; // AST_REALVALUE
 
 		// Declared range for array dimension.
 		struct dimension_t {

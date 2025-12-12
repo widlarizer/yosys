@@ -215,7 +215,6 @@ AstNode::AstNode(AstSrcLocType loc, AstNodeType type, std::unique_ptr<AstNode> c
 	is_logic = false;
 	is_signed = false;
 	is_string = false;
-	is_enum = false;
 	is_wand = false;
 	is_wor = false;
 	is_unsized = false;
@@ -281,7 +280,6 @@ void AstNode::cloneInto(AstNode &other) const
 	other.range_right = range_right;
 	other.integer = integer;
 	other.realvalue = realvalue;
-	other.is_enum = is_enum;
 	other.dimensions = dimensions;
 	other.unpacked_dimensions = unpacked_dimensions;
 	other.id2ast = id2ast;
@@ -379,9 +377,6 @@ void AstNode::dumpAst(FILE *f, std::string indent) const
 				std::swap(left, right);
 			fprintf(f, "[%d:%d]", left, right);
 		}
-	}
-	if (is_enum) {
-		fprintf(f, " type=enum");
 	}
 	if (in_lvalue)
 		fprintf(f, " in_lvalue");

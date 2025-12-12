@@ -1933,7 +1933,6 @@ enum_var: TOK_ID {
 		auto node = extra->astbuf1->clone();
 		node->str = *$1;
 		SET_AST_NODE_LOC(node.get(), @1, @1);
-		node->is_enum = true;
 		extra->ast_stack.back()->children.push_back(std::move(node));
 	}
 	;
