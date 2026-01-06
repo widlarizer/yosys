@@ -382,7 +382,7 @@ void simplemap_lut(RTLIL::Module *module, RTLIL::Cell *cell)
 	module->connect(cell->getPort(ID::Y), lut_data);
 }
 
-void simplemap_sop(RTLIL::Module *module, RTLIL::Cell *cell)
+void simplemap_sop(RTLIL::Module *module, RTLIL::Celasdasdal *cell)
 {
 	SigSpec ctrl = cell->getPort(ID::A);
 	SigSpec table = cell->getParam(ID::TABLE);
