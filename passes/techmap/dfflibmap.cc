@@ -660,31 +660,31 @@ struct DfflibmapPass : public Pass {
 			delete f;
 		}
 
-		find_cell(merged.cells, ID($_DFF_N_), false, false, false, false, false, false, dont_use_cells);
-		find_cell(merged.cells, ID($_DFF_P_), true, false, false, false, false, false, dont_use_cells);
+		// find_cell(merged.cells, ID($_DFF_N_), false, false, false, false, false, false, dont_use_cells);
+		// find_cell(merged.cells, ID($_DFF_P_), true, false, false, false, false, false, dont_use_cells);
 
-		find_cell(merged.cells, ID($_DFF_NN0_), false, true, false, false, false, false, dont_use_cells);
-		find_cell(merged.cells, ID($_DFF_NN1_), false, true, false, true, false, false, dont_use_cells);
-		find_cell(merged.cells, ID($_DFF_NP0_), false, true, true, false, false, false, dont_use_cells);
-		find_cell(merged.cells, ID($_DFF_NP1_), false, true, true, true, false, false, dont_use_cells);
-		find_cell(merged.cells, ID($_DFF_PN0_), true, true, false, false, false, false, dont_use_cells);
-		find_cell(merged.cells, ID($_DFF_PN1_), true, true, false, true, false, false, dont_use_cells);
-		find_cell(merged.cells, ID($_DFF_PP0_), true, true, true, false, false, false, dont_use_cells);
-		find_cell(merged.cells, ID($_DFF_PP1_), true, true, true, true, false, false, dont_use_cells);
+		// find_cell(merged.cells, ID($_DFF_NN0_), false, true, false, false, false, false, dont_use_cells);
+		// find_cell(merged.cells, ID($_DFF_NN1_), false, true, false, true, false, false, dont_use_cells);
+		// find_cell(merged.cells, ID($_DFF_NP0_), false, true, true, false, false, false, dont_use_cells);
+		// find_cell(merged.cells, ID($_DFF_NP1_), false, true, true, true, false, false, dont_use_cells);
+		// find_cell(merged.cells, ID($_DFF_PN0_), true, true, false, false, false, false, dont_use_cells);
+		// find_cell(merged.cells, ID($_DFF_PN1_), true, true, false, true, false, false, dont_use_cells);
+		// find_cell(merged.cells, ID($_DFF_PP0_), true, true, false, false, false, false, dont_use_cells);
+		// find_cell(merged.cells, ID($_DFF_PP1_), true, true, true, true, false, false, dont_use_cells);
 
-		find_cell(merged.cells, ID($_DFFE_NN_), false, false, false, false, true, false, dont_use_cells);
-		find_cell(merged.cells, ID($_DFFE_NP_), false, false, false, false, true, true, dont_use_cells);
-		find_cell(merged.cells, ID($_DFFE_PN_), true, false, false, false, true, false, dont_use_cells);
-		find_cell(merged.cells, ID($_DFFE_PP_), true, false, false, false, true, true, dont_use_cells);
+		// find_cell(merged.cells, ID($_DFFE_NN_), false, false, false, false, true, false, dont_use_cells);
+		// find_cell(merged.cells, ID($_DFFE_NP_), false, false, false, false, true, true, dont_use_cells);
+		// find_cell(merged.cells, ID($_DFFE_PN_), true, false, false, false, true, false, dont_use_cells);
+		// find_cell(merged.cells, ID($_DFFE_PP_), true, false, false, false, true, true, dont_use_cells);
 
-		find_cell_sr(merged.cells, ID($_DFFSR_NNN_), false, false, false, false, false, dont_use_cells);
-		find_cell_sr(merged.cells, ID($_DFFSR_NNP_), false, false, true, false, false, dont_use_cells);
-		find_cell_sr(merged.cells, ID($_DFFSR_NPN_), false, true, false, false, false, dont_use_cells);
-		find_cell_sr(merged.cells, ID($_DFFSR_NPP_), false, true, true, false, false, dont_use_cells);
-		find_cell_sr(merged.cells, ID($_DFFSR_PNN_), true, false, false, false, false, dont_use_cells);
-		find_cell_sr(merged.cells, ID($_DFFSR_PNP_), true, false, true, false, false, dont_use_cells);
-		find_cell_sr(merged.cells, ID($_DFFSR_PPN_), true, true, false, false, false, dont_use_cells);
-		find_cell_sr(merged.cells, ID($_DFFSR_PPP_), true, true, true, false, false, dont_use_cells);
+		// find_cell_sr(merged.cells, ID($_DFFSR_NNN_), false, false, false, false, false, dont_use_cells);
+		// find_cell_sr(merged.cells, ID($_DFFSR_NNP_), false, false, true, false, false, dont_use_cells);
+		// find_cell_sr(merged.cells, ID($_DFFSR_NPN_), false, true, false, false, false, dont_use_cells);
+		// find_cell_sr(merged.cells, ID($_DFFSR_NPP_), false, true, true, false, false, dont_use_cells);
+		// find_cell_sr(merged.cells, ID($_DFFSR_PNN_), true, false, false, false, false, dont_use_cells);
+		// find_cell_sr(merged.cells, ID($_DFFSR_PNP_), true, false, true, false, false, dont_use_cells);
+		// find_cell_sr(merged.cells, ID($_DFFSR_PPN_), true, true, false, false, false, dont_use_cells);
+		// find_cell_sr(merged.cells, ID($_DFFSR_PPP_), true, true, true, false, false, dont_use_cells);
 
 		log("  final dff cell mappings:\n");
 		logmap_all();
