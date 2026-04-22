@@ -1,3 +1,15 @@
+# tests/Makefile - Internal test execution (invoked by root Makefile)
+#
+# This Makefile is intended to be called from the root Makefile after
+# yosys has been built. Use 'make test-<dir>' from the project root.
+#
+# Example: make test-aiger    (from project root)
+
+# Warn if invoked directly without going through root Makefile
+ifeq ($(MAKELEVEL),0)
+$(warning Running tests directly. Use 'make test-<dir>' from project root for proper dependency handling.)
+endif
+
 ifneq ($(wildcard ../Makefile.conf),)
 include ../Makefile.conf
 endif
@@ -94,8 +106,20 @@ prep: $(MK_TEST_DIRS:%=%/Makefile)
 	+@cd $* && python3 generate_mk.py
 
 makefile-./%: %/Makefile
-	@$(MAKE) -C $*
+	@$(MAKE) -C $* || { echo "FAILED in $*"; exit 1; }
 	@echo "...passed tests in $*"
+
+# Pattern rules for running tests in individual directories
+# Allows: make aiger, make arch/ice40, etc.
+# Note: Assumes yosys is already built (root Makefile handles dependencies)
+define TEST_DIR_TARGET
+.PHONY: $(patsubst ./%,%,$(1))
+$(patsubst ./%,%,$(1)): $(1)/Makefile
+	@$$(MAKE) -C $(1) || { echo "FAILED in $(1)"; exit 1; }
+	@echo "...passed tests in $(1)"
+endef
+
+$(foreach dir,$(MK_TEST_DIRS),$(eval $(call TEST_DIR_TARGET,$(dir))))
 
 .PHONY: functional
 functional:

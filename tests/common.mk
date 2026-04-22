@@ -13,8 +13,9 @@ define run_test
 		echo "PASS $1"; \
 		echo PASS > $1.result; \
 	else \
-		echo "FAIL $1"; \
+		echo "FAIL $1 (exit code $$rc)"; \
 		echo FAIL > $1.result; \
+		exit 1; \
 	fi
 endef
 

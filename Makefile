@@ -918,6 +918,9 @@ else
 ABCOPT=""
 endif
 
+# Include test infrastructure (defines test-* targets)
+include $(YOSYS_SRC)/tests/Makefile.inc
+
 test: vanilla-test unit-test
 
 .PHONY: vanilla-test
