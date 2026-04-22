@@ -19,7 +19,7 @@ endef
 
 # Run a single test, record result, show running status
 # Arguments: $1 = test name, $2 = command to run
-# Does NOT exit early on failure - runs all tests
+# Set FAIL_FAST=1 to exit immediately on first failure
 define run_test
 	@rc=0; \
 	( set -e; $(2) ) >$1.log 2>&1 || rc=$$?; \
@@ -29,6 +29,7 @@ define run_test
 	else \
 		echo "FAIL $1 (exit code $$rc)"; \
 		echo FAIL > $1.result; \
+		$(if $(FAIL_FAST),exit 1;) \
 	fi
 	$(show_status)
 endef
