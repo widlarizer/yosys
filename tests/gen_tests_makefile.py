@@ -15,7 +15,7 @@ def _cwd_base():
 def generate_target(name, command, deps = None):
     #target = f"{_cwd_base()}-{name}"
     target = f"{name}"
-    print(f"all: {target}")
+    print(f"run-tests: {target}")
     print(f".PHONY: {target}")
     print(f"{target}_cmd={command}")
     if deps:
@@ -102,7 +102,12 @@ def print_header(extra=None):
             print(line)
     print("")
     print(".PHONY: all")
-    print("all:")
+    # all target will be extended by generate_target calls
+    # run-tests runs all tests, then check-results verifies none failed
+    print("all: run-tests check-results")
+    print("")
+    print(".PHONY: run-tests")
+    print("run-tests:")
 
 @contextmanager
 def redirect_stdout(new_target):

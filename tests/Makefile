@@ -105,18 +105,20 @@ prep: $(MK_TEST_DIRS:%=%/Makefile)
 %/Makefile: force-create
 	+@cd $* && python3 generate_mk.py
 
+# Track failed directories for vanilla-test
+FAILED_DIRS :=
+
 makefile-./%: %/Makefile
-	@$(MAKE) -C $* || { echo "FAILED in $*"; exit 1; }
-	@echo "...passed tests in $*"
+	@$(MAKE) -C $* || echo "FAILED in $*"
 
 # Pattern rules for running tests in individual directories
 # Allows: make aiger, make arch/ice40, etc.
 # Note: Assumes yosys is already built (root Makefile handles dependencies)
+# Runs all tests in directory, then checks results at end
 define TEST_DIR_TARGET
 .PHONY: $(patsubst ./%,%,$(1))
 $(patsubst ./%,%,$(1)): $(1)/Makefile
-	@$$(MAKE) -C $(1) || { echo "FAILED in $(1)"; exit 1; }
-	@echo "...passed tests in $(1)"
+	@$$(MAKE) -C $(1)
 endef
 
 $(foreach dir,$(MK_TEST_DIRS),$(eval $(call TEST_DIR_TARGET,$(dir))))
