@@ -89,20 +89,64 @@ using Expression = ChildConstraint<
 
 // Post-simplify unused: AST_MEMINIT
 
-// Statement: all nodes that can appear as statements in behavioral blocks.
-using Statement = ChildConstraint<
-	// Basic assignments
-	AST_ASSIGN, AST_ASSIGN_EQ, AST_ASSIGN_LE,
-	// Block structures
+// BehavioralStatement: nodes that can appear inside behavioral blocks (always/function/task).
+// From behavioral_stmt production: assignments, control flow, blocks, declarations, task calls.
+using BehavioralStatement = ChildConstraint<
+	// Assignments in behavioral context (non-continuous)
+	AST_ASSIGN_EQ, AST_ASSIGN_LE,
+	// Block structures (including labeled blocks)
 	AST_BLOCK, AST_GENBLOCK,
 	// Control flow
 	AST_COND, AST_CONDX, AST_CONDZ, AST_FOR, AST_WHILE, AST_REPEAT,
-	// Case/generate structures
+	// Case structures
 	AST_CASE, AST_GENCASE, AST_GENFOR, AST_GENIF,
-	// Formal assertions
+	// Formal assertions (in behavioral context)
 	AST_ASSERT, AST_ASSUME, AST_LIVE, AST_FAIR, AST_COVER,
-	// Always blocks
-	AST_ALWAYS
+	// Task calls
+	AST_TCALL,
+	// Local declarations in behavioral blocks
+	AST_WIRE, AST_MEMORY, AST_PARAMETER, AST_LOCALPARAM, AST_TYPEDEF
+>;
+
+// ModuleBodyStatement: nodes that can appear at module level.
+// From module_body_stmt production: declarations, constructs, and continuous assignments.
+using ModuleBodyStatement = ChildConstraint<
+	// Declarations
+	AST_PARAMETER, AST_LOCALPARAM, AST_DEFPARAM,
+	AST_WIRE, AST_MEMORY, AST_TYPEDEF,
+	// Behavioral and structural
+	AST_ALWAYS, AST_INITIAL,
+	// Instantiation
+	AST_CELL,
+	// Continuous assignment (module-level)
+	AST_ASSIGN,
+	// Formal assertions (module-level)
+	AST_ASSERT, AST_ASSUME, AST_LIVE, AST_FAIR, AST_COVER,
+	// Structural blocks
+	AST_GENBLOCK, AST_GENIF, AST_GENFOR, AST_GENCASE,
+	// Type declarations
+	AST_ENUM, AST_STRUCT,
+	// Binding and specification
+	AST_BIND
+>;
+
+// Statement: union of behavioral and module-level for backward compatibility.
+using Statement = ChildConstraint<
+	// From BehavioralStatement
+	AST_ASSIGN_EQ, AST_ASSIGN_LE,
+	AST_BLOCK, AST_GENBLOCK,
+	AST_COND, AST_CONDX, AST_CONDZ, AST_FOR, AST_WHILE, AST_REPEAT,
+	AST_CASE, AST_GENCASE, AST_GENFOR, AST_GENIF,
+	AST_ASSERT, AST_ASSUME, AST_LIVE, AST_FAIR, AST_COVER,
+	AST_TCALL,
+	AST_WIRE, AST_MEMORY, AST_PARAMETER, AST_LOCALPARAM, AST_TYPEDEF,
+	// From ModuleBodyStatement (module-level only)
+	AST_DEFPARAM,
+	AST_ALWAYS, AST_INITIAL,
+	AST_CELL,
+	AST_ASSIGN,
+	AST_ENUM, AST_STRUCT,
+	AST_BIND
 >;
 
 struct Anything {
@@ -224,9 +268,9 @@ AstView<Tag> reshape_as_vec(AstNode *node, std::vector<std::unique_ptr<AstNode>>
 		DEFINE_AST_CAST(StructName, Tag) \
 	};
 
-DEFINE_AST_VIEW_4(AstFor,      AST_FOR,       init, Anything, cond, Expression, step, Anything, body, Statement)
+DEFINE_AST_VIEW_4(AstFor,      AST_FOR,       init, Anything, cond, Expression, step, Anything, body, BehavioralStatement)
 DEFINE_AST_VIEW_4(AstGenFor,   AST_GENFOR,    init, Anything, cond, Anything, step, Anything, body, Anything)
-DEFINE_AST_VIEW_2(AstWhile,    AST_WHILE,     cond, Expression, body, Statement)
+DEFINE_AST_VIEW_2(AstWhile,    AST_WHILE,     cond, Expression, body, BehavioralStatement)
 
 DEFINE_AST_VIEW_2(AstAssign,   AST_ASSIGN,    lhs, Expression, rhs, Expression)
 DEFINE_AST_VIEW_2(AstAssignEq, AST_ASSIGN_EQ, lhs, Expression, rhs, Expression)
@@ -236,7 +280,7 @@ DEFINE_AST_VIEW_3(AstTernary,  AST_TERNARY,   cond, Expression, then_, Expressio
 
 DEFINE_AST_VIEW_2(AstRange,    AST_RANGE,     msb, Expression, lsb, Expression)
 
-DEFINE_AST_VIEW_2(AstRepeat,   AST_REPEAT,    count, Expression, body, Statement)
+DEFINE_AST_VIEW_2(AstRepeat,   AST_REPEAT,    count, Expression, body, BehavioralStatement)
 
 DEFINE_AST_VIEW_2(AstPrefix,   AST_PREFIX,    index, Expression, suffix, Anything)
 
@@ -265,8 +309,8 @@ DEFINE_AST_VIEW_1(AstCover,    AST_COVER,     predicate, Expression)
 // Typedef (single child: underlying type)
 DEFINE_AST_VIEW_1(AstTypedef,  AST_TYPEDEF,   underlying, Anything)
 
-// Initial (single child: AST_BLOCK body)
-DEFINE_AST_VIEW_1(AstInitial,  AST_INITIAL,   body, Anything)
+// Initial (single child: AST_BLOCK body) - body contains behavioral statements
+DEFINE_AST_VIEW_1(AstInitial,  AST_INITIAL,   body, BehavioralStatement)
 
 // ---------------- Unary / binary op templates ----------------
 
@@ -481,7 +525,7 @@ struct AstBlock : AstView<AST_BLOCK> {
 	// Variadic: children are behavioral statements in declaration order.
 	size_t size() const { return node->children.size(); }
 	AstNode *at(size_t i) const { return node->children.at(i).get(); }
-	ChildSlot<Anything> slot(size_t i) const { return {node, i}; }
+	ChildSlot<BehavioralStatement> slot(size_t i) const { return {node, i}; }
 	auto begin() { return node->children.begin(); }
 	auto end()   { return node->children.end(); }
 	static std::optional<AstBlock> cast(AstNode *n) {
@@ -491,9 +535,10 @@ struct AstBlock : AstView<AST_BLOCK> {
 
 struct AstGenBlock : AstView<AST_GENBLOCK> {
 	using AstView::AstView;
+	// Variadic: children are module-level statements in declaration order.
 	size_t size() const { return node->children.size(); }
 	AstNode *at(size_t i) const { return node->children.at(i).get(); }
-	ChildSlot<Anything> slot(size_t i) const { return {node, i}; }
+	ChildSlot<ModuleBodyStatement> slot(size_t i) const { return {node, i}; }
 	auto begin() { return node->children.begin(); }
 	auto end()   { return node->children.end(); }
 	static std::optional<AstGenBlock> cast(AstNode *n) {
