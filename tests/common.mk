@@ -5,18 +5,6 @@ clean:
 	@rm -f *.log *.result
 endif
 
-# Status line formatting - shows running count of pass/fail
-# Uses ANSI escape codes to update in place
-define show_status
-	@pass=$$(find . -maxdepth 1 -name '*.result' -exec grep -l '^PASS$$' {} + 2>/dev/null | wc -l); \
-	fail=$$(find . -maxdepth 1 -name '*.result' -exec grep -l '^FAIL$$' {} + 2>/dev/null | wc -l); \
-	if [ $$fail -gt 0 ]; then \
-		printf '\r\033[K  [passed: %d, \033[31mFAILED: %d\033[0m]' $$pass $$fail; \
-	else \
-		printf '\r\033[K  [passed: %d, failed: 0]' $$pass; \
-	fi
-endef
-
 # Run a single test, record result, show running status
 # Arguments: $1 = test name, $2 = command to run
 # Set FAIL_FAST=1 to exit immediately on first failure
@@ -31,7 +19,6 @@ define run_test
 		echo FAIL > $1.result; \
 		$(if $(FAIL_FAST),exit 1;) \
 	fi
-	$(show_status)
 endef
 
 # Check results and exit non-zero if any tests failed
