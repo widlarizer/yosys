@@ -43,14 +43,95 @@ protected:
 };
 
 
+// A type-level set of acceptable node types for a child slot.
+template <AstNodeType... Allowed>
+struct ChildConstraint {
+	static bool accepts(const AstNode *n) {
+		return n && ((n->type == Allowed) || ...);
+	}
+};
+
+// Expression: all nodes that can be returned from the expr production in the grammar.
+// This includes arithmetic, bitwise, logical, comparison ops, casts, literals, function calls, etc.
+using Expression = ChildConstraint<
+	// Literals & Constants
+	AST_CONSTANT,
+	// Variables & Identifiers
+	AST_IDENTIFIER,
+	// Function and task calls
+	AST_FCALL, AST_TCALL,
+	// Unary arithmetic
+	AST_POS, AST_NEG,
+	// Unary bitwise
+	AST_BIT_NOT,
+	AST_REDUCE_AND, AST_REDUCE_OR, AST_REDUCE_XOR, AST_REDUCE_XNOR,
+	// Binary arithmetic
+	AST_ADD, AST_SUB, AST_MUL, AST_DIV, AST_MOD, AST_POW,
+	// Binary bitwise
+	AST_BIT_AND, AST_BIT_OR, AST_BIT_XOR, AST_BIT_XNOR,
+	// Shift operations
+	AST_SHIFT_LEFT, AST_SHIFT_RIGHT, AST_SHIFT_SLEFT, AST_SHIFT_SRIGHT,
+	// Comparison
+	AST_LT, AST_LE, AST_EQ, AST_NE, AST_EQX, AST_NEX, AST_GE, AST_GT,
+	// Logical
+	AST_LOGIC_AND, AST_LOGIC_OR, AST_LOGIC_NOT,
+	// Ternary conditional
+	AST_TERNARY,
+	// Concatenation and replication
+	AST_CONCAT, AST_REPLICATE,
+	// Casting and conversion
+	AST_TO_BITS, AST_TO_SIGNED, AST_TO_UNSIGNED, AST_CAST_SIZE,
+	// Special expression forms
+	AST_PREFIX, AST_REALVALUE, AST_SELFSZ,
+	// Post-simplify only
+	AST_MEMRD, AST_MEMWR, AST_AUTOWIRE, AST_SHIFTX, AST_SHIFT
+>;
+
+// Post-simplify unused: AST_MEMINIT
+
+// Statement: all nodes that can appear as statements in behavioral blocks.
+using Statement = ChildConstraint<
+	// Basic assignments
+	AST_ASSIGN, AST_ASSIGN_EQ, AST_ASSIGN_LE,
+	// Block structures
+	AST_BLOCK, AST_GENBLOCK,
+	// Control flow
+	AST_COND, AST_CONDX, AST_CONDZ, AST_FOR, AST_WHILE, AST_REPEAT,
+	// Case/generate structures
+	AST_CASE, AST_GENCASE, AST_GENFOR, AST_GENIF,
+	// Formal assertions
+	AST_ASSERT, AST_ASSUME, AST_LIVE, AST_FAIR, AST_COVER,
+	// Always blocks
+	AST_ALWAYS
+>;
+
+struct Anything {
+	static bool accepts(AstNode* node) {
+		(void)node; return true;
+	}
+};
+
 // ChildSlot: a (parent, index) handle into parent->children. Cheap to copy.
 // Provides read access (get/operator->/deref) and ownership-moving
 // take()/set() for rewriting the slot without touching the rest of the vector.
+template <typename Constraint>
 struct ChildSlot {
 	AstNode *parent;
 	size_t index;
 
-	AstNode *get() const { return parent->children.at(index).get(); }
+	AstNode *get() const {
+		auto *c = parent->children.at(index).get();
+		if (!c)
+			log_error("Null node\n");
+		if (!Constraint::accepts(c))
+			log_error("Improper node type (%d)\n", (int)c->type);
+		return c;
+	}
+
+	void set(std::unique_ptr<AstNode> n) {
+		log_assert(!n || Constraint::accepts(n.get())); // validate on write
+		parent->children.at(index) = std::move(n);
+	}
 	AstNode *operator->() const { return get(); }
 	AstNode &operator*() const { return *get(); }
 	explicit operator bool() const {
@@ -59,9 +140,6 @@ struct ChildSlot {
 
 	std::unique_ptr<AstNode> take() {
 		return std::move(parent->children.at(index));
-	}
-	void set(std::unique_ptr<AstNode> n) {
-		parent->children.at(index) = std::move(n);
 	}
 
 	// Typed reinterpret of the slot contents; asserts type.
@@ -100,96 +178,95 @@ AstView<Tag> reshape_as_vec(AstNode *node, std::vector<std::unique_ptr<AstNode>>
 			return AstView<Tag>::matches(n) ? std::optional<StructName>(StructName(n)) : std::nullopt; \
 		}
 
-#define DEFINE_AST_VIEW_1(StructName, Tag, arg0) \
+#define DEFINE_AST_VIEW_1(StructName, Tag, arg0, con0) \
 	struct StructName : AstView<Tag> { \
 		using AstView<Tag>::AstView; \
-		ChildSlot arg0() const { return {node, 0}; } \
+		ChildSlot<con0> arg0() const { return {node, 0}; } \
 		static std::unique_ptr<AstNode> build(const AstSrcLocType &loc, std::unique_ptr<AstNode> arg0) { \
 			return make_node(loc, std::move(arg0)); \
 		} \
 		DEFINE_AST_CAST(StructName, Tag) \
 	};
 
-#define DEFINE_AST_VIEW_2(StructName, Tag, arg0, arg1) \
+#define DEFINE_AST_VIEW_2(StructName, Tag, arg0, con0, arg1, con1) \
 	struct StructName : AstView<Tag> { \
 		using AstView<Tag>::AstView; \
-		ChildSlot arg0() const { return {node, 0}; } \
-		ChildSlot arg1() const { return {node, 1}; } \
+		ChildSlot<con0> arg0() const { return {node, 0}; } \
+		ChildSlot<con1> arg1() const { return {node, 1}; } \
 		static std::unique_ptr<AstNode> build(const AstSrcLocType &loc, std::unique_ptr<AstNode> arg0, std::unique_ptr<AstNode> arg1) { \
 			return make_node(loc, std::move(arg0), std::move(arg1)); \
 		} \
 		DEFINE_AST_CAST(StructName, Tag) \
 	};
 
-#define DEFINE_AST_VIEW_3(StructName, Tag, arg0, arg1, arg2) \
+#define DEFINE_AST_VIEW_3(StructName, Tag, arg0, con0, arg1, con1, arg2, con2) \
 	struct StructName : AstView<Tag> { \
 		using AstView<Tag>::AstView; \
-		ChildSlot arg0() const { return {node, 0}; } \
-		ChildSlot arg1() const { return {node, 1}; } \
-		ChildSlot arg2() const { return {node, 2}; } \
+		ChildSlot<con0> arg0() const { return {node, 0}; } \
+		ChildSlot<con1> arg1() const { return {node, 1}; } \
+		ChildSlot<con2> arg2() const { return {node, 2}; } \
 		static std::unique_ptr<AstNode> build(const AstSrcLocType &loc, std::unique_ptr<AstNode> arg0, std::unique_ptr<AstNode> arg1, std::unique_ptr<AstNode> arg2) { \
 			return make_node(loc, std::move(arg0), std::move(arg1), std::move(arg2)); \
 		} \
 		DEFINE_AST_CAST(StructName, Tag) \
 	};
 
-#define DEFINE_AST_VIEW_4(StructName, Tag, arg0, arg1, arg2, arg3) \
+#define DEFINE_AST_VIEW_4(StructName, Tag, arg0, con0, arg1, con1, arg2, con2, arg3, con3) \
 	struct StructName : AstView<Tag> { \
 		using AstView<Tag>::AstView; \
-		ChildSlot arg0() const { return {node, 0}; } \
-		ChildSlot arg1() const { return {node, 1}; } \
-		ChildSlot arg2() const { return {node, 2}; } \
-		ChildSlot arg3() const { return {node, 3}; } \
+		ChildSlot<con0> arg0() const { return {node, 0}; } \
+		ChildSlot<con1> arg1() const { return {node, 1}; } \
+		ChildSlot<con2> arg2() const { return {node, 2}; } \
+		ChildSlot<con3> arg3() const { return {node, 3}; } \
 		static std::unique_ptr<AstNode> build(const AstSrcLocType &loc, std::unique_ptr<AstNode> arg0, std::unique_ptr<AstNode> arg1, std::unique_ptr<AstNode> arg2, std::unique_ptr<AstNode> arg3) { \
 			return make_node(loc, std::move(arg0), std::move(arg1), std::move(arg2), std::move(arg3)); \
 		} \
 		DEFINE_AST_CAST(StructName, Tag) \
 	};
 
-// Loops / assigns / ternary / range / prefix / repeat
-DEFINE_AST_VIEW_4(AstFor,      AST_FOR,       init, cond, step, body)
-DEFINE_AST_VIEW_4(AstGenFor,   AST_GENFOR,    init, cond, step, body)
-DEFINE_AST_VIEW_2(AstWhile,    AST_WHILE,     cond, body)
+DEFINE_AST_VIEW_4(AstFor,      AST_FOR,       init, Anything, cond, Expression, step, Anything, body, Statement)
+DEFINE_AST_VIEW_4(AstGenFor,   AST_GENFOR,    init, Anything, cond, Anything, step, Anything, body, Anything)
+DEFINE_AST_VIEW_2(AstWhile,    AST_WHILE,     cond, Expression, body, Statement)
 
-DEFINE_AST_VIEW_2(AstAssign,   AST_ASSIGN,    lhs, rhs)
-DEFINE_AST_VIEW_2(AstAssignEq, AST_ASSIGN_EQ, lhs, rhs)
-DEFINE_AST_VIEW_2(AstAssignLe, AST_ASSIGN_LE, lhs, rhs)
+DEFINE_AST_VIEW_2(AstAssign,   AST_ASSIGN,    lhs, Expression, rhs, Expression)
+DEFINE_AST_VIEW_2(AstAssignEq, AST_ASSIGN_EQ, lhs, Expression, rhs, Expression)
+DEFINE_AST_VIEW_2(AstAssignLe, AST_ASSIGN_LE, lhs, Expression, rhs, Expression)
 
-DEFINE_AST_VIEW_3(AstTernary,  AST_TERNARY,   cond, then_, else_)
+DEFINE_AST_VIEW_3(AstTernary,  AST_TERNARY,   cond, Expression, then_, Expression, else_, Expression)
 
-DEFINE_AST_VIEW_2(AstRange,    AST_RANGE,     msb, lsb)
+DEFINE_AST_VIEW_2(AstRange,    AST_RANGE,     msb, Expression, lsb, Expression)
 
-DEFINE_AST_VIEW_2(AstRepeat,   AST_REPEAT,    count, body)
+DEFINE_AST_VIEW_2(AstRepeat,   AST_REPEAT,    count, Expression, body, Statement)
 
-DEFINE_AST_VIEW_2(AstPrefix,   AST_PREFIX,    index, suffix)
+DEFINE_AST_VIEW_2(AstPrefix,   AST_PREFIX,    index, Expression, suffix, Anything)
 
-DEFINE_AST_VIEW_2(AstReplicate, AST_REPLICATE, count, pattern)
+DEFINE_AST_VIEW_2(AstReplicate, AST_REPLICATE, count, Expression, pattern, Expression)
 
-DEFINE_AST_VIEW_2(AstCastSize, AST_CAST_SIZE, target, expr)
-DEFINE_AST_VIEW_2(AstToBits,   AST_TO_BITS,   size, expr)
+DEFINE_AST_VIEW_2(AstCastSize, AST_CAST_SIZE, target, Anything, expr, Expression)
+DEFINE_AST_VIEW_2(AstToBits,   AST_TO_BITS,   size, Expression, expr, Expression)
 
-DEFINE_AST_VIEW_1(AstSelfSz,   AST_SELFSZ,    expr)
+DEFINE_AST_VIEW_1(AstSelfSz,   AST_SELFSZ,    expr, Expression)
 
 // Sensitivity events
-DEFINE_AST_VIEW_1(AstPosedge,  AST_POSEDGE,   expr)
-DEFINE_AST_VIEW_1(AstNegedge,  AST_NEGEDGE,   expr)
-DEFINE_AST_VIEW_1(AstEdge,     AST_EDGE,      expr)
+DEFINE_AST_VIEW_1(AstPosedge,  AST_POSEDGE,   expr, Expression)
+DEFINE_AST_VIEW_1(AstNegedge,  AST_NEGEDGE,   expr, Expression)
+DEFINE_AST_VIEW_1(AstEdge,     AST_EDGE,      expr, Expression)
 
 // Cell array wrapper
-DEFINE_AST_VIEW_2(AstCellArray, AST_CELLARRAY, range, cell)
+DEFINE_AST_VIEW_2(AstCellArray, AST_CELLARRAY, range, Anything, cell, Anything)
 
 // Assertions / formal — single-predicate
-DEFINE_AST_VIEW_1(AstAssert,   AST_ASSERT,    predicate)
-DEFINE_AST_VIEW_1(AstAssume,   AST_ASSUME,    predicate)
-DEFINE_AST_VIEW_1(AstLive,     AST_LIVE,      predicate)
-DEFINE_AST_VIEW_1(AstFair,     AST_FAIR,      predicate)
-DEFINE_AST_VIEW_1(AstCover,    AST_COVER,     predicate)
+DEFINE_AST_VIEW_1(AstAssert,   AST_ASSERT,    predicate, Expression)
+DEFINE_AST_VIEW_1(AstAssume,   AST_ASSUME,    predicate, Expression)
+DEFINE_AST_VIEW_1(AstLive,     AST_LIVE,      predicate, Expression)
+DEFINE_AST_VIEW_1(AstFair,     AST_FAIR,      predicate, Expression)
+DEFINE_AST_VIEW_1(AstCover,    AST_COVER,     predicate, Expression)
 
 // Typedef (single child: underlying type)
-DEFINE_AST_VIEW_1(AstTypedef,  AST_TYPEDEF,   underlying)
+DEFINE_AST_VIEW_1(AstTypedef,  AST_TYPEDEF,   underlying, Anything)
 
 // Initial (single child: AST_BLOCK body)
-DEFINE_AST_VIEW_1(AstInitial,  AST_INITIAL,   body)
+DEFINE_AST_VIEW_1(AstInitial,  AST_INITIAL,   body, Anything)
 
 // ---------------- Unary / binary op templates ----------------
 
@@ -199,7 +276,7 @@ template <AstNodeType Tag>
 struct AstUnaryOp : AstView<Tag> {
 	using AstView<Tag>::AstView;
 	using AstView<Tag>::node;
-	ChildSlot operand() const { return {node, 0}; }
+	ChildSlot<Anything> operand() const { return {node, 0}; }
 	static std::unique_ptr<AstNode> build(const AstSrcLocType &loc, std::unique_ptr<AstNode> arg) {
 		return AstView<Tag>::make_node(loc, std::move(arg));
 	}
@@ -212,8 +289,8 @@ template <AstNodeType Tag>
 struct AstBinaryOp : AstView<Tag> {
 	using AstView<Tag>::AstView;
 	using AstView<Tag>::node;
-	ChildSlot lhs() const { return {node, 0}; }
-	ChildSlot rhs() const { return {node, 1}; }
+	ChildSlot<Anything> lhs() const { return {node, 0}; }
+	ChildSlot<Anything> rhs() const { return {node, 1}; }
 	static std::unique_ptr<AstNode> build(const AstSrcLocType &loc, std::unique_ptr<AstNode> l, std::unique_ptr<AstNode> r) {
 		return AstView<Tag>::make_node(loc, std::move(l), std::move(r));
 	}
@@ -264,7 +341,7 @@ using AstLogicOr      = AstBinaryOp<AST_LOGIC_OR>;
 struct AstCase : AstView<AST_CASE> {
 	using AstView::AstView;
 	AstNode *selector() const { return node->children.at(0).get(); }
-	ChildSlot selector_slot() const { return {node, 0}; }
+	ChildSlot<Anything> selector_slot() const { return {node, 0}; }
 	auto conditions_begin() { return node->children.begin() + 1; }
 	auto conditions_end() { return node->children.end(); }
 	size_t num_conditions() const {
@@ -279,7 +356,7 @@ struct AstCase : AstView<AST_CASE> {
 struct AstGenCase : AstView<AST_GENCASE> {
 	using AstView::AstView;
 	AstNode *selector() const { return node->children.at(0).get(); }
-	ChildSlot selector_slot() const { return {node, 0}; }
+	ChildSlot<Anything> selector_slot() const { return {node, 0}; }
 	auto conditions_begin() { return node->children.begin() + 1; }
 	auto conditions_end() { return node->children.end(); }
 	size_t num_conditions() const {
@@ -303,7 +380,7 @@ struct AstCondBase : AstView<Tag> {
 		log_assert(last->type == AST_BLOCK || last->type == AST_GENBLOCK);
 		return last;
 	}
-	ChildSlot body_slot() const {
+	ChildSlot<Anything> body_slot() const {
 		log_assert(!node->children.empty());
 		return {node, node->children.size() - 1};
 	}
@@ -326,10 +403,10 @@ using AstCondZ = AstCondBase<AST_CONDZ>;
 
 struct AstGenIf : AstView<AST_GENIF> {
 	using AstView::AstView;
-	ChildSlot cond()      const { return {node, 0}; }
-	ChildSlot then_body() const { return {node, 1}; }
+	ChildSlot<Anything> cond()      const { return {node, 0}; }
+	ChildSlot<Anything> then_body() const { return {node, 1}; }
 	bool has_else_body() const { return node->children.size() > 2; }
-	ChildSlot else_body() const {
+	ChildSlot<Anything> else_body() const {
 		log_assert(node->children.size() > 2);
 		return {node, 2};
 	}
@@ -343,9 +420,9 @@ struct AstIdentifier : AstView<AST_IDENTIFIER> {
 	AstNode *bit_select_raw() const {
 		return node->children.empty() ? nullptr : node->children[0].get();
 	}
-	std::optional<ChildSlot> bit_select_slot() const {
+	std::optional<ChildSlot<Anything>> bit_select_slot() const {
 		return node->children.empty() ? std::nullopt
-		                              : std::optional<ChildSlot>(ChildSlot{node, 0});
+									: std::optional<ChildSlot<Anything>>(ChildSlot<Anything>{node, 0});
 	}
 	static std::optional<AstIdentifier> cast(AstNode *n) {
 		return matches(n) ? std::optional<AstIdentifier>(AstIdentifier(n)) : std::nullopt;
@@ -360,9 +437,9 @@ struct AstArgument : AstView<AST_ARGUMENT> {
 	AstNode *expr_or_null() const {
 		return node->children.empty() ? nullptr : node->children[0].get();
 	}
-	std::optional<ChildSlot> expr_slot() const {
+	std::optional<ChildSlot<Anything>> expr_slot() const {
 		return node->children.empty() ? std::nullopt
-		                              : std::optional<ChildSlot>(ChildSlot{node, 0});
+									: std::optional<ChildSlot<Anything>>(ChildSlot<Anything>{node, 0});
 	}
 	static std::optional<AstArgument> cast(AstNode *n) {
 		return matches(n) ? std::optional<AstArgument>(AstArgument(n)) : std::nullopt;
@@ -375,7 +452,7 @@ struct AstParaset : AstView<AST_PARASET> {
 		log_assert(!node->children.empty());
 		return node->children[0].get();
 	}
-	ChildSlot expr_slot() const { return {node, 0}; }
+	ChildSlot<Anything> expr_slot() const { return {node, 0}; }
 	bool is_positional() const { return node->str.empty(); }
 	static std::optional<AstParaset> cast(AstNode *n) {
 		return matches(n) ? std::optional<AstParaset>(AstParaset(n)) : std::nullopt;
@@ -390,7 +467,7 @@ struct AstCell : AstView<AST_CELL> {
 		log_assert(node->children[0]->type == AST_CELLTYPE);
 		return node->children[0].get();
 	}
-	ChildSlot celltype_slot() const { return {node, 0}; }
+	ChildSlot<Anything> celltype_slot() const { return {node, 0}; }
 	// Iterate children[1..]; caller dispatches on AST_PARASET vs AST_ARGUMENT.
 	auto body_begin() { return node->children.begin() + 1; }
 	auto body_end()   { return node->children.end(); }
@@ -404,7 +481,7 @@ struct AstBlock : AstView<AST_BLOCK> {
 	// Variadic: children are behavioral statements in declaration order.
 	size_t size() const { return node->children.size(); }
 	AstNode *at(size_t i) const { return node->children.at(i).get(); }
-	ChildSlot slot(size_t i) const { return {node, i}; }
+	ChildSlot<Anything> slot(size_t i) const { return {node, i}; }
 	auto begin() { return node->children.begin(); }
 	auto end()   { return node->children.end(); }
 	static std::optional<AstBlock> cast(AstNode *n) {
@@ -416,7 +493,7 @@ struct AstGenBlock : AstView<AST_GENBLOCK> {
 	using AstView::AstView;
 	size_t size() const { return node->children.size(); }
 	AstNode *at(size_t i) const { return node->children.at(i).get(); }
-	ChildSlot slot(size_t i) const { return {node, i}; }
+	ChildSlot<Anything> slot(size_t i) const { return {node, i}; }
 	auto begin() { return node->children.begin(); }
 	auto end()   { return node->children.end(); }
 	static std::optional<AstGenBlock> cast(AstNode *n) {
@@ -428,7 +505,7 @@ struct AstConcat : AstView<AST_CONCAT> {
 	using AstView::AstView;
 	size_t size() const { return node->children.size(); }
 	AstNode *at(size_t i) const { return node->children.at(i).get(); }
-	ChildSlot slot(size_t i) const { return {node, i}; }
+	ChildSlot<Anything> slot(size_t i) const { return {node, i}; }
 	auto begin() { return node->children.begin(); }
 	auto end()   { return node->children.end(); }
 	static std::optional<AstConcat> cast(AstNode *n) {
@@ -441,7 +518,7 @@ struct AstMultirange : AstView<AST_MULTIRANGE> {
 	using AstView::AstView;
 	size_t size() const { return node->children.size(); }
 	AstNode *at(size_t i) const { return node->children.at(i).get(); }
-	ChildSlot slot(size_t i) const { return {node, i}; }
+	ChildSlot<Anything> slot(size_t i) const { return {node, i}; }
 	auto begin() { return node->children.begin(); }
 	auto end()   { return node->children.end(); }
 	static std::optional<AstMultirange> cast(AstNode *n) {
@@ -459,7 +536,7 @@ struct AstAlways : AstView<AST_ALWAYS> {
 		log_assert(last->type == AST_BLOCK);
 		return last;
 	}
-	ChildSlot body_slot() const {
+	ChildSlot<Anything> body_slot() const {
 		log_assert(!node->children.empty());
 		return {node, node->children.size() - 1};
 	}
