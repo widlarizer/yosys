@@ -1812,20 +1812,23 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 	if (type == AST_FCALL && str == "\\$past")
 		detectSignWidth(width_hint, sign_hint);
 
-	if (type == AST_TERNARY) {
+	if (auto tern = AstTernary::cast(this)) {
+		AstNode *cond_c = tern->cond().get();
+		AstNode *then_c = tern->then_().get();
+		AstNode *else_c = tern->else_().get();
 		if (width_hint < 0) {
-			while (!children[0]->basic_prep && children[0]->simplify(true, stage, -1, false))
+			while (!cond_c->basic_prep && cond_c->simplify(true, stage, -1, false))
 				did_something = true;
 
 			bool backup_unevaluated_tern_branch = unevaluated_tern_branch;
 			AstNode *chosen = get_tern_choice().first;
 
-			unevaluated_tern_branch = backup_unevaluated_tern_branch || chosen == children[2].get();
-			while (!children[1]->basic_prep && children[1]->simplify(false, stage, -1, false))
+			unevaluated_tern_branch = backup_unevaluated_tern_branch || chosen == else_c;
+			while (!then_c->basic_prep && then_c->simplify(false, stage, -1, false))
 				did_something = true;
 
-			unevaluated_tern_branch = backup_unevaluated_tern_branch || chosen == children[1].get();
-			while (!children[2]->basic_prep && children[2]->simplify(false, stage, -1, false))
+			unevaluated_tern_branch = backup_unevaluated_tern_branch || chosen == then_c;
+			while (!else_c->basic_prep && else_c->simplify(false, stage, -1, false))
 				did_something = true;
 
 			unevaluated_tern_branch = backup_unevaluated_tern_branch;
@@ -1834,8 +1837,8 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 		int width_hint_left, width_hint_right;
 		bool sign_hint_left, sign_hint_right;
 		bool found_real_left, found_real_right;
-		children[1]->detectSignWidth(width_hint_left, sign_hint_left, &found_real_left);
-		children[2]->detectSignWidth(width_hint_right, sign_hint_right, &found_real_right);
+		then_c->detectSignWidth(width_hint_left, sign_hint_left, &found_real_left);
+		else_c->detectSignWidth(width_hint_right, sign_hint_right, &found_real_right);
 		if (found_real_left || found_real_right) {
 			child_1_is_self_determined = true;
 			child_2_is_self_determined = true;
@@ -1856,11 +1859,13 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 
 	if (const_fold && type == AST_CASE)
 	{
+		AstCase case_(this);
 		detectSignWidth(width_hint, sign_hint);
-		while (children[0]->simplify(const_fold, stage, width_hint, sign_hint)) { }
-		if (children[0]->type == AST_CONSTANT && children[0]->bits_only_01()) {
-			children[0]->is_signed = sign_hint;
-			RTLIL::Const case_expr = children[0]->bitsAsConst(width_hint, sign_hint);
+		AstNode *selector = case_.selector();
+		while (selector->simplify(const_fold, stage, width_hint, sign_hint)) { }
+		if (selector->type == AST_CONSTANT && selector->bits_only_01()) {
+			selector->is_signed = sign_hint;
+			RTLIL::Const case_expr = selector->bitsAsConst(width_hint, sign_hint);
 			std::vector<std::unique_ptr<AstNode>> new_children;
 			new_children.push_back(std::move(children[0]));
 			for (int i = 1; i < GetSize(children); i++) {
@@ -2151,19 +2156,21 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 	}
 
 	// resolve constant prefixes
-	if (type == AST_PREFIX) {
-		if (children[0]->type != AST_CONSTANT) {
+	if (auto prefix = AstPrefix::cast(this)) {
+		AstNode *idx = prefix->index().get();
+		AstNode *suffix = prefix->suffix().get();
+		if (idx->type != AST_CONSTANT) {
 			// dumpAst(nullptr, ">   ");
 			input_error("Index in generate block prefix syntax is not constant!\n");
 		}
-		if (children[1]->type == AST_PREFIX)
-			children[1]->simplify(const_fold, stage, width_hint, sign_hint);
-		log_assert(children[1]->type == AST_IDENTIFIER);
-		newNode = children[1]->clone();
-		const char *second_part = children[1]->str.c_str();
+		if (suffix->type == AST_PREFIX)
+			suffix->simplify(const_fold, stage, width_hint, sign_hint);
+		log_assert(suffix->type == AST_IDENTIFIER);
+		newNode = suffix->clone();
+		const char *second_part = suffix->str.c_str();
 		if (second_part[0] == '\\')
 			second_part++;
-		newNode->str = stringf("%s[%d].%s", str, children[0]->integer, second_part);
+		newNode->str = stringf("%s[%d].%s", str, idx->integer, second_part);
 		goto apply_newNode;
 	}
 
@@ -2525,10 +2532,10 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 	if (type == AST_WHILE)
 		input_error("While loops are only allowed in constant functions!\n");
 
-	if (type == AST_REPEAT)
+	if (auto rep = AstRepeat::cast(this))
 	{
-		auto count = std::move(children[0]);
-		auto body = std::move(children[1]);
+		auto count = rep->count().take();
+		auto body = rep->body().take();
 
 		// eval count expression
 		while (count->simplify(true, stage, 32, true)) { }
@@ -2566,21 +2573,25 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 			var_type = AST_GENVAR;
 		}
 
-		if (init_ast->type != AST_ASSIGN_EQ)
+		auto init_view = AstAssignEq::cast(init_ast.get());
+		if (!init_view)
 			input_error("Unsupported 1st expression of %s for-loop!\n", loop_type_str);
-		if (next_ast->type != AST_ASSIGN_EQ)
+		auto next_view = AstAssignEq::cast(next_ast.get());
+		if (!next_view)
 			input_error("Unsupported 3rd expression of %s for-loop!\n", loop_type_str);
 
-		if (init_ast->children[0]->id2ast == nullptr || init_ast->children[0]->id2ast->type != var_type)
+		AstNode *init_lhs = init_view->lhs().get();
+		AstNode *next_lhs = next_view->lhs().get();
+		if (init_lhs->id2ast == nullptr || init_lhs->id2ast->type != var_type)
 			input_error("Left hand side of 1st expression of %s for-loop is not a %s!\n", loop_type_str, var_type_str);
-		if (next_ast->children[0]->id2ast == nullptr || next_ast->children[0]->id2ast->type != var_type)
+		if (next_lhs->id2ast == nullptr || next_lhs->id2ast->type != var_type)
 			input_error("Left hand side of 3rd expression of %s for-loop is not a %s!\n", loop_type_str, var_type_str);
 
-		if (init_ast->children[0]->id2ast != next_ast->children[0]->id2ast)
+		if (init_lhs->id2ast != next_lhs->id2ast)
 			input_error("Incompatible left-hand sides in 1st and 3rd expression of %s for-loop!\n", loop_type_str);
 
 		// eval 1st expression
-		auto varbuf = init_ast->children[1]->clone();
+		auto varbuf = init_view->rhs().get()->clone();
 		{
 			int expr_width_hint = -1;
 			bool expr_sign_hint = true;
@@ -2591,7 +2602,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 		if (varbuf->type != AST_CONSTANT)
 			input_error("Right hand side of 1st expression of %s for-loop is not constant!\n", loop_type_str);
 
-		auto resolved = current_scope.at(init_ast->children[0]->str);
+		auto resolved = current_scope.at(init_lhs->str);
 		if (resolved->range_valid) {
 			int const_size = varbuf->range_left - varbuf->range_right;
 			int resolved_size = resolved->range_left - resolved->range_right;
@@ -2606,7 +2617,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 		}
 
 		varbuf = std::make_unique<AstNode>(location, AST_LOCALPARAM, std::move(varbuf));
-		varbuf->str = init_ast->children[0]->str;
+		varbuf->str = init_lhs->str;
 
 		AstNode *backup_scope_varbuf = current_scope[varbuf->str];
 		current_scope[varbuf->str] = varbuf.get();
@@ -2669,7 +2680,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 			buf->children.clear();
 
 			// eval 3rd expression
-			buf = next_ast->children[1]->clone();
+			buf = next_view->rhs().get()->clone();
 			buf->set_in_param_flag(true);
 			{
 				int expr_width_hint = -1;
@@ -2686,7 +2697,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 
 		if (type == AST_FOR) {
 			auto buf = next_ast->clone();
-			buf->children[1] = varbuf->children[0]->clone();
+			AstAssignEq(buf.get()).rhs().set(varbuf->children[0]->clone());
 			current_block->children.insert(current_block->children.begin() + current_block_idx++, std::move(buf));
 		}
 
@@ -5624,8 +5635,8 @@ bool AstNode::detect_latch(const std::string &var)
 		{
 			bool r = true;
 			for (auto &c : children) {
-				if (c->type == AST_COND) {
-					if (c->children.at(1)->detect_latch(var))
+				if (auto cond = AstCond::cast(c.get())) {
+					if (cond->body()->detect_latch(var))
 						return true;
 					r = false;
 				}
@@ -5792,44 +5803,50 @@ std::unique_ptr<AstNode> AstNode::eval_const_function(AstNode *fcall, bool must_
 			continue;
 		}
 
-		if (stmt->type == AST_ASSIGN_EQ)
+		if (auto asgn = AstAssignEq::cast(stmt.get()))
 		{
-			if (stmt->children.at(0)->type == AST_IDENTIFIER && stmt->children.at(0)->children.size() != 0 &&
-					stmt->children.at(0)->children.at(0)->type == AST_RANGE)
-				if (!stmt->children.at(0)->children.at(0)->replace_variables(variables, fcall, must_succeed))
+			AstNode *asgn_lhs = asgn->lhs().get();
+			AstNode *asgn_rhs = asgn->rhs().get();
+			if (asgn_lhs->type == AST_IDENTIFIER && asgn_lhs->children.size() != 0 &&
+					asgn_lhs->children.at(0)->type == AST_RANGE)
+				if (!asgn_lhs->children.at(0)->replace_variables(variables, fcall, must_succeed))
 					goto finished;
-			if (!stmt->children.at(1)->replace_variables(variables, fcall, must_succeed))
+			if (!asgn_rhs->replace_variables(variables, fcall, must_succeed))
 				goto finished;
 			while (stmt->simplify(true, 1, -1, false)) { }
 
 			if (stmt->type != AST_ASSIGN_EQ)
 				continue;
 
-			if (stmt->children.at(1)->type != AST_CONSTANT) {
+			// Re-read pointers: simplify may have rewritten children.
+			asgn_lhs = asgn->lhs().get();
+			asgn_rhs = asgn->rhs().get();
+
+			if (asgn_rhs->type != AST_CONSTANT) {
 				if (!must_succeed)
 					goto finished;
 				stmt->input_error("Non-constant expression in constant function\n%s: ... called from here. X\n",
 						fcall->loc_string().c_str());
 			}
 
-			if (stmt->children.at(0)->type != AST_IDENTIFIER) {
+			if (asgn_lhs->type != AST_IDENTIFIER) {
 				if (!must_succeed)
 					goto finished;
 				stmt->input_error("Unsupported composite left hand side in constant function\n%s: ... called from here.\n",
 						fcall->loc_string().c_str());
 			}
 
-			if (!variables.count(stmt->children.at(0)->str)) {
+			if (!variables.count(asgn_lhs->str)) {
 				if (!must_succeed)
 					goto finished;
 				stmt->input_error("Assignment to non-local variable in constant function\n%s: ... called from here.\n",
 						fcall->loc_string().c_str());
 			}
 
-			if (stmt->children.at(0)->children.empty()) {
-				variables[stmt->children.at(0)->str].val = stmt->children.at(1)->bitsAsConst(variables[stmt->children.at(0)->str].val.size());
+			if (asgn_lhs->children.empty()) {
+				variables[asgn_lhs->str].val = asgn_rhs->bitsAsConst(variables[asgn_lhs->str].val.size());
 			} else {
-				AstNode *range = stmt->children.at(0)->children.at(0).get();
+				AstNode *range = asgn_lhs->children.at(0).get();
 				if (!range->range_valid) {
 					if (!must_succeed)
 						goto finished;
@@ -5837,8 +5854,8 @@ std::unique_ptr<AstNode> AstNode::eval_const_function(AstNode *fcall, bool must_
 				}
 				int offset = min(range->range_left, range->range_right);
 				int width = std::abs(range->range_left - range->range_right) + 1;
-				varinfo_t &v = variables[stmt->children.at(0)->str];
-				RTLIL::Const r = stmt->children.at(1)->bitsAsConst(v.val.size());
+				varinfo_t &v = variables[asgn_lhs->str];
+				RTLIL::Const r = asgn_rhs->bitsAsConst(v.val.size());
 				for (int i = 0; i < width; i++) {
 					int index = i + offset - v.offset;
 					if (v.range_swapped)
@@ -5866,9 +5883,9 @@ std::unique_ptr<AstNode> AstNode::eval_const_function(AstNode *fcall, bool must_
 			continue;
 		}
 
-		if (stmt->type == AST_WHILE)
+		if (auto while_ = AstWhile::cast(stmt.get()))
 		{
-			auto cond = stmt->children.at(0)->clone();
+			auto cond = while_->cond().get()->clone();
 			if (!cond->replace_variables(variables, fcall, must_succeed))
 				goto finished;
 			cond->set_in_param_flag(true);
@@ -5882,16 +5899,16 @@ std::unique_ptr<AstNode> AstNode::eval_const_function(AstNode *fcall, bool must_
 			}
 
 			if (cond->asBool()) {
-				block->children.insert(block->children.begin(), stmt->children.at(1)->clone());
+				block->children.insert(block->children.begin(), while_->body().get()->clone());
 			} else {
 				block->children.erase(block->children.begin());
 			}
 			continue;
 		}
 
-		if (stmt->type == AST_REPEAT)
+		if (auto rep = AstRepeat::cast(stmt.get()))
 		{
-			auto num = stmt->children.at(0)->clone();
+			auto num = rep->count().get()->clone();
 			if (!num->replace_variables(variables, fcall, must_succeed))
 				goto finished;
 			num->set_in_param_flag(true);
@@ -5906,15 +5923,16 @@ std::unique_ptr<AstNode> AstNode::eval_const_function(AstNode *fcall, bool must_
 
 			temporary_nodes.push_back(std::move(stmt));
 			block->children.erase(block->children.begin());
+			AstRepeat rep_back(temporary_nodes.back().get());
 			for (int i = 0; i < num->bitsAsConst().as_int(); i++)
-				block->children.insert(block->children.begin(), temporary_nodes.back()->children.at(1)->clone());
+				block->children.insert(block->children.begin(), rep_back.body().get()->clone());
 
 			continue;
 		}
 
-		if (stmt->type == AST_CASE)
+		if (auto case_ = AstCase::cast(stmt.get()))
 		{
-			auto expr = stmt->children.at(0)->clone();
+			auto expr = case_->selector()->clone();
 			if (!expr->replace_variables(variables, fcall, must_succeed))
 				goto finished;
 			expr->set_in_param_flag(true);
@@ -5922,19 +5940,20 @@ std::unique_ptr<AstNode> AstNode::eval_const_function(AstNode *fcall, bool must_
 
 			AstNode *sel_case = nullptr;
 			std::unique_ptr<AstNode> sel_case_copy = nullptr;
-			for (size_t i = 1; i < stmt->children.size(); i++)
+			for (auto it = case_->conditions_begin(); it != case_->conditions_end(); ++it)
 			{
+				auto &child = *it;
 				bool found_match = false;
-				log_assert(stmt->children.at(i)->type == AST_COND || stmt->children.at(i)->type == AST_CONDX || stmt->children.at(i)->type == AST_CONDZ);
+				log_assert(child->type == AST_COND || child->type == AST_CONDX || child->type == AST_CONDZ);
 
-				if (stmt->children.at(i)->children.front()->type == AST_DEFAULT) {
-					sel_case = stmt->children.at(i)->children.back().get();
+				if (child->children.front()->type == AST_DEFAULT) {
+					sel_case = child->children.back().get();
 					continue;
 				}
 
-				for (size_t j = 0; j+1 < stmt->children.at(i)->children.size() && !found_match; j++)
+				for (size_t j = 0; j+1 < child->children.size() && !found_match; j++)
 				{
-					auto cond = stmt->children.at(i)->children.at(j)->clone();
+					auto cond = child->children.at(j)->clone();
 					if (!cond->replace_variables(variables, fcall, must_succeed))
 						goto finished;
 
@@ -5953,7 +5972,7 @@ std::unique_ptr<AstNode> AstNode::eval_const_function(AstNode *fcall, bool must_
 				}
 
 				if (found_match) {
-					sel_case = stmt->children.at(i)->children.back().get();
+					sel_case = child->children.back().get();
 					break;
 				}
 			}
