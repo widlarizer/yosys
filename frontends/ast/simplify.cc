@@ -30,6 +30,7 @@
 #include "libs/sha1/sha1.h"
 #include "frontends/verilog/verilog_frontend.h"
 #include "ast.h"
+#include "ast_typed.h"
 #include "kernel/io.h"
 
 #include <sstream>
@@ -5850,17 +5851,17 @@ std::unique_ptr<AstNode> AstNode::eval_const_function(AstNode *fcall, bool must_
 			continue;
 		}
 
-		if (stmt->type == AST_FOR)
+		if (auto for_ = AstFor::cast(stmt.get()))
 		{
-			stmt->type = AST_WHILE;
-			log_assert(stmt->children.size() > 2);
-			auto yoink0 = std::move(stmt->children.at(0));
-			log_assert(stmt->children.size() > 2);
-			auto yoink2 = std::move(stmt->children.at(2));
-			stmt->children.at(3)->children.push_back(std::move(yoink2));
+			// AST_FOR: [init, cond, step, body] -> AST_WHILE: [cond, body (+step appended)]
+			auto init = for_->init().take();
+			auto step = for_->step().take();
+			for_->body()->children.push_back(std::move(step));
+			// Erase now-empty init and step slots (slot 2 first, then slot 0).
 			stmt->children.erase(stmt->children.begin() + 2);
 			stmt->children.erase(stmt->children.begin());
-			block->children.insert(block->children.begin(), std::move(yoink0));
+			stmt->type = AST_WHILE;
+			block->children.insert(block->children.begin(), std::move(init));
 			log_assert(stmt->children.size() == 2);
 			continue;
 		}
