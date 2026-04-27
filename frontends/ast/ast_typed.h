@@ -309,6 +309,199 @@ DEFINE_AST_VIEW_1(AstTypedef,  AST_TYPEDEF,   underlying, Anything)
 // Initial (single child: AST_BLOCK body) - body contains behavioral statements
 DEFINE_AST_VIEW_1(AstInitial,  AST_INITIAL,   body, BehavioralStatement)
 
+// Declarations
+struct AstWire : AstView<AST_WIRE> {
+	using AstView::AstView;
+	// Grammar: optional packed range, optional wiretype, optional unpacked range
+	// children[0?] = AST_RANGE | AST_MULTIRANGE  (packed)
+	// children[1?] = AST_WIRETYPE                (if custom type)
+	// children[2?] = AST_RANGE                   (unpacked)
+	bool has_packed() const { return !node->children.empty() &&
+		(node->children[0]->type == AST_RANGE || node->children[0]->type == AST_MULTIRANGE); }
+	bool has_unpacked() const {
+		if (node->children.size() < 2) return false;
+		size_t start_idx = 0;
+		if (has_packed()) start_idx++;
+		if (start_idx < node->children.size() && node->children[start_idx]->type == AST_WIRETYPE) start_idx++;
+		return start_idx < node->children.size() && node->children[start_idx]->type == AST_RANGE;
+	}
+	static std::optional<AstWire> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstWire>(AstWire(n)) : std::nullopt;
+	}
+};
+
+struct AstMemory : AstView<AST_MEMORY> {
+	using AstView::AstView;
+	// Grammar: packed range, optional wiretype, address range
+	// children[0] = AST_RANGE (element width)
+	// children[1?] = AST_WIRETYPE
+	// children[2] = AST_RANGE | AST_MULTIRANGE (address)
+	AstNode *data_range() const {
+		log_assert(!node->children.empty());
+		return node->children[0].get();
+	}
+	AstNode *addr_range() const {
+		log_assert(node->children.size() >= 2);
+		return node->children[node->children.size() - 1].get();
+	}
+	static std::optional<AstMemory> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstMemory>(AstMemory(n)) : std::nullopt;
+	}
+};
+
+struct AstParameter : AstView<AST_PARAMETER> {
+	using AstView::AstView;
+	// Grammar: children[0] = default value expr, optional range, optional wiretype
+	bool has_value() const { return !node->children.empty(); }
+	AstNode *value() const {
+		log_assert(!node->children.empty());
+		return node->children[0].get();
+	}
+	static std::optional<AstParameter> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstParameter>(AstParameter(n)) : std::nullopt;
+	}
+};
+
+struct AstLocalparam : AstView<AST_LOCALPARAM> {
+	using AstView::AstView;
+	// Grammar: same as AST_PARAMETER
+	bool has_value() const { return !node->children.empty(); }
+	AstNode *value() const {
+		log_assert(!node->children.empty());
+		return node->children[0].get();
+	}
+	static std::optional<AstLocalparam> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstLocalparam>(AstLocalparam(n)) : std::nullopt;
+	}
+};
+
+struct AstEnum : AstView<AST_ENUM> {
+	using AstView::AstView;
+	// Grammar: optional range, then AST_ENUM_ITEM children
+	size_t num_items() const {
+		size_t start = 0;
+		if (!node->children.empty() && node->children[0]->type == AST_RANGE) start++;
+		return node->children.size() - start;
+	}
+	auto items_begin() {
+		size_t start = 0;
+		if (!node->children.empty() && node->children[0]->type == AST_RANGE) start++;
+		return node->children.begin() + start;
+	}
+	auto items_end() { return node->children.end(); }
+	static std::optional<AstEnum> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstEnum>(AstEnum(n)) : std::nullopt;
+	}
+};
+
+struct AstEnumItem : AstView<AST_ENUM_ITEM> {
+	using AstView::AstView;
+	// Grammar: children[0] = value expr (or AST_NONE if no init)
+	bool has_value() const { return !node->children.empty(); }
+	AstNode *value_or_null() const {
+		return node->children.empty() ? nullptr : node->children[0].get();
+	}
+	static std::optional<AstEnumItem> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstEnumItem>(AstEnumItem(n)) : std::nullopt;
+	}
+};
+
+// Constant value
+struct AstConstant : AstView<AST_CONSTANT> {
+	using AstView::AstView;
+	// Leaf node: no children, bits/integer/is_signed carry the value
+	static std::optional<AstConstant> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstConstant>(AstConstant(n)) : std::nullopt;
+	}
+};
+
+// Function and task calls
+struct AstFcall : AstView<AST_FCALL> {
+	using AstView::AstView;
+	// Grammar: variadic children are argument expressions
+	size_t num_args() const { return node->children.size(); }
+	AstNode *arg(size_t i) const { return node->children.at(i).get(); }
+	ChildSlot<Anything> arg_slot(size_t i) const { return {node, i}; }
+	auto args_begin() { return node->children.begin(); }
+	auto args_end() { return node->children.end(); }
+	static std::optional<AstFcall> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstFcall>(AstFcall(n)) : std::nullopt;
+	}
+};
+
+struct AstTcall : AstView<AST_TCALL> {
+	using AstView::AstView;
+	// Grammar: variadic children are argument expressions
+	size_t num_args() const { return node->children.size(); }
+	AstNode *arg(size_t i) const { return node->children.at(i).get(); }
+	ChildSlot<Anything> arg_slot(size_t i) const { return {node, i}; }
+	auto args_begin() { return node->children.begin(); }
+	auto args_end() { return node->children.end(); }
+	static std::optional<AstTcall> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstTcall>(AstTcall(n)) : std::nullopt;
+	}
+};
+
+// Defparam (defparam lvalue = value)
+struct AstDefparam : AstView<AST_DEFPARAM> {
+	using AstView::AstView;
+	// Grammar: children[0] = lvalue, children[1] = value expr, optional children[2] = range
+	AstNode *lvalue() const {
+		log_assert(!node->children.empty());
+		return node->children[0].get();
+	}
+	AstNode *value() const {
+		log_assert(node->children.size() >= 2);
+		return node->children[1].get();
+	}
+	static std::optional<AstDefparam> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstDefparam>(AstDefparam(n)) : std::nullopt;
+	}
+};
+
+// Struct and Union types
+struct AstStruct : AstView<AST_STRUCT> {
+	using AstView::AstView;
+	// Grammar: children are AST_STRUCT_ITEM* (or nested AST_STRUCT/AST_UNION)
+	size_t num_members() const { return node->children.size(); }
+	AstNode *member(size_t i) const { return node->children.at(i).get(); }
+	auto members_begin() { return node->children.begin(); }
+	auto members_end() { return node->children.end(); }
+	static std::optional<AstStruct> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstStruct>(AstStruct(n)) : std::nullopt;
+	}
+};
+
+struct AstUnion : AstView<AST_UNION> {
+	using AstView::AstView;
+	// Grammar: same as AST_STRUCT - children are AST_STRUCT_ITEM*
+	size_t num_members() const { return node->children.size(); }
+	AstNode *member(size_t i) const { return node->children.at(i).get(); }
+	auto members_begin() { return node->children.begin(); }
+	auto members_end() { return node->children.end(); }
+	static std::optional<AstUnion> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstUnion>(AstUnion(n)) : std::nullopt;
+	}
+};
+
+struct AstStructItem : AstView<AST_STRUCT_ITEM> {
+	using AstView::AstView;
+	// Grammar: optional packed range, optional wiretype, optional unpacked range
+	// similar to AstWire child structure
+	static std::optional<AstStructItem> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstStructItem>(AstStructItem(n)) : std::nullopt;
+	}
+};
+
+// RealValue (floating point literal)
+struct AstRealvalue : AstView<AST_REALVALUE> {
+	using AstView::AstView;
+	// Leaf node: realvalue field holds the double, no children
+	static std::optional<AstRealvalue> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstRealvalue>(AstRealvalue(n)) : std::nullopt;
+	}
+};
+
 // ---------------- Unary / binary op templates ----------------
 
 // All unary/binary op types share a trivial shape. A tiny typed view for each
