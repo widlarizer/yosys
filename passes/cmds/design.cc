@@ -336,14 +336,7 @@ struct DesignPass : public Pass {
 
 		if (!save_name.empty() || push_mode || push_copy_mode)
 		{
-			RTLIL::Design *design_copy = new RTLIL::Design;
-
-			for (auto mod : design->modules())
-				design_copy->add(mod->clone());
-
-			design_copy->selection_stack = design->selection_stack;
-			design_copy->selection_vars = design->selection_vars;
-			design_copy->selected_active_module = design->selected_active_module;
+			RTLIL::Design *design_copy = new RTLIL::Design(design);
 
 			if (saved_designs.count(save_name))
 				delete saved_designs.at(save_name);

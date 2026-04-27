@@ -2706,15 +2706,7 @@ struct VerilogBackend : public Backend {
 
 		RTLIL::Design *original_design;
 		if (!wreck) {
-			// FIXME shamefully copied out of design.cc
-			RTLIL::Design * design_copy = new RTLIL::Design;
-
-			for (auto mod : design->modules())
-				design_copy->add(mod->clone());
-
-			design_copy->selection_stack = design->selection_stack;
-			design_copy->selection_vars = design->selection_vars;
-			design_copy->selected_active_module = design->selected_active_module;
+			RTLIL::Design * design_copy = new RTLIL::Design(design);
 			original_design = design;
 			design = design_copy;
 		}
