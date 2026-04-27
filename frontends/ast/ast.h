@@ -466,6 +466,31 @@ namespace AST_INTERNAL
 	                           RTLIL::Module *old_module,
 	                           AST::AstNode *new_ast,
 	                           std::unique_ptr<AST::AstNode> original_ast = nullptr);
+
+	// Only for inner simplify
+	void check_auto_nosync(AST::AstNode *node);
+	void mark_auto_nosync(AST::AstNode *block, const AST::AstNode *wire);
+	bool contains_unbased_unsized(const AST::AstNode *node);
+	void add_wire_for_ref(Location loc, const RTLIL::Wire *ref, const std::string &str);
+	std::unique_ptr<AST::AstNode> make_packed_struct(AST::AstNode *template_node, std::string &name, decltype(AST::AstNode::attributes) &attributes);
+	bool is_autonamed_block(const std::string &str);
+	void add_members_to_scope(AST::AstNode *snode, std::string name);
+	bool node_contains_assignment_to(const AST::AstNode* node, const AST::AstNode* var);
+	std::string prefix_id(const std::string &prefix, const std::string &str);
+	//arrays
+	bool try_determine_range_width(AST::AstNode *range, int &result_width);
+	void prepend_ranges(std::unique_ptr<AST::AstNode> &range, AST::AstNode *range_add);
+	int range_width(AST::AstNode *node, AST::AstNode *rnode);
+	int add_dimension(AST::AstNode *node, AST::AstNode *rnode);
+	bool is_unexpanded_array_ref(AST::AstNode *node);
+	bool arrays_have_compatible_dims(AST::AstNode *mem_a, AST::AstNode *mem_b);
+	std::vector<int> array_indices_from_position(AST::AstNode *mem, const std::vector<int> &position);
+	void foreach_array_position(AST::AstNode *mem, std::function<void(const std::vector<int>&)> callback);
+	// struct
+	int size_packed_struct(AST::AstNode *snode, int base_offset);
+
+	extern const std::string auto_nosync_prefix;
+	extern const RTLIL::Design *simplify_design_context;
 }
 
 YOSYS_NAMESPACE_END
