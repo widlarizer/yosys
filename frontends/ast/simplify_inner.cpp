@@ -162,7 +162,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 							reg->set_attribute(it.first, it.second->clone());
 					reg->location.begin.filename = node->location.begin.filename;
 					reg->location = node->location;
-					while (reg->simplify(true, 1, -1, false)) { }
+					while (reg->simplify()) { }
 					children.push_back(std::move(reg));
 				}
 			}
@@ -380,12 +380,12 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 		for (size_t i = 0; i < children.size(); i++) {
 			auto& node = children[i];
 			if (node->type == AST_PARAMETER || node->type == AST_LOCALPARAM || node->type == AST_WIRE || node->type == AST_AUTOWIRE || node->type == AST_MEMORY || node->type == AST_TYPEDEF)
-				while (node->simplify(true, 1, -1, false))
+				while (node->simplify())
 					did_something = true;
 			if (node->type == AST_ENUM) {
 				for (auto& enode : node->children){
 					log_assert(enode->type==AST_ENUM_ITEM);
-					while (node->simplify(true, 1, -1, false))
+					while (node->simplify())
 						did_something = true;
 				}
 			}
@@ -450,7 +450,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 		for (auto& child : children) {
 			// simplify any parameters to constants
 			if (child->type == AST_PARASET)
-				while (child->simplify(true, 1, -1, false)) { }
+				while (child->simplify()) { }
 
 			// look for patterns which _may_ indicate ambiguity requiring
 			// resolution of the underlying module
@@ -1540,7 +1540,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 		wire->str = wire_id;
 		if (current_block)
 			wire->set_attribute(ID::nosync, AstNode::mkconst_int(location, 1, false));
-		while (wire->simplify(true, 1, -1, false)) { }
+		while (wire->simplify()) { }
 
 		auto data = clone();
 		data->children.pop_back();
@@ -1813,12 +1813,13 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 	{
 		auto buf = genif->cond()->clone();
 		while (buf->simplify(true, stage, width_hint, sign_hint)) { }
-		if (buf->type != AST_CONSTANT) {
+		auto buf_const = AstConstant::cast(buf.get());
+		if (!buf_const) {
 			// for (auto f : log_files)
 			// 	dumpAst(f, "verilog-ast> ");
 			input_error("Condition for generate if is not constant!\n");
 		}
-		if (buf->asBool() != 0) {
+		if (buf_const->asBool() != 0) {
 			buf = genif->then_body()->clone();
 		} else {
 			buf = genif->has_else_body() ? genif->else_body()->clone() : nullptr;
@@ -2312,7 +2313,7 @@ skip_dynamic_range_lvalue_expansion:;
 			current_scope[wire_tmp->str] = wire_tmp;
 			current_ast_mod->children.push_back(std::move(wire_tmp_owned));
 			wire_tmp->set_attribute(ID::nosync, AstNode::mkconst_int(location, 1, false));
-			while (wire_tmp->simplify(true, 1, -1, false)) { }
+			while (wire_tmp->simplify()) { }
 			wire_tmp->is_logic = true;
 
 			auto wire_tmp_id_owned = std::make_unique<AstNode>(location, AST_IDENTIFIER);
@@ -2504,7 +2505,7 @@ skip_dynamic_range_lvalue_expansion:;
 			wire_addr->was_checked = true;
 			current_ast_mod->children.push_back(std::move(wire_addr_owned));
 			current_scope[wire_addr->str] = wire_addr;
-			while (wire_addr->simplify(true, 1, -1, false)) { }
+			while (wire_addr->simplify()) { }
 
 			auto assign_addr = std::make_unique<AstNode>(location, AST_ASSIGN_EQ, std::make_unique<AstNode>(location, AST_IDENTIFIER), mkconst_bits(location, x_bits_addr, false));
 			assign_addr->children[0]->str = id_addr;
@@ -2531,7 +2532,7 @@ skip_dynamic_range_lvalue_expansion:;
 			wire_data->is_signed = mem_signed;
 			current_scope[wire_data->str] = wire_data;
 			current_ast_mod->children.push_back(std::move(wire_data_owned));
-			while (wire_data->simplify(true, 1, -1, false)) { }
+			while (wire_data->simplify()) { }
 
 			auto assign_data = std::make_unique<AstNode>(location, AST_ASSIGN_EQ, std::make_unique<AstNode>(location, AST_IDENTIFIER), mkconst_bits(location, x_bits_data, false));
 			assign_data->children[0]->str = id_data;
@@ -2548,7 +2549,7 @@ skip_dynamic_range_lvalue_expansion:;
 		wire_en->was_checked = true;
 		current_scope[wire_en->str] = wire_en;
 		current_ast_mod->children.push_back(std::move(wire_en_owned));
-		while (wire_en->simplify(true, 1, -1, false)) { }
+		while (wire_en->simplify()) { }
 
 		auto assign_en_first = std::make_unique<AstNode>(location, AST_ASSIGN_EQ, std::make_unique<AstNode>(location, AST_IDENTIFIER), mkconst_int(location, 0, false, mem_width));
 		assign_en_first->children[0]->str = id_en;
@@ -2673,7 +2674,7 @@ skip_dynamic_range_lvalue_expansion:;
 				auto* wire = wire_owned.get();
 				current_ast_mod->children.push_back(std::move(wire_owned));
 				wire->str = stringf("$initstate$%d_wire", myidx);
-				while (wire->simplify(true, 1, -1, false)) { }
+				while (wire->simplify()) { }
 
 				auto cell_owned = std::make_unique<AstNode>(location, AST_CELL, std::make_unique<AstNode>(location, AST_CELLTYPE), std::make_unique<AstNode>(location, AST_ARGUMENT, std::make_unique<AstNode>(location, AST_IDENTIFIER)));
 				auto* cell = cell_owned.get();
@@ -2683,7 +2684,7 @@ skip_dynamic_range_lvalue_expansion:;
 				cell->children[1]->children[0]->str = wire->str;
 				cell->children[1]->children[0]->id2ast = wire;
 				current_ast_mod->children.push_back(std::move(cell_owned));
-				while (cell->simplify(true, 1, -1, false)) { }
+				while (cell->simplify()) { }
 
 				newNode = std::make_unique<AstNode>(location, AST_IDENTIFIER);
 				newNode->str = wire->str;
@@ -2744,7 +2745,7 @@ skip_dynamic_range_lvalue_expansion:;
 					reg->is_signed = sign_hint;
 
 
-					while (reg->simplify(true, 1, -1, false)) { }
+					while (reg->simplify()) { }
 
 					auto regid = std::make_unique<AstNode>(location, AST_IDENTIFIER);
 					regid->str = reg->str;
@@ -3215,7 +3216,7 @@ skip_dynamic_range_lvalue_expansion:;
 			bool require_const_eval = decl->has_const_only_constructs();
 			bool all_args_const = true;
 			for (auto& child : children) {
-				while (child->simplify(true, 1, -1, false)) { }
+				while (child->simplify()) { }
 				if (child->type != AST_CONSTANT && child->type != AST_REALVALUE)
 					all_args_const = false;
 			}
@@ -3260,7 +3261,7 @@ skip_dynamic_range_lvalue_expansion:;
 			auto* wire_leaky = wire.get();
 			current_scope[wire->str] = wire_leaky;
 			current_ast_mod->children.push_back(std::move(wire));
-			while (wire_leaky->simplify(true, 1, -1, false)) { }
+			while (wire_leaky->simplify()) { }
 
 			auto lvalue = std::make_unique<AstNode>(location, AST_IDENTIFIER);
 			lvalue->str = wire_leaky->str;
@@ -3306,7 +3307,7 @@ skip_dynamic_range_lvalue_expansion:;
 					wire->is_input = false;
 					wire->is_output = false;
 					current_ast_mod->children.push_back(std::move(wire));
-					while (wire->simplify(true, 1, -1, false)) { }
+					while (wire->simplify()) { }
 
 					auto wire_id = std::make_unique<AstNode>(location, AST_IDENTIFIER);
 					wire_id->str = wire->str;
@@ -3377,7 +3378,7 @@ skip_dynamic_range_lvalue_expansion:;
 					current_scope[wire->str] = wire;
 				}
 
-				while (wire->simplify(true, 1, -1, false)) { }
+				while (wire->simplify()) { }
 
 				if ((child->is_input || child->is_output) && arg_count < children.size())
 				{
@@ -3408,7 +3409,7 @@ skip_dynamic_range_lvalue_expansion:;
 						}
 						wire->fixup_hierarchy_flags();
 						// updates the sizing
-						while (wire->simplify(true, 1, -1, false)) { }
+						while (wire->simplify()) { }
 						continue;
 					}
 

@@ -344,7 +344,7 @@ bool AstNode::mem2reg_as_needed_pass2(pool<AstNode*> &mem2reg_set, AstNode *mod,
 		wire_addr->is_reg = true;
 		wire_addr->was_checked = true;
 		wire_addr->set_attribute(ID::nosync, AstNode::mkconst_int(location, 1, false));
-		while (wire_addr->simplify(true, 1, -1, false)) { }
+		while (wire_addr->simplify()) { }
 		mod->children.push_back(std::move(wire_addr));
 
 		auto wire_data = std::make_unique<AstNode>(location, AST_WIRE, std::make_unique<AstNode>(location, AST_RANGE, mkconst_int(location, mem_width-1, true), mkconst_int(location, 0, true)));
@@ -353,7 +353,7 @@ bool AstNode::mem2reg_as_needed_pass2(pool<AstNode*> &mem2reg_set, AstNode *mod,
 		wire_data->was_checked = true;
 		wire_data->is_signed = mem_signed;
 		wire_data->set_attribute(ID::nosync, AstNode::mkconst_int(location, 1, false));
-		while (wire_data->simplify(true, 1, -1, false)) { }
+		while (wire_data->simplify()) { }
 		mod->children.push_back(std::move(wire_data));
 
 		log_assert(block != nullptr);
@@ -466,7 +466,7 @@ bool AstNode::mem2reg_as_needed_pass2(pool<AstNode*> &mem2reg_set, AstNode *mod,
 			wire_addr->was_checked = true;
 			if (block)
 				wire_addr->set_attribute(ID::nosync, AstNode::mkconst_int(location, 1, false));
-			while (wire_addr->simplify(true, 1, -1, false)) { }
+			while (wire_addr->simplify()) { }
 			mod->children.push_back(std::move(wire_addr));
 
 			auto wire_data = std::make_unique<AstNode>(location, AST_WIRE, std::make_unique<AstNode>(location, AST_RANGE, mkconst_int(location, mem_width-1, true), mkconst_int(location, 0, true)));
@@ -476,7 +476,7 @@ bool AstNode::mem2reg_as_needed_pass2(pool<AstNode*> &mem2reg_set, AstNode *mod,
 			wire_data->is_signed = mem_signed;
 			if (block)
 				wire_data->set_attribute(ID::nosync, AstNode::mkconst_int(location, 1, false));
-			while (wire_data->simplify(true, 1, -1, false)) { }
+			while (wire_data->simplify()) { }
 			mod->children.push_back(std::move(wire_data));
 
 			auto assign_addr = std::make_unique<AstNode>(location, block ? AST_ASSIGN_EQ : AST_ASSIGN, std::make_unique<AstNode>(location, AST_IDENTIFIER), children[0]->children[0]->clone());

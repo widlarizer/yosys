@@ -189,7 +189,7 @@ void AstNode::annotateTypedEnums(AstNode *template_node)
 		log_assert(current_scope.count(enum_type) == 1);
 		AstNode *enum_node = current_scope.at(enum_type);
 		log_assert(enum_node->type == AST_ENUM);
-		while (enum_node->simplify(true, 1, -1, false)) { }
+		while (enum_node->simplify()) { }
 		//get width from 1st enum item:
 		log_assert(enum_node->children.size() >= 1);
 		AstNode *enum_item0 = enum_node->children[0].get();
@@ -615,7 +615,7 @@ std::unique_ptr<AstNode> AST_INTERNAL::make_packed_struct(AstNode *template_node
 		wnode->set_attribute(pair.first, pair.second->clone());
 	}
 	// resolve packed dimension
-	while (wnode->simplify(true, 1, -1, false)) {}
+	while (wnode->simplify()) {}
 	// make sure this node is the one in scope for this name
 	current_scope[name] = wnode.get();
 	// add all the struct members to scope under the wire's name
@@ -889,8 +889,8 @@ bool AST_INTERNAL::try_determine_range_width(AstNode *range, int &result_width)
 	auto left_at_zero_ast = r.msb()->clone_at_zero();
 	auto right_at_zero_ast = r.lsb()->clone_at_zero();
 
-	while (left_at_zero_ast->simplify(true, 1, -1, false)) {}
-	while (right_at_zero_ast->simplify(true, 1, -1, false)) {}
+	while (left_at_zero_ast->simplify()) {}
+	while (right_at_zero_ast->simplify()) {}
 
 	bool ok = false;
 	if (left_at_zero_ast->type == AST_CONSTANT

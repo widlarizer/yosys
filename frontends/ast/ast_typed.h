@@ -413,6 +413,12 @@ struct AstConstant : AstView<AST_CONSTANT> {
 	static std::optional<AstConstant> cast(AstNode *n) {
 		return matches(n) ? std::optional<AstConstant>(AstConstant(n)) : std::nullopt;
 	}
+	bool asBool() const {
+		for (auto &bit : raw()->bits)
+			if (bit == RTLIL::State::S1)
+				return true;
+		return false;
+	}
 };
 
 // Function and task calls
@@ -634,6 +640,33 @@ struct AstCondBase : AstView<Tag> {
 using AstCond  = AstCondBase<AST_COND>;
 using AstCondX = AstCondBase<AST_CONDX>;
 using AstCondZ = AstCondBase<AST_CONDZ>;
+
+// Untagged view over any AST_COND / AST_CONDX / AST_CONDZ. Useful when iterating
+// the conditions of an AST_CASE without dispatching on the exact tag.
+struct AstAnyCond {
+	AstNode *node;
+	static bool matches(const AstNode *n) {
+		return n && (n->type == AST_COND || n->type == AST_CONDX || n->type == AST_CONDZ);
+	}
+	explicit AstAnyCond(AstNode *n) : node(n) { log_assert(matches(n)); }
+	AstNode *body() const {
+		log_assert(!node->children.empty());
+		return node->children.back().get();
+	}
+	bool is_default() const {
+		return !node->children.empty() && node->children.front()->type == AST_DEFAULT;
+	}
+	size_t num_labels() const {
+		return node->children.empty() ? 0 : node->children.size() - 1;
+	}
+	AstNode *label(size_t i) const {
+		log_assert(i + 1 < node->children.size());
+		return node->children.at(i).get();
+	}
+	static std::optional<AstAnyCond> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstAnyCond>(AstAnyCond(n)) : std::nullopt;
+	}
+};
 
 struct AstGenIf : AstView<AST_GENIF> {
 	using AstView::AstView;

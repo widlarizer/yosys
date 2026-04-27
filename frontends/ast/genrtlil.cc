@@ -202,7 +202,7 @@ struct AST_INTERNAL::LookaheadRewriter
 				wire->str = stringf("$lookahead%s$%d", node->str, autoidx++);
 				wire->set_attribute(ID::nosync, AstNode::mkconst_int(node->location, 1, false));
 				wire->is_logic = true;
-				while (wire->simplify(true, 1, -1, false)) { }
+				while (wire->simplify()) { }
 				lookaheadids[node->str] = make_pair(node->id2ast, wire.get());
 				wire->genRTLIL();
 				current_ast_mod->children.push_back(std::move(wire));
@@ -1102,7 +1102,7 @@ void AstNode::detectSignWidthWorker(int &width_hint, bool &sign_hint, bool *foun
 				this_width = id_ast->children[1]->range_left - id_ast->children[1]->range_right + 1;
 			} else {
 				if (id_ast->children[0]->type != AST_CONSTANT)
-					while (id_ast->simplify(true, 1, -1, false)) { }
+					while (id_ast->simplify()) { }
 				if (id_ast->children[0]->type == AST_CONSTANT)
 					this_width = id_ast->children[0]->bits.size();
 				else
@@ -1145,8 +1145,8 @@ void AstNode::detectSignWidthWorker(int &width_hint, bool &sign_hint, bool *foun
 			else if (!range->range_valid) {
 				auto left_at_zero_ast = children[0]->children[0]->clone_at_zero();
 				auto right_at_zero_ast = children[0]->children.size() >= 2 ? children[0]->children[1]->clone_at_zero() : left_at_zero_ast->clone();
-				while (left_at_zero_ast->simplify(true, 1, -1, false)) { }
-				while (right_at_zero_ast->simplify(true, 1, -1, false)) { }
+				while (left_at_zero_ast->simplify()) { }
+				while (right_at_zero_ast->simplify()) { }
 				if (left_at_zero_ast->type != AST_CONSTANT || right_at_zero_ast->type != AST_CONSTANT)
 					input_error("Unsupported expression on dynamic range select on signal `%s'!\n", str);
 				this_width = abs(int(left_at_zero_ast->integer - right_at_zero_ast->integer)) + 1;
@@ -1160,7 +1160,7 @@ void AstNode::detectSignWidthWorker(int &width_hint, bool &sign_hint, bool *foun
 		break;
 
 	case AST_TO_BITS:
-		while (children[0]->simplify(true, 1, -1, false) == true) { }
+		while (children[0]->simplify() == true) { }
 		if (children[0]->type != AST_CONSTANT)
 			input_error("Left operand of tobits expression is not constant!\n");
 		children[1]->detectSignWidthWorker(sub_width_hint, sign_hint);
@@ -1182,7 +1182,7 @@ void AstNode::detectSignWidthWorker(int &width_hint, bool &sign_hint, bool *foun
 		break;
 
 	case AST_CAST_SIZE:
-		while (children.at(0)->simplify(true, 1, -1, false)) { }
+		while (children.at(0)->simplify()) { }
 		if (children.at(0)->type != AST_CONSTANT)
 			input_error("Static cast with non constant expression!\n");
 		children.at(1)->detectSignWidthWorker(width_hint, sign_hint);
@@ -1204,7 +1204,7 @@ void AstNode::detectSignWidthWorker(int &width_hint, bool &sign_hint, bool *foun
 		break;
 
 	case AST_REPLICATE:
-		while (children[0]->simplify(true, 1, -1, false) == true) { }
+		while (children[0]->simplify() == true) { }
 		if (children[0]->type != AST_CONSTANT)
 			input_error("Left operand of replicate expression is not constant!\n");
 		children[1]->detectSignWidthWorker(sub_width_hint, sub_sign_hint);
@@ -1325,7 +1325,7 @@ void AstNode::detectSignWidthWorker(int &width_hint, bool &sign_hint, bool *foun
 	case AST_FCALL:
 		if (str == "\\$anyconst" || str == "\\$anyseq" || str == "\\$allconst" || str == "\\$allseq") {
 			if (GetSize(children) == 1) {
-				while (children[0]->simplify(true, 1, -1, false) == true) { }
+				while (children[0]->simplify() == true) { }
 				if (children[0]->type != AST_CONSTANT)
 					input_error("System function %s called with non-const argument!\n",
 							RTLIL::unescape_id(str));
@@ -1374,8 +1374,8 @@ void AstNode::detectSignWidthWorker(int &width_hint, bool &sign_hint, bool *foun
 				auto right = range->children.at(1)->clone();
 				left->set_in_param_flag(true);
 				right->set_in_param_flag(true);
-				while (left->simplify(true, 1, -1, false)) { }
-				while (right->simplify(true, 1, -1, false)) { }
+				while (left->simplify()) { }
+				while (right->simplify()) { }
 				if (left->type != AST_CONSTANT || right->type != AST_CONSTANT)
 					input_error("Function %s has non-constant width!",
 							RTLIL::unescape_id(str));
@@ -1696,8 +1696,8 @@ RTLIL::SigSpec AstNode::genRTLIL(int width_hint, bool sign_hint)
 				if (!children[0]->range_valid) {
 					auto left_at_zero_ast = children[0]->children[0]->clone_at_zero();
 					auto right_at_zero_ast = children[0]->children.size() >= 2 ? children[0]->children[1]->clone_at_zero() : left_at_zero_ast->clone();
-					while (left_at_zero_ast->simplify(true, 1, -1, false)) { }
-					while (right_at_zero_ast->simplify(true, 1, -1, false)) { }
+					while (left_at_zero_ast->simplify()) { }
+					while (right_at_zero_ast->simplify()) { }
 					if (left_at_zero_ast->type != AST_CONSTANT || right_at_zero_ast->type != AST_CONSTANT)
 						input_error("Unsupported expression on dynamic range select on signal `%s'!\n", str);
 					int width = abs(int(left_at_zero_ast->integer - right_at_zero_ast->integer)) + 1;

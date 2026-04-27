@@ -30,6 +30,7 @@
 #include "kernel/yosys.h"
 #include "libs/sha1/sha1.h"
 #include "ast.h"
+#include "ast_typed.h"
 
 YOSYS_NAMESPACE_BEGIN
 
@@ -928,7 +929,7 @@ std::unique_ptr<AstNode> AstNode::mktemp_logic(AstSrcLocType loc, const std::str
 	wire->is_signed = is_signed;
 	wire->is_logic = true;
 	mod->children.push_back(std::move(wire_owned));
-	while (wire->simplify(true, 1, -1, false)) { }
+	while (wire->simplify()) { }
 
 	auto ident = std::make_unique<AstNode>(loc, AST_IDENTIFIER);
 	ident->str = wire->str;
@@ -996,15 +997,6 @@ RTLIL::Const AstNode::asParaConst() const
 	if (is_unsized)
 		val.flags |= RTLIL::CONST_FLAG_UNSIZED;
 	return val;
-}
-
-bool AstNode::asBool() const
-{
-	log_assert(type == AST_CONSTANT);
-	for (auto &bit : bits)
-		if (bit == RTLIL::State::S1)
-			return true;
-	return false;
 }
 
 int AstNode::isConst() const
@@ -1202,23 +1194,23 @@ static RTLIL::Module *process_module(RTLIL::Design *design, AstNode *ast, bool d
 			log_assert((bool)attr.second.get());
 
 		if (!blackbox_module && ast->attributes.count(ID::blackbox)) {
-			auto& n = ast->attributes.at(ID::blackbox);
-			if (n->type != AST_CONSTANT)
+			auto n = AstConstant::cast(ast->attributes.at(ID::blackbox).get());
+			if (!n)
 				ast->input_error("Got blackbox attribute with non-constant value!\n");
 			blackbox_module = n->asBool();
 		}
 
 		if (blackbox_module && ast->attributes.count(ID::whitebox)) {
-			auto& n = ast->attributes.at(ID::whitebox);
-			if (n->type != AST_CONSTANT)
+			auto n = AstConstant::cast(ast->attributes.at(ID::whitebox).get());
+			if (!n)
 				ast->input_error("Got whitebox attribute with non-constant value!\n");
 			blackbox_module = !n->asBool();
 		}
 
 		if (ast->attributes.count(ID::noblackbox)) {
 			if (blackbox_module) {
-				auto& n = ast->attributes.at(ID::noblackbox);
-				if (n->type != AST_CONSTANT)
+				auto n = AstConstant::cast(ast->attributes.at(ID::noblackbox).get());
+				if (!n)
 					ast->input_error("Got noblackbox attribute with non-constant value!\n");
 				blackbox_module = !n->asBool();
 			}
@@ -1466,7 +1458,7 @@ void AST::process(RTLIL::Design *design, AstNode *ast, bool nodisplay, bool dump
 		}
 		else if (child->type == AST_PACKAGE) {
 			// process enum/other declarations
-			child->simplify(true, 1, -1, false);
+			child->simplify();
 			rename_in_package_stmts(child.get());
 			design->verilog_packages.push_back(child->clone());
 			current_scope.clear();

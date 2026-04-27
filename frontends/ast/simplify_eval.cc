@@ -1,32 +1,33 @@
 /*
- *  yosys -- Yosys Open SYnthesis Suite
- *
- *  Copyright (C) 2012  Claire Xenia Wolf <claire@yosyshq.com>
- *
- *  Permission to use, copy, modify, and/or distribute this software for any
- *  purpose with or without fee is hereby granted, provided that the above
- *  copyright notice and this permission notice appear in all copies.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- *  WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- *  MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- *  ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- *  WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- *  ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- *  OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
- *
- *  ---
- *
- *  This is the AST frontend library.
- *
- *  The AST frontend library is not a frontend on it's own but provides a
- *  generic abstract syntax tree (AST) abstraction for HDL code and can be
- *  used by HDL frontends. See "ast.h" for an overview of the API and the
- *  Verilog frontend for an usage example.
- *
- */
+*  yosys -- Yosys Open SYnthesis Suite
+*
+*  Copyright (C) 2012  Claire Xenia Wolf <claire@yosyshq.com>
+*
+*  Permission to use, copy, modify, and/or distribute this software for any
+*  purpose with or without fee is hereby granted, provided that the above
+*  copyright notice and this permission notice appear in all copies.
+*
+*  THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+*  WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+*  MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+*  ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+*  WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+*  ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+*  OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+*
+*  ---
+*
+*  This is the AST frontend library.
+*
+*  The AST frontend library is not a frontend on it's own but provides a
+*  generic abstract syntax tree (AST) abstraction for HDL code and can be
+*  used by HDL frontends. See "ast.h" for an overview of the API and the
+*  Verilog frontend for an usage example.
+*
+*/
 
 #include "kernel/log.h"
+#include "kernel/yosys_common.h"
 #include "libs/sha1/sha1.h"
 #include "frontends/verilog/verilog_frontend.h"
 #include "ast.h"
@@ -60,39 +61,37 @@ bool AstNode::is_simple_const_expr()
 }
 
 // attempt to statically evaluate a functions with all-const arguments
-std::unique_ptr<AstNode> AstNode::eval_const_function(AstNode *fcall, bool must_succeed)
+std::unique_ptr<AstNode> AstNode::eval_const_function(AstNode *fcall_node, bool must_succeed)
 {
+	AstFcall fcall(fcall_node);
 	std::map<std::string, AstNode*> backup_scope = current_scope;
 	std::map<std::string, AstNode::varinfo_t> variables;
-	auto block = std::make_unique<AstNode>(location, AST_BLOCK);
+	auto block_owned = std::make_unique<AstNode>(location, AST_BLOCK);
+	AstBlock block(block_owned.get());
 	std::unique_ptr<AstNode> result = nullptr;
 
 	size_t argidx = 0;
 	for (auto& child : children)
-	{
-		block->children.push_back(child->clone());
-	}
-	block->set_in_param_flag(true);
+		block_owned->children.push_back(child->clone());
+	block_owned->set_in_param_flag(true);
 	std::vector<std::unique_ptr<AstNode>> temporary_nodes;
 
-	while (!block->children.empty())
-	{
-		auto& stmt = block->children.front();
+	auto pop_front = [&]() {
+		block_owned->children.erase(block_owned->children.begin());
+	};
 
-#if 0
-		log("-----------------------------------\n");
-		for (auto &it : variables)
-			log("%20s %40s\n", it.first, log_signal(it.second.val));
-		stmt->dumpAst(nullptr, "stmt> ");
-#endif
+	while (!block_owned->children.empty())
+	{
+		auto& stmt = block_owned->children.front();
+
 		if (stmt->type == AST_WIRE)
 		{
-			while (stmt->simplify(true, 1, -1, false)) { }
+			while (stmt->simplify()) { }
 			if (!stmt->range_valid) {
 				if (!must_succeed)
 					goto finished;
 				stmt->input_error("Can't determine size of variable %s\n%s: ... called from here.\n",
-						stmt->str.c_str(), fcall->loc_string().c_str());
+						stmt->str.c_str(), fcall.loc().to_string());
 			}
 			AstNode::varinfo_t &variable = variables[stmt->str];
 			int width = abs(stmt->range_left - stmt->range_right) + 1;
@@ -107,92 +106,89 @@ std::unique_ptr<AstNode> AstNode::eval_const_function(AstNode *fcall, bool must_
 			variable.is_signed = stmt->is_signed;
 			variable.explicitly_sized = stmt->children.size() &&
 				stmt->children.back()->type == AST_RANGE;
-			// identify the argument corresponding to this wire, if applicable
-			if (stmt->is_input && argidx < fcall->children.size()) {
-				variable.arg = fcall->children.at(argidx++).get();
+			if (stmt->is_input && argidx < fcall.num_args()) {
+				variable.arg = fcall.arg(argidx++);
 			}
 			// load the constant arg's value into this variable
 			if (variable.arg) {
-				if (variable.arg->type == AST_CONSTANT) {
-					variable.val = variable.arg->bitsAsConst(width);
+				if (auto k = AstConstant::cast(variable.arg)) {
+					variable.val = k->raw()->bitsAsConst(width);
 				} else {
-					log_assert(variable.arg->type == AST_REALVALUE);
+					log_assert(AstRealvalue::matches(variable.arg));
 					variable.val = variable.arg->realAsConst(width);
 				}
 			}
 			current_scope[stmt->str] = stmt.get();
 			temporary_nodes.push_back(std::move(stmt));
-
-			block->children.erase(block->children.begin());
+			pop_front();
 			continue;
 		}
 
 		log_assert(variables.count(str) != 0);
 
-		if (stmt->type == AST_LOCALPARAM)
+		if (AstLocalparam::cast(stmt.get()))
 		{
-			while (stmt->simplify(true, 1, -1, false)) { }
-
+			while (stmt->simplify()) { }
 			current_scope[stmt->str] = stmt.get();
 			temporary_nodes.push_back(std::move(stmt));
-
-			block->children.erase(block->children.begin());
+			pop_front();
 			continue;
 		}
 
 		if (auto asgn = AstAssignEq::cast(stmt.get()))
 		{
-			AstNode *asgn_lhs = asgn->lhs().get();
-			AstNode *asgn_rhs = asgn->rhs().get();
-			if (asgn_lhs->type == AST_IDENTIFIER && asgn_lhs->children.size() != 0 &&
-					asgn_lhs->children.at(0)->type == AST_RANGE)
-				if (!asgn_lhs->children.at(0)->replace_variables(variables, fcall, must_succeed))
-					goto finished;
-			if (!asgn_rhs->replace_variables(variables, fcall, must_succeed))
+			// Pre-simplify: if LHS is an indexed identifier, replace vars in the
+			// bit-select range; always replace vars on the RHS expression.
+			if (auto lhs_id = AstIdentifier::cast(asgn->lhs().get()))
+				if (auto sel = lhs_id->bit_select_raw())
+					if (AstRange::matches(sel))
+						if (!sel->replace_variables(variables, fcall.raw(), must_succeed))
+							goto finished;
+			if (!asgn->rhs().get()->replace_variables(variables, fcall.raw(), must_succeed))
 				goto finished;
-			while (stmt->simplify(true, 1, -1, false)) { }
+			while (stmt->simplify()) { }
 
-			if (stmt->type != AST_ASSIGN_EQ)
+			// simplify may have entirely replaced the assignment
+			auto asgn_after = AstAssignEq::cast(stmt.get());
+			if (!asgn_after)
 				continue;
 
-			// Re-read pointers: simplify may have rewritten children.
-			asgn_lhs = asgn->lhs().get();
-			asgn_rhs = asgn->rhs().get();
-
-			if (asgn_rhs->type != AST_CONSTANT) {
+			auto rhs_const = AstConstant::cast(asgn_after->rhs().get());
+			if (!rhs_const) {
 				if (!must_succeed)
 					goto finished;
 				stmt->input_error("Non-constant expression in constant function\n%s: ... called from here. X\n",
-						fcall->loc_string().c_str());
+						fcall.loc().to_string());
 			}
 
-			if (asgn_lhs->type != AST_IDENTIFIER) {
+			auto lhs_id = AstIdentifier::cast(asgn_after->lhs().get());
+			if (!lhs_id) {
 				if (!must_succeed)
 					goto finished;
 				stmt->input_error("Unsupported composite left hand side in constant function\n%s: ... called from here.\n",
-						fcall->loc_string().c_str());
+						fcall.loc().to_string());
 			}
 
-			if (!variables.count(asgn_lhs->str)) {
+			if (!variables.count(lhs_id->str())) {
 				if (!must_succeed)
 					goto finished;
 				stmt->input_error("Assignment to non-local variable in constant function\n%s: ... called from here.\n",
-						fcall->loc_string().c_str());
+						fcall.loc().to_string());
 			}
 
-			if (asgn_lhs->children.empty()) {
-				variables[asgn_lhs->str].val = asgn_rhs->bitsAsConst(variables[asgn_lhs->str].val.size());
+			varinfo_t &v = variables[lhs_id->str()];
+			if (!lhs_id->has_bit_select()) {
+				v.val = rhs_const->raw()->bitsAsConst(v.val.size());
 			} else {
-				AstNode *range = asgn_lhs->children.at(0).get();
+				AstNode *range = lhs_id->bit_select_raw();
 				if (!range->range_valid) {
 					if (!must_succeed)
 						goto finished;
-					range->input_error("Non-constant range\n%s: ... called from here.\n", fcall->loc_string());
+					range->input_error("Non-constant range\n%s: ... called from here.\n", fcall.raw()->loc_string());
 				}
 				int offset = min(range->range_left, range->range_right);
 				int width = std::abs(range->range_left - range->range_right) + 1;
-				varinfo_t &v = variables[asgn_lhs->str];
-				RTLIL::Const r = asgn_rhs->bitsAsConst(v.val.size());
+				RTLIL::Const r = rhs_const->raw()->bitsAsConst(v.val.size());
 				for (int i = 0; i < width; i++) {
 					int index = i + offset - v.offset;
 					if (v.range_swapped)
@@ -200,8 +196,7 @@ std::unique_ptr<AstNode> AstNode::eval_const_function(AstNode *fcall, bool must_
 					v.val.set(index, r.at(i));
 				}
 			}
-
-			block->children.erase(block->children.begin());
+			pop_front();
 			continue;
 		}
 
@@ -214,29 +209,30 @@ std::unique_ptr<AstNode> AstNode::eval_const_function(AstNode *fcall, bool must_
 			auto body = for_->body().take();
 			body->children.push_back(std::move(step));
 			reshape_as<AST_WHILE>(stmt.get(), std::move(cond), std::move(body));
-			block->children.insert(block->children.begin(), std::move(init));
+			block_owned->children.insert(block_owned->children.begin(), std::move(init));
 			continue;
 		}
 
 		if (auto while_ = AstWhile::cast(stmt.get()))
 		{
 			auto cond = while_->cond().get()->clone();
-			if (!cond->replace_variables(variables, fcall, must_succeed))
+			if (!cond->replace_variables(variables, fcall.raw(), must_succeed))
 				goto finished;
 			cond->set_in_param_flag(true);
-			while (cond->simplify(true, 1, -1, false)) { }
+			while (cond->simplify()) { }
 
-			if (cond->type != AST_CONSTANT) {
+			auto cond_const = AstConstant::cast(cond.get());
+			if (!cond_const) {
 				if (!must_succeed)
 					goto finished;
 				stmt->input_error("Non-constant expression in constant function\n%s: ... called from here.\n",
-						fcall->loc_string().c_str());
+						fcall.loc().to_string());
 			}
 
-			if (cond->asBool()) {
-				block->children.insert(block->children.begin(), while_->body().get()->clone());
+			if (cond_const->asBool()) {
+				block_owned->children.insert(block_owned->children.begin(), while_->body().get()->clone());
 			} else {
-				block->children.erase(block->children.begin());
+				pop_front();
 			}
 			continue;
 		}
@@ -244,109 +240,109 @@ std::unique_ptr<AstNode> AstNode::eval_const_function(AstNode *fcall, bool must_
 		if (auto rep = AstRepeat::cast(stmt.get()))
 		{
 			auto num = rep->count().get()->clone();
-			if (!num->replace_variables(variables, fcall, must_succeed))
+			if (!num->replace_variables(variables, fcall.raw(), must_succeed))
 				goto finished;
 			num->set_in_param_flag(true);
-			while (num->simplify(true, 1, -1, false)) { }
+			while (num->simplify()) { }
 
-			if (num->type != AST_CONSTANT) {
+			auto num_const = AstConstant::cast(num.get());
+			if (!num_const) {
 				if (!must_succeed)
 					goto finished;
 				stmt->input_error("Non-constant expression in constant function\n%s: ... called from here.\n",
-						fcall->loc_string().c_str());
+						fcall.loc().to_string());
 			}
 
 			temporary_nodes.push_back(std::move(stmt));
-			block->children.erase(block->children.begin());
+			pop_front();
 			AstRepeat rep_back(temporary_nodes.back().get());
-			for (int i = 0; i < num->bitsAsConst().as_int(); i++)
-				block->children.insert(block->children.begin(), rep_back.body().get()->clone());
-
+			int n = num_const->raw()->bitsAsConst().as_int();
+			for (int i = 0; i < n; i++)
+				block_owned->children.insert(block_owned->children.begin(), rep_back.body().get()->clone());
 			continue;
 		}
 
 		if (auto case_ = AstCase::cast(stmt.get()))
 		{
 			auto expr = case_->selector()->clone();
-			if (!expr->replace_variables(variables, fcall, must_succeed))
+			if (!expr->replace_variables(variables, fcall.raw(), must_succeed))
 				goto finished;
 			expr->set_in_param_flag(true);
-			while (expr->simplify(true, 1, -1, false)) { }
+			while (expr->simplify()) { }
 
 			AstNode *sel_case = nullptr;
 			std::unique_ptr<AstNode> sel_case_copy = nullptr;
 			for (auto it = case_->conditions_begin(); it != case_->conditions_end(); ++it)
 			{
-				auto &child = *it;
+				AstAnyCond cond_view(it->get());
 				bool found_match = false;
-				log_assert(child->type == AST_COND || child->type == AST_CONDX || child->type == AST_CONDZ);
 
-				if (child->children.front()->type == AST_DEFAULT) {
-					sel_case = child->children.back().get();
+				if (cond_view.is_default()) {
+					sel_case = cond_view.body();
 					continue;
 				}
 
-				for (size_t j = 0; j+1 < child->children.size() && !found_match; j++)
+				for (size_t j = 0; j < cond_view.num_labels() && !found_match; j++)
 				{
-					auto cond = child->children.at(j)->clone();
-					if (!cond->replace_variables(variables, fcall, must_succeed))
+					auto cond = cond_view.label(j)->clone();
+					if (!cond->replace_variables(variables, fcall.raw(), must_succeed))
 						goto finished;
 
 					cond = std::make_unique<AstNode>(location, AST_EQ, expr->clone(), std::move(cond));
 					cond->set_in_param_flag(true);
-					while (cond->simplify(true, 1, -1, false)) { }
+					while (cond->simplify()) { }
 
-					if (cond->type != AST_CONSTANT) {
+					auto cond_const = AstConstant::cast(cond.get());
+					if (!cond_const) {
 						if (!must_succeed)
 							goto finished;
 						stmt->input_error("Non-constant expression in constant function\n%s: ... called from here.\n",
-								fcall->loc_string().c_str());
+								fcall.loc().to_string());
 					}
 
-					found_match = cond->asBool();
+					found_match = cond_const->asBool();
 				}
 
 				if (found_match) {
-					sel_case = child->children.back().get();
+					sel_case = cond_view.body();
 					break;
 				}
 			}
 			if (sel_case)
 				sel_case_copy = sel_case->clone();
 
-			block->children.erase(block->children.begin());
+			pop_front();
 			if (sel_case_copy)
-				block->children.insert(block->children.begin(), std::move(sel_case_copy));
+				block_owned->children.insert(block_owned->children.begin(), std::move(sel_case_copy));
 			continue;
 		}
 
-		if (stmt->type == AST_BLOCK)
+		if (auto inner = AstBlock::cast(stmt.get()))
 		{
-			if (!stmt->str.empty())
-				stmt->expand_genblock(stmt->str + ".");
-			auto* stmt_leaky = stmt.get();
+			if (!inner->str().empty())
+				inner->raw()->expand_genblock(inner->str() + ".");
+			AstNode *stmt_leaky = inner->raw();
 			temporary_nodes.push_back(std::move(stmt));
-			block->children.erase(block->children.begin());
-			block->children.reserve(block->children.size() + stmt_leaky->children.size());
-			block->children.insert(block->children.begin(),
+			pop_front();
+			block_owned->children.reserve(block_owned->children.size() + stmt_leaky->children.size());
+			block_owned->children.insert(block_owned->children.begin(),
 				std::make_move_iterator(stmt_leaky->children.begin()),
 				std::make_move_iterator(stmt_leaky->children.end()));
 			stmt_leaky->children.clear();
-			block->fixup_hierarchy_flags();
+			block_owned->fixup_hierarchy_flags();
 			continue;
 		}
 
-		// log("C\n");
 		if (!must_succeed)
 			goto finished;
 		stmt->input_error("Unsupported language construct in constant function\n%s: ... called from here.\n",
-				fcall->loc_string().c_str());
+				fcall.loc().to_string());
 		log_abort();
 	}
 
 	result = AstNode::mkconst_bits(location, variables.at(str).val.to_bits(), variables.at(str).is_signed);
 
-finished:
+	finished:
 	current_scope = backup_scope;
 	return result;
 }
