@@ -1170,6 +1170,17 @@ RTLIL::Design::Design()
 	RTLIL::Design::get_all_designs()->insert(std::pair<unsigned int, RTLIL::Design*>(hashidx_, this));
 }
 
+RTLIL::Design::Design(RTLIL::Design* other)
+  : RTLIL::Design()
+{
+	for (auto mod : other->modules())
+		add(mod->clone());
+
+	selection_stack = other->selection_stack;
+	selection_vars = other->selection_vars;
+	selected_active_module = other->selected_active_module;
+}
+
 RTLIL::Design::~Design()
 {
 	for (auto &pr : modules_)
