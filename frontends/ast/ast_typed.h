@@ -265,6 +265,86 @@ AstView<Tag> reshape_as_vec(AstNode *node, std::vector<std::unique_ptr<AstNode>>
 		DEFINE_AST_CAST(StructName, Tag) \
 	};
 
+// VariadicView: shared base for nodes whose grammar is "zero-or-more children of a
+// uniform constraint". Used directly for AST_BLOCK, AST_CONCAT, AST_MULTIRANGE,
+// AST_STRUCT, AST_UNION, AST_GENBLOCK; subclassed (or aliased) for FCALL/TCALL/PRIMITIVE
+// which add domain-specific names like arg(i).
+template <AstNodeType Tag, typename Constraint = Anything>
+struct VariadicView : AstView<Tag> {
+	using AstView<Tag>::AstView;
+	using AstView<Tag>::node;
+
+	size_t size() const { return node->children.size(); }
+	bool empty() const { return node->children.empty(); }
+	AstNode *at(size_t i) const { return node->children.at(i).get(); }
+	ChildSlot<Constraint> slot(size_t i) const { return {node, i}; }
+	auto begin() const { return node->children.begin(); }
+	auto end()   const { return node->children.end(); }
+	auto &raw_children() const { return node->children; }
+
+	// num_args/arg are the names used by call-shaped nodes (FCALL/TCALL/PRIMITIVE).
+	// Provided here so any VariadicView reads naturally as "a list of arguments".
+	size_t num_args() const { return node->children.size(); }
+	AstNode *arg(size_t i) const { return node->children.at(i).get(); }
+	ChildSlot<Constraint> arg_slot(size_t i) const { return {node, i}; }
+
+	static std::optional<VariadicView> cast(AstNode *n) {
+		return AstView<Tag>::matches(n)
+			? std::optional<VariadicView>(VariadicView(n))
+			: std::nullopt;
+	}
+};
+
+// ParamLikeView: AST_PARAMETER, AST_LOCALPARAM, AST_ENUM_ITEM all share the
+// shape [value, range_or_wiretype_or_realvalue?]. (The third "type tag" child is
+// not part of this template — callers query has_range()/has_wiretype()/etc.)
+template <AstNodeType Tag>
+struct ParamLikeView : AstView<Tag> {
+	using AstView<Tag>::AstView;
+	using AstView<Tag>::node;
+
+	bool has_value() const { return !node->children.empty(); }
+	AstNode *value() const {
+		log_assert(!node->children.empty());
+		return node->children[0].get();
+	}
+	AstNode *value_or_null() const {
+		return node->children.empty() ? nullptr : node->children[0].get();
+	}
+	ChildSlot<Anything> value_slot() const { return {node, 0}; }
+
+	// children[1] (if present) is one of AST_RANGE / AST_WIRETYPE / AST_REALVALUE.
+	AstNode *second_or_null() const {
+		return node->children.size() < 2 ? nullptr : node->children[1].get();
+	}
+
+	bool has_range() const {
+		return node->children.size() >= 2 && node->children[1]->type == AST_RANGE;
+	}
+	AstNode *range_or_null() const {
+		return has_range() ? node->children[1].get() : nullptr;
+	}
+	ChildSlot<Anything> range_slot() const {
+		log_assert(has_range());
+		return {node, 1};
+	}
+
+	bool has_wiretype() const {
+		return node->children.size() >= 2 && node->children[1]->type == AST_WIRETYPE;
+	}
+	AstNode *wiretype_or_null() const {
+		return has_wiretype() ? node->children[1].get() : nullptr;
+	}
+
+	bool has_realvalue() const {
+		return node->children.size() >= 2 && node->children[1]->type == AST_REALVALUE;
+	}
+
+	static std::optional<ParamLikeView> cast(AstNode *n) {
+		return AstView<Tag>::matches(n) ? std::optional<ParamLikeView>(ParamLikeView(n)) : std::nullopt;
+	}
+};
+
 DEFINE_AST_VIEW_4(AstFor,      AST_FOR,       init, Anything, cond, Expression, step, Anything, body, BehavioralStatement)
 DEFINE_AST_VIEW_4(AstGenFor,   AST_GENFOR,    init, Anything, cond, Anything, step, Anything, body, Anything)
 DEFINE_AST_VIEW_2(AstWhile,    AST_WHILE,     cond, Expression, body, BehavioralStatement)
@@ -349,29 +429,39 @@ struct AstMemory : AstView<AST_MEMORY> {
 	}
 };
 
-struct AstParameter : AstView<AST_PARAMETER> {
-	using AstView::AstView;
-	// Grammar: children[0] = default value expr, optional range, optional wiretype
-	bool has_value() const { return !node->children.empty(); }
-	AstNode *value() const {
-		log_assert(!node->children.empty());
-		return node->children[0].get();
-	}
-	static std::optional<AstParameter> cast(AstNode *n) {
-		return matches(n) ? std::optional<AstParameter>(AstParameter(n)) : std::nullopt;
-	}
-};
+// Grammar: children[0] = default value expr; children[1] (optional) is AST_RANGE
+// (sized parameter), AST_WIRETYPE (custom-typed), or AST_REALVALUE (real-typed).
+using AstParameter  = ParamLikeView<AST_PARAMETER>;
+using AstLocalparam = ParamLikeView<AST_LOCALPARAM>;
 
-struct AstLocalparam : AstView<AST_LOCALPARAM> {
-	using AstView::AstView;
-	// Grammar: same as AST_PARAMETER
+// Tag-agnostic view over any of AST_PARAMETER / AST_LOCALPARAM / AST_ENUM_ITEM.
+// Useful when the simplifier treats the three identically (e.g. resolving an
+// AST_IDENTIFIER reference whose target may be a parameter-like declaration).
+struct AstAnyParamLike {
+	AstNode *node;
+	static bool matches(const AstNode *n) {
+		return n && (n->type == AST_PARAMETER || n->type == AST_LOCALPARAM || n->type == AST_ENUM_ITEM);
+	}
+	explicit AstAnyParamLike(AstNode *n) : node(n) { log_assert(matches(n)); }
 	bool has_value() const { return !node->children.empty(); }
 	AstNode *value() const {
 		log_assert(!node->children.empty());
 		return node->children[0].get();
 	}
-	static std::optional<AstLocalparam> cast(AstNode *n) {
-		return matches(n) ? std::optional<AstLocalparam>(AstLocalparam(n)) : std::nullopt;
+	bool has_range() const {
+		return node->children.size() >= 2 && node->children[1]->type == AST_RANGE;
+	}
+	AstNode *range_or_null() const {
+		return has_range() ? node->children[1].get() : nullptr;
+	}
+	bool has_realvalue() const {
+		return node->children.size() >= 2 && node->children[1]->type == AST_REALVALUE;
+	}
+	bool has_wiretype() const {
+		return node->children.size() >= 2 && node->children[1]->type == AST_WIRETYPE;
+	}
+	static std::optional<AstAnyParamLike> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstAnyParamLike>(AstAnyParamLike(n)) : std::nullopt;
 	}
 };
 
@@ -394,17 +484,9 @@ struct AstEnum : AstView<AST_ENUM> {
 	}
 };
 
-struct AstEnumItem : AstView<AST_ENUM_ITEM> {
-	using AstView::AstView;
-	// Grammar: children[0] = value expr (or AST_NONE if no init)
-	bool has_value() const { return !node->children.empty(); }
-	AstNode *value_or_null() const {
-		return node->children.empty() ? nullptr : node->children[0].get();
-	}
-	static std::optional<AstEnumItem> cast(AstNode *n) {
-		return matches(n) ? std::optional<AstEnumItem>(AstEnumItem(n)) : std::nullopt;
-	}
-};
+// Grammar: children[0] = value expr (or AST_NONE if no init); children[1]
+// (optional) = AST_RANGE bound on the discriminant width.
+using AstEnumItem = ParamLikeView<AST_ENUM_ITEM>;
 
 // Constant value
 struct AstConstant : AstView<AST_CONSTANT> {
@@ -421,32 +503,9 @@ struct AstConstant : AstView<AST_CONSTANT> {
 	}
 };
 
-// Function and task calls
-struct AstFcall : AstView<AST_FCALL> {
-	using AstView::AstView;
-	// Grammar: variadic children are argument expressions
-	size_t num_args() const { return node->children.size(); }
-	AstNode *arg(size_t i) const { return node->children.at(i).get(); }
-	ChildSlot<Anything> arg_slot(size_t i) const { return {node, i}; }
-	auto args_begin() { return node->children.begin(); }
-	auto args_end() { return node->children.end(); }
-	static std::optional<AstFcall> cast(AstNode *n) {
-		return matches(n) ? std::optional<AstFcall>(AstFcall(n)) : std::nullopt;
-	}
-};
-
-struct AstTcall : AstView<AST_TCALL> {
-	using AstView::AstView;
-	// Grammar: variadic children are argument expressions
-	size_t num_args() const { return node->children.size(); }
-	AstNode *arg(size_t i) const { return node->children.at(i).get(); }
-	ChildSlot<Anything> arg_slot(size_t i) const { return {node, i}; }
-	auto args_begin() { return node->children.begin(); }
-	auto args_end() { return node->children.end(); }
-	static std::optional<AstTcall> cast(AstNode *n) {
-		return matches(n) ? std::optional<AstTcall>(AstTcall(n)) : std::nullopt;
-	}
-};
+// Function and task calls. Variadic children are argument expressions.
+using AstFcall = VariadicView<AST_FCALL, Expression>;
+using AstTcall = VariadicView<AST_TCALL, Expression>;
 
 // Defparam (defparam lvalue = value)
 struct AstDefparam : AstView<AST_DEFPARAM> {
@@ -460,10 +519,45 @@ struct AstDefparam : AstView<AST_DEFPARAM> {
 		log_assert(node->children.size() >= 2);
 		return node->children[1].get();
 	}
+	bool has_range() const { return node->children.size() >= 3; }
+	AstNode *range_or_null() const {
+		return has_range() ? node->children[2].get() : nullptr;
+	}
 	static std::optional<AstDefparam> cast(AstNode *n) {
 		return matches(n) ? std::optional<AstDefparam>(AstDefparam(n)) : std::nullopt;
 	}
 };
+
+// Gate-level primitives (and, or, buf, not, nand, nor, xor, xnor, bufif*, notif*, tran).
+// Grammar: variadic AST_ARGUMENT children. Distinguished from AST_CELL because
+// the parser resolves the cell type only after primitive dispatch in simplify.
+using AstPrimitive = VariadicView<AST_PRIMITIVE, ChildConstraint<AST_ARGUMENT>>;
+
+// Memory access nodes synthesized by simplify (post-parser).
+//   AST_MEMRD   : children = [addr]                    (read port)
+//   AST_MEMWR   : children = [addr, data, en, portid, prio_mask] (write port)
+//   AST_MEMINIT : children = [addr, data, en, count]
+// Common shape: addr is children[0]. Genrtlil consumes the trailing slots.
+template <AstNodeType Tag>
+struct AstMemAccess : AstView<Tag> {
+	using AstView<Tag>::AstView;
+	using AstView<Tag>::node;
+	AstNode *addr() const {
+		log_assert(!node->children.empty());
+		return node->children[0].get();
+	}
+	ChildSlot<Anything> addr_slot() const { return {node, 0}; }
+	template <typename... Args>
+	static std::unique_ptr<AstNode> build(const AstSrcLocType &loc, std::unique_ptr<AstNode> addr, Args&&... rest) {
+		return AstView<Tag>::make_node(loc, std::move(addr), std::forward<Args>(rest)...);
+	}
+	static std::optional<AstMemAccess> cast(AstNode *n) {
+		return AstView<Tag>::matches(n) ? std::optional<AstMemAccess>(AstMemAccess(n)) : std::nullopt;
+	}
+};
+using AstMemRd   = AstMemAccess<AST_MEMRD>;
+using AstMemWr   = AstMemAccess<AST_MEMWR>;
+using AstMemInit = AstMemAccess<AST_MEMINIT>;
 
 // Struct and Union types
 struct AstStruct : AstView<AST_STRUCT> {
@@ -743,56 +837,17 @@ struct AstCell : AstView<AST_CELL> {
 	}
 };
 
-struct AstBlock : AstView<AST_BLOCK> {
-	using AstView::AstView;
-	// Variadic: children are behavioral statements in declaration order.
-	size_t size() const { return node->children.size(); }
-	AstNode *at(size_t i) const { return node->children.at(i).get(); }
-	ChildSlot<BehavioralStatement> slot(size_t i) const { return {node, i}; }
-	auto begin() { return node->children.begin(); }
-	auto end()   { return node->children.end(); }
-	static std::optional<AstBlock> cast(AstNode *n) {
-		return matches(n) ? std::optional<AstBlock>(AstBlock(n)) : std::nullopt;
-	}
-};
+// Variadic: children are behavioral statements in declaration order.
+using AstBlock = VariadicView<AST_BLOCK, BehavioralStatement>;
 
-struct AstGenBlock : AstView<AST_GENBLOCK> {
-	using AstView::AstView;
-	// Variadic: children are module-level statements in declaration order.
-	size_t size() const { return node->children.size(); }
-	AstNode *at(size_t i) const { return node->children.at(i).get(); }
-	ChildSlot<ModuleBodyStatement> slot(size_t i) const { return {node, i}; }
-	auto begin() { return node->children.begin(); }
-	auto end()   { return node->children.end(); }
-	static std::optional<AstGenBlock> cast(AstNode *n) {
-		return matches(n) ? std::optional<AstGenBlock>(AstGenBlock(n)) : std::nullopt;
-	}
-};
+// Variadic: children are module-level statements in declaration order.
+using AstGenBlock = VariadicView<AST_GENBLOCK, ModuleBodyStatement>;
 
-struct AstConcat : AstView<AST_CONCAT> {
-	using AstView::AstView;
-	size_t size() const { return node->children.size(); }
-	AstNode *at(size_t i) const { return node->children.at(i).get(); }
-	ChildSlot<Anything> slot(size_t i) const { return {node, i}; }
-	auto begin() { return node->children.begin(); }
-	auto end()   { return node->children.end(); }
-	static std::optional<AstConcat> cast(AstNode *n) {
-		return matches(n) ? std::optional<AstConcat>(AstConcat(n)) : std::nullopt;
-	}
-};
+// AST_CONCAT: variadic list of expression children.
+using AstConcat = VariadicView<AST_CONCAT, Expression>;
 
 // AST_MULTIRANGE: variadic list of AST_RANGE children (>= 2).
-struct AstMultirange : AstView<AST_MULTIRANGE> {
-	using AstView::AstView;
-	size_t size() const { return node->children.size(); }
-	AstNode *at(size_t i) const { return node->children.at(i).get(); }
-	ChildSlot<Anything> slot(size_t i) const { return {node, i}; }
-	auto begin() { return node->children.begin(); }
-	auto end()   { return node->children.end(); }
-	static std::optional<AstMultirange> cast(AstNode *n) {
-		return matches(n) ? std::optional<AstMultirange>(AstMultirange(n)) : std::nullopt;
-	}
-};
+using AstMultirange = VariadicView<AST_MULTIRANGE, ChildConstraint<AST_RANGE>>;
 
 // AST_ALWAYS: final child is AST_BLOCK; preceding children are sensitivity
 // events.
