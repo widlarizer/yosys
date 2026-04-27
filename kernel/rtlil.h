@@ -1907,6 +1907,7 @@ struct RTLIL::Design
 	std::string selected_active_module;
 
 	Design();
+	Design(Design* other);
 	~Design();
 
 	RTLIL::ObjRange<RTLIL::Module*> modules();
