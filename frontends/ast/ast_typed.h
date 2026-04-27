@@ -51,6 +51,14 @@ struct ChildConstraint {
 	}
 };
 
+// Compose multiple constraints with OR semantics.
+template <typename... Constraints>
+struct ChildConstraintOr {
+	static bool accepts(const AstNode *n) {
+		return (Constraints::accepts(n) || ...);
+	}
+};
+
 // Expression: all nodes that can be returned from the expr production in the grammar.
 // This includes arithmetic, bitwise, logical, comparison ops, casts, literals, function calls, etc.
 using Expression = ChildConstraint<
@@ -89,65 +97,54 @@ using Expression = ChildConstraint<
 
 // Post-simplify unused: AST_MEMINIT
 
+// Shared constraint: declarations present in both behavioral and module contexts.
+using CommonDeclarations = ChildConstraint<
+	AST_PARAMETER, AST_LOCALPARAM,
+	AST_WIRE, AST_MEMORY, AST_TYPEDEF
+>;
+
+// Shared constraint: formal assertions present in both behavioral and module contexts.
+using FormalAssertions = ChildConstraint<
+	AST_ASSERT, AST_ASSUME, AST_LIVE, AST_FAIR, AST_COVER
+>;
+
+// Shared constraint: generic structures (if/for/case/block) present in both contexts.
+using GenericStructures = ChildConstraint<
+	AST_GENBLOCK, AST_GENIF, AST_GENFOR, AST_GENCASE
+>;
+
 // BehavioralStatement: nodes that can appear inside behavioral blocks (always/function/task).
-// From behavioral_stmt production: assignments, control flow, blocks, declarations, task calls.
-using BehavioralStatement = ChildConstraint<
-	// Assignments in behavioral context (non-continuous)
-	AST_ASSIGN_EQ, AST_ASSIGN_LE,
-	// Block structures (including labeled blocks)
-	AST_BLOCK, AST_GENBLOCK,
-	// Control flow
-	AST_COND, AST_CONDX, AST_CONDZ, AST_FOR, AST_WHILE, AST_REPEAT,
-	// Case structures
-	AST_CASE, AST_GENCASE, AST_GENFOR, AST_GENIF,
-	// Formal assertions (in behavioral context)
-	AST_ASSERT, AST_ASSUME, AST_LIVE, AST_FAIR, AST_COVER,
-	// Task calls
-	AST_TCALL,
-	// Local declarations in behavioral blocks
-	AST_WIRE, AST_MEMORY, AST_PARAMETER, AST_LOCALPARAM, AST_TYPEDEF
+// Composed from shared constraints and behavioral-specific nodes.
+using BehavioralStatement = ChildConstraintOr<
+	ChildConstraint<AST_ASSIGN_EQ, AST_ASSIGN_LE>,
+	ChildConstraint<AST_BLOCK>,
+	GenericStructures,
+	ChildConstraint<AST_COND, AST_CONDX, AST_CONDZ, AST_FOR, AST_WHILE, AST_REPEAT>,
+	ChildConstraint<AST_CASE>,
+	FormalAssertions,
+	ChildConstraint<AST_TCALL>,
+	CommonDeclarations
 >;
 
 // ModuleBodyStatement: nodes that can appear at module level.
-// From module_body_stmt production: declarations, constructs, and continuous assignments.
-using ModuleBodyStatement = ChildConstraint<
-	// Declarations
-	AST_PARAMETER, AST_LOCALPARAM, AST_DEFPARAM,
-	AST_WIRE, AST_MEMORY, AST_TYPEDEF,
-	// Behavioral and structural
-	AST_ALWAYS, AST_INITIAL,
-	// Instantiation
-	AST_CELL,
-	// Continuous assignment (module-level)
-	AST_ASSIGN,
-	// Formal assertions (module-level)
-	AST_ASSERT, AST_ASSUME, AST_LIVE, AST_FAIR, AST_COVER,
-	// Structural blocks
-	AST_GENBLOCK, AST_GENIF, AST_GENFOR, AST_GENCASE,
-	// Type declarations
-	AST_ENUM, AST_STRUCT,
-	// Binding and specification
-	AST_BIND
+// Composed from shared constraints and module-level-specific nodes.
+using ModuleBodyStatement = ChildConstraintOr<
+	ChildConstraint<AST_DEFPARAM>,
+	CommonDeclarations,
+	ChildConstraint<AST_ALWAYS, AST_INITIAL>,
+	ChildConstraint<AST_CELL>,
+	ChildConstraint<AST_ASSIGN>,
+	FormalAssertions,
+	GenericStructures,
+	ChildConstraint<AST_ENUM, AST_STRUCT>,
+	ChildConstraint<AST_BIND>
 >;
 
-// Statement: union of behavioral and module-level for backward compatibility.
-using Statement = ChildConstraint<
-	// From BehavioralStatement
-	AST_ASSIGN_EQ, AST_ASSIGN_LE,
-	AST_BLOCK, AST_GENBLOCK,
-	AST_COND, AST_CONDX, AST_CONDZ, AST_FOR, AST_WHILE, AST_REPEAT,
-	AST_CASE, AST_GENCASE, AST_GENFOR, AST_GENIF,
-	AST_ASSERT, AST_ASSUME, AST_LIVE, AST_FAIR, AST_COVER,
-	AST_TCALL,
-	AST_WIRE, AST_MEMORY, AST_PARAMETER, AST_LOCALPARAM, AST_TYPEDEF,
-	// From ModuleBodyStatement (module-level only)
-	AST_DEFPARAM,
-	AST_ALWAYS, AST_INITIAL,
-	AST_CELL,
-	AST_ASSIGN,
-	AST_ENUM, AST_STRUCT,
-	AST_BIND
->;
+// // Statement: union of behavioral and module-level for backward compatibility.
+// using Statement = ChildConstraintOr<
+// 	BehavioralStatement,
+// 	ModuleBodyStatement
+// >;
 
 struct Anything {
 	static bool accepts(AstNode* node) {
