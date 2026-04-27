@@ -97,7 +97,7 @@ struct CellTableBuilder {
 		Features features {};
 		features.is_evaluable = true;
 		std::initializer_list<RTLIL::IdString> unary_ops = {
-			ID($not), ID($pos), ID($buf), ID($neg),
+			ID($not), ID($pos), ID($buf), ID($neg), ID($priority),
 			ID($reduce_and), ID($reduce_or), ID($reduce_xor), ID($reduce_xnor), ID($reduce_bool),
 			ID($logic_not), ID($slice), ID($lut), ID($sop)
 		};
