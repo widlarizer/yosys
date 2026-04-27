@@ -695,13 +695,8 @@ const RTLIL::Module* AstNode::lookup_cell_module()
 			set_attribute(ID::reprocess_after, AstNode::mkconst_str(location, modname));
 	};
 
-	const AstNode *celltype = nullptr;
-	for (auto& child : children)
-		if (child->type == AST_CELLTYPE) {
-			celltype = child.get();
-			break;
-		}
-	log_assert(celltype != nullptr);
+	AstCell self(this);
+	const AstNode *celltype = self.celltype();
 
 	const RTLIL::Module *module = lookup_module(celltype->str);
 	if (!module)
@@ -715,15 +710,16 @@ const RTLIL::Module* AstNode::lookup_cell_module()
 	// build a mapping from true param name to param value
 	size_t para_counter = 0;
 	dict<RTLIL::IdString, RTLIL::Const> cell_params_map;
-	for (auto& child : children) {
-		if (child->type != AST_PARASET)
+	for (auto it = self.body_begin(); it != self.body_end(); ++it) {
+		auto pset = AstParaset::cast(it->get());
+		if (!pset)
 			continue;
 
-		if (child->str.empty() && para_counter >= module->avail_parameters.size())
+		if (pset->is_positional() && para_counter >= module->avail_parameters.size())
 			return nullptr; // let hierarchy handle this error
-		IdString paraname = child->str.empty() ? module->avail_parameters[para_counter++] : child->str;
+		IdString paraname = pset->is_positional() ? module->avail_parameters[para_counter++] : pset->str();
 
-		const AstNode *value = child->children[0].get();
+		const AstNode *value = pset->expr();
 		if (value->type != AST_REALVALUE && value->type != AST_CONSTANT)
 			return nullptr; // let genrtlil handle this error
 		cell_params_map[paraname] = value->asParaConst();
@@ -888,8 +884,9 @@ static bool try_determine_range_width(AstNode *range, int &result_width)
 		return true;
 	}
 
-	auto left_at_zero_ast = range->children[0]->clone_at_zero();
-	auto right_at_zero_ast = range->children[1]->clone_at_zero();
+	AstRange r(range);
+	auto left_at_zero_ast = r.msb()->clone_at_zero();
+	auto right_at_zero_ast = r.lsb()->clone_at_zero();
 
 	while (left_at_zero_ast->simplify(true, 1, -1, false)) {}
 	while (right_at_zero_ast->simplify(true, 1, -1, false)) {}
@@ -1112,10 +1109,11 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 				int mem_width, mem_size, addr_bits;
 				node->meminfo(mem_width, mem_size, addr_bits);
 
-				int data_range_left = node->children[0]->range_left;
-				int data_range_right = node->children[0]->range_right;
+				AstNode *data_range = AstMemory(node).data_range();
+				int data_range_left = data_range->range_left;
+				int data_range_right = data_range->range_right;
 
-				if (node->children[0]->range_swapped)
+				if (data_range->range_swapped)
 					std::swap(data_range_left, data_range_right);
 
 				auto loc = node->location;
@@ -2014,10 +2012,11 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 	// convert defparam nodes to cell parameters
 	if (type == AST_DEFPARAM && !children.empty())
 	{
-		if (children[0]->type != AST_IDENTIFIER)
+		AstDefparam dp(this);
+		if (dp.lvalue()->type != AST_IDENTIFIER)
 			input_error("Module name in defparam contains non-constant expressions!\n");
 
-		string modname, paramname = children[0]->str;
+		string modname, paramname = dp.lvalue()->str;
 
 		size_t pos = paramname.rfind('.');
 
@@ -2040,7 +2039,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 			input_error("Defparam argument `%s . %s` does not match a cell!\n",
 					RTLIL::unescape_id(modname), RTLIL::unescape_id(paramname));
 
-		auto paraset = std::make_unique<AstNode>(location, AST_PARASET, children[1]->clone(), GetSize(children) > 2 ? children[2]->clone() : nullptr);
+		auto paraset = std::make_unique<AstNode>(location, AST_PARASET, dp.value()->clone(), GetSize(children) > 2 ? children[2]->clone() : nullptr);
 		paraset->str = paramname;
 
 		AstNode *cell = current_scope.at(modname);
@@ -2049,9 +2048,8 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 	}
 
 	// resolve typedefs
-	if (type == AST_TYPEDEF) {
-		log_assert(children.size() == 1);
-		auto& type_node = children[0];
+	if (auto td = AstTypedef::cast(this)) {
+		AstNode *type_node = td->underlying().get();
 		log_assert(type_node->type == AST_WIRE || type_node->type == AST_MEMORY || type_node->type == AST_STRUCT || type_node->type == AST_UNION);
 		while (type_node->simplify(const_fold, stage, width_hint, sign_hint)) {
 			did_something = true;
@@ -2180,13 +2178,15 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 	}
 
 	// evaluate TO_BITS nodes
-	if (type == AST_TO_BITS) {
-		if (children[0]->type != AST_CONSTANT)
+	if (auto tb = AstToBits::cast(this)) {
+		AstNode *size_n = tb->size().get();
+		AstNode *expr_n = tb->expr().get();
+		if (size_n->type != AST_CONSTANT)
 			input_error("Left operand of to_bits expression is not constant!\n");
-		if (children[1]->type != AST_CONSTANT)
+		if (expr_n->type != AST_CONSTANT)
 			input_error("Right operand of to_bits expression is not constant!\n");
-		RTLIL::Const new_value = children[1]->bitsAsConst(children[0]->bitsAsConst().as_int(), children[1]->is_signed);
-		newNode = mkconst_bits(location, new_value.to_bits(), children[1]->is_signed);
+		RTLIL::Const new_value = expr_n->bitsAsConst(size_n->bitsAsConst().as_int(), expr_n->is_signed);
+		newNode = mkconst_bits(location, new_value.to_bits(), expr_n->is_signed);
 		goto apply_newNode;
 	}
 
@@ -2197,16 +2197,19 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 		range_swapped = false;
 		range_left = -1;
 		range_right = 0;
-		log_assert(children.size() >= 1);
-		if (children[0]->type == AST_CONSTANT) {
+		AstRange r(this);
+		AstNode *msb = r.msb().get();
+		log_assert(msb);
+		if (msb->type == AST_CONSTANT) {
 			range_valid = true;
-			range_left = children[0]->integer;
+			range_left = msb->integer;
 			if (children.size() == 1)
 				range_right = range_left;
 		}
 		if (children.size() >= 2) {
-			if (children[1]->type == AST_CONSTANT)
-				range_right = children[1]->integer;
+			AstNode *lsb = r.lsb().get();
+			if (lsb->type == AST_CONSTANT)
+				range_right = lsb->integer;
 			else
 				range_valid = false;
 		}
@@ -2486,10 +2489,11 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 		int mem_width, mem_size, addr_bits;
 		id2ast->meminfo(mem_width, mem_size, addr_bits);
 
-		int data_range_left = id2ast->children[0]->range_left;
-		int data_range_right = id2ast->children[0]->range_right;
+		AstNode *mem_data_range = AstMemory(id2ast).data_range();
+		int data_range_left = mem_data_range->range_left;
+		int data_range_right = mem_data_range->range_right;
 
-		if (id2ast->children[0]->range_swapped)
+		if (mem_data_range->range_swapped)
 			std::swap(data_range_left, data_range_right);
 
 		std::stringstream sstr;
@@ -3248,7 +3252,7 @@ skip_dynamic_range_lvalue_expansion:;
 			children.size() == 1 && children[0]->type == AST_RANGE && children[0]->children.size() == 1) {
 		if (integer < (unsigned)id2ast->unpacked_dimensions)
 			input_error("Insufficient number of array indices for %s.\n", log_id(str));
-		newNode = std::make_unique<AstNode>(location, AST_MEMRD, children[0]->children[0]->clone());
+		newNode = std::make_unique<AstNode>(location, AST_MEMRD, AstRange(children[0].get()).msb()->clone());
 		newNode->str = str;
 		newNode->id2ast = id2ast;
 		goto apply_newNode;
@@ -4601,8 +4605,12 @@ replace_fcall_later:;
 					newNode->realvalue = +children[0]->asReal(sign_hint);
 			}
 			break;
-		case AST_TERNARY:
-			if (children[0]->isConst())
+		case AST_TERNARY: {
+			AstTernary tern(this);
+			AstNode *cond_n = tern.cond().get();
+			AstNode *then_n = tern.then_().get();
+			AstNode *else_n = tern.else_().get();
+			if (cond_n->isConst())
 			{
 				auto pair = get_tern_choice();
 				AstNode *choice = pair.first;
@@ -4628,18 +4636,18 @@ replace_fcall_later:;
 					if (choice->isConst()) {
 						newNode = choice->clone();
 					}
-				} else if (children[1]->type == AST_CONSTANT && children[2]->type == AST_CONSTANT) {
-					RTLIL::Const a = children[1]->bitsAsConst(width_hint, sign_hint);
-					RTLIL::Const b = children[2]->bitsAsConst(width_hint, sign_hint);
+				} else if (then_n->type == AST_CONSTANT && else_n->type == AST_CONSTANT) {
+					RTLIL::Const a = then_n->bitsAsConst(width_hint, sign_hint);
+					RTLIL::Const b = else_n->bitsAsConst(width_hint, sign_hint);
 					log_assert(a.size() == b.size());
 					for (auto i = 0; i < a.size(); i++)
 						if (a[i] != b[i])
 							a.set(i, RTLIL::State::Sx);
 					newNode = mkconst_bits(location, a.to_bits(), sign_hint);
-				} else if (children[1]->isConst() && children[2]->isConst()) {
+				} else if (then_n->isConst() && else_n->isConst()) {
 					newNode = std::make_unique<AstNode>(location, AST_REALVALUE);
-					if (children[1]->asReal(sign_hint) == children[2]->asReal(sign_hint))
-						newNode->realvalue = children[1]->asReal(sign_hint);
+					if (then_n->asReal(sign_hint) == else_n->asReal(sign_hint))
+						newNode->realvalue = then_n->asReal(sign_hint);
 					else
 						// IEEE Std 1800-2012 Sec. 11.4.11 states that the entry in Table 7-1 for
 						// the data type in question should be returned if the ?: is ambiguous. The
@@ -4648,6 +4656,7 @@ replace_fcall_later:;
 				}
 			}
 			break;
+		}
 		case AST_CAST_SIZE:
 			if (children.at(0)->type == AST_CONSTANT && children.at(1)->type == AST_CONSTANT) {
 				int width = children[0]->bitsAsConst().as_int();
@@ -6040,8 +6049,9 @@ void AstNode::allocateDefaultEnumValues()
 	if (children.front()->attributes.count(ID::enum_base_type))
 		return; // already elaborated
 	int last_enum_int = -1;
-	for (auto& node : children) {
-		log_assert(node->type==AST_ENUM_ITEM);
+	for (auto& child : children) {
+		AstEnumItem item(child.get());
+		AstNode *node = item.raw();
 		node->set_attribute(ID::enum_base_type, mkconst_str(node->location, str));
 		for (size_t i = 0; i < node->children.size(); i++) {
 			switch (node->children[i]->type) {
@@ -6088,27 +6098,32 @@ bool AstNode::is_recursive_function() const
 
 std::pair<AstNode*, AstNode*> AstNode::get_tern_choice()
 {
-	if (!children[0]->isConst())
+	AstTernary tern(this);
+	AstNode *cond_n = tern.cond().get();
+	AstNode *then_n = tern.then_().get();
+	AstNode *else_n = tern.else_().get();
+
+	if (!cond_n->isConst())
 		return {};
 
 	bool found_sure_true = false;
 	bool found_maybe_true = false;
 
-	if (children[0]->type == AST_CONSTANT)
-		for (auto &bit : children[0]->bits) {
+	if (cond_n->type == AST_CONSTANT)
+		for (auto &bit : cond_n->bits) {
 			if (bit == RTLIL::State::S1)
 				found_sure_true = true;
 			if (bit > RTLIL::State::S1)
 				found_maybe_true = true;
 		}
 	else
-		found_sure_true = children[0]->asReal(true) != 0;
+		found_sure_true = cond_n->asReal(true) != 0;
 
 	AstNode *choice = nullptr, *not_choice = nullptr;
 	if (found_sure_true)
-		choice = children[1].get(), not_choice = children[2].get();
+		choice = then_n, not_choice = else_n;
 	else if (!found_maybe_true)
-		choice = children[2].get(), not_choice = children[1].get();
+		choice = else_n, not_choice = then_n;
 
 	return {choice, not_choice};
 }
