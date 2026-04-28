@@ -480,7 +480,20 @@ DEFINE_AST_VIEW_1(AstNegedge,  AST_NEGEDGE,   expr, Expression)
 DEFINE_AST_VIEW_1(AstEdge,     AST_EDGE,      expr, Expression)
 
 // Cell array wrapper
-DEFINE_AST_VIEW_2(AstCellArray, AST_CELLARRAY, range, Anything, cell, Anything)
+struct AstCellArray : AstView<AST_CELLARRAY> {
+	using AstView<AST_CELLARRAY>::AstView;
+	ChildSlot<Anything> range() const { return {node, 0}; }
+	ChildSlot<Anything> cell()  const { return {node, 1}; }
+	static std::unique_ptr<AstNode> build(const AstSrcLocType &loc, std::unique_ptr<AstNode> range, std::unique_ptr<AstNode> cell) {
+		return make_node(loc, std::move(range), std::move(cell));
+	}
+	DEFINE_AST_CAST(AstCellArray, AST_CELLARRAY)
+
+	// Unroll into either an AST_GENBLOCK of N replicated cells, or, if the
+	// inner cell is an AST_PRIMITIVE, a single AST_PRIMITIVE with the array
+	// range carried as range_left/range_right.
+	std::unique_ptr<AstNode> unroll();
+};
 
 // Assertions / formal — single-predicate
 DEFINE_AST_VIEW_1(AstAssert,   AST_ASSERT,    predicate, Expression)

@@ -168,6 +168,42 @@ void AstGenCase::elaborate(int stage, int width_hint, bool sign_hint, bool const
 	node->delete_children();
 }
 
+std::unique_ptr<AstNode> AstCellArray::unroll()
+{
+	AstNode *range_c = range().get();
+	AstNode *cell_c = cell().get();
+	if (!range_c->range_valid)
+		node->input_error("Non-constant array range on cell array.\n");
+
+	int num = max(range_c->range_left, range_c->range_right)
+			- min(range_c->range_left, range_c->range_right) + 1;
+
+	if (cell_c->type == AST_PRIMITIVE) {
+		// Move the range to the AST_PRIMITIVE node so it's handled later as a
+		// single primitive with array semantics.
+		auto result = cell().take();
+		result->range_left = range_c->range_left;
+		result->range_right = range_c->range_right;
+		result->range_valid = true;
+		return result;
+	}
+
+	auto result = std::make_unique<AstNode>(node->location, AST_GENBLOCK);
+	for (int i = 0; i < num; i++) {
+		int idx = range_c->range_left > range_c->range_right
+				? range_c->range_right + i : range_c->range_right - i;
+		auto new_cell_owned = cell_c->clone();
+		auto *new_cell = new_cell_owned.get();
+		result->children.push_back(std::move(new_cell_owned));
+		new_cell->str += stringf("[%d]", idx);
+
+		AstNode *ct = AstCell(new_cell).celltype();
+		log_assert(ct->type == AST_CELLTYPE);
+		ct->str = stringf("$array:%d:%d:%s", i, num, ct->str);
+	}
+	return result;
+}
+
 void AstPackage::register_scope() const
 {
 	// Parameters, typedefs, and subroutines defined at package scope are
@@ -1919,37 +1955,8 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 	}
 
 	// unroll cell arrays
-	if (auto carr = AstCellArray::cast(this))
-	{
-		AstNode *range_c = carr->range().get();
-		AstNode *cell_c = carr->cell().get();
-		if (!range_c->range_valid)
-			input_error("Non-constant array range on cell array.\n");
-
-		newNode = std::make_unique<AstNode>(location, AST_GENBLOCK);
-		int num = max(range_c->range_left, range_c->range_right) - min(range_c->range_left, range_c->range_right) + 1;
-
-		if (cell_c->type == AST_PRIMITIVE) {
-			// Move the range to the AST_PRIMITIVE node and replace this with the AST_PRIMITIVE node handled below
-			newNode = carr->cell().take();
-			newNode->range_left = range_c->range_left;
-			newNode->range_right = range_c->range_right;
-			newNode->range_valid = true;
-			goto apply_newNode;
-		}
-
-		for (int i = 0; i < num; i++) {
-			int idx = range_c->range_left > range_c->range_right ? range_c->range_right + i : range_c->range_right - i;
-			auto new_cell_owned = cell_c->clone();
-			auto* new_cell = new_cell_owned.get();
-			newNode->children.push_back(std::move(new_cell_owned));
-			new_cell->str += stringf("[%d]", idx);
-
-			AstNode *ct = AstCell(new_cell).celltype();
-			log_assert(ct->type == AST_CELLTYPE);
-			ct->str = stringf("$array:%d:%d:%s", i, num, ct->str);
-		}
-
+	if (auto carr = AstCellArray::cast(this)) {
+		newNode = carr->unroll();
 		goto apply_newNode;
 	}
 
