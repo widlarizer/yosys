@@ -486,7 +486,18 @@ struct AstEnum : AstView<AST_ENUM> {
 
 // Grammar: children[0] = value expr (or AST_NONE if no init); children[1]
 // (optional) = AST_RANGE bound on the discriminant width.
-using AstEnumItem = ParamLikeView<AST_ENUM_ITEM>;
+struct AstEnumItem : ParamLikeView<AST_ENUM_ITEM> {
+	using ParamLikeView::ParamLikeView;
+	// The discriminant signedness is taken from the optional AST_RANGE child:
+	// `enum logic signed [3:0] { ... }` propagates `is_signed` to each item.
+	bool is_signed_via_range() const {
+		AstNode *r = range_or_null();
+		return r && r->is_signed;
+	}
+	static std::optional<AstEnumItem> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstEnumItem>(AstEnumItem(n)) : std::nullopt;
+	}
+};
 
 // Constant value
 struct AstConstant : AstView<AST_CONSTANT> {
@@ -848,6 +859,110 @@ using AstConcat = VariadicView<AST_CONCAT, Expression>;
 
 // AST_MULTIRANGE: variadic list of AST_RANGE children (>= 2).
 using AstMultirange = VariadicView<AST_MULTIRANGE, ChildConstraint<AST_RANGE>>;
+
+// ----------------------------------------------------------------------------
+// Hierarchy-flag propagation rules
+//
+// `in_param_from_above` and `in_lvalue_from_above` are inherited contexts:
+// "this subtree appears inside a parameter-evaluation expression" and "this
+// subtree is the LHS of an assignment". The rules below capture which AST
+// types *force* their children into one of those contexts regardless of the
+// inherited flag — i.e. type-specific knowledge that lives most naturally
+// next to the per-type grammar in this file.
+//
+// AstNode::fixup_hierarchy_flags is now a thin dispatcher around
+// hierarchy_flags::apply(); update the rules here, not there.
+// ----------------------------------------------------------------------------
+namespace hierarchy_flags {
+
+// Whole-subtree parameter contexts: the node and *all* of its children must
+// be `in_param=true` regardless of what was inherited. These are the nodes
+// whose body is evaluated at elaboration time.
+inline bool whole_subtree_is_param(AstNodeType t) {
+	switch (t) {
+	case AST_PARAMETER:
+	case AST_LOCALPARAM:
+	case AST_DEFPARAM:
+	case AST_PARASET:
+	case AST_PREFIX:
+		return true;
+	default:
+		return false;
+	}
+}
+
+// Index of a single child that must be in_param=true regardless of inherited
+// flag, or -1 if none. Captures "header" expressions whose value must be
+// statically known: AST_REPLICATE count, AST_WIRE packed range, AST_GENIF
+// condition, AST_GENCASE selector, AST_FOR/AST_GENFOR loop condition.
+inline int param_forced_child_index(AstNodeType t) {
+	switch (t) {
+	case AST_REPLICATE:
+	case AST_WIRE:
+	case AST_GENIF:
+	case AST_GENCASE:
+		return 0;
+	case AST_FOR:
+	case AST_GENFOR:
+		return 1;
+	default:
+		return -1;
+	}
+}
+
+// Index of a child that must be in_lvalue=true regardless of inherited flag.
+// Always children[0] for the assignment family (the LHS).
+inline int lvalue_forced_child_index(AstNodeType t) {
+	switch (t) {
+	case AST_ASSIGN:
+	case AST_ASSIGN_EQ:
+	case AST_ASSIGN_LE:
+		return 0;
+	default:
+		return -1;
+	}
+}
+
+// Apply one level of flag propagation: set this node's in_param/in_lvalue from
+// the inherited *_from_above flags, then push the appropriate flags down into
+// children and attributes. Does not recurse on its own — recursion happens
+// via set_in_param_flag/set_in_lvalue_flag (or the explicit force_descend
+// pass driven by fixup_hierarchy_flags).
+inline void apply(AstNode *n, bool force_descend) {
+	// --- in_param ---
+	if (whole_subtree_is_param(n->type)) {
+		n->in_param = true;
+		for (auto& child : n->children)
+			child->set_in_param_flag(true, force_descend);
+	} else {
+		n->in_param = n->in_param_from_above;
+		for (auto& child : n->children)
+			child->set_in_param_flag(n->in_param, force_descend);
+		int forced = param_forced_child_index(n->type);
+		if (forced >= 0 && (size_t)forced < n->children.size())
+			n->children[forced]->set_in_param_flag(true, force_descend);
+	}
+	// Attributes are always parameter-context: their values feed elaboration.
+	for (auto& attr : n->attributes)
+		attr.second->set_in_param_flag(true, force_descend);
+
+	// --- in_lvalue ---
+	n->in_lvalue = n->in_lvalue_from_above;
+	int lv_forced = lvalue_forced_child_index(n->type);
+	if (lv_forced >= 0) {
+		// ASSIGN family: children[0]=LHS forced true; children[1]=RHS inherits.
+		if ((size_t)lv_forced < n->children.size())
+			n->children[lv_forced]->set_in_lvalue_flag(true, force_descend);
+		size_t rhs_idx = (size_t)lv_forced + 1;
+		if (rhs_idx < n->children.size())
+			n->children[rhs_idx]->set_in_lvalue_flag(n->in_lvalue, force_descend);
+	} else {
+		for (auto& child : n->children)
+			child->set_in_lvalue_flag(n->in_lvalue, force_descend);
+	}
+}
+
+} // namespace hierarchy_flags
 
 // AST_ALWAYS: final child is AST_BLOCK; preceding children are sensitivity
 // events.

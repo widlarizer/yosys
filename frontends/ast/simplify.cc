@@ -56,77 +56,27 @@ void AstNode::set_in_lvalue_flag(bool flag, bool no_descend)
 
 void AstNode::set_in_param_flag(bool flag, bool no_descend)
 {
-	if (flag != in_param_from_above) {
-		in_param_from_above = flag;
-		if (!no_descend)
-			fixup_hierarchy_flags();
-	}
+	// Unconditionally propagate when descending, even if our own flag already
+	// matches: callers use this to mark a freshly-built or freshly-attached
+	// subtree, where the parent may already be correct while the children and
+	// attributes below have not yet been touched. Short-circuiting on equality
+	// silently leaves stale descendants behind.
+	in_param_from_above = flag;
+	if (!no_descend)
+		fixup_hierarchy_flags();
 }
 
 void AstNode::fixup_hierarchy_flags(bool force_descend)
 {
-	// With forced descend, we disable the implicit
-	// descend from within the set_* functions, instead
-	// we do an explicit descend at the end of this function
-
-	in_param = in_param_from_above;
-
-	switch (type) {
-	case AST_PARAMETER:
-	case AST_LOCALPARAM:
-	case AST_DEFPARAM:
-	case AST_PARASET:
-	case AST_PREFIX:
-		in_param = true;
-		for (auto& child : children)
-			child->set_in_param_flag(true, force_descend);
-		break;
-
-	case AST_REPLICATE:
-	case AST_WIRE:
-	case AST_GENIF:
-	case AST_GENCASE:
-		for (auto& child : children)
-			child->set_in_param_flag(in_param, force_descend);
-		if (children.size() >= 1)
-			children[0]->set_in_param_flag(true, force_descend);
-		break;
-
-	case AST_GENFOR:
-	case AST_FOR:
-		for (auto& child : children) {
-			log_assert((bool)child);
-			child->set_in_param_flag(in_param, force_descend);
-		}
-		if (children.size() >= 2)
-			children[1]->set_in_param_flag(true, force_descend);
-		break;
-
-	default:
-		in_param = in_param_from_above;
-		for (auto& child : children)
-			child->set_in_param_flag(in_param, force_descend);
-	}
-
-	for (auto& attr : attributes)
-		attr.second->set_in_param_flag(true, force_descend);
-
-	in_lvalue = in_lvalue_from_above;
-
-	switch (type) {
-	case AST_ASSIGN:
-	case AST_ASSIGN_EQ:
-	case AST_ASSIGN_LE:
-		if (children.size() >= 1)
-			children[0]->set_in_lvalue_flag(true, force_descend);
-		if (children.size() >= 2)
-			children[1]->set_in_lvalue_flag(in_lvalue, force_descend);
-		break;
-
-	default:
-		for (auto& child : children)
-			child->set_in_lvalue_flag(in_lvalue, force_descend);
-	}
+	// With forced descend, we disable the implicit descend from within the
+	// set_* functions; instead we do an explicit descend at the end of this
+	// function.
+	//
+	// The per-type rules for in_param / in_lvalue propagation live next to the
+	// grammar in ast_typed.h (hierarchy_flags::apply). This keeps the typing
+	// layer authoritative about which children of which node types are forced
+	// into parameter / lvalue context.
+	hierarchy_flags::apply(this, force_descend);
 
 	if (force_descend) {
 		for (auto& child : children)
@@ -178,60 +128,52 @@ Fmt AstNode::processFormat(int stage, bool sformat_like, int default_base, size_
 
 void AstNode::annotateTypedEnums(AstNode *template_node)
 {
-	//check if enum
-	if (template_node->attributes.count(ID::enum_type)) {
-		//get reference to enum node:
-		std::string enum_type = template_node->attributes[ID::enum_type]->str.c_str();
-		//			log("enum_type=%s (count=%lu)\n", enum_type, current_scope.count(enum_type));
-		//			log("current scope:\n");
-		//			for (auto &it : current_scope)
-		//				log("  %s\n", it.first);
-		log_assert(current_scope.count(enum_type) == 1);
-		AstNode *enum_node = current_scope.at(enum_type);
-		log_assert(enum_node->type == AST_ENUM);
-		while (enum_node->simplify()) { }
-		//get width from 1st enum item:
-		log_assert(enum_node->children.size() >= 1);
-		AstNode *enum_item0 = enum_node->children[0].get();
-		log_assert(enum_item0->type == AST_ENUM_ITEM);
-		int width;
-		if (!enum_item0->range_valid)
-			width = 1;
-		else if (enum_item0->range_swapped)
-			width = enum_item0->range_right - enum_item0->range_left + 1;
-		else
-			width = enum_item0->range_left - enum_item0->range_right + 1;
-		log_assert(width > 0);
-		//add declared enum items:
-		for (auto& enum_item : enum_node->children){
-			log_assert(enum_item->type == AST_ENUM_ITEM);
-			//get is_signed
-			bool is_signed;
-			if (enum_item->children.size() == 1){
-				is_signed = false;
-			} else if (enum_item->children.size() == 2){
-				log_assert(enum_item->children[1]->type == AST_RANGE);
-				is_signed = enum_item->children[1]->is_signed;
-			} else {
-				log_error("enum_item children size==%zu, expected 1 or 2 for %s (%s)\n",
-						  (size_t) enum_item->children.size(),
-						  enum_item->str.c_str(), enum_node->str.c_str()
-				);
-			}
-			//start building attribute string
-			std::string enum_item_str = "\\enum_value_";
-			//get enum item value
-			if(enum_item->children[0]->type != AST_CONSTANT){
-				log_error("expected const, got %s for %s (%s)\n",
-						  type2str(enum_item->children[0]->type).c_str(),
-						  enum_item->str.c_str(), enum_node->str.c_str()
-						);
-			}
-			RTLIL::Const val = enum_item->children[0]->bitsAsConst(width, is_signed);
-			enum_item_str.append(val.as_string());
-			//set attribute for available val to enum item name mappings
-			set_attribute(enum_item_str.c_str(), mkconst_str(location, enum_item->str));
+	if (!template_node->attributes.count(ID::enum_type))
+		return;
+
+	// Resolve the AST_ENUM declaration this template references.
+	std::string enum_type = template_node->attributes[ID::enum_type]->str.c_str();
+	log_assert(current_scope.count(enum_type) == 1);
+	AstEnum enum_view(current_scope.at(enum_type));
+	while (enum_view.raw()->simplify()) { }
+
+	// Width is taken from the first enum item's resolved AST_RANGE.
+	log_assert(enum_view.num_items() >= 1);
+	AstEnumItem first_item(enum_view.raw()->children[0].get());
+	int width;
+	if (!first_item.raw()->range_valid)
+		width = 1;
+	else if (first_item.raw()->range_swapped)
+		width = first_item.raw()->range_right - first_item.raw()->range_left + 1;
+	else
+		width = first_item.raw()->range_left - first_item.raw()->range_right + 1;
+	log_assert(width > 0);
+
+	for (auto it = enum_view.items_begin(); it != enum_view.items_end(); ++it) {
+		AstEnumItem item(it->get());
+		size_t nch = item.raw()->children.size();
+		bool is_signed;
+		if (nch == 1) {
+			is_signed = false;
+		} else if (nch == 2) {
+			log_assert(item.has_range());
+			is_signed = item.is_signed_via_range();
+		} else {
+			log_error("enum_item children size==%zu, expected 1 or 2 for %s (%s)\n",
+					  nch, item.str().c_str(), enum_view.str().c_str());
 		}
+
+		AstNode *value_node = item.value();
+		if (value_node->type != AST_CONSTANT) {
+			log_error("expected const, got %s for %s (%s)\n",
+					  type2str(value_node->type).c_str(),
+					  item.str().c_str(), enum_view.str().c_str());
+		}
+		RTLIL::Const val = value_node->bitsAsConst(width, is_signed);
+		std::string enum_item_str = "\\enum_value_";
+		enum_item_str.append(val.as_string());
+		// Record the value→name mapping so backend output names enum members.
+		set_attribute(enum_item_str.c_str(), mkconst_str(location, item.str()));
 	}
 }
 
