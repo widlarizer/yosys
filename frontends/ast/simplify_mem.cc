@@ -322,9 +322,12 @@ bool AstNode::mem2reg_as_needed_pass2(pool<AstNode*> &mem2reg_set, AstNode *mod,
 		did_something = true;
 	}
 
-	if (BlockingAssignLike::accepts(this) && children[0]->mem2reg_check(mem2reg_set) &&
-			!AstConstant::matches(children[0]->children[0]->children[0].get()))
+	if (auto indexed = BlockingAssignLike::accepts(this) && children[0]->mem2reg_check(mem2reg_set)
+			? AstAnyAssign(this).lhs_as_indexed_identifier() : std::nullopt;
+			indexed && !AstConstant::matches(indexed->index_expr))
 	{
+		AstNode *index_expr = indexed->index_expr;
+
 		std::stringstream sstr;
 		sstr << "$mem2reg_wr$" << children[0]->str << "$" << RTLIL::encode_filename(*location.begin.filename) << ":" << location.begin.line << "$" << (autoidx++);
 		std::string id_addr = sstr.str() + "_ADDR", id_data = sstr.str() + "_DATA";
@@ -357,7 +360,7 @@ bool AstNode::mem2reg_as_needed_pass2(pool<AstNode*> &mem2reg_set, AstNode *mod,
 			assign_idx++;
 		log_assert(assign_idx < block->children.size());
 
-		auto assign_addr = std::make_unique<AstNode>(location, AST_ASSIGN_EQ, std::make_unique<AstNode>(location, AST_IDENTIFIER), children[0]->children[0]->children[0]->clone());
+		auto assign_addr = std::make_unique<AstNode>(location, AST_ASSIGN_EQ, std::make_unique<AstNode>(location, AST_IDENTIFIER), index_expr->clone());
 		assign_addr->children[0]->str = id_addr;
 		assign_addr->children[0]->was_checked = true;
 		block->children.insert(block->children.begin()+assign_idx+1, std::move(assign_addr));
@@ -365,7 +368,7 @@ bool AstNode::mem2reg_as_needed_pass2(pool<AstNode*> &mem2reg_set, AstNode *mod,
 		auto case_node = std::make_unique<AstNode>(location, AST_CASE, std::make_unique<AstNode>(location, AST_IDENTIFIER));
 		case_node->children[0]->str = id_addr;
 		for (int i = 0; i < mem_size; i++) {
-			if (AstConstant::matches(children[0]->children[0]->children[0].get()) && int(children[0]->children[0]->children[0]->integer) != i)
+			if (AstConstant::matches(index_expr) && int(index_expr->integer) != i)
 				continue;
 			auto cond_node = std::make_unique<AstNode>(location, AST_COND, AstNode::mkconst_int(location, i, false, addr_bits), std::make_unique<AstNode>(location, AST_BLOCK));
 			auto assign_reg = std::make_unique<AstNode>(location, type, std::make_unique<AstNode>(location, AST_IDENTIFIER), std::make_unique<AstNode>(location, AST_IDENTIFIER));

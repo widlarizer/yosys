@@ -450,6 +450,20 @@ struct AstAnyAssign {
 	static std::optional<AstAnyAssign> cast(AstNode *n) {
 		return matches(n) ? std::optional<AstAnyAssign>(AstAnyAssign(n)) : std::nullopt;
 	}
+
+	// If the LHS has shape AST_IDENTIFIER → AST_RANGE → [index_expr] (a single
+	// element memory access), return the identifier and its index expression.
+	struct IndexedIdentifier {
+		AstNode *id;          // the AST_IDENTIFIER LHS node
+		AstNode *index_expr;  // the single child of the AST_RANGE
+	};
+	std::optional<IndexedIdentifier> lhs_as_indexed_identifier() const {
+		AstNode *l = lhs();
+		if (!l || l->type != AST_IDENTIFIER || l->children.empty()) return std::nullopt;
+		AstNode *range = l->children[0].get();
+		if (!range || range->type != AST_RANGE || range->children.size() != 1) return std::nullopt;
+		return IndexedIdentifier{l, range->children[0].get()};
+	}
 };
 
 DEFINE_AST_VIEW_3(AstTernary,  AST_TERNARY,   cond, Expression, then_, Expression, else_, Expression)
