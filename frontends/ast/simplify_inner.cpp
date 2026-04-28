@@ -43,6 +43,37 @@ YOSYS_NAMESPACE_BEGIN
 using namespace AST;
 using namespace AST_INTERNAL;
 
+// ---------------------------------------------------------------------------
+// View methods for the per-type branches of AstNode::simplify(). These live
+// here (not in ast_typed.h) because they touch simplifier statics like
+// `current_scope` and `current_ast_mod`. They're listed in roughly the same
+// order as their original branches in simplify() below for ease of cross-ref.
+// ---------------------------------------------------------------------------
+
+void AstPackage::register_scope() const
+{
+	// Parameters, typedefs, and subroutines defined at package scope are
+	// reachable as `pkg::name`. The simplifier flattens that here by entering
+	// each declaration's name into `current_scope` so AST_IDENTIFIER lookups
+	// during package-body simplification (and later imports) resolve.
+	for (auto& child : node->children) {
+		if (ChildConstraint<AST_PARAMETER, AST_LOCALPARAM, AST_TYPEDEF,
+				AST_FUNCTION, AST_TASK>::accepts(child.get())) {
+			current_scope[child->str] = child.get();
+		}
+		if (auto en = AstEnum::cast(child.get())) {
+			current_scope[en->str()] = en->raw();
+			for (auto& enode : en->raw()->children) {
+				log_assert(AstEnumItem::matches(enode.get()));
+				if (current_scope.count(enode->str) == 0)
+					current_scope[enode->str] = enode.get();
+				else
+					child->input_error("enum item %s already exists in package\n", enode->str);
+			}
+		}
+	}
+}
+
 
 // convert the AST into a simpler AST that has all parameters substituted by their
 // values, unrolled for-loops, expanded generate blocks, etc. when this function
@@ -398,26 +429,8 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 	}
 
 	// create name resolution entries for all objects with names
-	if (type == AST_PACKAGE) {
-		//add names to package scope
-		for (size_t i = 0; i < children.size(); i++) {
-			auto& node = children[i];
-			// these nodes appear at the top level in a package and can define names
-			if (ChildConstraint<AST_PARAMETER, AST_LOCALPARAM, AST_TYPEDEF, AST_FUNCTION, AST_TASK>::accepts(node.get())) {
-				current_scope[node->str] = node.get();
-			}
-			if (node->type == AST_ENUM) {
-				current_scope[node->str] = node.get();
-				for (auto& enode : node->children) {
-					log_assert(enode->type==AST_ENUM_ITEM);
-					if (current_scope.count(enode->str) == 0)
-						current_scope[enode->str] = enode.get();
-					else
-						input_error("enum item %s already exists in package\n", enode->str);
-				}
-			}
-		}
-	}
+	if (auto pkg = AstPackage::cast(this))
+		pkg->register_scope();
 
 
 	auto backup_current_block = current_block;

@@ -1066,6 +1066,21 @@ struct AstTask : AstView<AST_TASK> {
 	}
 };
 
+// AST_PACKAGE: top-level scope holding parameters, typedefs, functions/tasks,
+// and enums for cross-module reference.
+struct AstPackage : AstView<AST_PACKAGE> {
+	using AstView::AstView;
+	static std::optional<AstPackage> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstPackage>(AstPackage(n)) : std::nullopt;
+	}
+
+	// Register every name-defining child of the package in the global
+	// `current_scope` so that simplification of the package's body and of
+	// downstream modules can resolve `pkg::name` references. Defined in
+	// simplify_inner.cpp where all the simplifier statics are visible.
+	void register_scope() const;
+};
+
 // ----------------------------------------------------------------------------
 // Hierarchy-flag propagation rules
 //
