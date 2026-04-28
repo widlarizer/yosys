@@ -647,8 +647,9 @@ std::unique_ptr<AstNode> AstNode::readmem(bool is_readmemh, std::string mem_file
 				if (meminit == nullptr || cursor != next_meminit_cursor)
 				{
 					if (meminit != nullptr) {
-						meminit->children[1] = AstNode::mkconst_bits(location, meminit_bits, false);
-						meminit->children[3] = AstNode::mkconst_int(location, meminit_size, false);
+						AstMemInit prev(meminit);
+						prev.set_data(AstNode::mkconst_bits(location, meminit_bits, false));
+						prev.set_count(AstNode::mkconst_int(location, meminit_size, false));
 					}
 
 					auto meminit_owned = std::make_unique<AstNode>(location, AST_MEMINIT);
@@ -694,8 +695,9 @@ std::unique_ptr<AstNode> AstNode::readmem(bool is_readmemh, std::string mem_file
 	}
 
 	if (meminit != nullptr) {
-		meminit->children[1] = AstNode::mkconst_bits(location, meminit_bits, false);
-		meminit->children[3] = AstNode::mkconst_int(location, meminit_size, false);
+		AstMemInit final_init(meminit);
+		final_init.set_data(AstNode::mkconst_bits(location, meminit_bits, false));
+		final_init.set_count(AstNode::mkconst_int(location, meminit_size, false));
 	}
 
 	return block;

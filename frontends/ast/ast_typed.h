@@ -794,9 +794,32 @@ struct AstMemAccess : AstView<Tag> {
 		return AstView<Tag>::matches(n) ? std::optional<AstMemAccess>(AstMemAccess(n)) : std::nullopt;
 	}
 };
-using AstMemRd   = AstMemAccess<AST_MEMRD>;
-using AstMemWr   = AstMemAccess<AST_MEMWR>;
-using AstMemInit = AstMemAccess<AST_MEMINIT>;
+using AstMemRd = AstMemAccess<AST_MEMRD>;
+
+// AST_MEMWR : children = [addr, data, en, portid, prio_mask]
+struct AstMemWr : AstMemAccess<AST_MEMWR> {
+	using AstMemAccess::AstMemAccess;
+	AstNode *data()       const { return node->children.at(1).get(); }
+	AstNode *en()         const { return node->children.at(2).get(); }
+	AstNode *portid()     const { return node->children.at(3).get(); }
+	AstNode *prio_mask()  const { return node->children.at(4).get(); }
+	static std::optional<AstMemWr> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstMemWr>(AstMemWr(n)) : std::nullopt;
+	}
+};
+
+// AST_MEMINIT : children = [addr, data, en, count]
+struct AstMemInit : AstMemAccess<AST_MEMINIT> {
+	using AstMemAccess::AstMemAccess;
+	AstNode *data()  const { return node->children.at(1).get(); }
+	AstNode *en()    const { return node->children.at(2).get(); }
+	AstNode *count() const { return node->children.at(3).get(); }
+	void set_data(std::unique_ptr<AstNode> n)  { node->children.at(1) = std::move(n); }
+	void set_count(std::unique_ptr<AstNode> n) { node->children.at(3) = std::move(n); }
+	static std::optional<AstMemInit> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstMemInit>(AstMemInit(n)) : std::nullopt;
+	}
+};
 
 // MemberContainer: shared base for AST_STRUCT and AST_UNION, whose grammar is
 // "ordered list of AST_STRUCT_ITEM (with possibly nested AST_STRUCT/AST_UNION)".
