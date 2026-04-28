@@ -75,7 +75,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 
 	if (stage == 0)
 	{
-		log_assert(type == AST_MODULE || type == AST_INTERFACE);
+		log_assert(ModuleLike::accepts(this));
 
 		deep_recursion_warning = true;
 		while (simplify(const_fold, 1, width_hint, sign_hint)) { }
@@ -180,14 +180,14 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 
 	// we do not look inside a task or function
 	// (but as soon as a task or function is instantiated we process the generated AST as usual)
-	if (type == AST_FUNCTION || type == AST_TASK) {
+	if (FunctionTaskLike::accepts(this)) {
 		recursion_counter--;
 		return false;
 	}
 
 	// deactivate all calls to non-synthesis system tasks
 	// note that $display, $finish, and $stop are used for synthesis-time DRC so they're not in this list
-	if ((type == AST_FCALL || type == AST_TCALL) && (str == "$strobe" || str == "$monitor" || str == "$time" ||
+	if (CallLike::accepts(this) && (str == "$strobe" || str == "$monitor" || str == "$time" ||
 			str == "$dumpfile" || str == "$dumpvars" || str == "$dumpon" || str == "$dumpoff" || str == "$dumpall")) {
 		log_file_warning(*location.begin.filename, location.begin.line, "Ignoring call to system %s %s.\n", type == AST_FCALL ? "function" : "task", str);
 		delete_children();
@@ -237,7 +237,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 
 	// create name resolution entries for all objects with names
 	// also merge multiple declarations for the same wire (e.g. "output foobar; reg foobar;")
-	if (type == AST_MODULE || type == AST_INTERFACE) {
+	if (ModuleLike::accepts(this)) {
 		current_scope.clear();
 		std::set<std::string> existing;
 		int counter = 0;
@@ -426,7 +426,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 	auto backup_current_always = current_always;
 	auto backup_current_always_clocked = current_always_clocked;
 
-	if (type == AST_ALWAYS || type == AST_INITIAL)
+	if (ProceduralBlockLike::accepts(this))
 	{
 		if (current_always != nullptr)
 			input_error("Invalid nesting of always blocks and/or initializations.\n");
@@ -434,7 +434,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 		current_always = this;
 		current_always_clocked = false;
 
-		if (type == AST_ALWAYS)
+		if (AstAlways::matches(this))
 			for (auto& child : children) {
 				if (child->type == AST_POSEDGE || child->type == AST_NEGEDGE)
 					current_always_clocked = true;
@@ -869,13 +869,13 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 		}
 	}
 
-	if (type == AST_CONDX && children.size() > 0 && children.at(0)->type == AST_CONSTANT) {
+	if (AstCondX::matches(this) && children.size() > 0 && children.at(0)->type == AST_CONSTANT) {
 		for (auto &bit : children.at(0)->bits)
 			if (bit == State::Sz || bit == State::Sx)
 				bit = State::Sa;
 	}
 
-	if (type == AST_CONDZ && children.size() > 0 && children.at(0)->type == AST_CONSTANT) {
+	if (AstCondZ::matches(this) && children.size() > 0 && children.at(0)->type == AST_CONSTANT) {
 		for (auto &bit : children.at(0)->bits)
 			if (bit == State::Sz)
 				bit = State::Sa;
@@ -1027,7 +1027,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 			current_scope[it->first] = it->second;
 	}
 
-	if (type == AST_MODULE || type == AST_INTERFACE)
+	if (ModuleLike::accepts(this))
 		current_scope.clear();
 
 	// convert defparam nodes to cell parameters
@@ -1079,7 +1079,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 	}
 
 	// resolve types of wires
-	if (type == AST_WIRE || type == AST_MEMORY) {
+	if (WireOrMemory::accepts(this)) {
 		if (is_custom_type) {
 			log_assert(children.size() >= 1);
 			log_assert(children[0]->type == AST_WIRETYPE);
@@ -1157,7 +1157,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 	}
 
 	// resolve types of parameters
-	if (type == AST_LOCALPARAM || type == AST_PARAMETER) {
+	if (ParameterLike::accepts(this)) {
 		if (is_custom_type) {
 			AstAnyParamLike param(this);
 			log_assert(param.has_wiretype());
@@ -1287,7 +1287,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 	}
 
 	// Resolve packed and unpacked ranges in declarations.
-	if ((type == AST_WIRE || type == AST_MEMORY) && dimensions.empty()) {
+	if (WireOrMemory::accepts(this) && dimensions.empty()) {
 		if (!children.empty()) {
 			// Unpacked ranges first, then packed ranges.
 			for (int i = std::min(GetSize(children), 2) - 1; i >= 0; i--) {
@@ -1316,7 +1316,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 	}
 
 	// Resolve multidimensional array access.
-	if (type == AST_IDENTIFIER && !basic_prep && id2ast && (id2ast->type == AST_WIRE || id2ast->type == AST_MEMORY) &&
+	if (AstIdentifier::matches(this) && !basic_prep && id2ast && WireOrMemory::accepts(id2ast) &&
 		children.size() > 0 && (children[0]->type == AST_RANGE || children[0]->type == AST_MULTIRANGE))
 	{
 		int dims_sel = children[0]->type == AST_MULTIRANGE ? children[0]->children.size() : 1;
@@ -1588,7 +1588,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 	}
 
 	// unroll for loops and generate-for blocks
-	if ((type == AST_GENFOR || type == AST_FOR) && children.size() != 0)
+	if (ForLike::accepts(this) && children.size() != 0)
 	{
 		// AST_FOR and AST_GENFOR share the same [init, cond, step, body] shape
 		// (grammar invariant §1). We index by slot rather than cast to a view
@@ -2050,7 +2050,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 	// replace dynamic ranges in left-hand side expressions (e.g. "foo[bar] <= 1'b1;") with
 	// either a big case block that selects the correct single-bit assignment, or mask and
 	// shift operations.
-	if (type == AST_ASSIGN_EQ || type == AST_ASSIGN_LE)
+	if (BlockingAssignLike::accepts(this))
 	{
 		// Both share the 2-child [lhs, rhs] shape (grammar §15).
 		AstNode *lhs_node = children[0].get();
@@ -2290,7 +2290,7 @@ skip_dynamic_range_lvalue_expansion:;
 	}
 
 	// assignment with nontrivial member in left-hand concat expression -> split assignment
-	if ((type == AST_ASSIGN_EQ || type == AST_ASSIGN_LE) && children[0]->type == AST_CONCAT && width_hint > 0)
+	if (BlockingAssignLike::accepts(this) && children[0]->type == AST_CONCAT && width_hint > 0)
 	{
 		AstConcat lhs_concat(children[0].get());
 		AstNode *rhs_n = children[1].get();
@@ -2341,7 +2341,7 @@ skip_dynamic_range_lvalue_expansion:;
 
 	// Expand array assignment: arr_out = arr_in OR arr_out = cond ? arr_a : arr_b
 	// Supports multi-dimensional unpacked arrays
-	if ((type == AST_ASSIGN_EQ || type == AST_ASSIGN_LE || type == AST_ASSIGN) &&
+	if (AstAnyAssign::matches(this) &&
 	    is_unexpanded_array_ref(children[0].get()))
 	{
 		AstNode *lhs = children[0].get();
@@ -2454,7 +2454,7 @@ skip_dynamic_range_lvalue_expansion:;
 	}
 
 	// assignment with memory in left-hand side expression -> replace with memory write port
-	if (stage > 1 && (type == AST_ASSIGN_EQ || type == AST_ASSIGN_LE) && children[0]->type == AST_IDENTIFIER &&
+	if (stage > 1 && BlockingAssignLike::accepts(this) && children[0]->type == AST_IDENTIFIER &&
 			children[0]->id2ast && children[0]->id2ast->type == AST_MEMORY && children[0]->id2ast->children.size() >= 2 &&
 			children[0]->id2ast->children[0]->range_valid && children[0]->id2ast->children[1]->range_valid &&
 			(children[0]->children.size() == 1 || children[0]->children.size() == 2) && children[0]->children[0]->type == AST_RANGE)
@@ -2664,7 +2664,7 @@ skip_dynamic_range_lvalue_expansion:;
 	}
 
 	// replace function and task calls with the code from the function or task
-	if ((type == AST_FCALL || type == AST_TCALL) && !str.empty())
+	if (CallLike::accepts(this) && !str.empty())
 	{
 		// Both call types share variadic-arg shape; treat 'this' as a generic call.
 		if (type == AST_FCALL)

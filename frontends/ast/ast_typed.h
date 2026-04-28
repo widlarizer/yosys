@@ -103,6 +103,43 @@ using CommonDeclarations = ChildConstraint<
 	AST_WIRE, AST_MEMORY, AST_TYPEDEF
 >;
 
+// AST_FUNCTION and AST_TASK both delineate subroutine bodies that the simplifier
+// skips at the outer pass and only descends into when instantiated.
+using FunctionTaskLike = ChildConstraint<AST_FUNCTION, AST_TASK>;
+
+// AST_ALWAYS and AST_INITIAL share the "procedural block" shape (sensitivity
+// list optional, AST_BLOCK body last). The simplifier treats them
+// interchangeably for current_always tracking.
+using ProceduralBlockLike = ChildConstraint<AST_ALWAYS, AST_INITIAL>;
+
+// AST_MODULE and AST_INTERFACE both define a top-level scope with name
+// resolution lifecycle handled identically.
+using ModuleLike = ChildConstraint<AST_MODULE, AST_INTERFACE>;
+
+// Storage declarations that participate in custom-type resolution and
+// dimension expansion. AST_MEMORY is just AST_WIRE plus an unpacked range.
+using WireOrMemory = ChildConstraint<AST_WIRE, AST_MEMORY>;
+
+// AST_PARAMETER and AST_LOCALPARAM share the ParamLikeView grammar. Parameter
+// resolution treats them identically apart from elaboration-time overriding.
+using ParameterLike = ChildConstraint<AST_PARAMETER, AST_LOCALPARAM>;
+
+// Call-shaped nodes: AST_FCALL is an expression, AST_TCALL is a statement, but
+// both are variadic-arg lists handled identically by parts of the simplifier
+// (system task suppression, name lookup, etc.).
+using CallLike = ChildConstraint<AST_FCALL, AST_TCALL>;
+
+// Procedural assignments that appear inside always/initial blocks. AST_ASSIGN
+// is the continuous-assignment form and is intentionally excluded.
+using BlockingAssignLike = ChildConstraint<AST_ASSIGN_EQ, AST_ASSIGN_LE>;
+
+// AST_FOR and AST_GENFOR share [init, cond, step, body] shape.
+using ForLike = ChildConstraint<AST_FOR, AST_GENFOR>;
+
+// AST_CONDX and AST_CONDZ are the case-item variants that pre-mask Z/X bits
+// of their constant labels before equality testing.
+using CondMaskLike = ChildConstraint<AST_CONDX, AST_CONDZ>;
+
 // Shared constraint: formal assertions present in both behavioral and module contexts.
 using FormalAssertions = ChildConstraint<
 	AST_ASSERT, AST_ASSUME, AST_LIVE, AST_FAIR, AST_COVER
