@@ -349,12 +349,15 @@ struct AST_INTERNAL::ProcessGenerator
 		bool found_anyedge_syncs = false;
 		for (auto& child : always->children)
 		{
-			if ((ClockedEdgeLike::accepts(child.get())) && GetSize(child->children) == 1 && AstIdentifier::matches(child->children.at(0).get()) &&
-					child->children.at(0)->id2ast && AstWire::matches(child->children.at(0)->id2ast) && child->children.at(0)->id2ast->get_bool_attribute(ID::gclk)) {
-				found_global_syncs = true;
+			if (ClockedEdgeLike::accepts(child.get())) {
+				if (auto id = sensitivity_operand_identifier(child.get());
+						id && id->raw()->id2ast && AstWire::matches(id->raw()->id2ast) &&
+						id->raw()->id2ast->get_bool_attribute(ID::gclk))
+					found_global_syncs = true;
 			}
 			if (AstEdge::matches(child.get())) {
-				if (GetSize(child->children) == 1 && AstIdentifier::matches(child->children.at(0).get()) && child->children.at(0)->str == "\\$global_clock")
+				auto id = sensitivity_operand_identifier(child.get());
+				if (id && id->str() == "\\$global_clock")
 					found_global_syncs = true;
 				else
 					found_anyedge_syncs = true;
@@ -373,8 +376,9 @@ struct AST_INTERNAL::ProcessGenerator
 		bool found_clocked_sync = false;
 		for (auto& child : always->children)
 			if (ClockedEdgeLike::accepts(child.get())) {
-				if (GetSize(child->children) == 1 && AstIdentifier::matches(child->children.at(0).get()) && child->children.at(0)->id2ast &&
-						AstWire::matches(child->children.at(0)->id2ast) && child->children.at(0)->id2ast->get_bool_attribute(ID::gclk))
+				if (auto id = sensitivity_operand_identifier(child.get());
+						id && id->raw()->id2ast && AstWire::matches(id->raw()->id2ast) &&
+						id->raw()->id2ast->get_bool_attribute(ID::gclk))
 					continue;
 				found_clocked_sync = true;
 				if (found_global_syncs || found_anyedge_syncs)

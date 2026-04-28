@@ -1103,6 +1103,14 @@ struct AstIdentifier : AstView<AST_IDENTIFIER> {
 	}
 };
 
+// If a sensitivity event (AST_POSEDGE/AST_NEGEDGE/AST_EDGE) has exactly one
+// child that is an AST_IDENTIFIER, return it; otherwise nullopt.
+inline std::optional<AstIdentifier> sensitivity_operand_identifier(AstNode *n) {
+	log_assert(SensitivityEvent::accepts(n));
+	if (n->children.size() != 1) return std::nullopt;
+	return AstIdentifier::cast(n->children[0].get());
+}
+
 struct AstArgument : AstView<AST_ARGUMENT> {
 	using AstView::AstView;
 	// Grammar: 0 or 1 child (the connected expression).
