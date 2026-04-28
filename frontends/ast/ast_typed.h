@@ -509,9 +509,6 @@ DEFINE_AST_VIEW_1(AstCover,    AST_COVER,     predicate, Expression)
 // Typedef (single child: underlying type)
 DEFINE_AST_VIEW_1(AstTypedef,  AST_TYPEDEF,   underlying, Anything)
 
-// Initial (single child: AST_BLOCK body) - body contains behavioral statements
-DEFINE_AST_VIEW_1(AstInitial,  AST_INITIAL,   body, BehavioralStatement)
-
 // Declarations
 struct AstWire : AstView<AST_WIRE> {
 	using AstView::AstView;
@@ -1285,27 +1282,38 @@ inline void apply(AstNode *n, bool force_descend) {
 
 } // namespace hierarchy_flags
 
-// AST_ALWAYS: final child is AST_BLOCK; preceding children are sensitivity
-// events.
-struct AstAlways : AstView<AST_ALWAYS> {
-	using AstView::AstView;
-	AstNode *body() const {
-		log_assert(!node->children.empty());
-		AstNode *last = node->children.back().get();
-		log_assert(last->type == AST_BLOCK);
-		return last;
-	}
-	ChildSlot<Anything> body_slot() const {
-		log_assert(!node->children.empty());
-		return {node, node->children.size() - 1};
-	}
+struct AstProcBase {
+    AstNode *node;
+    explicit AstProcBase(AstNode *n) : node(n) {
+        log_assert(ProceduralBlockLike::accepts(n));
+    }
+    // Logic for both types is now centralized
+    AstBlock body() const {
+        log_assert(!node->children.empty());
+        for (auto& child : node->children)
+            if (auto block = AstBlock::cast(child.get()))
+                return *block;
+        log_abort();
+    }
+    static bool matches(const AstNode *n) {
+        return ProceduralBlockLike::accepts(n);
+    }
+    static std::optional<AstProcBase> cast(AstNode *n) {
+        return matches(n) ? std::optional<AstProcBase>(AstProcBase(n)) : std::nullopt;
+    }
+    // You can still access the underlying node type if needed
+    AstNodeType type() const { return node->type; }
+};
+
+struct AstInitial final : AstProcBase {
+	using AstProcBase::AstProcBase;
+};
+struct AstAlways final : AstProcBase {
+	using AstProcBase::AstProcBase;
 	auto sensitivity_begin() { return node->children.begin(); }
 	auto sensitivity_end() {
 		log_assert(!node->children.empty());
 		return node->children.end() - 1;
-	}
-	static std::optional<AstAlways> cast(AstNode *n) {
-		return matches(n) ? std::optional<AstAlways>(AstAlways(n)) : std::nullopt;
 	}
 };
 

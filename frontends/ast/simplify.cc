@@ -1183,7 +1183,7 @@ bool AstNode::detect_latch(const std::string &var)
 				return false;
 			log_assert(AstEdge::matches(c));
 		}
-		return always.body()->detect_latch(var);
+		return always.body().raw()->detect_latch(var);
 	}
 	case AST_BLOCK:
 		for (auto &c : children)

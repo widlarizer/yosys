@@ -261,16 +261,15 @@ struct AST_INTERNAL::LookaheadRewriter
 			rewrite_lookaheadids(child.get(), lhs);
 	}
 
-	LookaheadRewriter(AstAlways top)
+	LookaheadRewriter(AstBlock block)
 	{
-		// top.raw()->dumpAst(nullptr, "REWRITE-BEFORE> ");
-		// top.raw()->dumpVlog(nullptr, "REWRITE-BEFORE> ");
+		// block.raw()->dumpAst(nullptr, "REWRITE-BEFORE> ");
+		// block.raw()->dumpVlog(nullptr, "REWRITE-BEFORE> ");
 
-		auto loc = top.loc();
-		AstNode *block = top.body();
+		auto loc = block.loc();
 
-		collect_lookaheadids(block);
-		rewrite_lookaheadids(block);
+		collect_lookaheadids(block.raw());
+		rewrite_lookaheadids(block.raw());
 
 		for (auto it : lookaheadids)
 		{
@@ -287,12 +286,12 @@ struct AST_INTERNAL::LookaheadRewriter
 			auto init_assign = std::make_unique<AstNode>(loc, AST_ASSIGN_EQ, ref_temp->clone(), ref_orig->clone());
 			auto final_assign = std::make_unique<AstNode>(loc, AST_ASSIGN_LE, std::move(ref_orig), std::move(ref_temp));
 
-			block->children.insert(block->children.begin(), std::move(init_assign));
-			block->children.push_back(std::move(final_assign));
+			block.raw()->children.insert(block.raw()->children.begin(), std::move(init_assign));
+			block.raw()->children.push_back(std::move(final_assign));
 		}
 
-		// top->dumpAst(nullptr, "REWRITE-AFTER> ");
-		// top->dumpVlog(nullptr, "REWRITE-AFTER> ");
+		// block->dumpAst(nullptr, "REWRITE-AFTER> ");
+		// block->dumpVlog(nullptr, "REWRITE-AFTER> ");
 	}
 };
 
@@ -337,7 +336,7 @@ struct AST_INTERNAL::ProcessGenerator
 	ProcessGenerator(std::unique_ptr<AstNode> a, RTLIL::SigSpec initSyncSignalsArg = RTLIL::SigSpec()) : always(std::move(a)), initSyncSignals(initSyncSignalsArg), last_effect_priority(0)
 	{
 		// rewrite lookahead references
-		LookaheadRewriter la_rewriter(AstAlways{always.get()});
+		LookaheadRewriter la_rewriter(AstProcBase(always.get()).body());
 
 		// generate process and simple root case
 		proc = current_module->addProcess(stringf("$proc$%s:%d$%d", RTLIL::encode_filename(*always->location.begin.filename), always->location.begin.line, autoidx++));
