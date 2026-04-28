@@ -1198,8 +1198,8 @@ bool AstNode::detect_latch(const std::string &var)
 						return true;
 					r = false;
 				}
-				if (c->type == AST_DEFAULT) {
-					if (c->children.at(0)->detect_latch(var))
+				if (auto def = AstDefault::cast(c.get())) {
+					if (def->legacy_body()->detect_latch(var))
 						return true;
 					r = false;
 				}

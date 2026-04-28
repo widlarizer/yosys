@@ -433,6 +433,21 @@ struct AstWire : AstView<AST_WIRE> {
 	}
 };
 
+// AST_DEFAULT marks the default branch in a case statement. It can appear
+// either as the first label child of an AST_COND (the canonical form, no body)
+// or — in some legacy paths — as a direct child of AST_CASE wrapping a body
+// expression at children[0].
+struct AstDefault : AstView<AST_DEFAULT> {
+	using AstView::AstView;
+	AstNode *legacy_body() const {
+		log_assert(!node->children.empty());
+		return node->children.at(0).get();
+	}
+	static std::optional<AstDefault> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstDefault>(AstDefault(n)) : std::nullopt;
+	}
+};
+
 // AST_NONE is a sentinel node used as a placeholder where a child slot must
 // exist but no value is supplied (e.g. enum item with no explicit value).
 struct AstNone : AstView<AST_NONE> {
