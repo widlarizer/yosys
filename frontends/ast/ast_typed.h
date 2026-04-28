@@ -571,6 +571,33 @@ struct AstAutowire : AstView<AST_AUTOWIRE> {
 	}
 };
 
+// AST_GENVAR: leaf declaration of a generate-loop iteration variable. Treated as
+// 32-bit signed integer in width detection.
+struct AstGenvar : AstView<AST_GENVAR> {
+	using AstView::AstView;
+	static std::optional<AstGenvar> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstGenvar>(AstGenvar(n)) : std::nullopt;
+	}
+};
+
+// AST_CELLTYPE: leaf carrying a cell instance's module type as `str`. First
+// child of AST_CELL.
+struct AstCelltype : AstView<AST_CELLTYPE> {
+	using AstView::AstView;
+	static std::optional<AstCelltype> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstCelltype>(AstCelltype(n)) : std::nullopt;
+	}
+};
+
+// AST_INTERFACEPORTTYPE: leaf marking an AST_INTERFACEPORT child slot with the
+// interface module type (and optional modport, dot-separated) as `str`.
+struct AstInterfacePortType : AstView<AST_INTERFACEPORTTYPE> {
+	using AstView::AstView;
+	static std::optional<AstInterfacePortType> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstInterfacePortType>(AstInterfacePortType(n)) : std::nullopt;
+	}
+};
+
 struct AstMemory : AstView<AST_MEMORY> {
 	using AstView::AstView;
 	// Grammar: packed range, optional wiretype, address range
