@@ -155,6 +155,10 @@ using BlockOrGenBlock = ChildConstraint<AST_BLOCK, AST_GENBLOCK>;
 // AST_POSEDGE and AST_NEGEDGE are the two clocked sensitivity events.
 using ClockedEdgeLike = ChildConstraint<AST_POSEDGE, AST_NEGEDGE>;
 
+// AST_POSEDGE / AST_NEGEDGE / AST_EDGE — every event-trigger child of an
+// always block. Used to separate event children from the block body.
+using SensitivityEvent = ChildConstraint<AST_POSEDGE, AST_NEGEDGE, AST_EDGE>;
+
 // AST_STRUCT and AST_UNION — the two member-container kinds. Equivalent to
 // AstStructLike::matches but usable in constraint position.
 using StructOrUnion = ChildConstraint<AST_STRUCT, AST_UNION>;

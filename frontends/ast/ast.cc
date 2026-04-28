@@ -193,7 +193,7 @@ bool AstNode::get_bool_attribute(RTLIL::IdString id)
 		return false;
 
 	auto& attr = attributes.at(id);
-	if (attr->type != AST_CONSTANT)
+	if (!AstConstant::matches(attr.get()))
 		attr->input_error("Attribute `%s' with non-constant value!\n", id);
 
 	return attr->integer != 0;
@@ -441,27 +441,27 @@ void AstNode::dumpVlog(FILE *f, std::string indent) const
 	case AST_MODULE:
 		fprintf(f, "%s" "module %s(", indent.c_str(), id2vl(str).c_str());
 		for (const auto& child : children)
-			if (child->type == AST_WIRE && (child->is_input || child->is_output)) {
+			if (AstWire::matches(child.get()) && (child->is_input || child->is_output)) {
 				fprintf(f, "%s%s", first ? "" : ", ", id2vl(child->str).c_str());
 				first = false;
 			}
 		fprintf(f, ");\n");
 
 		for (const auto& child : children)
-			if (child->type == AST_PARAMETER || child->type == AST_LOCALPARAM || child->type == AST_DEFPARAM)
+			if (ChildConstraint<AST_PARAMETER, AST_LOCALPARAM, AST_DEFPARAM>::accepts(child.get()))
 				child->dumpVlog(f, indent + "  ");
 			else
 				rem_children1.push_back(child.get());
 
 		for (auto child : rem_children1)
-			if (child->type == AST_WIRE || child->type == AST_AUTOWIRE || child->type == AST_MEMORY)
+			if (ChildConstraint<AST_WIRE, AST_AUTOWIRE, AST_MEMORY>::accepts(child))
 				child->dumpVlog(f, indent + "  ");
 			else
 				rem_children2.push_back(child);
 		rem_children1.clear();
 
 		for (auto child : rem_children2)
-			if (child->type == AST_TASK || child->type == AST_FUNCTION)
+			if (FunctionTaskLike::accepts(child))
 				child->dumpVlog(f, indent + "  ");
 			else
 				rem_children1.push_back(child);
@@ -523,7 +523,7 @@ void AstNode::dumpVlog(FILE *f, std::string indent) const
 			first = false;
 		}
 		fprintf(f, ")");
-		if (type != AST_MEMRD)
+		if (!AstMemRd::matches(this))
 			fprintf(f, ";\n");
 		break;
 
@@ -551,7 +551,7 @@ void AstNode::dumpVlog(FILE *f, std::string indent) const
 	case AST_ALWAYS:
 		fprintf(f, "%s" "always @", indent.c_str());
 		for (const auto& child : children) {
-			if (child->type != AST_POSEDGE && child->type != AST_NEGEDGE && child->type != AST_EDGE)
+			if (!SensitivityEvent::accepts(child.get()))
 				continue;
 			fprintf(f, first ? "(" : ", ");
 			child->dumpVlog(f, "");
@@ -559,7 +559,7 @@ void AstNode::dumpVlog(FILE *f, std::string indent) const
 		}
 		fprintf(f, first ? "*\n" : ")\n");
 		for (const auto& child : children) {
-			if (child->type != AST_POSEDGE && child->type != AST_NEGEDGE && child->type != AST_EDGE)
+			if (!SensitivityEvent::accepts(child.get()))
 				child->dumpVlog(f, indent + "  ");
 		}
 		break;
@@ -567,7 +567,7 @@ void AstNode::dumpVlog(FILE *f, std::string indent) const
 	case AST_INITIAL:
 		fprintf(f, "%s" "initial\n", indent.c_str());
 		for (const auto& child : children) {
-			if (child->type != AST_POSEDGE && child->type != AST_NEGEDGE && child->type != AST_EDGE)
+			if (!SensitivityEvent::accepts(child.get()))
 				child->dumpVlog(f, indent + "  ");
 		}
 		break;
@@ -626,9 +626,9 @@ void AstNode::dumpVlog(FILE *f, std::string indent) const
 		break;
 
 	case AST_CASE:
-		if (children.size() > 1 && children[1]->type == AST_CONDX)
+		if (children.size() > 1 && AstCondX::matches(children[1].get()))
 			fprintf(f, "%s" "casex (", indent.c_str());
-		else if (children.size() > 1 && children[1]->type == AST_CONDZ)
+		else if (children.size() > 1 && AstCondZ::matches(children[1].get()))
 			fprintf(f, "%s" "casez (", indent.c_str());
 		else
 			fprintf(f, "%s" "case (", indent.c_str());
@@ -645,13 +645,13 @@ void AstNode::dumpVlog(FILE *f, std::string indent) const
 	case AST_CONDX:
 	case AST_CONDZ:
 		for (const auto& child : children) {
-			if (child->type == AST_BLOCK) {
+			if (AstBlock::matches(child.get())) {
 				fprintf(f, ":\n");
 				child->dumpVlog(f, indent + "  ");
 				first = true;
 			} else {
 				fprintf(f, "%s", first ? indent.c_str() : ", ");
-				if (child->type == AST_DEFAULT)
+				if (AstDefault::matches(child.get()))
 					fprintf(f, "default");
 				else
 					child->dumpVlog(f, "");
@@ -672,7 +672,7 @@ void AstNode::dumpVlog(FILE *f, std::string indent) const
 	case AST_ASSIGN_LE:
 		fprintf(f, "%s", indent.c_str());
 		children[0]->dumpVlog(f, "");
-		fprintf(f, " %s ", type == AST_ASSIGN_EQ ? "=" : "<=");
+		fprintf(f, " %s ", AstAssignEq::matches(this) ? "=" : "<=");
 		children[1]->dumpVlog(f, "");
 		fprintf(f, ";\n");
 		break;
@@ -976,14 +976,14 @@ RTLIL::Const AstNode::bitsAsConst(int width)
 
 RTLIL::Const AstNode::asAttrConst() const
 {
-	log_assert(type == AST_CONSTANT);
+	log_assert(AstConstant::matches(this));
 
 	return is_string ? RTLIL::Const(str) : RTLIL::Const(bits);
 }
 
 RTLIL::Const AstNode::asParaConst() const
 {
-	if (type == AST_REALVALUE)
+	if (AstRealvalue::matches(this))
 	{
 		auto strnode = AstNode::mkconst_str(location, stringf("%f", realvalue));
 		RTLIL::Const val = strnode->asAttrConst();
@@ -1001,16 +1001,16 @@ RTLIL::Const AstNode::asParaConst() const
 
 int AstNode::isConst() const
 {
-	if (type == AST_CONSTANT)
+	if (AstConstant::matches(this))
 		return 1;
-	if (type == AST_REALVALUE)
+	if (AstRealvalue::matches(this))
 		return 2;
 	return 0;
 }
 
 uint64_t AstNode::asInt(bool is_signed)
 {
-	if (type == AST_CONSTANT)
+	if (AstConstant::matches(this))
 	{
 		RTLIL::Const v = bitsAsConst(64, is_signed);
 		uint64_t ret = 0;
@@ -1022,7 +1022,7 @@ uint64_t AstNode::asInt(bool is_signed)
 		return ret;
 	}
 
-	if (type == AST_REALVALUE)
+	if (AstRealvalue::matches(this))
 		return uint64_t(realvalue);
 
 	log_abort();
@@ -1030,7 +1030,7 @@ uint64_t AstNode::asInt(bool is_signed)
 
 double AstNode::asReal(bool is_signed)
 {
-	if (type == AST_CONSTANT)
+	if (AstConstant::matches(this))
 	{
 		RTLIL::Const val(bits);
 
@@ -1050,7 +1050,7 @@ double AstNode::asReal(bool is_signed)
 		return v;
 	}
 
-	if (type == AST_REALVALUE)
+	if (AstRealvalue::matches(this))
 		return realvalue;
 
 	log_abort();
@@ -1092,16 +1092,16 @@ void AST::set_src_attr(RTLIL::AttrObject *obj, const AstNode *ast)
 
 static bool param_has_no_default(const AstNode* param) {
 	const auto &children = param->children;
-	log_assert(param->type == AST_PARAMETER);
+	log_assert(AstParameter::matches(param));
 	log_assert(children.size() <= 2);
 	return children.empty() ||
-		(children.size() == 1 && children[0]->type == AST_RANGE);
+		(children.size() == 1 && AstRange::matches(children[0].get()));
 }
 
 static RTLIL::Module *process_module(RTLIL::Design *design, AstNode *ast, bool defer, std::unique_ptr<AstNode> original_ast = NULL, bool quiet = false)
 {
 	log_assert(current_scope.empty());
-	log_assert(ast->type == AST_MODULE || ast->type == AST_INTERFACE);
+	log_assert(ModuleLike::accepts(ast));
 
 	if (defer)
 		log("Storing AST representation for module `%s'.\n", ast->str);
@@ -1138,7 +1138,7 @@ static RTLIL::Module *process_module(RTLIL::Design *design, AstNode *ast, bool d
 	if (!defer)
 	{
 		for (auto& node : ast->children)
-			if (node->type == AST_PARAMETER && param_has_no_default(node.get()))
+			if (AstParameter::matches(node.get()) && param_has_no_default(node.get()))
 				node->input_error("Parameter `%s' has no default value and has not been overridden!\n", node->str);
 
 		bool blackbox_module = flag_lib;
@@ -1146,13 +1146,15 @@ static RTLIL::Module *process_module(RTLIL::Design *design, AstNode *ast, bool d
 		if (!blackbox_module && !flag_noblackbox) {
 			blackbox_module = true;
 			for (const auto& child : ast->children) {
-				if (child->type == AST_WIRE && (child->is_input || child->is_output))
+				if (AstWire::matches(child.get()) && (child->is_input || child->is_output))
 					continue;
-				if (child->type == AST_PARAMETER || child->type == AST_LOCALPARAM)
+				if (ParameterLike::accepts(child.get()))
 					continue;
-				if (child->type == AST_CELL && child->children.size() > 0 && child->children[0]->type == AST_CELLTYPE &&
-						(child->children[0]->str == "$specify2" || child->children[0]->str == "$specify3" || child->children[0]->str == "$specrule"))
-					continue;
+				if (auto cell = AstCell::cast(child.get())) {
+					auto ct = AstCelltype::cast(cell->celltype());
+					if (ct && (ct->raw()->str == "$specify2" || ct->raw()->str == "$specify3" || ct->raw()->str == "$specrule"))
+						continue;
+				}
 				blackbox_module = false;
 				break;
 			}
