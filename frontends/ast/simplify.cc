@@ -113,7 +113,7 @@ Fmt AstNode::processFormat(int stage, bool sformat_like, int default_base, size_
 		} else if (k) {
 			arg.type = VerilogFmtArg::INTEGER;
 			arg.sig = k->bitsAsConst();
-			arg.signed_ = k->raw()->is_signed;
+			arg.signed_ = k->is_signed();
 		} else if (may_fail) {
 			log_file_info(*location.begin.filename, location.begin.line, "Skipping system task `%s' with non-constant argument at position %zu.\n", str, index + 1);
 			return Fmt();
@@ -1328,7 +1328,7 @@ std::pair<AstNode*, AstNode*> AstNode::get_tern_choice()
 	bool found_maybe_true = false;
 
 	if (auto k = AstConstant::cast(cond_n)) {
-		for (auto &bit : k->raw()->bits) {
+		for (auto &bit : k->bits()) {
 			if (bit == RTLIL::State::S1)
 				found_sure_true = true;
 			if (bit > RTLIL::State::S1)

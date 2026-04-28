@@ -576,7 +576,9 @@ struct AstConstant : AstView<AST_CONSTANT> {
 	}
 	bool is_string() const { return node->is_string; }
 	bool is_unsized() const { return node->is_unsized; }
+	bool is_signed() const { return node->is_signed; }
 	int integer() const { return node->integer; }
+	const std::vector<RTLIL::State> &bits() const { return node->bits; }
 	RTLIL::Const bitsAsConst() const { return node->bitsAsConst(); }
 	RTLIL::Const bitsAsConst(int width, bool is_signed) const {
 		return node->bitsAsConst(width, is_signed);
