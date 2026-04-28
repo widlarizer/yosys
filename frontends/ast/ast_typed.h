@@ -433,6 +433,15 @@ struct AstWire : AstView<AST_WIRE> {
 	}
 };
 
+// AST_AUTOWIRE is a placeholder wire synthesized for an undeclared identifier;
+// it carries no children and is later resolved into a real AST_WIRE.
+struct AstAutowire : AstView<AST_AUTOWIRE> {
+	using AstView::AstView;
+	static std::optional<AstAutowire> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstAutowire>(AstAutowire(n)) : std::nullopt;
+	}
+};
+
 struct AstMemory : AstView<AST_MEMORY> {
 	using AstView::AstView;
 	// Grammar: packed range, optional wiretype, address range
@@ -502,6 +511,12 @@ struct AstEnum : AstView<AST_ENUM> {
 		return node->children.begin() + start;
 	}
 	auto items_end() { return node->children.end(); }
+	AstNode *first_item() const {
+		size_t start = 0;
+		if (!node->children.empty() && node->children[0]->type == AST_RANGE) start++;
+		log_assert(node->children.size() > start);
+		return node->children[start].get();
+	}
 	static std::optional<AstEnum> cast(AstNode *n) {
 		return matches(n) ? std::optional<AstEnum>(AstEnum(n)) : std::nullopt;
 	}

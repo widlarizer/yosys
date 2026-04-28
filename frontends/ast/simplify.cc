@@ -141,7 +141,7 @@ void AstNode::annotateTypedEnums(AstNode *template_node)
 
 	// Width is taken from the first enum item's resolved AST_RANGE.
 	log_assert(enum_view.num_items() >= 1);
-	AstEnumItem first_item(enum_view.raw()->children[0].get());
+	AstEnumItem first_item(enum_view.first_item());
 	int width;
 	if (!first_item.raw()->range_valid)
 		width = 1;
@@ -166,7 +166,7 @@ void AstNode::annotateTypedEnums(AstNode *template_node)
 		}
 
 		AstNode *value_node = item.value();
-		if (value_node->type != AST_CONSTANT) {
+		if (!AstConstant::matches(value_node)) {
 			log_error("expected const, got %s for %s (%s)\n",
 					  type2str(value_node->type).c_str(),
 					  item.str().c_str(), enum_view.str().c_str());
@@ -594,7 +594,7 @@ bool AST_INTERNAL::node_contains_assignment_to(const AstNode* node, const AstNod
 		return nullptr;
 	};
 	if (const AstNode *lhs = lhs_targets(node)) {
-		if (lhs->type == AST_IDENTIFIER && lhs->str == var->str)
+		if (AstIdentifier::matches(lhs) && lhs->str == var->str)
 			return false;
 	}
 	for (auto& child : node->children) {
@@ -668,7 +668,7 @@ const RTLIL::Module* AstNode::lookup_cell_module()
 		IdString paraname = pset->is_positional() ? module->avail_parameters[para_counter++] : pset->str();
 
 		const AstNode *value = pset->expr();
-		if (value->type != AST_REALVALUE && value->type != AST_CONSTANT)
+		if (!AstRealvalue::matches(value) && !AstConstant::matches(value))
 			return nullptr; // let genrtlil handle this error
 		cell_params_map[paraname] = value->asParaConst();
 	}
@@ -801,9 +801,9 @@ std::unique_ptr<AstNode> AstNode::clone_at_zero()
 		else
 			break;
 
-		if (pointee->type != AST_WIRE &&
-				pointee->type != AST_AUTOWIRE &&
-				pointee->type != AST_MEMORY)
+		if (!AstWire::matches(pointee) &&
+				!AstAutowire::matches(pointee) &&
+				!AstMemory::matches(pointee))
 			break;
 
 		YS_FALLTHROUGH
