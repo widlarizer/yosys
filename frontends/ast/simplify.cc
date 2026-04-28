@@ -97,21 +97,23 @@ Fmt AstNode::processFormat(int stage, bool sformat_like, int default_base, size_
 		VerilogFmtArg arg = {};
 		arg.filename = *location.begin.filename;
 		arg.first_line = location.begin.line;
-		if (node_arg->type == AST_CONSTANT && node_arg->is_string) {
+		auto k = AstConstant::cast(node_arg);
+		auto id = AstIdentifier::cast(node_arg);
+		if (k && k->raw()->is_string) {
 			arg.type = VerilogFmtArg::STRING;
-			arg.str = node_arg->bitsAsConst().decode_string();
+			arg.str = k->raw()->bitsAsConst().decode_string();
 			// and in case this will be used as an argument...
-			arg.sig = node_arg->bitsAsConst();
+			arg.sig = k->raw()->bitsAsConst();
 			arg.signed_ = false;
-		} else if (node_arg->type == AST_IDENTIFIER && node_arg->str == "$time") {
+		} else if (id && id->str() == "$time") {
 			arg.type = VerilogFmtArg::TIME;
-		} else if (node_arg->type == AST_IDENTIFIER && node_arg->str == "$realtime") {
+		} else if (id && id->str() == "$realtime") {
 			arg.type = VerilogFmtArg::TIME;
 			arg.realtime = true;
-		} else if (node_arg->type == AST_CONSTANT) {
+		} else if (k) {
 			arg.type = VerilogFmtArg::INTEGER;
-			arg.sig = node_arg->bitsAsConst();
-			arg.signed_ = node_arg->is_signed;
+			arg.sig = k->raw()->bitsAsConst();
+			arg.signed_ = k->raw()->is_signed;
 		} else if (may_fail) {
 			log_file_info(*location.begin.filename, location.begin.line, "Skipping system task `%s' with non-constant argument at position %zu.\n", str, index + 1);
 			return Fmt();
@@ -192,18 +194,19 @@ static std::unique_ptr<AstNode> make_range(AstSrcLocType loc, int left, int righ
 
 int AST_INTERNAL::range_width(AstNode *node, AstNode *rnode)
 {
-	log_assert(rnode->type==AST_RANGE);
-	if (!rnode->range_valid) {
+	AstRange r(rnode);
+	if (!r.raw()->range_valid) {
 		node->input_error("Non-constant range in declaration of %s\n", node->str);
 	}
 	// note: range swapping has already been checked for
-	return rnode->range_left - rnode->range_right + 1;
+	return r.raw()->range_left - r.raw()->range_right + 1;
 }
 
 int AST_INTERNAL::add_dimension(AstNode *node, AstNode *rnode)
 {
+	AstRange r(rnode);
 	int width = range_width(node, rnode);
-	node->dimensions.push_back({ rnode->range_right, width, rnode->range_swapped });
+	node->dimensions.push_back({ r.raw()->range_right, width, r.raw()->range_swapped });
 	return width;
 }
 
@@ -484,15 +487,14 @@ std::unique_ptr<AstNode> AstNode::make_index_range(AstNode *decl_node, bool unpa
 	}
 
 	// Calculate LSB offset for the final index / slice
-	if (rnode->type == AST_RANGE) {
+	if (AstRange::matches(rnode)) {
 		offset = index_offset(std::move(offset), rnode, decl_node, dim, stride);
 	}
-	else if (rnode->type == AST_MULTIRANGE) {
+	else if (auto mr = AstMultirange::cast(rnode)) {
 		// Add offset for each dimension
-		AstNode *mrnode = rnode;
-		int stop_dim = std::min(GetSize(mrnode->children), max_dim);
+		int stop_dim = std::min(GetSize(mr->raw_children()), max_dim);
 		for (; dim < stop_dim; dim++) {
-			rnode = mrnode->children[dim].get();
+			rnode = mr->at(dim);
 			offset = index_offset(std::move(offset), rnode, decl_node, dim, stride);
 		}
 		dim--;  // Step back to the final index / slice
@@ -516,12 +518,16 @@ std::unique_ptr<AstNode> AstNode::make_index_range(AstNode *decl_node, bool unpa
 
 AstNode *AstNode::get_struct_member() const
 {
-	AstNode *member_node;
-	if (attributes.count(ID::wiretype) && (member_node = attributes.at(ID::wiretype).get()) &&
-		(member_node->type == AST_STRUCT_ITEM || member_node->type == AST_STRUCT || member_node->type == AST_UNION))
-	{
+	auto it = attributes.find(ID::wiretype);
+	if (it == attributes.end())
+		return nullptr;
+	AstNode *member_node = it->second.get();
+	if (!member_node)
+		return nullptr;
+	// A wiretype attribute pointing at a struct/union or one of its items
+	// names the member that this wire was synthesized to back.
+	if (AstStructItem::matches(member_node) || AstStructLike::matches(member_node))
 		return member_node;
-	}
 	return nullptr;
 }
 
@@ -565,11 +571,11 @@ void AST_INTERNAL::prepend_ranges(std::unique_ptr<AstNode> &range, AstNode *rang
 {
 	// Convert range to multirange.
 	auto loc = range->location;
-	if (range->type == AST_RANGE)
+	if (AstRange::matches(range.get()))
 		range = std::make_unique<AstNode>(loc, AST_MULTIRANGE, std::move(range));
 
 	// Add range or ranges.
-	if (range_add->type == AST_RANGE)
+	if (AstRange::matches(range_add))
 		range->children.insert(range->children.begin(), range_add->clone());
 	else {
 		int i = 0;
