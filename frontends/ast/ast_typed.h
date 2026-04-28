@@ -433,6 +433,15 @@ struct AstWire : AstView<AST_WIRE> {
 	}
 };
 
+// AST_NONE is a sentinel node used as a placeholder where a child slot must
+// exist but no value is supplied (e.g. enum item with no explicit value).
+struct AstNone : AstView<AST_NONE> {
+	using AstView::AstView;
+	static std::optional<AstNone> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstNone>(AstNone(n)) : std::nullopt;
+	}
+};
+
 // AST_AUTOWIRE is a placeholder wire synthesized for an undeclared identifier;
 // it carries no children and is later resolved into a real AST_WIRE.
 struct AstAutowire : AstView<AST_AUTOWIRE> {

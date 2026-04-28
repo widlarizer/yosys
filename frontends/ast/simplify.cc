@@ -218,9 +218,9 @@ int AST_INTERNAL::add_dimension(AstNode *node, AstNode *rnode)
 // Check if node is an unexpanded array reference (AST_IDENTIFIER -> AST_MEMORY without indexing)
 bool AST_INTERNAL::is_unexpanded_array_ref(AstNode *node)
 {
-	if (node->type != AST_IDENTIFIER)
+	if (!AstIdentifier::matches(node))
 		return false;
-	if (node->id2ast == nullptr || node->id2ast->type != AST_MEMORY)
+	if (node->id2ast == nullptr || !AstMemory::matches(node->id2ast))
 		return false;
 	// No indexing children = whole array reference
 	return node->children.empty();
@@ -1278,7 +1278,7 @@ void AstNode::allocateDefaultEnumValues()
 		// AST_RANGE — handled via per-child dispatch since either ordering occurs.
 		for (size_t i = 0; i < item_node->children.size(); i++) {
 			AstNode *cn = item_node->children[i].get();
-			if (cn->type == AST_NONE) {
+			if (AstNone::matches(cn)) {
 				// replace with auto-incremented constant
 				item_node->children[i] = AstNode::mkconst_int(item_node->location, ++last_enum_int, true);
 			} else if (auto k = AstConstant::cast(cn)) {
