@@ -444,13 +444,13 @@ static std::unique_ptr<AstNode> index_msb_offset(std::unique_ptr<AstNode> lsb_of
 	std::unique_ptr<AstNode> add_offset;
 	if (rnode->children.size() == 1) {
 		// Index, e.g. s.a[i]
-		add_offset = node_int(rnode->location, stride - 1);
+		add_offset = node_int(loc, stride - 1);
 	}
 	else {
-		// rnode->children.size() == 2
-		// Slice, e.g. s.a[i:j]
-		auto left = normalize_index(rnode->children[0].get(), decl_node, dimension);
-		auto right = normalize_index(rnode->children[1].get(), decl_node, dimension);
+		// rnode->children.size() == 2 — slice, e.g. s.a[i:j]
+		AstRange r(rnode);
+		auto left = normalize_index(r.msb().get(), decl_node, dimension);
+		auto right = normalize_index(r.lsb().get(), decl_node, dimension);
 		add_offset = std::make_unique<AstNode>(loc, AST_SUB, std::move(left), std::move(right));
 		if (stride > 1) {
 			// offset = (msb - lsb + 1)*stride - 1
