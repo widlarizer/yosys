@@ -1170,6 +1170,12 @@ struct AstCell : AstView<AST_CELL> {
 	static std::optional<AstCell> cast(AstNode *n) {
 		return matches(n) ? std::optional<AstCell>(AstCell(n)) : std::nullopt;
 	}
+
+	// Resolve this cell's celltype to a module in the current simplifier design
+	// context, applying parameter-driven derivation. Returns nullptr if the
+	// module cannot be found yet (and tags reprocess_after for retry). Defined
+	// in simplify.cc where the simplify_design_context static is visible.
+	const RTLIL::Module *lookup_module();
 };
 
 // Variadic: children are behavioral statements in declaration order.

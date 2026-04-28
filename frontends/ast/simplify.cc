@@ -629,26 +629,23 @@ void AST::set_simplify_design_context(const RTLIL::Design *design)
 }
 
 // lookup the module with the given name in the current design context
-static const RTLIL::Module* lookup_module(const std::string &name)
+static const RTLIL::Module* lookup_design_module(const std::string &name)
 {
 	return simplify_design_context->module(name);
 }
 
-const RTLIL::Module* AstNode::lookup_cell_module()
+const RTLIL::Module* AstCell::lookup_module()
 {
-	log_assert(AstCell::matches(this));
-
 	auto reprocess_after = [this] (const std::string &modname) {
-		if (!attributes.count(ID::reprocess_after))
-			set_attribute(ID::reprocess_after, AstNode::mkconst_str(location, modname));
+		if (!node->attributes.count(ID::reprocess_after))
+			node->set_attribute(ID::reprocess_after, AstNode::mkconst_str(node->location, modname));
 	};
 
-	AstCell self(this);
-	const AstNode *celltype = self.celltype();
+	const AstNode *celltype = this->celltype();
 
-	const RTLIL::Module *module = lookup_module(celltype->str);
+	const RTLIL::Module *module = lookup_design_module(celltype->str);
 	if (!module)
-		module = lookup_module("$abstract" + celltype->str);
+		module = lookup_design_module("$abstract" + celltype->str);
 	if (!module) {
 		if (celltype->str.at(0) != '$')
 			reprocess_after(celltype->str);
@@ -658,7 +655,7 @@ const RTLIL::Module* AstNode::lookup_cell_module()
 	// build a mapping from true param name to param value
 	size_t para_counter = 0;
 	dict<RTLIL::IdString, RTLIL::Const> cell_params_map;
-	for (auto it = self.body_begin(); it != self.body_end(); ++it) {
+	for (auto it = body_begin(); it != body_end(); ++it) {
 		auto pset = AstParaset::cast(it->get());
 		if (!pset)
 			continue;
@@ -685,7 +682,7 @@ const RTLIL::Module* AstNode::lookup_cell_module()
 		modname = derived_module_name(celltype->str, named_parameters);
 
 	// try to find the resolved module
-	module = lookup_module(modname);
+	module = lookup_design_module(modname);
 	if (!module) {
 		reprocess_after(modname);
 		return nullptr;

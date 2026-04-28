@@ -740,7 +740,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 
 		const RTLIL::Module *module = nullptr;
 		if (lookup_suggested)
-			module = lookup_cell_module();
+			module = AstCell(this).lookup_module();
 		if (module) {
 			size_t port_counter = 0;
 			for (auto& child : children) {
