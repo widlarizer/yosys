@@ -146,17 +146,8 @@ void AstNode::mem2reg_as_needed_pass1(dict<AstNode*, pool<std::string>> &mem2reg
 
 	dict<AstNode*, uint32_t> *proc_flags_p = nullptr;
 
-	if (AstAlways::matches(this)) {
-		int count_edge_events = 0;
-		for (auto& child : children)
-			if (ClockedEdgeLike::accepts(child.get()))
-				count_edge_events++;
-		if (count_edge_events != 1)
-			children_flags |= AstNode::MEM2REG_FL_ASYNC;
-		proc_flags_p = new dict<AstNode*, uint32_t>;
-	}
-	else if (AstInitial::matches(this)) {
-		children_flags |= AstNode::MEM2REG_FL_INIT;
+	if (auto proc = AstProcBase::cast(this)) {
+		children_flags |= proc->mem2reg_root_flags();
 		proc_flags_p = new dict<AstNode*, uint32_t>;
 	}
 

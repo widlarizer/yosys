@@ -1352,6 +1352,20 @@ struct AstProcBase {
     }
     // You can still access the underlying node type if needed
     AstNodeType type() const { return node->type; }
+
+    // Compute the mem2reg children_flags contribution for this procedural block:
+    // AST_INITIAL → MEM2REG_FL_INIT; AST_ALWAYS → MEM2REG_FL_ASYNC iff it does
+    // not have exactly one edge-triggered sensitivity event.
+    uint32_t mem2reg_root_flags() const {
+        if (node->type == AST_INITIAL)
+            return AstNode::MEM2REG_FL_INIT;
+        log_assert(node->type == AST_ALWAYS);
+        int count_edge_events = 0;
+        for (auto& child : node->children)
+            if (ClockedEdgeLike::accepts(child.get()))
+                count_edge_events++;
+        return count_edge_events == 1 ? 0 : AstNode::MEM2REG_FL_ASYNC;
+    }
 };
 
 struct AstInitial final : AstProcBase {
