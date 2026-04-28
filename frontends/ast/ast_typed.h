@@ -892,8 +892,8 @@ struct AstCase : AstView<AST_CASE> {
 	using AstView::AstView;
 	AstNode *selector() const { return node->children.at(0).get(); }
 	ChildSlot<Anything> selector_slot() const { return {node, 0}; }
-	auto conditions_begin() { return node->children.begin() + 1; }
-	auto conditions_end() { return node->children.end(); }
+	auto conditions_begin() const { return node->children.begin() + 1; }
+	auto conditions_end()   const { return node->children.end(); }
 	size_t num_conditions() const {
 		return node->children.empty() ? 0 : node->children.size() - 1;
 	}
@@ -907,14 +907,18 @@ struct AstGenCase : AstView<AST_GENCASE> {
 	using AstView::AstView;
 	AstNode *selector() const { return node->children.at(0).get(); }
 	ChildSlot<Anything> selector_slot() const { return {node, 0}; }
-	auto conditions_begin() { return node->children.begin() + 1; }
-	auto conditions_end() { return node->children.end(); }
+	auto conditions_begin() const { return node->children.begin() + 1; }
+	auto conditions_end()   const { return node->children.end(); }
 	size_t num_conditions() const {
 		return node->children.empty() ? 0 : node->children.size() - 1;
 	}
 	static std::optional<AstGenCase> cast(AstNode *n) {
 		return matches(n) ? std::optional<AstGenCase>(AstGenCase(n)) : std::nullopt;
 	}
+
+	// Evaluate selector as a constant, find the matching condition, and splice
+	// its GENBLOCK body into current_ast_mod.
+	void elaborate(int stage, int width_hint, bool sign_hint, bool const_fold) const;
 };
 
 // AST_COND / AST_CONDX / AST_CONDZ share shape: zero-or-more label children
@@ -991,6 +995,9 @@ struct AstGenIf : AstView<AST_GENIF> {
 		return {node, 2};
 	}
 	DEFINE_AST_CAST(AstGenIf, AST_GENIF)
+
+	// Evaluate cond as a constant, splice the chosen branch into current_ast_mod.
+	void elaborate(int stage, int width_hint, bool sign_hint, bool const_fold) const;
 };
 
 struct AstIdentifier : AstView<AST_IDENTIFIER> {
@@ -1060,7 +1067,14 @@ struct AstCell : AstView<AST_CELL> {
 using AstBlock = VariadicView<AST_BLOCK, BehavioralStatement>;
 
 // Variadic: children are module-level statements in declaration order.
-using AstGenBlock = VariadicView<AST_GENBLOCK, ModuleBodyStatement>;
+struct AstGenBlock : VariadicView<AST_GENBLOCK, ModuleBodyStatement> {
+	using VariadicView::VariadicView;
+	static std::optional<AstGenBlock> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstGenBlock>(AstGenBlock(n)) : std::nullopt;
+	}
+	// Move all children into current_ast_mod after recursively simplifying them.
+	void elaborate(bool const_fold, int stage) const;
+};
 
 // AST_CONCAT: variadic list of expression children.
 using AstConcat = VariadicView<AST_CONCAT, Expression>;

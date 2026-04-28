@@ -68,6 +68,106 @@ void AstRepeat::unroll(int stage) const
 	reshape_as_vec<AST_BLOCK>(node, std::move(new_body));
 }
 
+// Splice an already-simplified GENBLOCK's contents into current_ast_mod, with
+// optional name-prefix expansion. Used by AstGenBlock/AstGenIf/AstGenCase.
+static void splice_genblock_into_module(AstNode *blk, bool const_fold, int stage)
+{
+	if (!blk->str.empty())
+		blk->expand_genblock(blk->str + ".");
+	for (size_t i = 0; i < blk->children.size(); i++) {
+		blk->children[i]->simplify(const_fold, stage, -1, false);
+		current_ast_mod->children.push_back(std::move(blk->children[i]));
+	}
+	blk->children.clear();
+}
+
+void AstGenBlock::elaborate(bool const_fold, int stage) const
+{
+	splice_genblock_into_module(node, const_fold, stage);
+}
+
+void AstGenIf::elaborate(int stage, int width_hint, bool sign_hint, bool const_fold) const
+{
+	auto buf = cond()->clone();
+	while (buf->simplify(true, stage, width_hint, sign_hint)) { }
+	auto buf_const = AstConstant::cast(buf.get());
+	if (!buf_const)
+		node->input_error("Condition for generate if is not constant!\n");
+
+	if (buf_const->asBool() != 0) {
+		buf = then_body()->clone();
+	} else {
+		buf = has_else_body() ? else_body()->clone() : nullptr;
+	}
+
+	if (buf) {
+		if (buf->type != AST_GENBLOCK)
+			buf = std::make_unique<AstNode>(node->location, AST_GENBLOCK, std::move(buf));
+		splice_genblock_into_module(buf.get(), const_fold, stage);
+	}
+
+	node->delete_children();
+}
+
+void AstGenCase::elaborate(int stage, int width_hint, bool sign_hint, bool const_fold) const
+{
+	auto buf = selector()->clone();
+	while (buf->simplify(true, stage, width_hint, sign_hint)) { }
+	if (buf->type != AST_CONSTANT)
+		node->input_error("Condition for generate case is not constant!\n");
+
+	bool ref_signed = buf->is_signed;
+	RTLIL::Const ref_value = buf->bitsAsConst();
+
+	AstNode *selected_case = nullptr;
+	for (auto it = conditions_begin(); it != conditions_end(); ++it) {
+		AstAnyCond cond_view((*it).get());
+		AstNode *this_genblock = nullptr;
+		for (auto& child : (*it)->children) {
+			log_assert(this_genblock == nullptr);
+			if (child->type == AST_GENBLOCK)
+				this_genblock = child.get();
+		}
+
+		bool matched_here = false;
+		for (auto& child : (*it)->children) {
+			if (child->type == AST_DEFAULT) {
+				if (selected_case == nullptr)
+					selected_case = this_genblock;
+				continue;
+			}
+			if (child->type == AST_GENBLOCK)
+				continue;
+
+			buf = child->clone();
+			buf->set_in_param_flag(true);
+			while (buf->simplify(true, stage, width_hint, sign_hint)) { }
+			if (buf->type != AST_CONSTANT)
+				node->input_error("Expression in generate case is not constant!\n");
+
+			bool is_selected = RTLIL::const_eq(ref_value, buf->bitsAsConst(),
+					ref_signed && buf->is_signed,
+					ref_signed && buf->is_signed, 1).as_bool();
+
+			if (is_selected) {
+				selected_case = this_genblock;
+				matched_here = true;
+				break;
+			}
+		}
+		if (matched_here)
+			break;
+	}
+
+	if (selected_case != nullptr) {
+		log_assert(selected_case->type == AST_GENBLOCK);
+		auto blk = selected_case->clone();
+		splice_genblock_into_module(blk.get(), const_fold, stage);
+	}
+
+	node->delete_children();
+}
+
 void AstPackage::register_scope() const
 {
 	// Parameters, typedefs, and subroutines defined at package scope are
@@ -1801,132 +1901,20 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 	}
 
 	// simplify unconditional generate block
-	if (type == AST_GENBLOCK && children.size() != 0)
-	{
-		if (!str.empty()) {
-			expand_genblock(str + ".");
-		}
-
-		for (size_t i = 0; i < children.size(); i++) {
-			children[i]->simplify(const_fold, stage, -1, false);
-			current_ast_mod->children.push_back(std::move(children[i]));
-		}
-
-		children.clear();
+	if (auto gblk = AstGenBlock::cast(this); gblk && children.size() != 0) {
+		gblk->elaborate(const_fold, stage);
 		did_something = true;
 	}
 
 	// simplify generate-if blocks
-	if (auto genif = AstGenIf::cast(this); genif && children.size() != 0)
-	{
-		auto buf = genif->cond()->clone();
-		while (buf->simplify(true, stage, width_hint, sign_hint)) { }
-		auto buf_const = AstConstant::cast(buf.get());
-		if (!buf_const) {
-			// for (auto f : log_files)
-			// 	dumpAst(f, "verilog-ast> ");
-			input_error("Condition for generate if is not constant!\n");
-		}
-		if (buf_const->asBool() != 0) {
-			buf = genif->then_body()->clone();
-		} else {
-			buf = genif->has_else_body() ? genif->else_body()->clone() : nullptr;
-		}
-
-		if (buf)
-		{
-			if (buf->type != AST_GENBLOCK)
-				buf = std::make_unique<AstNode>(location, AST_GENBLOCK, std::move(buf));
-
-			if (!buf->str.empty()) {
-				buf->expand_genblock(buf->str + ".");
-			}
-
-			for (size_t i = 0; i < buf->children.size(); i++) {
-				buf->children[i]->simplify(const_fold, stage, -1, false);
-				current_ast_mod->children.push_back(std::move(buf->children[i]));
-			}
-
-			buf->children.clear();
-		}
-
-		delete_children();
+	if (auto genif = AstGenIf::cast(this); genif && children.size() != 0) {
+		genif->elaborate(stage, width_hint, sign_hint, const_fold);
 		did_something = true;
 	}
 
 	// simplify generate-case blocks
-	if (auto gencase = AstGenCase::cast(this); gencase && children.size() != 0)
-	{
-		auto buf = gencase->selector()->clone();
-		while (buf->simplify(true, stage, width_hint, sign_hint)) { }
-		if (buf->type != AST_CONSTANT) {
-			// for (auto f : log_files)
-			// 	dumpAst(f, "verilog-ast> ");
-			input_error("Condition for generate case is not constant!\n");
-		}
-
-		bool ref_signed = buf->is_signed;
-		RTLIL::Const ref_value = buf->bitsAsConst();
-
-		AstNode *selected_case = nullptr;
-		for (size_t i = 1; i < children.size(); i++)
-		{
-			log_assert(AstAnyCond::matches(children.at(i).get()));
-
-			AstNode *this_genblock = nullptr;
-			for (auto& child : children.at(i)->children) {
-				log_assert(this_genblock == nullptr);
-				if (child->type == AST_GENBLOCK)
-					this_genblock = child.get();
-			}
-
-			for (auto& child : children.at(i)->children)
-			{
-				if (child->type == AST_DEFAULT) {
-					if (selected_case == nullptr)
-						selected_case = this_genblock;
-					continue;
-				}
-				if (child->type == AST_GENBLOCK)
-					continue;
-
-				buf = child->clone();
-				buf->set_in_param_flag(true);
-				while (buf->simplify(true, stage, width_hint, sign_hint)) { }
-				if (buf->type != AST_CONSTANT) {
-					// for (auto f : log_files)
-					// 	dumpAst(f, "verilog-ast> ");
-					input_error("Expression in generate case is not constant!\n");
-				}
-
-				bool is_selected = RTLIL::const_eq(ref_value, buf->bitsAsConst(), ref_signed && buf->is_signed, ref_signed && buf->is_signed, 1).as_bool();
-
-				if (is_selected) {
-					selected_case = this_genblock;
-					i = children.size();
-					break;
-				}
-			}
-		}
-
-		if (selected_case != nullptr)
-		{
-			log_assert(selected_case->type == AST_GENBLOCK);
-			buf = selected_case->clone();
-
-			if (!buf->str.empty()) {
-				buf->expand_genblock(buf->str + ".");
-			}
-
-			for (size_t i = 0; i < buf->children.size(); i++) {
-				buf->children[i]->simplify(const_fold, stage, -1, false);
-				current_ast_mod->children.push_back(std::move(buf->children[i]));
-			}
-
-			buf->children.clear();
-		}
-
-		delete_children();
+	if (auto gencase = AstGenCase::cast(this); gencase && children.size() != 0) {
+		gencase->elaborate(stage, width_hint, sign_hint, const_fold);
 		did_something = true;
 	}
 
