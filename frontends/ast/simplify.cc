@@ -998,13 +998,13 @@ void AstNode::expand_genblock(const std::string &prefix)
 				prefix_node(child);
 			break;
 
-		case AST_ENUM:
-			current_scope[child->str] = child;
-			for (auto& enode : child->children){
-				log_assert(enode->type == AST_ENUM_ITEM);
-				prefix_node(enode.get());
-			}
+		case AST_ENUM: {
+			AstEnum enum_view(child);
+			current_scope[enum_view.str()] = child;
+			for (auto it = enum_view.items_begin(); it != enum_view.items_end(); ++it)
+				prefix_node(it->get());
 			break;
+		}
 
 		case AST_IDENTIFIER:
 			if (!child->str.empty() && prefix.size() > 0) {
@@ -1064,16 +1064,18 @@ void AstNode::expand_genblock(const std::string &prefix)
 									current_scope[node->str] = node.get();
 								}
 								break;
-							case AST_ENUM:
-								current_scope[node->str] = node.get();
-								for (auto& enum_node : node->children) {
-									log_assert(enum_node->type==AST_ENUM_ITEM);
-									if (prefix_id(new_prefix, identifier_str) == enum_node->str) {
+							case AST_ENUM: {
+								AstEnum enum_view(node.get());
+								current_scope[enum_view.str()] = node.get();
+								for (auto it = enum_view.items_begin(); it != enum_view.items_end(); ++it) {
+									AstNode *enum_item = it->get();
+									if (prefix_id(new_prefix, identifier_str) == enum_item->str) {
 										is_resolved = true;
-										current_scope[enum_node->str] = enum_node.get();
+										current_scope[enum_item->str] = enum_item;
 									}
 								}
 								break;
+							}
 							default:
 								break;
 							}
@@ -1209,11 +1211,13 @@ bool AstNode::detect_latch(const std::string &var)
 			return r;
 		}
 	case AST_ASSIGN_EQ:
-	case AST_ASSIGN_LE:
-		if (children.at(0)->type == AST_IDENTIFIER &&
-				children.at(0)->children.empty() && children.at(0)->str == var)
+	case AST_ASSIGN_LE: {
+		AstAnyAssign assign(this);
+		if (auto id = AstIdentifier::cast(assign.lhs());
+				id && id->str() == var && !id->has_bit_select())
 			return false;
 		return true;
+	}
 	default:
 		return true;
 	}
@@ -1264,31 +1268,28 @@ bool AstNode::replace_variables(std::map<std::string, AstNode::varinfo_t> &varia
 
 void AstNode::allocateDefaultEnumValues()
 {
-	log_assert(type==AST_ENUM);
-	log_assert(children.size() > 0);
-	if (children.front()->attributes.count(ID::enum_base_type))
+	AstEnum enum_view(this);
+	log_assert(enum_view.num_items() > 0);
+	if (enum_view.raw()->children.front()->attributes.count(ID::enum_base_type))
 		return; // already elaborated
 	int last_enum_int = -1;
-	for (auto& child : children) {
-		AstEnumItem item(child.get());
-		AstNode *node = item.raw();
-		node->set_attribute(ID::enum_base_type, mkconst_str(node->location, str));
-		for (size_t i = 0; i < node->children.size(); i++) {
-			switch (node->children[i]->type) {
-			case AST_NONE:
+	for (auto it = enum_view.items_begin(); it != enum_view.items_end(); ++it) {
+		AstEnumItem item(it->get());
+		AstNode *item_node = item.raw();
+		item_node->set_attribute(ID::enum_base_type, mkconst_str(item_node->location, str));
+		// Item children are: [0] AST_NONE | AST_CONSTANT (value), then optional
+		// AST_RANGE — handled via per-child dispatch since either ordering occurs.
+		for (size_t i = 0; i < item_node->children.size(); i++) {
+			AstNode *cn = item_node->children[i].get();
+			if (cn->type == AST_NONE) {
 				// replace with auto-incremented constant
-				node->children[i] = AstNode::mkconst_int(node->location, ++last_enum_int, true);
-				break;
-			case AST_CONSTANT:
+				item_node->children[i] = AstNode::mkconst_int(item_node->location, ++last_enum_int, true);
+			} else if (auto k = AstConstant::cast(cn)) {
 				// explicit constant (or folded expression)
 				// TODO: can't extend 'x or 'z item
-				last_enum_int = node->children[i]->integer;
-				break;
-			default:
-				// ignore ranges
-				break;
+				last_enum_int = k->raw()->integer;
 			}
-			// TODO: range check
+			// otherwise: AST_RANGE etc. — ignore. TODO: range check
 		}
 	}
 }
@@ -1300,7 +1301,7 @@ bool AstNode::is_recursive_function() const
 		if (visited.count(node))
 			return node == this;
 		visited.insert(node);
-		if (node->type == AST_FCALL) {
+		if (AstFcall::matches(node)) {
 			auto it = current_scope.find(node->str);
 			if (it != current_scope.end() && visit(it->second))
 				return true;
@@ -1329,15 +1330,16 @@ std::pair<AstNode*, AstNode*> AstNode::get_tern_choice()
 	bool found_sure_true = false;
 	bool found_maybe_true = false;
 
-	if (cond_n->type == AST_CONSTANT)
-		for (auto &bit : cond_n->bits) {
+	if (auto k = AstConstant::cast(cond_n)) {
+		for (auto &bit : k->raw()->bits) {
 			if (bit == RTLIL::State::S1)
 				found_sure_true = true;
 			if (bit > RTLIL::State::S1)
 				found_maybe_true = true;
 		}
-	else
+	} else {
 		found_sure_true = cond_n->asReal(true) != 0;
+	}
 
 	AstNode *choice = nullptr, *not_choice = nullptr;
 	if (found_sure_true)

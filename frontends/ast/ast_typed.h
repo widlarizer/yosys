@@ -353,6 +353,29 @@ DEFINE_AST_VIEW_2(AstAssign,   AST_ASSIGN,    lhs, Expression, rhs, Expression)
 DEFINE_AST_VIEW_2(AstAssignEq, AST_ASSIGN_EQ, lhs, Expression, rhs, Expression)
 DEFINE_AST_VIEW_2(AstAssignLe, AST_ASSIGN_LE, lhs, Expression, rhs, Expression)
 
+// Tag-agnostic view over any of AST_ASSIGN / AST_ASSIGN_EQ / AST_ASSIGN_LE.
+// Used where the simplifier treats all three identically (e.g. checking
+// whether a statement assigns the variable named on its LHS).
+struct AstAnyAssign {
+	AstNode *node;
+	static bool matches(const AstNode *n) {
+		return n && (n->type == AST_ASSIGN || n->type == AST_ASSIGN_EQ || n->type == AST_ASSIGN_LE);
+	}
+	explicit AstAnyAssign(AstNode *n) : node(n) { log_assert(matches(n)); }
+	AstNode *raw() const { return node; }
+	AstNode *lhs() const {
+		log_assert(node->children.size() >= 1);
+		return node->children[0].get();
+	}
+	AstNode *rhs() const {
+		log_assert(node->children.size() >= 2);
+		return node->children[1].get();
+	}
+	static std::optional<AstAnyAssign> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstAnyAssign>(AstAnyAssign(n)) : std::nullopt;
+	}
+};
+
 DEFINE_AST_VIEW_3(AstTernary,  AST_TERNARY,   cond, Expression, then_, Expression, else_, Expression)
 
 DEFINE_AST_VIEW_2(AstRange,    AST_RANGE,     msb, Expression, lsb, Expression)
