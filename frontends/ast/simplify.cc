@@ -1175,25 +1175,16 @@ bool AstNode::detect_latch(const std::string &var)
 {
 	switch (type)
 	{
-	case AST_ALWAYS:
-		for (auto &c : children)
-		{
-			switch (c->type)
-			{
-			case AST_POSEDGE:
-			case AST_NEGEDGE:
+	case AST_ALWAYS: {
+		AstAlways always(this);
+		for (auto it = always.sensitivity_begin(); it != always.sensitivity_end(); ++it) {
+			AstNode *c = it->get();
+			if (AstPosedge::matches(c) || AstNegedge::matches(c))
 				return false;
-			case AST_EDGE:
-				break;
-			case AST_BLOCK:
-				if (!c->detect_latch(var))
-					return false;
-				break;
-			default:
-				log_abort();
-			}
+			log_assert(AstEdge::matches(c));
 		}
-		return true;
+		return always.body()->detect_latch(var);
+	}
 	case AST_BLOCK:
 		for (auto &c : children)
 			if (!c->detect_latch(var))
