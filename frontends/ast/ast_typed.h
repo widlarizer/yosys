@@ -816,6 +816,9 @@ struct AstCondBase : AstView<Tag> {
 		log_assert(!node->children.empty());
 		return node->children.end() - 1;
 	}
+	bool is_default() const {
+		return !node->children.empty() && node->children.front()->type == AST_DEFAULT;
+	}
 	static std::optional<AstCondBase> cast(AstNode *n) {
 		return AstView<Tag>::matches(n) ? std::optional<AstCondBase>(AstCondBase(n)) : std::nullopt;
 	}
@@ -938,6 +941,23 @@ using AstConcat = VariadicView<AST_CONCAT, Expression>;
 
 // AST_MULTIRANGE: variadic list of AST_RANGE children (>= 2).
 using AstMultirange = VariadicView<AST_MULTIRANGE, ChildConstraint<AST_RANGE>>;
+
+// AST_FUNCTION / AST_TASK: contains a return-wire declaration (functions only),
+// argument declarations, locals, and a body block. Construction is permissive
+// since the schema is heterogeneous and validated elsewhere.
+struct AstFunction : AstView<AST_FUNCTION> {
+	using AstView::AstView;
+	static std::optional<AstFunction> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstFunction>(AstFunction(n)) : std::nullopt;
+	}
+};
+
+struct AstTask : AstView<AST_TASK> {
+	using AstView::AstView;
+	static std::optional<AstTask> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstTask>(AstTask(n)) : std::nullopt;
+	}
+};
 
 // ----------------------------------------------------------------------------
 // Hierarchy-flag propagation rules

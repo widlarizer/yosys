@@ -753,8 +753,7 @@ static IdentUsage always_asgn_before_use(const AstNode *node, const std::string 
 		for (auto it = case_view->conditions_begin(); it != case_view->conditions_end(); ++it) {
 			AstNode *child = it->get();
 			auto cond = AstCond::cast(child);
-			if (cond && cond->num_labels() >= 1 &&
-					cond->raw()->children.at(0)->type == AST_DEFAULT)
+			if (cond && cond->is_default())
 				has_default = true;
 			IdentUsage nested = always_asgn_before_use(child, target);
 			if (nested != IdentUsage::Assigned && cond)
@@ -971,7 +970,7 @@ void AstNode::expand_genblock(const std::string &prefix)
 	auto prefix_node = [&prefix](AstNode* child) {
 		if (child->str.empty()) return;
 		std::string new_name = prefix_id(prefix, child->str);
-		if (child->type == AST_FUNCTION)
+		if (AstFunction::matches(child))
 			child->replace_result_wire_name_in_function(child->str, new_name);
 		else
 			child->str = new_name;
@@ -1118,10 +1117,10 @@ void AstNode::expand_genblock(const std::string &prefix)
 			continue;
 		}
 		// functions/tasks may reference wires, constants, etc. in this scope
-		if (child->type == AST_FUNCTION || child->type == AST_TASK)
+		if (AstFunction::matches(child.get()) || AstTask::matches(child.get()))
 			continue;
 		// named blocks pick up the current prefix and will expanded later
-		if ((child->type == AST_GENBLOCK || child->type == AST_BLOCK) && !child->str.empty())
+		if ((AstGenBlock::matches(child.get()) || AstBlock::matches(child.get())) && !child->str.empty())
 			continue;
 
 		child->expand_genblock(prefix);
