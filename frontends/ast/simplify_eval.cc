@@ -42,7 +42,7 @@ using namespace AST_INTERNAL;
 
 bool AstNode::has_const_only_constructs()
 {
-	if (type == AST_WHILE || type == AST_REPEAT)
+	if (AstWhile::matches(this) || AstRepeat::matches(this))
 		return true;
 	for (auto& child : children)
 		if (child->has_const_only_constructs())
@@ -52,7 +52,7 @@ bool AstNode::has_const_only_constructs()
 
 bool AstNode::is_simple_const_expr()
 {
-	if (type == AST_IDENTIFIER)
+	if (AstIdentifier::matches(this))
 		return false;
 	for (auto& child : children)
 		if (!child->is_simple_const_expr())
@@ -84,7 +84,7 @@ std::unique_ptr<AstNode> AstNode::eval_const_function(AstNode *fcall_node, bool 
 	{
 		auto& stmt = block_owned->children.front();
 
-		if (stmt->type == AST_WIRE)
+		if (AstWire::matches(stmt.get()))
 		{
 			while (stmt->simplify()) { }
 			if (!stmt->range_valid) {
@@ -105,7 +105,7 @@ std::unique_ptr<AstNode> AstNode::eval_const_function(AstNode *fcall_node, bool 
 			variable.range_swapped = stmt->range_swapped;
 			variable.is_signed = stmt->is_signed;
 			variable.explicitly_sized = stmt->children.size() &&
-				stmt->children.back()->type == AST_RANGE;
+				AstRange::matches(stmt->children.back().get());
 			if (stmt->is_input && argidx < fcall.num_args()) {
 				variable.arg = fcall.arg(argidx++);
 			}

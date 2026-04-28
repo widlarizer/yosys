@@ -53,7 +53,8 @@ static void mark_memories_assign_lhs_complex(dict<AstNode*, pool<std::string>> &
 	for (auto &child : that->children)
 		mark_memories_assign_lhs_complex(mem2reg_places, mem2reg_candidates, child.get());
 
-	if (that->type == AST_IDENTIFIER && that->id2ast && that->id2ast->type == AST_MEMORY) {
+	auto id = AstIdentifier::cast(that);
+	if (id && AstMemory::matches(that->id2ast)) {
 		AstNode *mem = that->id2ast;
 		if (!(mem2reg_candidates[mem] & AstNode::MEM2REG_FL_CMPLX_LHS))
 			mem2reg_places[mem].insert(stringf("%s:%d", RTLIL::encode_filename(*that->location.begin.filename), that->location.begin.line));
@@ -68,18 +69,19 @@ void AstNode::mem2reg_as_needed_pass1(dict<AstNode*, pool<std::string>> &mem2reg
 	uint32_t children_flags = 0;
 	int lhs_children_counter = 0;
 
-	if (type == AST_TYPEDEF)
+	if (AstTypedef::matches(this))
 		return; // don't touch content of typedefs
 
-	if (type == AST_ASSIGN || type == AST_ASSIGN_LE || type == AST_ASSIGN_EQ)
+	if (auto asgn = AstAnyAssign::cast(this))
 	{
 		// mark all memories that are used in a complex expression on the left side of an assignment
-		for (auto &lhs_child : children[0]->children)
+		for (auto &lhs_child : asgn->lhs()->children)
 			mark_memories_assign_lhs_complex(mem2reg_places, mem2reg_candidates, lhs_child.get());
 
-		if (children[0]->type == AST_IDENTIFIER && children[0]->id2ast && children[0]->id2ast->type == AST_MEMORY)
+		auto lhs_id = AstIdentifier::cast(asgn->lhs());
+		if (lhs_id && AstMemory::matches(asgn->lhs()->id2ast))
 		{
-			AstNode *mem = children[0]->id2ast;
+			AstNode *mem = asgn->lhs()->id2ast;
 
 			// activate mem2reg if this is assigned in an async proc
 			if (flags & AstNode::MEM2REG_FL_ASYNC) {
@@ -89,7 +91,7 @@ void AstNode::mem2reg_as_needed_pass1(dict<AstNode*, pool<std::string>> &mem2reg
 			}
 
 			// remember if this is assigned blocking (=)
-			if (type == AST_ASSIGN_EQ) {
+			if (AstAssignEq::matches(this)) {
 				if (!(proc_flags[mem] & AstNode::MEM2REG_FL_EQ1))
 					mem2reg_places[mem].insert(stringf("%s:%d", RTLIL::encode_filename(*location.begin.filename), location.begin.line));
 				proc_flags[mem] |= AstNode::MEM2REG_FL_EQ1;
@@ -97,8 +99,9 @@ void AstNode::mem2reg_as_needed_pass1(dict<AstNode*, pool<std::string>> &mem2reg
 
 			// for proper (non-init) writes: remember if this is a constant index or not
 			if ((flags & MEM2REG_FL_INIT) == 0) {
-				if (children[0]->children.size() && children[0]->children[0]->type == AST_RANGE && children[0]->children[0]->children.size()) {
-					if (children[0]->children[0]->children[0]->type == AST_CONSTANT)
+				AstNode *lhs = asgn->lhs();
+				if (lhs->children.size() && AstRange::matches(lhs->children[0].get()) && lhs->children[0]->children.size()) {
+					if (AstConstant::matches(lhs->children[0]->children[0].get()))
 						mem2reg_candidates[mem] |= AstNode::MEM2REG_FL_CONST_LHS;
 					else
 						mem2reg_candidates[mem] |= AstNode::MEM2REG_FL_VAR_LHS;
@@ -120,7 +123,7 @@ void AstNode::mem2reg_as_needed_pass1(dict<AstNode*, pool<std::string>> &mem2reg
 		lhs_children_counter = 1;
 	}
 
-	if (type == AST_IDENTIFIER && id2ast && id2ast->type == AST_MEMORY)
+	if (AstIdentifier::matches(this) && AstMemory::matches(id2ast))
 	{
 		AstNode *mem = id2ast;
 
@@ -135,24 +138,24 @@ void AstNode::mem2reg_as_needed_pass1(dict<AstNode*, pool<std::string>> &mem2reg
 	}
 
 	// also activate if requested, either by using mem2reg attribute or by declaring array as 'wire' instead of 'reg' or 'logic'
-	if (type == AST_MEMORY && (get_bool_attribute(ID::mem2reg) || (flags & AstNode::MEM2REG_FL_ALL) || !(is_reg || is_logic)))
+	if (AstMemory::matches(this) && (get_bool_attribute(ID::mem2reg) || (flags & AstNode::MEM2REG_FL_ALL) || !(is_reg || is_logic)))
 		mem2reg_candidates[this] |= AstNode::MEM2REG_FL_FORCED;
 
-	if ((type == AST_MODULE || type == AST_INTERFACE) && get_bool_attribute(ID::mem2reg))
+	if (ModuleLike::accepts(this) && get_bool_attribute(ID::mem2reg))
 		children_flags |= AstNode::MEM2REG_FL_ALL;
 
 	dict<AstNode*, uint32_t> *proc_flags_p = nullptr;
 
-	if (type == AST_ALWAYS) {
+	if (AstAlways::matches(this)) {
 		int count_edge_events = 0;
 		for (auto& child : children)
-			if (child->type == AST_POSEDGE || child->type == AST_NEGEDGE)
+			if (ClockedEdgeLike::accepts(child.get()))
 				count_edge_events++;
 		if (count_edge_events != 1)
 			children_flags |= AstNode::MEM2REG_FL_ASYNC;
 		proc_flags_p = new dict<AstNode*, uint32_t>;
 	}
-	else if (type == AST_INITIAL) {
+	else if (AstInitial::matches(this)) {
 		children_flags |= AstNode::MEM2REG_FL_INIT;
 		proc_flags_p = new dict<AstNode*, uint32_t>;
 	}
@@ -165,7 +168,7 @@ void AstNode::mem2reg_as_needed_pass1(dict<AstNode*, pool<std::string>> &mem2reg
 	{
 		if (lhs_children_counter > 0) {
 			lhs_children_counter--;
-			if (child->children.size() && child->children[0]->type == AST_RANGE && child->children[0]->children.size()) {
+			if (child->children.size() && AstRange::matches(child->children[0].get()) && child->children[0]->children.size()) {
 				for (auto& c : child->children[0]->children) {
 					if (proc_flags_p)
 						c->mem2reg_as_needed_pass1(mem2reg_places, mem2reg_candidates, *proc_flags_p, flags);
@@ -193,10 +196,10 @@ void AstNode::mem2reg_as_needed_pass1(dict<AstNode*, pool<std::string>> &mem2reg
 
 bool AstNode::mem2reg_check(pool<AstNode*> &mem2reg_set)
 {
-	if (type != AST_IDENTIFIER || !id2ast || !mem2reg_set.count(id2ast))
+	if (!AstIdentifier::matches(this) || !id2ast || !mem2reg_set.count(id2ast))
 		return false;
 
-	if (children.empty() || children[0]->type != AST_RANGE || GetSize(children[0]->children) != 1)
+	if (children.empty() || !AstRange::matches(children[0].get()) || GetSize(children[0]->children) != 1)
 		input_error("Invalid array access.\n");
 
 	return true;
@@ -223,21 +226,21 @@ bool AstNode::mem2reg_as_needed_pass2(pool<AstNode*> &mem2reg_set, AstNode *mod,
 {
 	bool did_something = false;
 
-	if (type == AST_BLOCK)
+	if (AstBlock::matches(this))
 		block = this;
 
-	if (type == AST_FUNCTION || type == AST_TASK)
+	if (FunctionTaskLike::accepts(this))
 		return false;
 
-	if (type == AST_TYPEDEF)
+	if (AstTypedef::matches(this))
 		return false;
 
-	if (type == AST_MEMINIT && id2ast && mem2reg_set.count(id2ast))
+	if (AstMemInit::matches(this) && id2ast && mem2reg_set.count(id2ast))
 	{
-		log_assert(children[0]->type == AST_CONSTANT);
-		log_assert(children[1]->type == AST_CONSTANT);
-		log_assert(children[2]->type == AST_CONSTANT);
-		log_assert(children[3]->type == AST_CONSTANT);
+		log_assert(AstConstant::matches(children[0].get()));
+		log_assert(AstConstant::matches(children[1].get()));
+		log_assert(AstConstant::matches(children[2].get()));
+		log_assert(AstConstant::matches(children[3].get()));
 
 		int cursor = children[0]->asInt(false);
 		Const data = children[1]->bitsAsConst();
@@ -306,7 +309,7 @@ bool AstNode::mem2reg_as_needed_pass2(pool<AstNode*> &mem2reg_set, AstNode *mod,
 		did_something = true;
 	}
 
-	if (type == AST_ASSIGN && block == nullptr && children[0]->mem2reg_check(mem2reg_set))
+	if (AstAssign::matches(this) && block == nullptr && children[0]->mem2reg_check(mem2reg_set))
 	{
 		if (async_block == nullptr) {
 			auto async_block_owned = std::make_unique<AstNode>(location, AST_ALWAYS, std::make_unique<AstNode>(location, AST_BLOCK));
@@ -328,8 +331,8 @@ bool AstNode::mem2reg_as_needed_pass2(pool<AstNode*> &mem2reg_set, AstNode *mod,
 		did_something = true;
 	}
 
-	if ((type == AST_ASSIGN_LE || type == AST_ASSIGN_EQ) && children[0]->mem2reg_check(mem2reg_set) &&
-			children[0]->children[0]->children[0]->type != AST_CONSTANT)
+	if (BlockingAssignLike::accepts(this) && children[0]->mem2reg_check(mem2reg_set) &&
+			!AstConstant::matches(children[0]->children[0]->children[0].get()))
 	{
 		std::stringstream sstr;
 		sstr << "$mem2reg_wr$" << children[0]->str << "$" << RTLIL::encode_filename(*location.begin.filename) << ":" << location.begin.line << "$" << (autoidx++);
@@ -370,7 +373,7 @@ bool AstNode::mem2reg_as_needed_pass2(pool<AstNode*> &mem2reg_set, AstNode *mod,
 		auto case_node = std::make_unique<AstNode>(location, AST_CASE, std::make_unique<AstNode>(location, AST_IDENTIFIER));
 		case_node->children[0]->str = id_addr;
 		for (int i = 0; i < mem_size; i++) {
-			if (children[0]->children[0]->children[0]->type == AST_CONSTANT && int(children[0]->children[0]->children[0]->integer) != i)
+			if (AstConstant::matches(children[0]->children[0]->children[0].get()) && int(children[0]->children[0]->children[0]->integer) != i)
 				continue;
 			auto cond_node = std::make_unique<AstNode>(location, AST_COND, AstNode::mkconst_int(location, i, false, addr_bits), std::make_unique<AstNode>(location, AST_BLOCK));
 			auto assign_reg = std::make_unique<AstNode>(location, type, std::make_unique<AstNode>(location, AST_IDENTIFIER), std::make_unique<AstNode>(location, AST_IDENTIFIER));
@@ -406,7 +409,7 @@ bool AstNode::mem2reg_as_needed_pass2(pool<AstNode*> &mem2reg_set, AstNode *mod,
 		if (children.size() == 2)
 			bit_part_sel = children[1]->clone();
 
-		if (children[0]->children[0]->type == AST_CONSTANT)
+		if (AstConstant::matches(children[0]->children[0].get()))
 		{
 			int id = children[0]->children[0]->integer;
 			int left = id2ast->children[1]->children[0]->integer;
@@ -487,7 +490,7 @@ bool AstNode::mem2reg_as_needed_pass2(pool<AstNode*> &mem2reg_set, AstNode *mod,
 			case_node->children[0]->str = id_addr;
 
 			for (int i = 0; i < mem_size; i++) {
-				if (children[0]->children[0]->type == AST_CONSTANT && int(children[0]->children[0]->integer) != i)
+				if (AstConstant::matches(children[0]->children[0].get()) && int(children[0]->children[0]->integer) != i)
 					continue;
 				auto cond_node = std::make_unique<AstNode>(location, AST_COND, AstNode::mkconst_int(location, i, false, addr_bits), std::make_unique<AstNode>(location, AST_BLOCK));
 				auto assign_reg = std::make_unique<AstNode>(location, AST_ASSIGN_EQ, std::make_unique<AstNode>(location, AST_IDENTIFIER), std::make_unique<AstNode>(location, AST_IDENTIFIER));
@@ -585,7 +588,7 @@ std::unique_ptr<AstNode> AstNode::readmem(bool is_readmemh, std::string mem_file
 	if (f.fail() || GetSize(mem_filename) == 0)
 		input_error("Can not open file `%s` for %s.\n", mem_filename, str);
 
-	log_assert(GetSize(memory->children) == 2 && memory->children[1]->type == AST_RANGE && memory->children[1]->range_valid);
+	log_assert(GetSize(memory->children) == 2 && AstRange::matches(memory->children[1].get()) && memory->children[1]->range_valid);
 	int range_left =  memory->children[1]->range_left, range_right =  memory->children[1]->range_right;
 	int range_min = min(range_left, range_right), range_max = max(range_left, range_right);
 
@@ -699,7 +702,7 @@ std::unique_ptr<AstNode> AstNode::readmem(bool is_readmemh, std::string mem_file
 // calculate memory dimensions
 void AstNode::meminfo(int &mem_width, int &mem_size, int &addr_bits)
 {
-	log_assert(type == AST_MEMORY);
+	log_assert(AstMemory::matches(this));
 
 	mem_width = children[0]->range_left - children[0]->range_right + 1;
 	mem_size = children[1]->range_left - children[1]->range_right;
