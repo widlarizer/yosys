@@ -846,7 +846,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 				lhs->id2ast->is_reg = true; // if logic type is used in a block asignment
 			if (is_blocking && !lhs->id2ast->is_reg)
 				log_warning("wire '%s' is assigned in a block at %s.\n", lhs->str, loc_string());
-			if (type == AST_ASSIGN && lhs->id2ast->is_reg) {
+			if (AstAssign::matches(this) && lhs->id2ast->is_reg) {
 				bool is_rand_reg = false;
 				if (auto rhs_call = AstFcall::cast(rhs)) {
 					const auto &name = rhs_call->str();
@@ -888,12 +888,12 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 	case AST_STRUCT_ITEM:
 		if (is_custom_type) {
 			log_assert(children.size() >= 1);
-			log_assert(children[0]->type == AST_WIRETYPE);
+			log_assert(AstWiretype::matches(children[0].get()));
 
 			// Pretend it's just a wire in order to resolve the type.
 			type = AST_WIRE;
 			while (is_custom_type && simplify(const_fold, stage, width_hint, sign_hint)) {};
-			if (type == AST_WIRE)
+			if (AstWire::matches(this))
 				type = AST_STRUCT_ITEM;
 
 			did_something = true;
@@ -949,7 +949,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 	case AST_CAST_SIZE: {
 		AstCastSize cast_view(this);
 		AstNode *target = cast_view.target().get();
-		if (target->type == AST_WIRE) {
+		if (AstWire::matches(target)) {
 			int width = 1;
 			std::unique_ptr<AstNode> resolved_size;
 			if (target->children.empty()) {
@@ -958,7 +958,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 				resolved_size = mkconst_int(target->location, width, target->is_signed);
 			} else {
 				// User defined type
-				log_assert(target->children[0]->type == AST_WIRETYPE);
+				log_assert(AstWiretype::matches(target->children[0].get()));
 				const std::string &type_name = target->children[0]->str;
 				if (!current_scope.count(type_name))
 					input_error("Unknown identifier `%s' used as type name\n", type_name);
