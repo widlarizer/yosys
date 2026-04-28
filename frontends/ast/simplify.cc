@@ -2409,42 +2409,42 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 	}
 	// annotate identifiers using scope resolution and create auto-wires as needed
 	if (type == AST_IDENTIFIER) {
-		if (current_scope.count(str) == 0) {
-			AstNode *current_scope_ast = (current_ast_mod == nullptr) ? current_ast : current_ast_mod;
-			str = try_pop_module_prefix();
-			for (auto& node : current_scope_ast->children) {
-				//log("looking at mod scope child %s\n", type2str(node->type));
-				switch (node->type) {
-				case AST_PARAMETER:
-				case AST_LOCALPARAM:
-				case AST_WIRE:
-				case AST_AUTOWIRE:
-				case AST_GENVAR:
-				case AST_MEMORY:
-				case AST_FUNCTION:
-				case AST_TASK:
-				case AST_DPI_FUNCTION:
-					//log("found child %s, %s\n", type2str(node->type), node->str);
-					if (str == node->str) {
-						//log("add %s, type %s to scope\n", str, type2str(node->type));
-						current_scope[node->str] = node.get();
-					}
-					break;
-				case AST_ENUM:
-					current_scope[node->str] = node.get();
-					for (auto& enum_node : node->children) {
-						log_assert(enum_node->type==AST_ENUM_ITEM);
-						if (str == enum_node->str) {
-							//log("\nadding enum item %s to scope\n", str);
-							current_scope[str] = enum_node.get();
-						}
-					}
-					break;
-				default:
-					break;
-				}
-			}
-		}
+		// if (current_scope.count(str) == 0) {
+		// 	AstNode *current_scope_ast = (current_ast_mod == nullptr) ? current_ast : current_ast_mod;
+		// 	str = try_pop_module_prefix();
+		// 	for (auto& node : current_scope_ast->children) {
+		// 		//log("looking at mod scope child %s\n", type2str(node->type));
+		// 		switch (node->type) {
+		// 		case AST_PARAMETER:
+		// 		case AST_LOCALPARAM:
+		// 		case AST_WIRE:
+		// 		case AST_AUTOWIRE:
+		// 		case AST_GENVAR:
+		// 		case AST_MEMORY:
+		// 		case AST_FUNCTION:
+		// 		case AST_TASK:
+		// 		case AST_DPI_FUNCTION:
+		// 			//log("found child %s, %s\n", type2str(node->type), node->str);
+		// 			if (str == node->str) {
+		// 				//log("add %s, type %s to scope\n", str, type2str(node->type));
+		// 				current_scope[node->str] = node.get();
+		// 			}
+		// 			break;
+		// 		case AST_ENUM:
+		// 			current_scope[node->str] = node.get();
+		// 			for (auto& enum_node : node->children) {
+		// 				log_assert(enum_node->type==AST_ENUM_ITEM);
+		// 				if (str == enum_node->str) {
+		// 					//log("\nadding enum item %s to scope\n", str);
+		// 					current_scope[str] = enum_node.get();
+		// 				}
+		// 			}
+		// 			break;
+		// 		default:
+		// 			break;
+		// 		}
+		// 	}
+		// }
 		if (current_scope.count(str) == 0) {
 			if (current_ast_mod == nullptr) {
 				input_error("Identifier `%s' is implicitly declared outside of a module.\n", str);
