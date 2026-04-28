@@ -1268,7 +1268,7 @@ void AstNode::allocateDefaultEnumValues()
 {
 	AstEnum enum_view(this);
 	log_assert(enum_view.num_items() > 0);
-	if (enum_view.raw()->children.front()->attributes.count(ID::enum_base_type))
+	if (enum_view.first_item()->attributes.count(ID::enum_base_type))
 		return; // already elaborated
 	int last_enum_int = -1;
 	for (auto it = enum_view.items_begin(); it != enum_view.items_end(); ++it) {
