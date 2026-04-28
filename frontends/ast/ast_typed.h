@@ -448,6 +448,15 @@ struct AstDefault : AstView<AST_DEFAULT> {
 	}
 };
 
+// AST_WIRETYPE is a leaf identifier referring to a typedef'd type, attached as
+// a child of declarations whose type comes from a typedef.
+struct AstWiretype : AstView<AST_WIRETYPE> {
+	using AstView::AstView;
+	static std::optional<AstWiretype> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstWiretype>(AstWiretype(n)) : std::nullopt;
+	}
+};
+
 // AST_NONE is a sentinel node used as a placeholder where a child slot must
 // exist but no value is supplied (e.g. enum item with no explicit value).
 struct AstNone : AstView<AST_NONE> {

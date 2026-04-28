@@ -636,7 +636,7 @@ static const RTLIL::Module* lookup_module(const std::string &name)
 
 const RTLIL::Module* AstNode::lookup_cell_module()
 {
-	log_assert(type == AST_CELL);
+	log_assert(AstCell::matches(this));
 
 	auto reprocess_after = [this] (const std::string &modname) {
 		if (!attributes.count(ID::reprocess_after))
@@ -920,7 +920,7 @@ void AstNode::replace_result_wire_name_in_function(const std::string &from, cons
 {
 	for (auto& child : children)
 		child->replace_result_wire_name_in_function(from, to);
-	if (str == from && type != AST_FCALL && type != AST_TCALL)
+	if (str == from && !AstFcall::matches(this) && !AstTcall::matches(this))
 		str = to;
 }
 
@@ -929,7 +929,8 @@ void AstNode::replace_result_wire_name_in_function(const std::string &from, cons
 // prefix is carried forward, but resolution of their children is deferred
 void AstNode::expand_genblock(const std::string &prefix)
 {
-	if (type == AST_IDENTIFIER || type == AST_FCALL || type == AST_TCALL || type == AST_WIRETYPE || type == AST_PREFIX) {
+	if (AstIdentifier::matches(this) || AstFcall::matches(this) || AstTcall::matches(this) ||
+			AstWiretype::matches(this) || AstPrefix::matches(this)) {
 		log_assert(!str.empty());
 
 		// search starting in the innermost scope and then stepping outward
@@ -1110,7 +1111,7 @@ void AstNode::expand_genblock(const std::string &prefix)
 		// AST_PREFIX member names should not be prefixed; we recurse into them
 		// as normal to ensure indices and ranges are properly resolved, and
 		// then restore the previous string
-		if (type == AST_PREFIX && i == 1) {
+		if (AstPrefix::matches(this) && i == 1) {
 			std::string backup_scope_name = child->str;
 			child->expand_genblock(prefix);
 			child->str = backup_scope_name;
@@ -1310,7 +1311,7 @@ bool AstNode::is_recursive_function() const
 		return false;
 	};
 
-	log_assert(type == AST_FUNCTION);
+	log_assert(AstFunction::matches(this));
 	return visit(this);
 }
 
