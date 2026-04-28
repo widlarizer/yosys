@@ -719,7 +719,17 @@ struct AstDefparam : AstView<AST_DEFPARAM> {
 // Gate-level primitives (and, or, buf, not, nand, nor, xor, xnor, bufif*, notif*, tran).
 // Grammar: variadic AST_ARGUMENT children. Distinguished from AST_CELL because
 // the parser resolves the cell type only after primitive dispatch in simplify.
-using AstPrimitive = VariadicView<AST_PRIMITIVE, ChildConstraint<AST_ARGUMENT>>;
+struct AstPrimitive : VariadicView<AST_PRIMITIVE, ChildConstraint<AST_ARGUMENT>> {
+	using VariadicView::VariadicView;
+	static std::optional<AstPrimitive> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstPrimitive>(AstPrimitive(n)) : std::nullopt;
+	}
+	// Lower a Verilog primitive (and/or/buf/not/...) to assignments.
+	// Returns an AST_GENBLOCK to be installed via the apply_newNode path
+	// (for "buf"/"not"/"tran"), or nullptr when the call site has already
+	// reshaped *this* into an AST_ASSIGN.
+	std::unique_ptr<AstNode> lower();
+};
 
 // Memory access nodes synthesized by simplify (post-parser).
 //   AST_MEMRD   : children = [addr]                    (read port)

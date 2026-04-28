@@ -204,6 +204,95 @@ std::unique_ptr<AstNode> AstCellArray::unroll()
 	return result;
 }
 
+std::unique_ptr<AstNode> AstPrimitive::lower()
+{
+	if (num_args() < 2)
+		node->input_error("Insufficient number of arguments for primitive `%s'!\n", node->str);
+
+	std::vector<std::unique_ptr<AstNode>> children_list;
+	for (auto& child : *this) {
+		AstArgument arg(child.get());
+		log_assert(arg.has_expr());
+		children_list.push_back(arg.expr_slot()->take());
+	}
+	node->children.clear();
+
+	// TODO handle bit-widths of primitives and support cell arrays for more primitives
+
+	if (node->range_valid && node->str != "tran")
+		node->input_error("Cell arrays of primitives are currently not supported.\n");
+
+	const auto &name = node->str;
+	const auto &loc = node->location;
+
+	if (name == "bufif0" || name == "bufif1" || name == "notif0" || name == "notif1") {
+		if (children_list.size() != 3)
+			node->input_error("Invalid number of arguments for primitive `%s'!\n", node->str);
+
+		std::vector<RTLIL::State> z_const(1, RTLIL::State::Sz);
+
+		auto& mux_input = children_list.at(1);
+		if (name == "notif0" || name == "notif1")
+			mux_input = std::make_unique<AstNode>(loc, AST_BIT_NOT, std::move(mux_input));
+
+		auto tern = std::make_unique<AstNode>(loc, AST_TERNARY, std::move(children_list.at(2)));
+		if (name == "bufif0") {
+			tern->children.push_back(AstNode::mkconst_bits(loc, z_const, false));
+			tern->children.push_back(std::move(mux_input));
+		} else {
+			tern->children.push_back(std::move(mux_input));
+			tern->children.push_back(AstNode::mkconst_bits(loc, z_const, false));
+		}
+
+		node->str.clear();
+		auto lhs_c = std::move(children_list.at(0));
+		lhs_c->was_checked = true;
+		reshape_as<AST_ASSIGN>(node, std::move(lhs_c), std::move(tern));
+		node->fixup_hierarchy_flags();
+		return nullptr;
+	}
+
+	if (name == "buf" || name == "not" || name == "tran") {
+		auto& input = children_list.back();
+		if (name == "not")
+			input = std::make_unique<AstNode>(loc, AST_BIT_NOT, std::move(input));
+
+		auto block = std::make_unique<AstNode>(loc, AST_GENBLOCK);
+		for (auto it = children_list.begin(); it != std::prev(children_list.end()); ++it) {
+			block->children.push_back(std::make_unique<AstNode>(loc, AST_ASSIGN, std::move(*it), input->clone()));
+			block->children.back()->was_checked = true;
+		}
+		return block;
+	}
+
+	AstNodeType op_type = AST_NONE;
+	bool invert_results = false;
+
+	if (name == "and") op_type = AST_BIT_AND;
+	if (name == "nand") op_type = AST_BIT_AND, invert_results = true;
+	if (name == "or") op_type = AST_BIT_OR;
+	if (name == "nor") op_type = AST_BIT_OR, invert_results = true;
+	if (name == "xor") op_type = AST_BIT_XOR;
+	if (name == "xnor") op_type = AST_BIT_XOR, invert_results = true;
+	log_assert(op_type != AST_NONE);
+
+	auto& acc = children_list[1];
+	if (op_type != AST_POS)
+		for (size_t i = 2; i < children_list.size(); i++) {
+			acc = std::make_unique<AstNode>(loc, op_type, std::move(acc), std::move(children_list[i]));
+			acc->location = loc;
+		}
+	if (invert_results)
+		acc = std::make_unique<AstNode>(loc, AST_BIT_NOT, std::move(acc));
+
+	node->str.clear();
+	auto lhs_c = std::move(children_list[0]);
+	lhs_c->was_checked = true;
+	reshape_as<AST_ASSIGN>(node, std::move(lhs_c), std::move(acc));
+	node->fixup_hierarchy_flags();
+	return nullptr;
+}
+
 void AstPackage::register_scope() const
 {
 	// Parameters, typedefs, and subroutines defined at package scope are
@@ -1961,100 +2050,11 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 	}
 
 	// replace primitives with assignments
-	if (auto prim = AstPrimitive::cast(this))
-	{
-		if (prim->num_args() < 2)
-			input_error("Insufficient number of arguments for primitive `%s'!\n", str);
-
-		std::vector<std::unique_ptr<AstNode>> children_list;
-		for (auto& child : *prim) {
-			AstArgument arg(child.get());
-			log_assert(arg.has_expr());
-			children_list.push_back(arg.expr_slot()->take());
-		}
-		children.clear();
-
-		// TODO handle bit-widths of primitives and support cell arrays for more primitives
-
-		if (range_valid && str != "tran")
-			input_error("Cell arrays of primitives are currently not supported.\n");
-
-		if (str == "bufif0" || str == "bufif1" || str == "notif0" || str == "notif1")
-		{
-			if (children_list.size() != 3)
-				input_error("Invalid number of arguments for primitive `%s'!\n", str);
-
-			std::vector<RTLIL::State> z_const(1, RTLIL::State::Sz);
-
-			auto& mux_input = children_list.at(1);
-			if (str == "notif0" || str == "notif1") {
-				mux_input = std::make_unique<AstNode>(location, AST_BIT_NOT, std::move(mux_input));
-			}
-			auto node = std::make_unique<AstNode>(location, AST_TERNARY, std::move(children_list.at(2)));
-			if (str == "bufif0") {
-				node->children.push_back(AstNode::mkconst_bits(location, z_const, false));
-				node->children.push_back(std::move(mux_input));
-			} else {
-				node->children.push_back(std::move(mux_input));
-				node->children.push_back(AstNode::mkconst_bits(location, z_const, false));
-			}
-
-			str.clear();
-			auto lhs_c = std::move(children_list.at(0));
-			lhs_c->was_checked = true;
-			reshape_as<AST_ASSIGN>(this, std::move(lhs_c), std::move(node));
-			fixup_hierarchy_flags();
-			did_something = true;
-		}
-		else if (str == "buf" || str == "not" || str == "tran")
-		{
-			auto& input = children_list.back();
-			if (str == "not")
-				input = std::make_unique<AstNode>(location, AST_BIT_NOT, std::move(input));
-
-			newNode = std::make_unique<AstNode>(location, AST_GENBLOCK);
-			for (auto it = children_list.begin(); it != std::prev(children_list.end()); it++) {
-				newNode->children.push_back(std::make_unique<AstNode>(location, AST_ASSIGN, std::move(*it), input->clone()));
-				newNode->children.back()->was_checked = true;
-			}
-
-			did_something = true;
-		}
-		else
-		{
-			AstNodeType op_type = AST_NONE;
-			bool invert_results = false;
-
-			if (str == "and")
-				op_type = AST_BIT_AND;
-			if (str == "nand")
-				op_type = AST_BIT_AND, invert_results = true;
-			if (str == "or")
-				op_type = AST_BIT_OR;
-			if (str == "nor")
-				op_type = AST_BIT_OR, invert_results = true;
-			if (str == "xor")
-				op_type = AST_BIT_XOR;
-			if (str == "xnor")
-				op_type = AST_BIT_XOR, invert_results = true;
-			log_assert(op_type != AST_NONE);
-
-			auto& node = children_list[1];
-			if (op_type != AST_POS)
-				for (size_t i = 2; i < children_list.size(); i++) {
-					node = std::make_unique<AstNode>(location, op_type, std::move(node), std::move(children_list[i]));
-					node->location = location;
-				}
-			if (invert_results)
-				node = std::make_unique<AstNode>(location, AST_BIT_NOT, std::move(node));
-
-			str.clear();
-			auto lhs_c = std::move(children_list[0]);
-			lhs_c->was_checked = true;
-			reshape_as<AST_ASSIGN>(this, std::move(lhs_c), std::move(node));
-			fixup_hierarchy_flags();
-			did_something = true;
-		}
+	if (auto prim = AstPrimitive::cast(this)) {
+		auto replacement = prim->lower();
+		if (replacement)
+			newNode = std::move(replacement);
+		did_something = true;
 	}
 
 	// replace dynamic ranges in left-hand side expressions (e.g. "foo[bar] <= 1'b1;") with
