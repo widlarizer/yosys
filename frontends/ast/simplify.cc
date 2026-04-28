@@ -529,14 +529,14 @@ void AST_INTERNAL::add_members_to_scope(AstNode *snode, std::string name)
 {
 	// add all the members in a struct or union to local scope
 	// in case later referenced in assignments
-	log_assert(snode->type==AST_STRUCT || snode->type==AST_UNION);
-	for (auto &node : snode->children) {
-		auto member_name = name + "." + node->str;
-		current_scope[member_name] = node.get();
-		if (node->type != AST_STRUCT_ITEM) {
-			// embedded struct or union
-			add_members_to_scope(node.get(), name + "." + node->str);
-		}
+	AstStructLike container(snode);
+	for (auto it = container.members_begin(); it != container.members_end(); ++it) {
+		AstNode *member = it->get();
+		auto member_name = name + "." + member->str;
+		current_scope[member_name] = member;
+		// nested struct / union: recurse so its leaves also get scoped names
+		if (AstStructLike::cast(member))
+			add_members_to_scope(member, member_name);
 	}
 }
 
@@ -581,16 +581,19 @@ void AST_INTERNAL::prepend_ranges(std::unique_ptr<AstNode> &range, AstNode *rang
 // check if a node or its children contains an assignment to the given variable
 bool AST_INTERNAL::node_contains_assignment_to(const AstNode* node, const AstNode* var)
 {
-	if (node->type == AST_ASSIGN_EQ || node->type == AST_ASSIGN_LE) {
-		// current node is iteslf an assignment
-		log_assert(node->children.size() >= 2);
-		const AstNode* lhs = node->children[0].get();
+	auto lhs_targets = [](const AstNode *n) -> const AstNode * {
+		// AstAssignEq / AstAssignLe declare lhs as Expression (slot 0).
+		if (auto a = AstAssignEq::cast(const_cast<AstNode*>(n))) return a->lhs().get();
+		if (auto a = AstAssignLe::cast(const_cast<AstNode*>(n))) return a->lhs().get();
+		return nullptr;
+	};
+	if (const AstNode *lhs = lhs_targets(node)) {
 		if (lhs->type == AST_IDENTIFIER && lhs->str == var->str)
 			return false;
 	}
 	for (auto& child : node->children) {
 		// if this child shadows the given variable
-		if (child.get() != var && child->str == var->str && child->type == AST_WIRE)
+		if (child.get() != var && child->str == var->str && AstWire::matches(child.get()))
 			break; // skip the remainder of this block/scope
 		// depth-first short circuit
 		if (!node_contains_assignment_to(child.get(), var))
