@@ -259,9 +259,9 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 	}
 
 	// activate const folding if this is anything that must be evaluated statically (ranges, parameters, attributes, etc.)
-	if (type == AST_WIRE || type == AST_PARAMETER || type == AST_LOCALPARAM || type == AST_ENUM_ITEM || type == AST_DEFPARAM || type == AST_PARASET || type == AST_RANGE || type == AST_PREFIX || type == AST_TYPEDEF)
+	if (ConstFoldActivator::accepts(this))
 		const_fold = true;
-	if (type == AST_IDENTIFIER && current_scope.count(str) > 0 && (current_scope[str]->type == AST_PARAMETER || current_scope[str]->type == AST_LOCALPARAM || current_scope[str]->type == AST_ENUM_ITEM))
+	if (AstIdentifier::matches(this) && current_scope.count(str) > 0 && AstAnyParamLike::matches(current_scope[str]))
 		const_fold = true;
 
 	std::map<std::string, AstNode*> backup_scope;

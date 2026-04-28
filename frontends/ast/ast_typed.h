@@ -163,6 +163,14 @@ using StructOrUnion = ChildConstraint<AST_STRUCT, AST_UNION>;
 // member references resolvable via packed-struct lookup.
 using StructMemberOrAggregate = ChildConstraint<AST_STRUCT_ITEM, AST_STRUCT, AST_UNION>;
 
+// Nodes that *must* be evaluated statically — ranges, declarations, prefix
+// indexes, defparam targets, paraset values, typedefs. The simplifier forces
+// const_fold=true while descending into them.
+using ConstFoldActivator = ChildConstraint<
+	AST_WIRE, AST_PARAMETER, AST_LOCALPARAM, AST_ENUM_ITEM,
+	AST_DEFPARAM, AST_PARASET, AST_RANGE, AST_PREFIX, AST_TYPEDEF
+>;
+
 // Top-level scope containers that hold a wire/param-like declaration whose
 // name forms the head of a hierarchical struct member path.
 using ScopedDeclTarget = ChildConstraint<AST_WIRE, AST_PARAMETER, AST_LOCALPARAM>;
