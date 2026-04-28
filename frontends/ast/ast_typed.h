@@ -574,6 +574,14 @@ struct AstConstant : AstView<AST_CONSTANT> {
 				return true;
 		return false;
 	}
+	bool is_string() const { return node->is_string; }
+	bool is_unsized() const { return node->is_unsized; }
+	int integer() const { return node->integer; }
+	RTLIL::Const bitsAsConst() const { return node->bitsAsConst(); }
+	RTLIL::Const bitsAsConst(int width, bool is_signed) const {
+		return node->bitsAsConst(width, is_signed);
+	}
+	std::string decode_string() const { return node->bitsAsConst().decode_string(); }
 };
 
 // Function and task calls. Variadic children are argument expressions.

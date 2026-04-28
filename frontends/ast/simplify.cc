@@ -99,11 +99,11 @@ Fmt AstNode::processFormat(int stage, bool sformat_like, int default_base, size_
 		arg.first_line = location.begin.line;
 		auto k = AstConstant::cast(node_arg);
 		auto id = AstIdentifier::cast(node_arg);
-		if (k && k->raw()->is_string) {
+		if (k && k->is_string()) {
 			arg.type = VerilogFmtArg::STRING;
-			arg.str = k->raw()->bitsAsConst().decode_string();
+			arg.str = k->decode_string();
 			// and in case this will be used as an argument...
-			arg.sig = k->raw()->bitsAsConst();
+			arg.sig = k->bitsAsConst();
 			arg.signed_ = false;
 		} else if (id && id->str() == "$time") {
 			arg.type = VerilogFmtArg::TIME;
@@ -112,7 +112,7 @@ Fmt AstNode::processFormat(int stage, bool sformat_like, int default_base, size_
 			arg.realtime = true;
 		} else if (k) {
 			arg.type = VerilogFmtArg::INTEGER;
-			arg.sig = k->raw()->bitsAsConst();
+			arg.sig = k->bitsAsConst();
 			arg.signed_ = k->raw()->is_signed;
 		} else if (may_fail) {
 			log_file_info(*location.begin.filename, location.begin.line, "Skipping system task `%s' with non-constant argument at position %zu.\n", str, index + 1);
@@ -698,7 +698,7 @@ const RTLIL::Module* AstNode::lookup_cell_module()
 bool AST_INTERNAL::contains_unbased_unsized(const AstNode *node)
 {
 	if (auto c = AstConstant::cast(const_cast<AstNode*>(node)))
-		return c->raw()->is_unsized;
+		return c->is_unsized();
 	for (auto& child : node->children)
 		if (contains_unbased_unsized(child.get()))
 			return true;
@@ -846,7 +846,7 @@ bool AST_INTERNAL::try_determine_range_width(AstNode *range, int &result_width)
 	auto left_const = AstConstant::cast(left_at_zero_ast.get());
 	auto right_const = AstConstant::cast(right_at_zero_ast.get());
 	if (left_const && right_const) {
-		result_width = abs(int(left_const->raw()->integer - right_const->raw()->integer)) + 1;
+		result_width = abs(int(left_const->integer() - right_const->integer())) + 1;
 		return true;
 	}
 
@@ -1284,7 +1284,7 @@ void AstNode::allocateDefaultEnumValues()
 			} else if (auto k = AstConstant::cast(cn)) {
 				// explicit constant (or folded expression)
 				// TODO: can't extend 'x or 'z item
-				last_enum_int = k->raw()->integer;
+				last_enum_int = k->integer();
 			}
 			// otherwise: AST_RANGE etc. — ignore. TODO: range check
 		}
