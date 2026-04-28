@@ -773,8 +773,8 @@ static IdentUsage always_asgn_before_use(const AstNode *node, const std::string 
 	// Check if this is an assignment to the target variable. For simplicity, we
 	// don't analyze sub-ranges of the variable.
 	if (auto assign = AstAssignEq::cast(n)) {
-		AstNode *ident = assign->lhs().get();
-		if (ident->type == AST_IDENTIFIER && ident->str == target)
+		if (auto id = AstIdentifier::cast(assign->lhs().get());
+				id && id->str() == target)
 			return IdentUsage::Assigned;
 	}
 
@@ -860,9 +860,10 @@ const std::string AST_INTERNAL::auto_nosync_prefix = "\\AutoNosync";
 // consideration
 void AST_INTERNAL::mark_auto_nosync(AstNode *block, const AstNode *wire)
 {
-	log_assert(block->type == AST_BLOCK);
-	log_assert(wire->type == AST_WIRE);
-	block->set_attribute(auto_nosync_prefix + wire->str, AstNode::mkconst_int(block->location, 1, false));
+	AstBlock blk(block);
+	AstWire w(const_cast<AstNode*>(wire));
+	blk.raw()->set_attribute(auto_nosync_prefix + w.str(),
+		AstNode::mkconst_int(blk.raw()->location, 1, false));
 }
 
 // block names can be prefixed with an explicit scope during elaboration
@@ -901,9 +902,8 @@ void AST_INTERNAL::check_auto_nosync(AstNode *node)
 			continue;
 
 		// mark the wire with `nosync`
-		AstNode *wire = it->second;
-		log_assert(wire->type == AST_WIRE);
-		wire->set_attribute(ID::nosync, AstNode::mkconst_int(wire->location, 1, false));
+		AstWire wire(it->second);
+		wire.raw()->set_attribute(ID::nosync, AstNode::mkconst_int(wire.loc(), 1, false));
 	}
 
 	// remove the attributes we've "consumed"
