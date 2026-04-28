@@ -691,8 +691,8 @@ const RTLIL::Module* AstNode::lookup_cell_module()
 // check the literal exists in a self-determined context
 bool AST_INTERNAL::contains_unbased_unsized(const AstNode *node)
 {
-	if (node->type == AST_CONSTANT)
-		return node->is_unsized;
+	if (auto c = AstConstant::cast(const_cast<AstNode*>(node)))
+		return c->raw()->is_unsized;
 	for (auto& child : node->children)
 		if (contains_unbased_unsized(child.get()))
 			return true;
@@ -729,24 +729,29 @@ enum class IdentUsage {
 // variable
 static IdentUsage always_asgn_before_use(const AstNode *node, const std::string &target)
 {
+	AstNode *n = const_cast<AstNode*>(node);
+
 	// This variable has been referenced before it has necessarily been assigned
 	// a value in this procedure.
-	if (node->type == AST_IDENTIFIER && node->str == target)
+	if (auto id = AstIdentifier::cast(n); id && id->str() == target)
 		return IdentUsage::SyncRequired;
 
 	// For case statements (which are also used for if/else), we check each
 	// possible branch. If the variable is assigned in all branches, then it is
 	// assigned, and a sync isn't required. If it used before assignment in any
 	// branch, then a sync is required.
-	if (node->type == AST_CASE) {
+	if (auto case_view = AstCase::cast(n)) {
 		bool all_defined = true;
 		bool any_used = false;
 		bool has_default = false;
-		for (auto& child : node->children) {
-			if (child->type == AST_COND && child->children.at(0)->type == AST_DEFAULT)
+		for (auto it = case_view->conditions_begin(); it != case_view->conditions_end(); ++it) {
+			AstNode *child = it->get();
+			auto cond = AstCond::cast(child);
+			if (cond && cond->num_labels() >= 1 &&
+					cond->raw()->children.at(0)->type == AST_DEFAULT)
 				has_default = true;
-			IdentUsage nested = always_asgn_before_use(child.get(), target);
-			if (nested != IdentUsage::Assigned && child->type == AST_COND)
+			IdentUsage nested = always_asgn_before_use(child, target);
+			if (nested != IdentUsage::Assigned && cond)
 				all_defined = false;
 			if (nested == IdentUsage::SyncRequired)
 				any_used = true;
@@ -761,8 +766,8 @@ static IdentUsage always_asgn_before_use(const AstNode *node, const std::string 
 
 	// Check if this is an assignment to the target variable. For simplicity, we
 	// don't analyze sub-ranges of the variable.
-	if (node->type == AST_ASSIGN_EQ) {
-		auto& ident = node->children.at(0);
+	if (auto assign = AstAssignEq::cast(n)) {
+		AstNode *ident = assign->lhs().get();
 		if (ident->type == AST_IDENTIFIER && ident->str == target)
 			return IdentUsage::Assigned;
 	}
@@ -819,28 +824,28 @@ std::unique_ptr<AstNode> AstNode::clone_at_zero()
 
 bool AST_INTERNAL::try_determine_range_width(AstNode *range, int &result_width)
 {
-	log_assert(range->type == AST_RANGE);
+	AstRange r(range);
 
 	if (range->children.size() == 1) {
+		// single-index "range" (a bit-select) always yields width 1
 		result_width = 1;
 		return true;
 	}
 
-	AstRange r(range);
 	auto left_at_zero_ast = r.msb()->clone_at_zero();
 	auto right_at_zero_ast = r.lsb()->clone_at_zero();
 
 	while (left_at_zero_ast->simplify()) {}
 	while (right_at_zero_ast->simplify()) {}
 
-	bool ok = false;
-	if (left_at_zero_ast->type == AST_CONSTANT
-			&& right_at_zero_ast->type == AST_CONSTANT) {
-		ok = true;
-		result_width = abs(int(left_at_zero_ast->integer - right_at_zero_ast->integer)) + 1;
+	auto left_const = AstConstant::cast(left_at_zero_ast.get());
+	auto right_const = AstConstant::cast(right_at_zero_ast.get());
+	if (left_const && right_const) {
+		result_width = abs(int(left_const->raw()->integer - right_const->raw()->integer)) + 1;
+		return true;
 	}
 
-	return ok;
+	return false;
 }
 
 const std::string AST_INTERNAL::auto_nosync_prefix = "\\AutoNosync";
