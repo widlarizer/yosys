@@ -452,7 +452,18 @@ DEFINE_AST_VIEW_3(AstTernary,  AST_TERNARY,   cond, Expression, then_, Expressio
 
 DEFINE_AST_VIEW_2(AstRange,    AST_RANGE,     msb, Expression, lsb, Expression)
 
-DEFINE_AST_VIEW_2(AstRepeat,   AST_REPEAT,    count, Expression, body, BehavioralStatement)
+struct AstRepeat : AstView<AST_REPEAT> {
+	using AstView<AST_REPEAT>::AstView;
+	ChildSlot<Expression> count() const { return {node, 0}; }
+	ChildSlot<BehavioralStatement> body() const { return {node, 1}; }
+	static std::unique_ptr<AstNode> build(const AstSrcLocType &loc, std::unique_ptr<AstNode> count, std::unique_ptr<AstNode> body) {
+		return make_node(loc, std::move(count), std::move(body));
+	}
+	DEFINE_AST_CAST(AstRepeat, AST_REPEAT)
+
+	// unroll: replace this AST_REPEAT with an AST_BLOCK containing N copies of body.
+	void unroll(int stage) const;
+};
 
 DEFINE_AST_VIEW_2(AstPrefix,   AST_PREFIX,    index, Expression, suffix, Anything)
 

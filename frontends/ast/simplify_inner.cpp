@@ -50,6 +50,24 @@ using namespace AST_INTERNAL;
 // order as their original branches in simplify() below for ease of cross-ref.
 // ---------------------------------------------------------------------------
 
+void AstRepeat::unroll(int stage) const
+{
+	auto cnt = count().take();
+	auto body_node = body().take();
+
+	// eval count expression
+	while (cnt->simplify(true, stage, 32, true)) { }
+
+	if (cnt->type != AST_CONSTANT)
+		node->input_error("Repeat loops outside must have constant repeat counts!\n");
+
+	// convert to a block with the body repeated n times
+	std::vector<std::unique_ptr<AstNode>> new_body;
+	for (int i = 0; i < cnt->bitsAsConst().as_int(); i++)
+		new_body.push_back(body_node->clone());
+	reshape_as_vec<AST_BLOCK>(node, std::move(new_body));
+}
+
 void AstPackage::register_scope() const
 {
 	// Parameters, typedefs, and subroutines defined at package scope are
@@ -1579,23 +1597,8 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 	if (type == AST_WHILE)
 		input_error("While loops are only allowed in constant functions!\n");
 
-	if (auto rep = AstRepeat::cast(this))
-	{
-		auto count = rep->count().take();
-		auto body = rep->body().take();
-
-		// eval count expression
-		while (count->simplify(true, stage, 32, true)) { }
-
-		if (count->type != AST_CONSTANT)
-			input_error("Repeat loops outside must have constant repeat counts!\n");
-
-		// convert to a block with the body repeated n times
-		std::vector<std::unique_ptr<AstNode>> new_body;
-		for (int i = 0; i < count->bitsAsConst().as_int(); i++)
-			new_body.push_back(body->clone());
-		reshape_as_vec<AST_BLOCK>(this, std::move(new_body));
-
+	if (auto rep = AstRepeat::cast(this)) {
+		rep->unroll(stage);
 		did_something = true;
 	}
 
