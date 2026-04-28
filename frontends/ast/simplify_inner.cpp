@@ -700,7 +700,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 			}
 	}
 
-	if (type == AST_CELL) {
+	if (AstCell::matches(this)) {
 		bool lookup_suggested = false;
 
 		for (auto& child : children) {
@@ -1080,7 +1080,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 	}
 
 	if (detect_width_simple && width_hint < 0) {
-		if (type == AST_REPLICATE)
+		if (AstReplicate::matches(this))
 			while (children[0]->simplify(true, stage, -1, false) == true)
 				did_something = true;
 		for (auto& child : children)
@@ -1089,7 +1089,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 		detectSignWidth(width_hint, sign_hint);
 	}
 
-	if (type == AST_FCALL && str == "\\$past")
+	if (AstFcall::matches(this) && str == "\\$past")
 		detectSignWidth(width_hint, sign_hint);
 
 	if (auto tern = AstTernary::cast(this)) {
@@ -1137,9 +1137,9 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 				bit = State::Sa;
 	}
 
-	if (const_fold && type == AST_CASE)
+	if (auto case_opt = AstCase::cast(this); const_fold && case_opt)
 	{
-		AstCase case_(this);
+		AstCase case_ = *case_opt;
 		detectSignWidth(width_hint, sign_hint);
 		AstNode *selector = case_.selector();
 		while (selector->simplify(const_fold, stage, width_hint, sign_hint)) { }
@@ -1181,7 +1181,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 	dict<std::string, pool<int>> backup_memwr_visible;
 	dict<std::string, pool<int>> final_memwr_visible;
 
-	if (type == AST_CASE && stage == 2) {
+	if (AstCase::matches(this) && stage == 2) {
 		backup_memwr_visible = current_memwr_visible;
 		final_memwr_visible = current_memwr_visible;
 	}
@@ -1196,17 +1196,17 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 			break;
 		if (GenCondLike::accepts(this) && i >= 1)
 			break;
-		if (type == AST_GENBLOCK)
+		if (AstGenBlock::matches(this))
 			break;
-		if (type == AST_CELLARRAY && (children[i]->type == AST_CELL || children[i]->type == AST_PRIMITIVE))
+		if (AstCellArray::matches(this) && ChildConstraint<AST_CELL, AST_PRIMITIVE>::accepts(children[i].get()))
 			continue;
-		if (type == AST_BLOCK && !str.empty())
+		if (AstBlock::matches(this) && !str.empty())
 			break;
-		if (type == AST_PREFIX && i >= 1)
+		if (AstPrefix::matches(this) && i >= 1)
 			break;
-		if (type == AST_DEFPARAM && i == 0)
+		if (AstDefparam::matches(this) && i == 0)
 			flag_autowire = true;
-		if (type == AST_TERNARY && i > 0 && !unevaluated_tern_branch) {
+		if (AstTernary::matches(this) && i > 0 && !unevaluated_tern_branch) {
 			AstNode *chosen = get_tern_choice().first;
 			unevaluated_tern_branch = chosen && chosen != children[i].get();
 		}
@@ -1214,11 +1214,11 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 			bool const_fold_here = const_fold;
 			int width_hint_here = width_hint;
 			bool sign_hint_here = sign_hint;
-			if (i == 0 && (type == AST_REPLICATE || type == AST_WIRE))
+			if (i == 0 && ChildConstraint<AST_REPLICATE, AST_WIRE>::accepts(this))
 				const_fold_here = true;
 			if (ParameterLike::accepts(this))
 				const_fold_here = true;
-			if (type == AST_BLOCK) {
+			if (AstBlock::matches(this)) {
 				current_block = this;
 				current_block_child = children[i].get();
 			}
@@ -1236,14 +1236,14 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 			if (did_something_here)
 				did_something = true;
 		}
-		if (stage == 2 && children[i]->type == AST_INITIAL && current_ast_mod != this) {
+		if (stage == 2 && AstInitial::matches(children[i].get()) && current_ast_mod != this) {
 			current_ast_mod->children.push_back(std::move(children[i]));
 			children.erase(children.begin() + (i--));
 			did_something = true;
 		}
 		flag_autowire = backup_flag_autowire;
 		unevaluated_tern_branch = backup_unevaluated_tern_branch;
-		if (stage == 2 && type == AST_CASE) {
+		if (stage == 2 && AstCase::matches(this)) {
 			for (auto &x : current_memwr_visible) {
 				for (int y : x.second)
 					final_memwr_visible[x.first].insert(y);
@@ -1255,10 +1255,10 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 		while (attr.second->simplify(true, stage, -1, false))
 			did_something = true;
 	}
-	if (type == AST_CASE && stage == 2) {
+	if (AstCase::matches(this) && stage == 2) {
 		current_memwr_visible = final_memwr_visible;
 	}
-	if (type == AST_ALWAYS && stage == 2) {
+	if (AstAlways::matches(this) && stage == 2) {
 		current_memwr_visible.clear();
 		current_memwr_count.clear();
 	}
@@ -1287,10 +1287,10 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 		current_scope.clear();
 
 	// convert defparam nodes to cell parameters
-	if (type == AST_DEFPARAM && !children.empty())
+	if (auto dp_opt = AstDefparam::cast(this); dp_opt && !children.empty())
 	{
-		AstDefparam dp(this);
-		if (dp.lvalue()->type != AST_IDENTIFIER)
+		AstDefparam dp = *dp_opt;
+		if (!AstIdentifier::matches(dp.lvalue()))
 			input_error("Module name in defparam contains non-constant expressions!\n");
 
 		string modname, paramname = dp.lvalue()->str;
@@ -1498,7 +1498,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 	}
 
 	// annotate wires with their ranges
-	if (type == AST_WIRE) {
+	if (AstWire::matches(this)) {
 		if (children.size() > 0) {
 			// children[0] is the packed range/multirange in AstWire's grammar.
 			AstNode *packed = children[0].get();
@@ -1665,7 +1665,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 		}
 	}
 
-	if (type == AST_IDENTIFIER && !basic_prep) {
+	if (AstIdentifier::matches(this) && !basic_prep) {
 		// check if a plausible struct member sss.mmmm
 		if (!str.empty() && str[0] == '\\' && current_scope.count(str)) {
 			auto item_node = current_scope[str];
@@ -1705,7 +1705,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 		}
 	}
 	// annotate identifiers using scope resolution and create auto-wires as needed
-	if (type == AST_IDENTIFIER) {
+	if (AstIdentifier::matches(this)) {
 		if (current_scope.count(str) == 0) {
 			AstNode *current_scope_ast = (current_ast_mod == nullptr) ? current_ast : current_ast_mod;
 			str = try_pop_module_prefix();
@@ -1762,9 +1762,9 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 	}
 
 	// split memory access with bit select to individual statements
-	if (type == AST_IDENTIFIER && children.size() == 2 && children[0]->type == AST_RANGE && children[1]->type == AST_RANGE && !in_lvalue && stage == 2)
+	if (AstIdentifier::matches(this) && children.size() == 2 && AstRange::matches(children[0].get()) && AstRange::matches(children[1].get()) && !in_lvalue && stage == 2)
 	{
-		if (id2ast == nullptr || id2ast->type != AST_MEMORY || children[0]->children.size() != 1)
+		if (id2ast == nullptr || !AstMemory::matches(id2ast) || children[0]->children.size() != 1)
 			input_error("Invalid bit-select on memory access!\n");
 
 		int mem_width, mem_size, addr_bits;
@@ -1819,7 +1819,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 		goto apply_newNode;
 	}
 
-	if (type == AST_WHILE)
+	if (AstWhile::matches(this))
 		input_error("While loops are only allowed in constant functions!\n");
 
 	if (auto rep = AstRepeat::cast(this)) {
