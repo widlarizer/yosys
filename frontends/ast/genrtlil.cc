@@ -132,22 +132,22 @@ static RTLIL::SigSpec binop2rtlil(AstNode *that, IdString type, int result_width
 	return wire;
 }
 
-// helper function for creating RTLIL code for multiplexers
-static RTLIL::SigSpec mux2rtlil(AstNode *that, const RTLIL::SigSpec &cond, const RTLIL::SigSpec &left, const RTLIL::SigSpec &right)
+// helper function for creating RTLIL code for multiplexers (lowers AST_TERNARY).
+static RTLIL::SigSpec mux2rtlil(AstTernary that, const RTLIL::SigSpec &cond, const RTLIL::SigSpec &left, const RTLIL::SigSpec &right)
 {
 	log_assert(cond.size() == 1);
 
 	std::stringstream sstr;
-	sstr << "$ternary$" << RTLIL::encode_filename(*that->location.begin.filename) << ":" << that->location.begin.line << "$" << (autoidx++);
+	sstr << "$ternary$" << RTLIL::encode_filename(*that.loc().begin.filename) << ":" << that.loc().begin.line << "$" << (autoidx++);
 
 	RTLIL::Cell *cell = current_module->addCell(sstr.str(), ID($mux));
-	set_src_attr(cell, that);
+	set_src_attr(cell, that.raw());
 
 	RTLIL::Wire *wire = current_module->addWire(cell->name.str() + "_Y", left.size());
-	set_src_attr(wire, that);
-	wire->is_signed = that->is_signed;
+	set_src_attr(wire, that.raw());
+	wire->is_signed = that.raw()->is_signed;
 
-	copy_const_attributes(cell, that);
+	copy_const_attributes(cell, that.raw());
 
 	cell->parameters[ID::WIDTH] = RTLIL::Const(left.size());
 
@@ -261,20 +261,13 @@ struct AST_INTERNAL::LookaheadRewriter
 			rewrite_lookaheadids(child.get(), lhs);
 	}
 
-	LookaheadRewriter(AstNode *top)
+	LookaheadRewriter(AstAlways top)
 	{
-		// top->dumpAst(nullptr, "REWRITE-BEFORE> ");
-		// top->dumpVlog(nullptr, "REWRITE-BEFORE> ");
+		// top.raw()->dumpAst(nullptr, "REWRITE-BEFORE> ");
+		// top.raw()->dumpVlog(nullptr, "REWRITE-BEFORE> ");
 
-		AstNode *block = nullptr;
-		auto loc = top->location;
-
-		for (auto& c : top->children)
-			if (AstBlock::matches(c.get())) {
-				log_assert(block == nullptr);
-				block = c.get();
-			}
-		log_assert(block != nullptr);
+		auto loc = top.loc();
+		AstNode *block = top.body();
 
 		collect_lookaheadids(block);
 		rewrite_lookaheadids(block);
@@ -344,7 +337,7 @@ struct AST_INTERNAL::ProcessGenerator
 	ProcessGenerator(std::unique_ptr<AstNode> a, RTLIL::SigSpec initSyncSignalsArg = RTLIL::SigSpec()) : always(std::move(a)), initSyncSignals(initSyncSignalsArg), last_effect_priority(0)
 	{
 		// rewrite lookahead references
-		LookaheadRewriter la_rewriter(always.get());
+		LookaheadRewriter la_rewriter(AstAlways{always.get()});
 
 		// generate process and simple root case
 		proc = current_module->addProcess(stringf("$proc$%s:%d$%d", RTLIL::encode_filename(*always->location.begin.filename), always->location.begin.line, autoidx++));
@@ -1985,7 +1978,7 @@ RTLIL::SigSpec AstNode::genRTLIL(int width_hint, bool sign_hint)
 				widthExtend(this, val1, width, is_signed);
 				widthExtend(this, val2, width, is_signed);
 
-				sig = mux2rtlil(this, cond, val1, val2);
+				sig = mux2rtlil(AstTernary{this}, cond, val1, val2);
 			}
 
 			if (sig.size() < width_hint)
