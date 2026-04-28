@@ -294,63 +294,59 @@ int AST_INTERNAL::size_packed_struct(AstNode *snode, int base_offset)
 	// Struct members will be laid out in the structure contiguously from left to right.
 	// Union members all have zero offset from the start of the union.
 	// Determine total packed size and assign offsets.  Store these in the member node.
-	bool is_union = (snode->type == AST_UNION);
+	AstStructLike container(snode);
+	bool is_union = container.is_union();
 	int offset = 0;
 	int packed_width = -1;
 	// examine members from last to first
-	for (auto it = snode->children.rbegin(); it != snode->children.rend(); ++it) {
-		auto node = it->get();
+	for (auto it = container.members_rbegin(); it != container.members_rend(); ++it) {
+		AstNode *node = it->get();
 		int width;
-		if (node->type == AST_STRUCT || node->type == AST_UNION) {
+		if (auto nested = AstStructLike::cast(node)) {
 			// embedded struct or union
 			width = size_packed_struct(node, base_offset + offset);
 		}
 		else {
-			log_assert(node->type == AST_STRUCT_ITEM);
-			if (node->children.size() > 0 && node->children[0]->type == AST_RANGE) {
+			AstStructItem item(node);
+			if (item.has_packed_range()) {
 				// member width e.g. bit [7:0] a
-				width = range_width(node, node->children[0].get());
-				if (node->children.size() == 2) {
-					// Unpacked array. Note that this is a Yosys extension; only packed data types
-					// and integer data types are allowed in packed structs / unions in SystemVerilog.
-					if (node->children[1]->type == AST_RANGE) {
-						// Unpacked array, e.g. bit [63:0] a [0:3]
-						// Pretend it's declared as a packed array, e.g. bit [0:3][63:0] a
-						auto rnode = node->children[1].get();
-						if (rnode->children.size() == 1) {
-							// C-style array size, e.g. bit [63:0] a [4]
-							node->dimensions.push_back({ 0, rnode->range_left, true });
-							width *= rnode->range_left;
-						} else {
-							width *= add_dimension(node, rnode);
-						}
-						add_dimension(node, node->children[0].get());
+				width = range_width(node, item.first_child());
+				if (item.has_unpacked_range()) {
+					// Unpacked array. Yosys extension; only packed data types
+					// and integer data types are allowed in packed structs /
+					// unions in SystemVerilog.
+					// Pretend it's declared as a packed array, e.g. bit [0:3][63:0] a
+					AstNode *unpacked = item.unpacked_range();
+					if (unpacked->children.size() == 1) {
+						// C-style array size, e.g. bit [63:0] a [4]
+						node->dimensions.push_back({ 0, unpacked->range_left, true });
+						width *= unpacked->range_left;
+					} else {
+						width *= add_dimension(node, unpacked);
 					}
-					else {
-						// The Yosys extension for unpacked arrays in packed structs / unions
-						// only supports memories, i.e. e.g. logic [7:0] a [256] - see above.
-						struct_array_packing_error(node);
-					}
+					add_dimension(node, item.first_child());
+				} else if (item.has_any_children() && node->children.size() != 1) {
+					// Yosys extension only supports memories for unpacked arrays
+					// in packed structs / unions.
+					struct_array_packing_error(node);
 				} else {
 					// Vector
-					add_dimension(node, node->children[0].get());
+					add_dimension(node, item.first_child());
 				}
 				// range nodes are now redundant
-				node->children.clear();
+				item.clear_range_children();
 			}
-			else if (node->children.size() > 0 && node->children[0]->type == AST_MULTIRANGE) {
+			else if (item.has_packed_multirange()) {
 				// Packed array, e.g. bit [3:0][63:0] a
 				if (node->children.size() != 1) {
-					// The Yosys extension for unpacked arrays in packed structs / unions
-					// only supports memories, i.e. e.g. logic [7:0] a [256] - see above.
 					struct_array_packing_error(node);
 				}
 				width = 1;
-				for (auto& rnode : node->children[0]->children) {
+				for (auto& rnode : item.first_child()->children) {
 					width *= add_dimension(node, rnode.get());
 				}
 				// range nodes are now redundant
-				node->children.clear();
+				item.clear_range_children();
 			}
 			else if (node->range_left < 0) {
 				// 1 bit signal: bit, logic or reg

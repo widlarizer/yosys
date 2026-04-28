@@ -570,35 +570,76 @@ using AstMemRd   = AstMemAccess<AST_MEMRD>;
 using AstMemWr   = AstMemAccess<AST_MEMWR>;
 using AstMemInit = AstMemAccess<AST_MEMINIT>;
 
-// Struct and Union types
-struct AstStruct : AstView<AST_STRUCT> {
-	using AstView::AstView;
-	// Grammar: children are AST_STRUCT_ITEM* (or nested AST_STRUCT/AST_UNION)
+// MemberContainer: shared base for AST_STRUCT and AST_UNION, whose grammar is
+// "ordered list of AST_STRUCT_ITEM (with possibly nested AST_STRUCT/AST_UNION)".
+template <AstNodeType Tag>
+struct MemberContainerView : AstView<Tag> {
+	using AstView<Tag>::AstView;
+	using AstView<Tag>::node;
 	size_t num_members() const { return node->children.size(); }
 	AstNode *member(size_t i) const { return node->children.at(i).get(); }
-	auto members_begin() { return node->children.begin(); }
-	auto members_end() { return node->children.end(); }
-	static std::optional<AstStruct> cast(AstNode *n) {
-		return matches(n) ? std::optional<AstStruct>(AstStruct(n)) : std::nullopt;
+	auto members_begin() const { return node->children.begin(); }
+	auto members_end() const { return node->children.end(); }
+	auto members_rbegin() const { return node->children.rbegin(); }
+	auto members_rend() const { return node->children.rend(); }
+	static std::optional<MemberContainerView> cast(AstNode *n) {
+		return AstView<Tag>::matches(n) ? std::optional<MemberContainerView>(MemberContainerView(n)) : std::nullopt;
 	}
 };
 
-struct AstUnion : AstView<AST_UNION> {
-	using AstView::AstView;
-	// Grammar: same as AST_STRUCT - children are AST_STRUCT_ITEM*
+using AstStruct = MemberContainerView<AST_STRUCT>;
+using AstUnion  = MemberContainerView<AST_UNION>;
+
+// Tag-agnostic view over either AST_STRUCT or AST_UNION. Used where the
+// simplifier treats the two interchangeably (e.g. size_packed_struct walks
+// both in the same loop).
+struct AstStructLike {
+	AstNode *node;
+	static bool matches(const AstNode *n) {
+		return n && (n->type == AST_STRUCT || n->type == AST_UNION);
+	}
+	explicit AstStructLike(AstNode *n) : node(n) { log_assert(matches(n)); }
+	bool is_union() const { return node->type == AST_UNION; }
 	size_t num_members() const { return node->children.size(); }
 	AstNode *member(size_t i) const { return node->children.at(i).get(); }
-	auto members_begin() { return node->children.begin(); }
-	auto members_end() { return node->children.end(); }
-	static std::optional<AstUnion> cast(AstNode *n) {
-		return matches(n) ? std::optional<AstUnion>(AstUnion(n)) : std::nullopt;
+	auto members_begin() const { return node->children.begin(); }
+	auto members_end() const { return node->children.end(); }
+	auto members_rbegin() const { return node->children.rbegin(); }
+	auto members_rend() const { return node->children.rend(); }
+	AstNode *raw() const { return node; }
+	static std::optional<AstStructLike> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstStructLike>(AstStructLike(n)) : std::nullopt;
 	}
 };
 
+// Grammar: optional packed range or multirange in children[0], with at most one
+// trailing AST_RANGE for an (extension) unpacked array. After packing the
+// children are cleared and the geometry is recorded on the node itself.
 struct AstStructItem : AstView<AST_STRUCT_ITEM> {
 	using AstView::AstView;
-	// Grammar: optional packed range, optional wiretype, optional unpacked range
-	// similar to AstWire child structure
+
+	bool has_any_children() const { return !node->children.empty(); }
+	AstNode *first_child() const { return node->children[0].get(); }
+
+	bool has_packed_range() const {
+		return has_any_children() && first_child()->type == AST_RANGE;
+	}
+	bool has_packed_multirange() const {
+		return has_any_children() && first_child()->type == AST_MULTIRANGE;
+	}
+
+	// True for the Yosys extension `bit [W-1:0] x [N]` shape: two children,
+	// children[0]=AST_RANGE element width, children[1]=AST_RANGE unpacked size.
+	bool has_unpacked_range() const {
+		return node->children.size() == 2 && node->children[1]->type == AST_RANGE;
+	}
+	AstNode *unpacked_range() const {
+		log_assert(has_unpacked_range());
+		return node->children[1].get();
+	}
+
+	void clear_range_children() { node->children.clear(); }
+
 	static std::optional<AstStructItem> cast(AstNode *n) {
 		return matches(n) ? std::optional<AstStructItem>(AstStructItem(n)) : std::nullopt;
 	}
