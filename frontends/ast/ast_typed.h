@@ -140,6 +140,33 @@ using ForLike = ChildConstraint<AST_FOR, AST_GENFOR>;
 // of their constant labels before equality testing.
 using CondMaskLike = ChildConstraint<AST_CONDX, AST_CONDZ>;
 
+// Generate-time conditional structures that consume only their first child as
+// a static expression in the simplifier's child-iteration loop.
+using GenCondLike = ChildConstraint<AST_GENIF, AST_GENCASE>;
+
+// All three case-item variants (AST_COND / AST_CONDX / AST_CONDZ) — equivalent
+// to AstAnyCond::matches but usable in attribute/constraint position.
+using AnyCondLike = ChildConstraint<AST_COND, AST_CONDX, AST_CONDZ>;
+
+// AST_BLOCK and AST_GENBLOCK are both ordered statement containers; some
+// simplifier passes treat them interchangeably (genfor body unwrap).
+using BlockOrGenBlock = ChildConstraint<AST_BLOCK, AST_GENBLOCK>;
+
+// AST_POSEDGE and AST_NEGEDGE are the two clocked sensitivity events.
+using ClockedEdgeLike = ChildConstraint<AST_POSEDGE, AST_NEGEDGE>;
+
+// AST_STRUCT and AST_UNION — the two member-container kinds. Equivalent to
+// AstStructLike::matches but usable in constraint position.
+using StructOrUnion = ChildConstraint<AST_STRUCT, AST_UNION>;
+
+// Names that, when found in current_scope for an AST_IDENTIFIER, represent
+// member references resolvable via packed-struct lookup.
+using StructMemberOrAggregate = ChildConstraint<AST_STRUCT_ITEM, AST_STRUCT, AST_UNION>;
+
+// Top-level scope containers that hold a wire/param-like declaration whose
+// name forms the head of a hierarchical struct member path.
+using ScopedDeclTarget = ChildConstraint<AST_WIRE, AST_PARAMETER, AST_LOCALPARAM>;
+
 // Shared constraint: formal assertions present in both behavioral and module contexts.
 using FormalAssertions = ChildConstraint<
 	AST_ASSERT, AST_ASSUME, AST_LIVE, AST_FAIR, AST_COVER

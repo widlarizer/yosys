@@ -189,12 +189,12 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 	// note that $display, $finish, and $stop are used for synthesis-time DRC so they're not in this list
 	if (CallLike::accepts(this) && (str == "$strobe" || str == "$monitor" || str == "$time" ||
 			str == "$dumpfile" || str == "$dumpvars" || str == "$dumpon" || str == "$dumpoff" || str == "$dumpall")) {
-		log_file_warning(*location.begin.filename, location.begin.line, "Ignoring call to system %s %s.\n", type == AST_FCALL ? "function" : "task", str);
+		log_file_warning(*location.begin.filename, location.begin.line, "Ignoring call to system %s %s.\n", AstFcall::matches(this) ? "function" : "task", str);
 		delete_children();
 		str = std::string();
 	}
 
-	if ((type == AST_TCALL) &&
+	if (AstTcall::matches(this) &&
 		(str == "$display" || str == "$displayb" || str == "$displayh" || str == "$displayo" ||
 		 str == "$write"   || str == "$writeb"   || str == "$writeh"   || str == "$writeo"))
 	{
@@ -207,7 +207,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 			for (auto& node : children)
 				while (node->simplify(true, stage, -1, false)) {}
 
-			if (current_always->type == AST_INITIAL && !flag_nodisplay && stage == 2) {
+			if (AstInitial::matches(current_always) && !flag_nodisplay && stage == 2) {
 				int default_base = 10;
 				if (str.back() == 'b')
 					default_base = 2;
@@ -360,9 +360,9 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 				this_wire_scope[node->str] = node;
 			}
 			// these nodes appear at the top level in a module and can define names
-			if (node->type == AST_PARAMETER || node->type == AST_LOCALPARAM || node->type == AST_WIRE || node->type == AST_AUTOWIRE || node->type == AST_GENVAR ||
-					node->type == AST_MEMORY || node->type == AST_FUNCTION || node->type == AST_TASK || node->type == AST_DPI_FUNCTION || node->type == AST_CELL ||
-					node->type == AST_TYPEDEF) {
+			if (ChildConstraint<AST_PARAMETER, AST_LOCALPARAM, AST_WIRE, AST_AUTOWIRE, AST_GENVAR,
+					AST_MEMORY, AST_FUNCTION, AST_TASK, AST_DPI_FUNCTION, AST_CELL,
+					AST_TYPEDEF>::accepts(node)) {
 				backup_scope[node->str] = current_scope[node->str];
 				current_scope[node->str] = node;
 			}
@@ -379,7 +379,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 		}
 		for (size_t i = 0; i < children.size(); i++) {
 			auto& node = children[i];
-			if (node->type == AST_PARAMETER || node->type == AST_LOCALPARAM || node->type == AST_WIRE || node->type == AST_AUTOWIRE || node->type == AST_MEMORY || node->type == AST_TYPEDEF)
+			if (ChildConstraint<AST_PARAMETER, AST_LOCALPARAM, AST_WIRE, AST_AUTOWIRE, AST_MEMORY, AST_TYPEDEF>::accepts(node.get()))
 				while (node->simplify())
 					did_something = true;
 			if (node->type == AST_ENUM) {
@@ -403,7 +403,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 		for (size_t i = 0; i < children.size(); i++) {
 			auto& node = children[i];
 			// these nodes appear at the top level in a package and can define names
-			if (node->type == AST_PARAMETER || node->type == AST_LOCALPARAM || node->type == AST_TYPEDEF || node->type == AST_FUNCTION || node->type == AST_TASK) {
+			if (ChildConstraint<AST_PARAMETER, AST_LOCALPARAM, AST_TYPEDEF, AST_FUNCTION, AST_TASK>::accepts(node.get())) {
 				current_scope[node->str] = node.get();
 			}
 			if (node->type == AST_ENUM) {
@@ -436,7 +436,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 
 		if (AstAlways::matches(this))
 			for (auto& child : children) {
-				if (child->type == AST_POSEDGE || child->type == AST_NEGEDGE)
+				if (ClockedEdgeLike::accepts(child.get()))
 					current_always_clocked = true;
 				if (child->type == AST_EDGE && GetSize(child->children) == 1 &&
 						child->children[0]->type == AST_IDENTIFIER && child->children[0]->str == "\\$global_clock")
@@ -585,7 +585,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 		child_0_is_self_determined = true;
 		// test only once, before optimizations and memory mappings but after assignment LHS was mapped to an identifier
 		if (lhs->id2ast && !lhs->was_checked) {
-			bool is_blocking = type == AST_ASSIGN_LE || type == AST_ASSIGN_EQ;
+			bool is_blocking = BlockingAssignLike::accepts(this);
 			if (is_blocking && lhs->id2ast->is_logic)
 				lhs->id2ast->is_reg = true; // if logic type is used in a block asignment
 			if (is_blocking && !lhs->id2ast->is_reg)
@@ -665,10 +665,10 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 		AstNode *value_n = param.value();
 		// if parameter is implicit type which is the typename of a struct or union,
 		// save information about struct in wiretype attribute
-		if (type != AST_ENUM_ITEM && value_n->type == AST_IDENTIFIER &&
+		if (!AstEnumItem::matches(this) && AstIdentifier::matches(value_n) &&
 				current_scope.count(value_n->str) > 0) {
 			auto item_node = current_scope[value_n->str];
-			if (item_node->type == AST_STRUCT || item_node->type == AST_UNION) {
+			if (AstStructLike::matches(item_node)) {
 				set_attribute(ID::wiretype, item_node->clone());
 				size_packed_struct(attributes[ID::wiretype].get(), 0);
 				add_members_to_scope(attributes[ID::wiretype].get(), str);
@@ -684,7 +684,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 				did_something = true;
 			if (!range_n->range_valid)
 				input_error("Non-constant width range on %s decl.\n",
-						type == AST_ENUM_ITEM ? "enum item" : "parameter");
+						AstEnumItem::matches(this) ? "enum item" : "parameter");
 			width_hint = max(width_hint, range_n->range_left - range_n->range_right + 1);
 		}
 		break;
@@ -894,7 +894,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 			new_children.push_back(std::move(children[0]));
 			for (int i = 1; i < GetSize(children); i++) {
 				auto& child = children[i];
-				log_assert(child->type == AST_COND || child->type == AST_CONDX || child->type == AST_CONDZ);
+				log_assert(AstAnyCond::matches(child.get()));
 				for (auto& v : child->children) {
 					if (v->type == AST_DEFAULT)
 						goto keep_const_cond;
@@ -936,9 +936,9 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 		bool did_something_here = true;
 		bool backup_flag_autowire = flag_autowire;
 		bool backup_unevaluated_tern_branch = unevaluated_tern_branch;
-		if ((type == AST_GENFOR || type == AST_FOR) && i >= 3)
+		if (ForLike::accepts(this) && i >= 3)
 			break;
-		if ((type == AST_GENIF || type == AST_GENCASE) && i >= 1)
+		if (GenCondLike::accepts(this) && i >= 1)
 			break;
 		if (type == AST_GENBLOCK)
 			break;
@@ -960,13 +960,13 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 			bool sign_hint_here = sign_hint;
 			if (i == 0 && (type == AST_REPLICATE || type == AST_WIRE))
 				const_fold_here = true;
-			if (type == AST_PARAMETER || type == AST_LOCALPARAM)
+			if (ParameterLike::accepts(this))
 				const_fold_here = true;
 			if (type == AST_BLOCK) {
 				current_block = this;
 				current_block_child = children[i].get();
 			}
-			if ((type == AST_ALWAYS || type == AST_INITIAL) && children[i]->type == AST_BLOCK)
+			if (ProceduralBlockLike::accepts(this) && AstBlock::matches(children[i].get()))
 				current_top_block = children[i].get();
 			if (i == 0 && child_0_is_self_determined)
 				width_hint_here = -1, sign_hint_here = false;
@@ -1071,7 +1071,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 	// resolve typedefs
 	if (auto td = AstTypedef::cast(this)) {
 		AstNode *type_node = td->underlying().get();
-		log_assert(type_node->type == AST_WIRE || type_node->type == AST_MEMORY || type_node->type == AST_STRUCT || type_node->type == AST_UNION);
+		log_assert(WireOrMemory::accepts(type_node) || AstStructLike::matches(type_node));
 		while (type_node->simplify(const_fold, stage, width_hint, sign_hint)) {
 			did_something = true;
 		}
@@ -1098,7 +1098,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 			// resolved.
 			while (template_node->is_custom_type && template_node->simplify(const_fold, stage, width_hint, sign_hint)) {};
 
-			if (!str.empty() && str[0] == '\\' && (template_node->type == AST_STRUCT || template_node->type == AST_UNION)) {
+			if (!str.empty() && str[0] == '\\' && AstStructLike::matches(template_node.get())) {
 				// replace instance with wire representing the packed structure
 				newNode = make_packed_struct(template_node.get(), str, attributes);
 				newNode->set_attribute(ID::wiretype, mkconst_str(newNode->location, resolved_type_node->str));
@@ -1123,7 +1123,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 			// if an enum then add attributes to support simulator tracing
 			newNode->annotateTypedEnums(template_node.get());
 
-			bool add_packed_dimensions = (type == AST_WIRE && GetSize(children) > 1) || (type == AST_MEMORY && GetSize(children) > 2);
+			bool add_packed_dimensions = (AstWire::matches(this) && GetSize(children) > 1) || (AstMemory::matches(this) && GetSize(children) > 2);
 
 			// Cannot add packed dimensions if unpacked dimensions are already specified.
 			if (add_packed_dimensions && newNode->type == AST_MEMORY)
@@ -1413,15 +1413,14 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 		// check if a plausible struct member sss.mmmm
 		if (!str.empty() && str[0] == '\\' && current_scope.count(str)) {
 			auto item_node = current_scope[str];
-			if (item_node->type == AST_STRUCT_ITEM || item_node->type == AST_STRUCT || item_node->type == AST_UNION) {
+			if (StructMemberOrAggregate::accepts(item_node)) {
 				// Traverse any hierarchical path until the full name for the referenced struct/union is found.
 				std::string sname;
 				bool found_sname = false;
 				for (std::string::size_type pos = 0; (pos = str.find('.', pos)) != std::string::npos; pos++) {
 					sname = str.substr(0, pos);
 					if (current_scope.count(sname)) {
-						auto stype = current_scope[sname]->type;
-						if (stype == AST_WIRE || stype == AST_PARAMETER || stype == AST_LOCALPARAM) {
+						if (ScopedDeclTarget::accepts(current_scope[sname])) {
 							found_sname = true;
 							break;
 						}
@@ -1688,7 +1687,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 
 			// expand body
 			int index = varbuf_view.value()->integer;
-			log_assert(body_ast->type == AST_GENBLOCK || body_ast->type == AST_BLOCK);
+			log_assert(BlockOrGenBlock::accepts(body_ast));
 			log_assert(!body_ast->str.empty());
 			buf = body_ast->clone();
 
@@ -1856,7 +1855,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 		AstNode *selected_case = nullptr;
 		for (size_t i = 1; i < children.size(); i++)
 		{
-			log_assert(children.at(i)->type == AST_COND || children.at(i)->type == AST_CONDX || children.at(i)->type == AST_CONDZ);
+			log_assert(AstAnyCond::matches(children.at(i).get()));
 
 			AstNode *this_genblock = nullptr;
 			for (auto& child : children.at(i)->children) {
@@ -2635,7 +2634,7 @@ skip_dynamic_range_lvalue_expansion:;
 			newNode->children.push_back(std::move(assign_en));
 
 		std::unique_ptr<AstNode> wrnode;
-		if (current_always->type == AST_INITIAL)
+		if (AstInitial::matches(current_always))
 			wrnode = AstMemInit::build(location, std::move(node_addr), std::move(node_data), std::move(node_en), mkconst_int(location, 1, false));
 		else
 			wrnode = AstMemWr::build(location, std::move(node_addr), std::move(node_data), std::move(node_en));
@@ -2876,7 +2875,7 @@ skip_dynamic_range_lvalue_expansion:;
 					if (!id_ast)
 						input_error("Failed to resolve identifier %s for width detection!\n", buf->str);
 
-					if (id_ast->type == AST_WIRE || id_ast->type == AST_MEMORY) {
+					if (WireOrMemory::accepts(id_ast)) {
 						// Check for item in packed struct / union
 						AstNode *item_node = buf->get_struct_member();
 						if (item_node)
@@ -3138,7 +3137,7 @@ skip_dynamic_range_lvalue_expansion:;
 			AstTcall tcall(this);
 			if (str == "$finish" || str == "$stop")
 			{
-				if (!current_always || current_always->type != AST_INITIAL)
+				if (!current_always || !AstInitial::matches(current_always))
 					input_error("System task `%s' outside initial block is unsupported.\n", str);
 
 				input_error("System task `%s' executed.\n", str);
@@ -3179,7 +3178,7 @@ skip_dynamic_range_lvalue_expansion:;
 				}
 
 				bool unconditional_init = false;
-				if (current_always->type == AST_INITIAL) {
+				if (AstInitial::matches(current_always)) {
 					pool<AstNode*> queue;
 					log_assert(current_always->children[0]->type == AST_BLOCK);
 					queue.insert(current_always->children[0].get());
