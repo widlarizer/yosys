@@ -289,7 +289,6 @@ namespace AST
 		// helper for parsing format strings
 		Fmt processFormat(int stage, bool sformat_like, int default_base = 10, size_t first_arg_at = 0, bool may_fail = false);
 
-		bool is_recursive_function() const;
 		std::pair<AstNode*, AstNode*> get_tern_choice();
 
 		// create a human-readable text representation of the AST (for debugging)

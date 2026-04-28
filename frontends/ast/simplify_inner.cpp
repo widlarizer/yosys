@@ -3225,7 +3225,7 @@ skip_dynamic_range_lvalue_expansion:;
 		std::string prefix = sstr.str();
 
 		auto* decl = current_scope[str];
-		if (unevaluated_tern_branch && decl->is_recursive_function())
+		if (unevaluated_tern_branch && AstFunction(decl).is_recursive())
 			goto replace_fcall_later;
 		auto decl_clone = decl->clone();
 		decl = decl_clone.get(); // sketchy?

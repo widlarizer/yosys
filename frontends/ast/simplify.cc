@@ -1292,29 +1292,6 @@ void AstNode::allocateDefaultEnumValues()
 	}
 }
 
-bool AstNode::is_recursive_function() const
-{
-	std::set<const AstNode *> visited;
-	std::function<bool(const AstNode *node)> visit = [&](const AstNode *node) {
-		if (visited.count(node))
-			return node == this;
-		visited.insert(node);
-		if (AstFcall::matches(node)) {
-			auto it = current_scope.find(node->str);
-			if (it != current_scope.end() && visit(it->second))
-				return true;
-		}
-		for (auto& child : node->children) {
-			if (visit(child.get()))
-				return true;
-		}
-		return false;
-	};
-
-	log_assert(AstFunction::matches(this));
-	return visit(this);
-}
-
 std::pair<AstNode*, AstNode*> AstNode::get_tern_choice()
 {
 	AstTernary tern(this);

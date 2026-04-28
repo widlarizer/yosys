@@ -1177,6 +1177,24 @@ struct AstFunction : AstView<AST_FUNCTION> {
 	static std::optional<AstFunction> cast(AstNode *n) {
 		return matches(n) ? std::optional<AstFunction>(AstFunction(n)) : std::nullopt;
 	}
+	bool is_recursive() const {
+		std::set<const AstNode *> visited;
+		std::function<bool(const AstNode *)> visit = [&](const AstNode *n) {
+			if (visited.count(n))
+				return n == node;
+			visited.insert(n);
+			if (AstFcall::matches(n)) {
+				auto it = AST_INTERNAL::current_scope.find(n->str);
+				if (it != AST_INTERNAL::current_scope.end() && visit(it->second))
+					return true;
+			}
+			for (auto& child : n->children)
+				if (visit(child.get()))
+					return true;
+			return false;
+		};
+		return visit(node);
+	}
 };
 
 struct AstTask : AstView<AST_TASK> {
