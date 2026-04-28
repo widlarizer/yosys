@@ -269,7 +269,6 @@ namespace AST
 		bool mem2reg_as_needed_pass2(pool<AstNode*> &mem2reg_set, AstNode *mod, AstNode *block, AstNode* async_block);
 		bool mem2reg_check(pool<AstNode*> &mem2reg_set);
 		void mem2reg_remove(pool<AstNode*> &mem2reg_set);
-		void meminfo(int &mem_width, int &mem_size, int &addr_bits);
 		bool detect_latch(const std::string &var);
 		const RTLIL::Module* lookup_cell_module();
 

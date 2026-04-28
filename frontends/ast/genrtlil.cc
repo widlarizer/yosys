@@ -1998,10 +1998,11 @@ RTLIL::SigSpec AstNode::genRTLIL(int width_hint, bool sign_hint)
 			RTLIL::Wire *wire = current_module->addWire(cell->name.str() + "_DATA", current_module->memories[str]->width);
 			set_src_attr(wire, this);
 
+			AstMemory mem(id2ast);
 			int mem_width, mem_size, addr_bits;
-			is_signed = id2ast->is_signed;
+			is_signed = mem.is_signed();
 			wire->is_signed = is_signed;
-			id2ast->meminfo(mem_width, mem_size, addr_bits);
+			mem.meminfo(mem_width, mem_size, addr_bits);
 
 			RTLIL::SigSpec addr_sig = children[0]->genRTLIL();
 
@@ -2036,7 +2037,7 @@ RTLIL::SigSpec AstNode::genRTLIL(int width_hint, bool sign_hint)
 			set_src_attr(cell, this);
 
 			int mem_width, mem_size, addr_bits;
-			id2ast->meminfo(mem_width, mem_size, addr_bits);
+			AstMemory(id2ast).meminfo(mem_width, mem_size, addr_bits);
 
 			if (!AstConstant::matches(children[3].get()))
 				input_error("Memory init with non-constant word count!\n");

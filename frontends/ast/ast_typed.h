@@ -616,6 +616,19 @@ struct AstMemory : AstView<AST_MEMORY> {
 		log_assert(node->children.size() >= 2);
 		return node->children[node->children.size() - 1].get();
 	}
+	bool is_signed() const { return node->is_signed; }
+	// Compute width / depth / address-bit count from the data and address ranges.
+	// Both ranges are required to be range_valid (post-simplify).
+	void meminfo(int &mem_width, int &mem_size, int &addr_bits) const {
+		AstNode *dr = data_range();
+		AstNode *ar = addr_range();
+		mem_width = dr->range_left - dr->range_right + 1;
+		mem_size = ar->range_left - ar->range_right;
+		if (mem_size < 0) mem_size *= -1;
+		mem_size += std::min(ar->range_left, ar->range_right) + 1;
+		addr_bits = 1;
+		while ((1 << addr_bits) < mem_size) addr_bits++;
+	}
 	static std::optional<AstMemory> cast(AstNode *n) {
 		return matches(n) ? std::optional<AstMemory>(AstMemory(n)) : std::nullopt;
 	}

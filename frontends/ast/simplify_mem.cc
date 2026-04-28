@@ -338,9 +338,10 @@ bool AstNode::mem2reg_as_needed_pass2(pool<AstNode*> &mem2reg_set, AstNode *mod,
 		sstr << "$mem2reg_wr$" << children[0]->str << "$" << RTLIL::encode_filename(*location.begin.filename) << ":" << location.begin.line << "$" << (autoidx++);
 		std::string id_addr = sstr.str() + "_ADDR", id_data = sstr.str() + "_DATA";
 
+		AstMemory mem(children[0]->id2ast);
 		int mem_width, mem_size, addr_bits;
-		bool mem_signed = children[0]->id2ast->is_signed;
-		children[0]->id2ast->meminfo(mem_width, mem_size, addr_bits);
+		bool mem_signed = mem.is_signed();
+		mem.meminfo(mem_width, mem_size, addr_bits);
 
 		auto wire_addr = std::make_unique<AstNode>(location, AST_WIRE, std::make_unique<AstNode>(location, AST_RANGE, mkconst_int(location, addr_bits-1, true), mkconst_int(location, 0, true)));
 		wire_addr->str = id_addr;
@@ -459,9 +460,10 @@ bool AstNode::mem2reg_as_needed_pass2(pool<AstNode*> &mem2reg_set, AstNode *mod,
 			sstr << "$mem2reg_rd$" << str << "$" << RTLIL::encode_filename(*location.begin.filename) << ":" << location.begin.line << "$" << (autoidx++);
 			std::string id_addr = sstr.str() + "_ADDR", id_data = sstr.str() + "_DATA";
 
+			AstMemory mem(id2ast);
 			int mem_width, mem_size, addr_bits;
-			bool mem_signed = id2ast->is_signed;
-			id2ast->meminfo(mem_width, mem_size, addr_bits);
+			bool mem_signed = mem.is_signed();
+			mem.meminfo(mem_width, mem_size, addr_bits);
 
 			auto wire_addr = std::make_unique<AstNode>(location, AST_WIRE, std::make_unique<AstNode>(location, AST_RANGE, mkconst_int(location, addr_bits-1, true), mkconst_int(location, 0, true)));
 			wire_addr->str = id_addr;
@@ -562,8 +564,9 @@ bool AstNode::mem2reg_as_needed_pass2(pool<AstNode*> &mem2reg_set, AstNode *mod,
 // replace a readmem[bh] TCALL ast node with a block of memory assignments
 std::unique_ptr<AstNode> AstNode::readmem(bool is_readmemh, std::string mem_filename, AstNode *memory, int start_addr, int finish_addr, bool unconditional_init)
 {
+	AstMemory mem(memory);
 	int mem_width, mem_size, addr_bits;
-	memory->meminfo(mem_width, mem_size, addr_bits);
+	mem.meminfo(mem_width, mem_size, addr_bits);
 
 	auto block = std::make_unique<AstNode>(location, AST_BLOCK);
 
@@ -698,22 +701,5 @@ std::unique_ptr<AstNode> AstNode::readmem(bool is_readmemh, std::string mem_file
 	return block;
 }
 
-
-// calculate memory dimensions
-void AstNode::meminfo(int &mem_width, int &mem_size, int &addr_bits)
-{
-	log_assert(AstMemory::matches(this));
-
-	mem_width = children[0]->range_left - children[0]->range_right + 1;
-	mem_size = children[1]->range_left - children[1]->range_right;
-
-	if (mem_size < 0)
-		mem_size *= -1;
-	mem_size += min(children[1]->range_left, children[1]->range_right) + 1;
-
-	addr_bits = 1;
-	while ((1 << addr_bits) < mem_size)
-		addr_bits++;
-}
 
 YOSYS_NAMESPACE_END

@@ -414,10 +414,11 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 
 			for (auto node : mem2reg_set)
 			{
+				AstMemory mem(node);
 				int mem_width, mem_size, addr_bits;
-				node->meminfo(mem_width, mem_size, addr_bits);
+				mem.meminfo(mem_width, mem_size, addr_bits);
 
-				AstNode *data_range = AstMemory(node).data_range();
+				AstNode *data_range = mem.data_range();
 				int data_range_left = data_range->range_left;
 				int data_range_right = data_range->range_right;
 
@@ -1767,10 +1768,11 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 		if (id2ast == nullptr || !AstMemory::matches(id2ast) || children[0]->children.size() != 1)
 			input_error("Invalid bit-select on memory access!\n");
 
+		AstMemory mem(id2ast);
 		int mem_width, mem_size, addr_bits;
-		id2ast->meminfo(mem_width, mem_size, addr_bits);
+		mem.meminfo(mem_width, mem_size, addr_bits);
 
-		AstNode *mem_data_range = AstMemory(id2ast).data_range();
+		AstNode *mem_data_range = mem.data_range();
 		int data_range_left = mem_data_range->range_left;
 		int data_range_right = mem_data_range->range_right;
 
@@ -2480,9 +2482,10 @@ skip_dynamic_range_lvalue_expansion:;
 		sstr << "$memwr$" << lhs_id.str() << "$" << RTLIL::encode_filename(*location.begin.filename) << ":" << location.begin.line << "$" << (autoidx++);
 		std::string id_addr = sstr.str() + "_ADDR", id_data = sstr.str() + "_DATA", id_en = sstr.str() + "_EN";
 
+		AstMemory mem(mem_decl);
 		int mem_width, mem_size, addr_bits;
-		bool mem_signed = mem_decl->is_signed;
-		mem_decl->meminfo(mem_width, mem_size, addr_bits);
+		bool mem_signed = mem.is_signed();
+		mem.meminfo(mem_width, mem_size, addr_bits);
 
 		newNode = std::make_unique<AstNode>(location, AST_BLOCK);
 		auto defNode = std::make_unique<AstNode>(location, AST_BLOCK);

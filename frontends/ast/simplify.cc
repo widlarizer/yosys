@@ -238,8 +238,8 @@ bool AST_INTERNAL::arrays_have_compatible_dims(AstNode *mem_a, AstNode *mem_b)
 	// Also check packed dimensions (element width)
 	int a_width, a_size, a_bits;
 	int b_width, b_size, b_bits;
-	mem_a->meminfo(a_width, a_size, a_bits);
-	mem_b->meminfo(b_width, b_size, b_bits);
+	AstMemory{mem_a}.meminfo(a_width, a_size, a_bits);
+	AstMemory{mem_b}.meminfo(b_width, b_size, b_bits);
 	return a_width == b_width;
 }
 
