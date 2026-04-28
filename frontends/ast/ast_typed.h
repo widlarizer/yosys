@@ -1348,9 +1348,17 @@ struct AstProcBase {
 
 struct AstInitial final : AstProcBase {
 	using AstProcBase::AstProcBase;
+	static bool matches(const AstNode *n) { return n && n->type == AST_INITIAL; }
+	static std::optional<AstInitial> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstInitial>(AstInitial(n)) : std::nullopt;
+	}
 };
 struct AstAlways final : AstProcBase {
 	using AstProcBase::AstProcBase;
+	static bool matches(const AstNode *n) { return n && n->type == AST_ALWAYS; }
+	static std::optional<AstAlways> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstAlways>(AstAlways(n)) : std::nullopt;
+	}
 	auto sensitivity_begin() { return node->children.begin(); }
 	auto sensitivity_end() {
 		log_assert(!node->children.empty());
