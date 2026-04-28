@@ -1232,26 +1232,27 @@ bool AstNode::detect_latch(const std::string &var)
 // helper function for AstNode::eval_const_function()
 bool AstNode::replace_variables(std::map<std::string, AstNode::varinfo_t> &variables, AstNode *fcall, bool must_succeed)
 {
-	if (type == AST_IDENTIFIER && variables.count(str)) {
+	if (AstIdentifier::matches(this) && variables.count(str)) {
 		int offset = variables.at(str).offset, width = variables.at(str).val.size();
 		if (!children.empty()) {
-			if (children.size() != 1 || children.at(0)->type != AST_RANGE) {
+			if (children.size() != 1 || !AstRange::matches(children[0].get())) {
 				if (!must_succeed)
 					return false;
 				input_error("Memory access in constant function is not supported\n%s: ...called from here.\n",
 						fcall->loc_string().c_str());
 			}
-			if (!children.at(0)->replace_variables(variables, fcall, must_succeed))
+			if (!children[0]->replace_variables(variables, fcall, must_succeed))
 				return false;
 			while (simplify(true, 1, -1, false)) { }
-			if (!children.at(0)->range_valid) {
+			AstRange range(children[0].get());
+			if (!range.raw()->range_valid) {
 				if (!must_succeed)
 					return false;
 				input_error("Non-constant range\n%s: ... called from here.\n",
 						fcall->loc_string().c_str());
 			}
-			offset = min(children.at(0)->range_left, children.at(0)->range_right);
-			width = min(std::abs(children.at(0)->range_left - children.at(0)->range_right) + 1, width);
+			offset = min(range.raw()->range_left, range.raw()->range_right);
+			width = min(std::abs(range.raw()->range_left - range.raw()->range_right) + 1, width);
 		}
 		offset -= variables.at(str).offset;
 		if (variables.at(str).range_swapped)
