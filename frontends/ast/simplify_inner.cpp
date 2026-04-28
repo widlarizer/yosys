@@ -70,20 +70,21 @@ void AstRepeat::unroll(int stage) const
 
 // Splice an already-simplified GENBLOCK's contents into current_ast_mod, with
 // optional name-prefix expansion. Used by AstGenBlock/AstGenIf/AstGenCase.
-static void splice_genblock_into_module(AstNode *blk, bool const_fold, int stage)
+static void splice_genblock_into_module(AstGenBlock blk, bool const_fold, int stage)
 {
-	if (!blk->str.empty())
-		blk->expand_genblock(blk->str + ".");
-	for (size_t i = 0; i < blk->children.size(); i++) {
-		blk->children[i]->simplify(const_fold, stage, -1, false);
-		current_ast_mod->children.push_back(std::move(blk->children[i]));
+	AstNode *raw = blk.raw();
+	if (!raw->str.empty())
+		raw->expand_genblock(raw->str + ".");
+	for (size_t i = 0; i < raw->children.size(); i++) {
+		raw->children[i]->simplify(const_fold, stage, -1, false);
+		current_ast_mod->children.push_back(std::move(raw->children[i]));
 	}
-	blk->children.clear();
+	raw->children.clear();
 }
 
 void AstGenBlock::elaborate(bool const_fold, int stage) const
 {
-	splice_genblock_into_module(node, const_fold, stage);
+	splice_genblock_into_module(*this, const_fold, stage);
 }
 
 void AstGenIf::elaborate(int stage, int width_hint, bool sign_hint, bool const_fold) const
@@ -101,9 +102,9 @@ void AstGenIf::elaborate(int stage, int width_hint, bool sign_hint, bool const_f
 	}
 
 	if (buf) {
-		if (buf->type != AST_GENBLOCK)
+		if (!AstGenBlock::matches(buf.get()))
 			buf = std::make_unique<AstNode>(node->location, AST_GENBLOCK, std::move(buf));
-		splice_genblock_into_module(buf.get(), const_fold, stage);
+		splice_genblock_into_module(AstGenBlock{buf.get()}, const_fold, stage);
 	}
 
 	node->delete_children();
@@ -113,7 +114,7 @@ void AstGenCase::elaborate(int stage, int width_hint, bool sign_hint, bool const
 {
 	auto buf = selector()->clone();
 	while (buf->simplify(true, stage, width_hint, sign_hint)) { }
-	if (buf->type != AST_CONSTANT)
+	if (!AstConstant::matches(buf.get()))
 		node->input_error("Condition for generate case is not constant!\n");
 
 	bool ref_signed = buf->is_signed;
@@ -125,24 +126,24 @@ void AstGenCase::elaborate(int stage, int width_hint, bool sign_hint, bool const
 		AstNode *this_genblock = nullptr;
 		for (auto& child : (*it)->children) {
 			log_assert(this_genblock == nullptr);
-			if (child->type == AST_GENBLOCK)
+			if (AstGenBlock::matches(child.get()))
 				this_genblock = child.get();
 		}
 
 		bool matched_here = false;
 		for (auto& child : (*it)->children) {
-			if (child->type == AST_DEFAULT) {
+			if (AstDefault::matches(child.get())) {
 				if (selected_case == nullptr)
 					selected_case = this_genblock;
 				continue;
 			}
-			if (child->type == AST_GENBLOCK)
+			if (AstGenBlock::matches(child.get()))
 				continue;
 
 			buf = child->clone();
 			buf->set_in_param_flag(true);
 			while (buf->simplify(true, stage, width_hint, sign_hint)) { }
-			if (buf->type != AST_CONSTANT)
+			if (!AstConstant::matches(buf.get()))
 				node->input_error("Expression in generate case is not constant!\n");
 
 			bool is_selected = RTLIL::const_eq(ref_value, buf->bitsAsConst(),
@@ -160,9 +161,9 @@ void AstGenCase::elaborate(int stage, int width_hint, bool sign_hint, bool const
 	}
 
 	if (selected_case != nullptr) {
-		log_assert(selected_case->type == AST_GENBLOCK);
+		log_assert(AstGenBlock::matches(selected_case));
 		auto blk = selected_case->clone();
-		splice_genblock_into_module(blk.get(), const_fold, stage);
+		splice_genblock_into_module(AstGenBlock{blk.get()}, const_fold, stage);
 	}
 
 	node->delete_children();
