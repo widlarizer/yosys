@@ -261,17 +261,15 @@ struct AST_INTERNAL::LookaheadRewriter
 			rewrite_lookaheadids(child.get(), lhs);
 	}
 
-	LookaheadRewriter(AstBlock block)
+	static void run(AstBlock block)
 	{
-		// block.raw()->dumpAst(nullptr, "REWRITE-BEFORE> ");
-		// block.raw()->dumpVlog(nullptr, "REWRITE-BEFORE> ");
-
+		LookaheadRewriter self;
 		auto loc = block.loc();
 
-		collect_lookaheadids(block.raw());
-		rewrite_lookaheadids(block.raw());
+		self.collect_lookaheadids(block.raw());
+		self.rewrite_lookaheadids(block.raw());
 
-		for (auto it : lookaheadids)
+		for (auto it : self.lookaheadids)
 		{
 			auto ref_orig = std::make_unique<AstNode>(loc, AST_IDENTIFIER);
 			ref_orig->str = it.second.first->str;
@@ -289,9 +287,6 @@ struct AST_INTERNAL::LookaheadRewriter
 			block.raw()->children.insert(block.raw()->children.begin(), std::move(init_assign));
 			block.raw()->children.push_back(std::move(final_assign));
 		}
-
-		// block->dumpAst(nullptr, "REWRITE-AFTER> ");
-		// block->dumpVlog(nullptr, "REWRITE-AFTER> ");
 	}
 };
 
@@ -336,7 +331,7 @@ struct AST_INTERNAL::ProcessGenerator
 	ProcessGenerator(std::unique_ptr<AstNode> a, RTLIL::SigSpec initSyncSignalsArg = RTLIL::SigSpec()) : always(std::move(a)), initSyncSignals(initSyncSignalsArg), last_effect_priority(0)
 	{
 		// rewrite lookahead references
-		LookaheadRewriter la_rewriter(AstProcBase(always.get()).body());
+		LookaheadRewriter::run(AstProcBase(always.get()).body());
 
 		// generate process and simple root case
 		proc = current_module->addProcess(stringf("$proc$%s:%d$%d", RTLIL::encode_filename(*always->location.begin.filename), always->location.begin.line, autoidx++));
