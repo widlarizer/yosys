@@ -1838,6 +1838,185 @@ void VerilogDumper::dump_cell(std::string indent, RTLIL::Cell *cell)
 	}
 }
 
+void VerilogDumper::dump_ff_bit(std::string indent, FfData* ff, Cell* whole_cell, std::string reg_name) {
+	// If there are constants in the sensitivity list, replace them with an intermediate wire
+	std::string sig_set_name, sig_clr_name, sig_arst_name, sig_aload_name;
+	if (ff->has_clk) {
+		if (ff->has_sr) {
+			if (ff->sig_set[0].wire == NULL)
+			{
+				sig_set_name = next_auto_id();
+				f << stringf("%s" "wire %s = ", indent, sig_set_name);
+				dump_const(ff->sig_set[0].data);
+				f << stringf(";\n");
+			}
+			if (ff->sig_clr[0].wire == NULL)
+			{
+				sig_clr_name = next_auto_id();
+				f << stringf("%s" "wire %s = ", indent, sig_clr_name);
+				dump_const(ff->sig_clr[0].data);
+				f << stringf(";\n");
+			}
+		} else if (ff->has_arst) {
+			if (ff->sig_arst[0].wire == NULL)
+			{
+				sig_arst_name = next_auto_id();
+				f << stringf("%s" "wire %s = ", indent, sig_arst_name);
+				dump_const(ff->sig_arst[0].data);
+				f << stringf(";\n");
+			}
+		} else if (ff->has_aload) {
+			if (ff->sig_aload[0].wire == NULL)
+			{
+				sig_aload_name = next_auto_id();
+				f << stringf("%s" "wire %s = ", indent, sig_aload_name);
+				dump_const(ff->sig_aload[0].data);
+				f << stringf(";\n");
+			}
+		}
+	}
+
+	dump_attributes(indent, whole_cell->attributes);
+	if (ff->has_clk)
+	{
+		// FFs.
+		f << stringf("%s" "always%s @(%sedge ", indent, systemverilog ? "_ff" : "", ff->pol_clk ? "pos" : "neg");
+		dump_sigspec(ff->sig_clk);
+		if (ff->has_sr) {
+			f << stringf(", %sedge ", ff->pol_set ? "pos" : "neg");
+			if (ff->sig_set[0].wire == NULL)
+				f << stringf("%s", sig_set_name);
+			else
+				dump_sigspec(ff->sig_set[0]);
+
+			f << stringf(", %sedge ", ff->pol_clr ? "pos" : "neg");
+			if (ff->sig_clr[0].wire == NULL)
+				f << stringf("%s", sig_clr_name);
+			else
+				dump_sigspec(ff->sig_clr[0]);
+		} else if (ff->has_arst) {
+			f << stringf(", %sedge ", ff->pol_arst ? "pos" : "neg");
+			if (ff->sig_arst[0].wire == NULL)
+				f << stringf("%s", sig_arst_name);
+			else
+				dump_sigspec(ff->sig_arst);
+		} else if (ff->has_aload) {
+			f << stringf(", %sedge ", ff->pol_aload ? "pos" : "neg");
+			if (ff->sig_aload[0].wire == NULL)
+				f << stringf("%s", sig_aload_name);
+			else
+				dump_sigspec(ff->sig_aload);
+		}
+		f << stringf(")\n");
+
+		f << stringf("%s" "  ", indent);
+		if (ff->has_sr) {
+			f << stringf("if (%s", ff->pol_clr ? "" : "!");
+			if (ff->sig_clr[0].wire == NULL)
+				f << stringf("%s", sig_clr_name);
+			else
+				dump_sigspec(ff->sig_clr[0]);
+			f << stringf(") %s <= 1'b0;\n", reg_name);
+			f << stringf("%s" "  else if (%s", indent, ff->pol_set ? "" : "!");
+			if (ff->sig_set[0].wire == NULL)
+				f << stringf("%s", sig_set_name);
+			else
+				dump_sigspec(ff->sig_set[0]);
+			f << stringf(") %s <= 1'b1;\n", reg_name);
+			f << stringf("%s" "  else ", indent);
+		} else if (ff->has_arst) {
+			f << stringf("if (%s", ff->pol_arst ? "" : "!");
+			if (ff->sig_arst[0].wire == NULL)
+				f << stringf("%s", sig_arst_name);
+			else
+				dump_sigspec(ff->sig_arst);
+			f << stringf(") %s <= ", reg_name);
+			dump_sigspec(ff->val_arst);
+			f << stringf(";\n");
+			f << stringf("%s" "  else ", indent);
+		} else if (ff->has_aload) {
+			f << stringf("if (%s", ff->pol_aload ? "" : "!");
+			if (ff->sig_aload[0].wire == NULL)
+				f << stringf("%s", sig_aload_name);
+			else
+				dump_sigspec(ff->sig_aload);
+			f << stringf(") %s <= ", reg_name);
+			dump_sigspec(ff->sig_ad);
+			f << stringf(";\n");
+			f << stringf("%s" "  else ", indent);
+		}
+
+		if (ff->has_srst && ff->has_ce && ff->ce_over_srst) {
+			f << stringf("if (%s", ff->pol_ce ? "" : "!");
+			dump_sigspec(ff->sig_ce);
+			f << stringf(")\n");
+			f << stringf("%s" "    if (%s", indent, ff->pol_srst ? "" : "!");
+			dump_sigspec(ff->sig_srst);
+			f << stringf(") %s <= ", reg_name);
+			dump_sigspec(ff->val_srst);
+			f << stringf(";\n");
+			f << stringf("%s" "    else ", indent);
+		} else {
+			if (ff->has_srst) {
+				f << stringf("if (%s", ff->pol_srst ? "" : "!");
+				dump_sigspec(ff->sig_srst);
+				f << stringf(") %s <= ", reg_name);
+				dump_sigspec(ff->val_srst);
+				f << stringf(";\n");
+				f << stringf("%s" "  else ", indent);
+			}
+			if (ff->has_ce) {
+				f << stringf("if (%s", ff->pol_ce ? "" : "!");
+				dump_sigspec(ff->sig_ce);
+				f << stringf(") ");
+			}
+		}
+
+		f << stringf("%s <= ", reg_name);
+		dump_sigspec(ff->sig_d);
+		f << stringf(";\n");
+	}
+	else
+	{
+		// Latches.
+		f << stringf("%s" "always%s\n", indent, systemverilog ? "_latch" : " @*");
+
+		f << stringf("%s" "  ", indent);
+		if (ff->has_sr) {
+			f << stringf("if (%s", ff->pol_clr ? "" : "!");
+			dump_sigspec(ff->sig_clr[0]);
+			f << stringf(") %s = 1'b0;\n", reg_name);
+			f << stringf("%s" "  else if (%s", indent, ff->pol_set ? "" : "!");
+			dump_sigspec(ff->sig_set[0]);
+			f << stringf(") %s = 1'b1;\n", reg_name);
+			if (ff->has_aload)
+				f << stringf("%s" "  else ", indent);
+		} else if (ff->has_arst) {
+			f << stringf("if (%s", ff->pol_arst ? "" : "!");
+			dump_sigspec(ff->sig_arst);
+			f << stringf(") %s = ", reg_name);
+			dump_sigspec(ff->val_arst);
+			f << stringf(";\n");
+			if (ff->has_aload)
+				f << stringf("%s" "  else ", indent);
+		}
+		if (ff->has_aload) {
+			f << stringf("if (%s", ff->pol_aload ? "" : "!");
+			dump_sigspec(ff->sig_aload);
+			f << stringf(") %s = ", reg_name);
+			dump_sigspec(ff->sig_ad);
+			f << stringf(";\n");
+		}
+	}
+}
+void VerilogDumper::dump_ff_chunk(std::string indent, FfData* ff, bool chunky, const std::string& reg_name, int i) {
+	FfData slice = ff->slice({i});
+	std::string reg_bit_name = reg_name;
+	if (chunky) {
+		reg_bit_name = stringf("%s[%d]", reg_name, i);
+	}
+	dump_ff_bit(indent, &slice, ff->cell, reg_name);
+}
 bool VerilogDumper::dump_ff(std::string indent, RTLIL::Cell* cell) {
 	FfData ff(nullptr, cell);
 	// $ff / $_FF_ cell: not supported.
@@ -1861,195 +2040,7 @@ bool VerilogDumper::dump_ff(std::string indent, RTLIL::Cell* cell) {
 	bool chunky = ff.has_sr && ff.width != 1;
 
 	for (int i = 0; i < chunks; i++)
-	{
-		SigSpec sig_d, sig_ad;
-		Const val_arst, val_srst;
-		std::string reg_bit_name, sig_set_name, sig_clr_name, sig_arst_name, sig_aload_name;
-		if (chunky) {
-			reg_bit_name = stringf("%s[%d]", reg_name, i);
-			if (ff.has_gclk || ff.has_clk)
-				sig_d = ff.sig_d[i];
-			if (ff.has_aload)
-				sig_ad = ff.sig_ad[i];
-		} else {
-			reg_bit_name = reg_name;
-			sig_d = ff.sig_d;
-			sig_ad = ff.sig_ad;
-		}
-		if (ff.has_arst)
-			val_arst = chunky ? ff.val_arst[i] : ff.val_arst;
-		if (ff.has_srst)
-			val_srst = chunky ? ff.val_srst[i] : ff.val_srst;
-
-		// If there are constants in the sensitivity list, replace them with an intermediate wire
-		if (ff.has_clk) {
-			if (ff.has_sr) {
-				if (ff.sig_set[i].wire == NULL)
-				{
-					sig_set_name = next_auto_id();
-					f << stringf("%s" "wire %s = ", indent, sig_set_name);
-					dump_const(ff.sig_set[i].data);
-					f << stringf(";\n");
-				}
-				if (ff.sig_clr[i].wire == NULL)
-				{
-					sig_clr_name = next_auto_id();
-					f << stringf("%s" "wire %s = ", indent, sig_clr_name);
-					dump_const(ff.sig_clr[i].data);
-					f << stringf(";\n");
-				}
-			} else if (ff.has_arst) {
-				if (ff.sig_arst[0].wire == NULL)
-				{
-					sig_arst_name = next_auto_id();
-					f << stringf("%s" "wire %s = ", indent, sig_arst_name);
-					dump_const(ff.sig_arst[0].data);
-					f << stringf(";\n");
-				}
-			} else if (ff.has_aload) {
-				if (ff.sig_aload[0].wire == NULL)
-				{
-					sig_aload_name = next_auto_id();
-					f << stringf("%s" "wire %s = ", indent, sig_aload_name);
-					dump_const(ff.sig_aload[0].data);
-					f << stringf(";\n");
-				}
-			}
-		}
-
-		dump_attributes(indent, cell->attributes);
-		if (ff.has_clk)
-		{
-			// FFs.
-			f << stringf("%s" "always%s @(%sedge ", indent, systemverilog ? "_ff" : "", ff.pol_clk ? "pos" : "neg");
-			dump_sigspec(ff.sig_clk);
-			if (ff.has_sr) {
-				f << stringf(", %sedge ", ff.pol_set ? "pos" : "neg");
-				if (ff.sig_set[i].wire == NULL)
-					f << stringf("%s", sig_set_name);
-				else
-					dump_sigspec(ff.sig_set[i]);
-
-				f << stringf(", %sedge ", ff.pol_clr ? "pos" : "neg");
-				if (ff.sig_clr[i].wire == NULL)
-					f << stringf("%s", sig_clr_name);
-				else
-					dump_sigspec(ff.sig_clr[i]);
-			} else if (ff.has_arst) {
-				f << stringf(", %sedge ", ff.pol_arst ? "pos" : "neg");
-				if (ff.sig_arst[0].wire == NULL)
-					f << stringf("%s", sig_arst_name);
-				else
-					dump_sigspec(ff.sig_arst);
-			} else if (ff.has_aload) {
-				f << stringf(", %sedge ", ff.pol_aload ? "pos" : "neg");
-				if (ff.sig_aload[0].wire == NULL)
-					f << stringf("%s", sig_aload_name);
-				else
-					dump_sigspec(ff.sig_aload);
-			}
-			f << stringf(")\n");
-
-			f << stringf("%s" "  ", indent);
-			if (ff.has_sr) {
-				f << stringf("if (%s", ff.pol_clr ? "" : "!");
-				if (ff.sig_clr[i].wire == NULL)
-					f << stringf("%s", sig_clr_name);
-				else
-					dump_sigspec(ff.sig_clr[i]);
-				f << stringf(") %s <= 1'b0;\n", reg_bit_name);
-				f << stringf("%s" "  else if (%s", indent, ff.pol_set ? "" : "!");
-				if (ff.sig_set[i].wire == NULL)
-					f << stringf("%s", sig_set_name);
-				else
-					dump_sigspec(ff.sig_set[i]);
-				f << stringf(") %s <= 1'b1;\n", reg_bit_name);
-				f << stringf("%s" "  else ", indent);
-			} else if (ff.has_arst) {
-				f << stringf("if (%s", ff.pol_arst ? "" : "!");
-				if (ff.sig_arst[0].wire == NULL)
-					f << stringf("%s", sig_arst_name);
-				else
-					dump_sigspec(ff.sig_arst);
-				f << stringf(") %s <= ", reg_bit_name);
-				dump_sigspec(val_arst);
-				f << stringf(";\n");
-				f << stringf("%s" "  else ", indent);
-			} else if (ff.has_aload) {
-				f << stringf("if (%s", ff.pol_aload ? "" : "!");
-				if (ff.sig_aload[0].wire == NULL)
-					f << stringf("%s", sig_aload_name);
-				else
-					dump_sigspec(ff.sig_aload);
-				f << stringf(") %s <= ", reg_bit_name);
-				dump_sigspec(sig_ad);
-				f << stringf(";\n");
-				f << stringf("%s" "  else ", indent);
-			}
-
-			if (ff.has_srst && ff.has_ce && ff.ce_over_srst) {
-				f << stringf("if (%s", ff.pol_ce ? "" : "!");
-				dump_sigspec(ff.sig_ce);
-				f << stringf(")\n");
-				f << stringf("%s" "    if (%s", indent, ff.pol_srst ? "" : "!");
-				dump_sigspec(ff.sig_srst);
-				f << stringf(") %s <= ", reg_bit_name);
-				dump_sigspec(val_srst);
-				f << stringf(";\n");
-				f << stringf("%s" "    else ", indent);
-			} else {
-				if (ff.has_srst) {
-					f << stringf("if (%s", ff.pol_srst ? "" : "!");
-					dump_sigspec(ff.sig_srst);
-					f << stringf(") %s <= ", reg_bit_name);
-					dump_sigspec(val_srst);
-					f << stringf(";\n");
-					f << stringf("%s" "  else ", indent);
-				}
-				if (ff.has_ce) {
-					f << stringf("if (%s", ff.pol_ce ? "" : "!");
-					dump_sigspec(ff.sig_ce);
-					f << stringf(") ");
-				}
-			}
-
-			f << stringf("%s <= ", reg_bit_name);
-			dump_sigspec(sig_d);
-			f << stringf(";\n");
-		}
-		else
-		{
-			// Latches.
-			f << stringf("%s" "always%s\n", indent, systemverilog ? "_latch" : " @*");
-
-			f << stringf("%s" "  ", indent);
-			if (ff.has_sr) {
-				f << stringf("if (%s", ff.pol_clr ? "" : "!");
-				dump_sigspec(ff.sig_clr[i]);
-				f << stringf(") %s = 1'b0;\n", reg_bit_name);
-				f << stringf("%s" "  else if (%s", indent, ff.pol_set ? "" : "!");
-				dump_sigspec(ff.sig_set[i]);
-				f << stringf(") %s = 1'b1;\n", reg_bit_name);
-				if (ff.has_aload)
-					f << stringf("%s" "  else ", indent);
-			} else if (ff.has_arst) {
-				f << stringf("if (%s", ff.pol_arst ? "" : "!");
-				dump_sigspec(ff.sig_arst);
-				f << stringf(") %s = ", reg_bit_name);
-				dump_sigspec(val_arst);
-				f << stringf(";\n");
-				if (ff.has_aload)
-					f << stringf("%s" "  else ", indent);
-			}
-			if (ff.has_aload) {
-				f << stringf("if (%s", ff.pol_aload ? "" : "!");
-				dump_sigspec(ff.sig_aload);
-				f << stringf(") %s = ", reg_bit_name);
-				dump_sigspec(sig_ad);
-				f << stringf(";\n");
-			}
-		}
-	}
+		dump_ff_chunk(indent, &ff, chunky, reg_name, i);
 
 	if (!out_is_reg_wire) {
 		f << stringf("%s" "assign ", indent);

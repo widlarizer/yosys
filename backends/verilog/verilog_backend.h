@@ -31,6 +31,7 @@
 #include "kernel/yosys.h"
 #include "kernel/sigtools.h"
 #include "kernel/mem.h"
+#include "kernel/ff.h"
 
 YOSYS_NAMESPACE_BEGIN
 namespace VERILOG_BACKEND {
@@ -115,6 +116,9 @@ namespace VERILOG_BACKEND {
 		void dump_proc_switch(std::string indent, RTLIL::SwitchRule *sw);
 		void dump_process(std::string indent, RTLIL::Process *proc, bool find_regs = false);
 		void dump_module(std::string indent, RTLIL::Module *module);
+	private:
+		void dump_ff_chunk(std::string indent, FfData* ff, bool chunky, const std::string& reg_name, int i);
+		void dump_ff_bit(std::string indent, FfData* ff, Cell* whole_cell, std::string reg_name);
 	};
 
 }; /* namespace VERILOG_BACKEND */
