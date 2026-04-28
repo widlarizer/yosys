@@ -50,6 +50,19 @@ using namespace AST_INTERNAL;
 // order as their original branches in simplify() below for ease of cross-ref.
 // ---------------------------------------------------------------------------
 
+double AstFcall::eval_arg_as_real(size_t i, int stage, int width_hint, bool sign_hint) const
+{
+	AstNode *a = arg(i);
+	while (a->simplify(true, stage, width_hint, sign_hint)) { }
+	if (!a->isConst())
+		node->input_error("Failed to evaluate system function `%s' with non-constant argument.\n",
+				RTLIL::unescape_id(node->str));
+	int child_width_hint = width_hint;
+	bool child_sign_hint = sign_hint;
+	a->detectSignWidth(child_width_hint, child_sign_hint);
+	return a->asReal(child_sign_hint);
+}
+
 void AstRepeat::unroll(int stage) const
 {
 	auto cnt = count().take();
@@ -2966,29 +2979,11 @@ skip_dynamic_range_lvalue_expansion:;
 								RTLIL::unescape_id(str), int(fcall.num_args()));
 				}
 
-				if (fcall.num_args() >= 1) {
-					AstNode *a0 = fcall.arg(0);
-					while (a0->simplify(true, stage, width_hint, sign_hint)) { }
-					if (!a0->isConst())
-						input_error("Failed to evaluate system function `%s' with non-constant argument.\n",
-								RTLIL::unescape_id(str));
-					int child_width_hint = width_hint;
-					bool child_sign_hint = sign_hint;
-					a0->detectSignWidth(child_width_hint, child_sign_hint);
-					x = a0->asReal(child_sign_hint);
-				}
+				if (fcall.num_args() >= 1)
+					x = fcall.eval_arg_as_real(0, stage, width_hint, sign_hint);
 
-				if (fcall.num_args() >= 2) {
-					AstNode *a1 = fcall.arg(1);
-					while (a1->simplify(true, stage, width_hint, sign_hint)) { }
-					if (!a1->isConst())
-						input_error("Failed to evaluate system function `%s' with non-constant argument.\n",
-								RTLIL::unescape_id(str));
-					int child_width_hint = width_hint;
-					bool child_sign_hint = sign_hint;
-					a1->detectSignWidth(child_width_hint, child_sign_hint);
-					y = a1->asReal(child_sign_hint);
-				}
+				if (fcall.num_args() >= 2)
+					y = fcall.eval_arg_as_real(1, stage, width_hint, sign_hint);
 
 				if (str == "\\$rtoi") {
 					newNode = AstNode::mkconst_int(location, x, true);

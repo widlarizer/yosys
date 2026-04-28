@@ -747,7 +747,15 @@ struct AstConstant : AstView<AST_CONSTANT> {
 };
 
 // Function and task calls. Variadic children are argument expressions.
-using AstFcall = VariadicView<AST_FCALL, Expression>;
+struct AstFcall : VariadicView<AST_FCALL, Expression> {
+	using VariadicView::VariadicView;
+	static std::optional<AstFcall> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstFcall>(AstFcall(n)) : std::nullopt;
+	}
+	// Simplify the i-th argument and return its real-valued evaluation.
+	// Errors out (via input_error) if the argument does not fold to a constant.
+	double eval_arg_as_real(size_t i, int stage, int width_hint, bool sign_hint) const;
+};
 using AstTcall = VariadicView<AST_TCALL, Expression>;
 
 // Defparam (defparam lvalue = value)
