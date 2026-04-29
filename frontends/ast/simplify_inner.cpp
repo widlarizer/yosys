@@ -3190,8 +3190,7 @@ skip_dynamic_range_lvalue_expansion:;
 				bool unconditional_init = false;
 				if (AstInitial::matches(current_always)) {
 					pool<AstNode*> queue;
-					log_assert(current_always->children[0]->type == AST_BLOCK);
-					queue.insert(current_always->children[0].get());
+					queue.insert(AstProcBase(current_always).body().node);
 					while (!unconditional_init && !queue.empty()) {
 						pool<AstNode*> next_queue;
 						for (auto& n : queue)
