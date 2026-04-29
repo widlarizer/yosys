@@ -261,14 +261,8 @@ namespace AST
 		// it also sets the id2ast pointers so that identifier lookups are fast in genRTLIL()
 		bool simplify(bool const_fold = true, int stage = 1, int width_hint = -1, bool sign_hint = false);
 		void replace_result_wire_name_in_function(const std::string &from, const std::string &to);
-		std::unique_ptr<AstNode> readmem(bool is_readmemh, std::string mem_filename, AstNode *memory, int start_addr, int finish_addr, bool unconditional_init);
 		void expand_genblock(const std::string &prefix);
 		void label_genblks(std::set<std::string>& existing, int &counter);
-		void mem2reg_as_needed_pass1(dict<AstNode*, pool<std::string>> &mem2reg_places,
-				dict<AstNode*, uint32_t> &mem2reg_flags, dict<AstNode*, uint32_t> &proc_flags, uint32_t &status_flags);
-		bool mem2reg_as_needed_pass2(pool<AstNode*> &mem2reg_set, AstNode *mod, AstNode *block, AstNode* async_block);
-		bool mem2reg_check(pool<AstNode*> &mem2reg_set);
-		void mem2reg_remove(pool<AstNode*> &mem2reg_set);
 		bool detect_latch(const std::string &var);
 
 		// additional functionality for evaluating constant functions

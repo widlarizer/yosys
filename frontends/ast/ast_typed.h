@@ -688,6 +688,28 @@ struct AstBind : AstView<AST_BIND> {
 	RTLIL::SigSpec genRTLIL(int width_hint, bool sign_hint);
 };
 
+// Any AST_MODULE / AST_INTERFACE.
+struct AstAnyModuleLike {
+	AstNode *node;
+	static bool matches(const AstNode *n) {
+		return n && ModuleLike::accepts(n);
+	}
+	explicit AstAnyModuleLike(AstNode *n) : node(n) { log_assert(matches(n)); }
+	AstNode *raw() const { return node; }
+	static std::optional<AstAnyModuleLike> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstAnyModuleLike>(AstAnyModuleLike(n)) : std::nullopt;
+	}
+	// First pass of mem2reg: gather candidates and their flags by walking
+	// the module body.
+	void mem2reg_as_needed_pass1(dict<AstNode*, pool<std::string>> &mem2reg_places,
+			dict<AstNode*, uint32_t> &mem2reg_flags, dict<AstNode*, uint32_t> &proc_flags, uint32_t &status_flags) const;
+	// Second pass: rewrite memory accesses into register accesses for memories
+	// in mem2reg_set. Returns true if any rewrite happened.
+	bool mem2reg_as_needed_pass2(pool<AstNode*> &mem2reg_set, AstNode *block, AstNode *async_block) const;
+	// Drop the now-unused memory declarations from the module.
+	void mem2reg_remove(pool<AstNode*> &mem2reg_set) const;
+};
+
 // Tag-agnostic view over AST_ASSERT / AST_ASSUME / AST_LIVE / AST_FAIR /
 // AST_COVER. All five lower to a single $check cell parameterized by FLAVOR.
 struct AstAnyFormalAssertion {
@@ -859,6 +881,10 @@ struct AstTcall : VariadicView<AST_TCALL, Expression> {
 	// folded node. Errors via input_error if folding fails. The ordinal label
 	// (e.g. "1st", "3rd") is interpolated into the diagnostic.
 	std::unique_ptr<AstNode> eval_arg_as_const_clone(size_t i, const char *ord, int stage, int width_hint, bool sign_hint) const;
+	// Replace a $readmemh / $readmemb tcall with a block of memory assignments
+	// (or, if unconditional_init, a sequence of AST_MEMINIT nodes appended to
+	// current_ast_mod). Returns the resulting AST_BLOCK.
+	std::unique_ptr<AstNode> readmem(bool is_readmemh, std::string mem_filename, AstNode *memory, int start_addr, int finish_addr, bool unconditional_init) const;
 };
 
 // Defparam (defparam lvalue = value)
@@ -1239,6 +1265,10 @@ struct AstIdentifier : AstView<AST_IDENTIFIER> {
 		return matches(n) ? std::optional<AstIdentifier>(AstIdentifier(n)) : std::nullopt;
 	}
 	RTLIL::SigSpec genRTLIL(int width_hint, bool sign_hint);
+	// Returns true iff `n` is an AST_IDENTIFIER referring to a memory in
+	// `mem2reg_set` (with a single-child AST_RANGE address). Errors via
+	// input_error if the array access is malformed.
+	static bool mem2reg_check(AstNode *n, pool<AstNode*> &mem2reg_set);
 };
 
 // The single operand expression of a sensitivity event. AST_POSEDGE/AST_NEGEDGE

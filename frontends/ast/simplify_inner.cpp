@@ -380,10 +380,11 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 
 		if (!flag_nomem2reg && !get_bool_attribute(ID::nomem2reg))
 		{
+			AstAnyModuleLike module_view(this);
 			dict<AstNode*, pool<std::string>> mem2reg_places;
 			dict<AstNode*, uint32_t> mem2reg_candidates, dummy_proc_flags;
 			uint32_t flags = flag_mem2reg ? AstNode::MEM2REG_FL_ALL : 0;
-			mem2reg_as_needed_pass1(mem2reg_places, mem2reg_candidates, dummy_proc_flags, flags);
+			module_view.mem2reg_as_needed_pass1(mem2reg_places, mem2reg_candidates, dummy_proc_flags, flags);
 
 			pool<AstNode*> mem2reg_set;
 			for (auto &it : mem2reg_candidates)
@@ -467,9 +468,9 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 			}
 
 			AstNode* async_block = nullptr;
-			while (mem2reg_as_needed_pass2(mem2reg_set, this, nullptr, async_block)) { }
+			while (module_view.mem2reg_as_needed_pass2(mem2reg_set, nullptr, async_block)) { }
 
-			mem2reg_remove(mem2reg_set);
+			module_view.mem2reg_remove(mem2reg_set);
 		}
 
 		while (simplify(const_fold, 2, width_hint, sign_hint)) { }
@@ -3192,7 +3193,7 @@ skip_dynamic_range_lvalue_expansion:;
 					}
 				}
 
-				newNode = readmem(str == "\\$readmemh", node_filename->bitsAsConst().decode_string(), node_memory->id2ast, start_addr, finish_addr, unconditional_init);
+				newNode = tcall.readmem(str == "\\$readmemh", node_filename->bitsAsConst().decode_string(), node_memory->id2ast, start_addr, finish_addr, unconditional_init);
 				goto apply_newNode;
 			}
 
