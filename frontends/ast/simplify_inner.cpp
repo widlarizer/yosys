@@ -1829,8 +1829,8 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 		}
 		else
 		{
-			auto proc = std::make_unique<AstNode>(location, AST_ALWAYS, std::make_unique<AstNode>(location, AST_BLOCK));
-			proc->children[0]->children.push_back(std::move(assign));
+			auto proc = std::make_unique<AstNode>(location, AST_ALWAYS,
+					std::make_unique<AstNode>(location, AST_BLOCK, std::move(assign)));
 			current_ast_mod->children.push_back(std::move(proc));
 		}
 
