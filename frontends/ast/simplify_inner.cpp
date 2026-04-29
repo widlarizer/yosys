@@ -803,23 +803,19 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 				std::string tmp_str = sstr.str();
 				add_wire_for_ref(location, ref, tmp_str);
 
-				auto asgn_owned = std::make_unique<AstNode>(child->location, AST_ASSIGN);
-				auto* asgn = asgn_owned.get();
-				current_ast_mod->children.push_back(std::move(asgn_owned));
-
 				auto ident = std::make_unique<AstNode>(child->location, AST_IDENTIFIER);
 				ident->str = tmp_str;
 				child->children[0] = ident->clone();
 
+				std::unique_ptr<AstNode> asgn;
 				if (ref->port_input && !ref->port_output) {
-					asgn->children.push_back(std::move(ident));
-					asgn->children.push_back(std::move(arg));
+					asgn = AstAssign::build(child->location, std::move(ident), std::move(arg));
 				} else {
 					log_assert(!ref->port_input && ref->port_output);
-					asgn->children.push_back(std::move(arg));
-					asgn->children.push_back(std::move(ident));
+					asgn = AstAssign::build(child->location, std::move(arg), std::move(ident));
 				}
 				asgn->fixup_hierarchy_flags();
+				current_ast_mod->children.push_back(std::move(asgn));
 			}
 
 
