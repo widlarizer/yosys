@@ -235,18 +235,20 @@ struct AST_INTERNAL::LookaheadRewriter
 
 	void rewrite_lookaheadids(AstNode *node, bool lhs = false)
 	{
-		if (AstAssignLe::matches(node))
+		if (auto le = AstAssignLe::cast(node))
 		{
-			if (has_lookaheadids(node->children[0].get()))
+			AstNode *lhs_node = le->lhs().get();
+			AstNode *rhs_node = le->rhs().get();
+			if (has_lookaheadids(lhs_node))
 			{
-				if (has_nonlookaheadids(node->children[0].get()))
+				if (has_nonlookaheadids(lhs_node))
 					log_error("incompatible mix of lookahead and non-lookahead IDs in LHS expression.\n");
 
-				rewrite_lookaheadids(node->children[0].get(), true);
+				rewrite_lookaheadids(lhs_node, true);
 				node->type = AST_ASSIGN_EQ;
 			}
 
-			rewrite_lookaheadids(node->children[1].get(), lhs);
+			rewrite_lookaheadids(rhs_node, lhs);
 			return;
 		}
 
