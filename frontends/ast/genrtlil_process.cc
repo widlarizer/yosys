@@ -359,28 +359,20 @@ struct AST_INTERNAL::ProcessGenerator
 	// recursively traverse the AST and collect all assigned signals
 	void collect_lvalues(RTLIL::SigSpec &reg, AstNode *ast, bool type_eq, bool type_le, bool run_sort_and_unify = true)
 	{
-		switch (ast->type)
-		{
-		case AST_CASE:
-			for (auto& child : ast->children)
-				if (child != ast->children[0]) {
-					log_assert(AstAnyCond::matches(child.get()));
-					collect_lvalues(reg, child.get(), type_eq, type_le, false);
-				}
-			break;
-
-		case AST_COND:
-		case AST_CONDX:
-		case AST_CONDZ:
-		case AST_ALWAYS:
-		case AST_INITIAL:
-			for (auto& child : ast->children)
-				if (AstBlock::matches(child.get()))
-					collect_lvalues(reg, child.get(), type_eq, type_le, false);
-			break;
-
-		case AST_BLOCK:
-			for (auto& child : ast->children) {
+		if (auto cs = AstCase::cast(ast)) {
+			for (auto it = cs->conditions_begin(); it != cs->conditions_end(); ++it) {
+				log_assert(AstAnyCond::matches(it->get()));
+				collect_lvalues(reg, it->get(), type_eq, type_le, false);
+			}
+		}
+		else if (auto cnd = AstAnyCond::cast(ast)) {
+			collect_lvalues(reg, cnd->body(), type_eq, type_le, false);
+		}
+		else if (auto pb = AstProcBase::cast(ast)) {
+			collect_lvalues(reg, pb->body().raw(), type_eq, type_le, false);
+		}
+		else if (auto blk = AstBlock::cast(ast)) {
+			for (auto& child : blk->raw()->children) {
 				bool collect = (AstAssignEq::matches(child.get()) && type_eq) ||
 				               (AstAssignLe::matches(child.get()) && type_le);
 				if (collect)
@@ -388,9 +380,8 @@ struct AST_INTERNAL::ProcessGenerator
 				if (ChildConstraint<AST_CASE, AST_BLOCK>::accepts(child.get()))
 					collect_lvalues(reg, child.get(), type_eq, type_le, false);
 			}
-			break;
-
-		default:
+		}
+		else {
 			log_abort();
 		}
 
@@ -471,186 +462,177 @@ struct AST_INTERNAL::ProcessGenerator
 	// recursively process the AST and fill the RTLIL::Process
 	void processAst(AstNode *ast)
 	{
-		switch (ast->type)
-		{
-		case AST_BLOCK:
-			for (auto& child : ast->children)
+		if (auto blk = AstBlock::cast(ast)) {
+			for (auto& child : blk->raw()->children)
 				processAst(child.get());
-			break;
+			return;
+		}
 
-		case AST_ASSIGN_EQ:
-		case AST_ASSIGN_LE:
-			{
-				AstAnyAssign assign(ast);
-				RTLIL::SigSpec unmapped_lvalue = assign.lhs()->genRTLIL(), lvalue = unmapped_lvalue;
-				RTLIL::SigSpec rvalue = assign.rhs()->genWidthRTLIL(lvalue.size(), true, &subst_rvalue_map.stdmap());
+		if (BlockingAssignLike::accepts(ast)) {
+			AstAnyAssign assign(ast);
+			RTLIL::SigSpec unmapped_lvalue = assign.lhs()->genRTLIL(), lvalue = unmapped_lvalue;
+			RTLIL::SigSpec rvalue = assign.rhs()->genWidthRTLIL(lvalue.size(), true, &subst_rvalue_map.stdmap());
 
-				pool<SigBit> lvalue_sigbits;
-				for (int i = 0; i < GetSize(lvalue); i++) {
-					if (lvalue_sigbits.count(lvalue[i]) > 0) {
-						unmapped_lvalue.remove(i);
-						lvalue.remove(i);
-						rvalue.remove(i--);
-					} else
-						lvalue_sigbits.insert(lvalue[i]);
-				}
-
-				lvalue.replace(subst_lvalue_map.stdmap());
-
-				if (AstAssignEq::matches(ast)) {
-					for (int i = 0; i < GetSize(unmapped_lvalue); i++)
-						subst_rvalue_map.set(unmapped_lvalue[i], rvalue[i]);
-				}
-
-				// Check if any bits in lvalue have been assigned before in current_case
-				bool has_overlap = false;
-				for (auto &bit : lvalue) {
-					if (bit.wire != NULL && current_case_assigned_bits.count(bit)) {
-						has_overlap = true;
-						break;
-					}
-				}
-
-				if (has_overlap)
-					removeSignalFromCaseTree(lvalue, current_case);
-
-				// Track newly assigned bits
-				for (auto &bit : lvalue)
-					if (bit.wire != NULL)
-						current_case_assigned_bits.insert(bit);
-
-				remove_unwanted_lvalue_bits(lvalue, rvalue);
-				current_case->actions.push_back(RTLIL::SigSig(lvalue, rvalue));
+			pool<SigBit> lvalue_sigbits;
+			for (int i = 0; i < GetSize(lvalue); i++) {
+				if (lvalue_sigbits.count(lvalue[i]) > 0) {
+					unmapped_lvalue.remove(i);
+					lvalue.remove(i);
+					rvalue.remove(i--);
+				} else
+					lvalue_sigbits.insert(lvalue[i]);
 			}
-			break;
 
-		case AST_CASE:
+			lvalue.replace(subst_lvalue_map.stdmap());
+
+			if (AstAssignEq::matches(ast)) {
+				for (int i = 0; i < GetSize(unmapped_lvalue); i++)
+					subst_rvalue_map.set(unmapped_lvalue[i], rvalue[i]);
+			}
+
+			// Check if any bits in lvalue have been assigned before in current_case
+			bool has_overlap = false;
+			for (auto &bit : lvalue) {
+				if (bit.wire != NULL && current_case_assigned_bits.count(bit)) {
+					has_overlap = true;
+					break;
+				}
+			}
+
+			if (has_overlap)
+				removeSignalFromCaseTree(lvalue, current_case);
+
+			// Track newly assigned bits
+			for (auto &bit : lvalue)
+				if (bit.wire != NULL)
+					current_case_assigned_bits.insert(bit);
+
+			remove_unwanted_lvalue_bits(lvalue, rvalue);
+			current_case->actions.push_back(RTLIL::SigSig(lvalue, rvalue));
+			return;
+		}
+
+		if (auto cs = AstCase::cast(ast)) {
+			int width_hint;
+			bool sign_hint;
+			ast->detectSignWidth(width_hint, sign_hint);
+
+			RTLIL::SwitchRule *sw = new RTLIL::SwitchRule;
+			set_src_attr(sw, ast);
+			sw->signal = cs->selector()->genWidthRTLIL(width_hint, sign_hint, &subst_rvalue_map.stdmap());
+			current_case->switches.push_back(sw);
+
+			copy_const_attributes(sw, ast);
+
+			RTLIL::SigSpec this_case_eq_lvalue;
+			collect_lvalues(this_case_eq_lvalue, ast, true, false);
+
+			RTLIL::SigSpec this_case_eq_ltemp = new_temp_signal(this_case_eq_lvalue);
+
+			RTLIL::SigSpec this_case_eq_rvalue = this_case_eq_lvalue;
+			this_case_eq_rvalue.replace(subst_rvalue_map.stdmap());
+
+			RTLIL::CaseRule *default_case = nullptr;
+			RTLIL::CaseRule *last_generated_case = nullptr;
+			for (auto it = cs->conditions_begin(); it != cs->conditions_end(); ++it)
 			{
-				int width_hint;
-				bool sign_hint;
-				ast->detectSignWidth(width_hint, sign_hint);
+				auto& child = *it;
+				log_assert(AstAnyCond::matches(child.get()));
 
-				RTLIL::SwitchRule *sw = new RTLIL::SwitchRule;
-				set_src_attr(sw, ast);
-				sw->signal = ast->children[0]->genWidthRTLIL(width_hint, sign_hint, &subst_rvalue_map.stdmap());
-				current_case->switches.push_back(sw);
-
-				copy_const_attributes(sw, ast);
-
-				RTLIL::SigSpec this_case_eq_lvalue;
-				collect_lvalues(this_case_eq_lvalue, ast, true, false);
-
-				RTLIL::SigSpec this_case_eq_ltemp = new_temp_signal(this_case_eq_lvalue);
-
-				RTLIL::SigSpec this_case_eq_rvalue = this_case_eq_lvalue;
-				this_case_eq_rvalue.replace(subst_rvalue_map.stdmap());
-
-				RTLIL::CaseRule *default_case = nullptr;
-				RTLIL::CaseRule *last_generated_case = nullptr;
-				for (auto& child : ast->children)
-				{
-					if (child == ast->children[0])
-						continue;
-					log_assert(AstAnyCond::matches(child.get()));
-
-					subst_lvalue_map.save();
-					subst_rvalue_map.save();
-
-					for (int i = 0; i < GetSize(this_case_eq_lvalue); i++)
-						subst_lvalue_map.set(this_case_eq_lvalue[i], this_case_eq_ltemp[i]);
-
-					RTLIL::CaseRule *backup_case = current_case;
-					current_case = new RTLIL::CaseRule;
-					pool<RTLIL::SigBit> backup_assigned_bits = std::move(current_case_assigned_bits);
-					current_case_assigned_bits.clear();
-					set_src_attr(current_case, child.get());
-					last_generated_case = current_case;
-					addChunkActions(current_case->actions, this_case_eq_ltemp, this_case_eq_rvalue);
-					// Track temp assignments
-					for (auto &bit : this_case_eq_ltemp)
-						if (bit.wire != NULL)
-							current_case_assigned_bits.insert(bit);
-					for (auto& node : child->children) {
-						if (AstDefault::matches(node.get()))
-							default_case = current_case;
-						else if (AstBlock::matches(node.get()))
-							processAst(node.get());
-						else
-							current_case->compare.push_back(node->genWidthRTLIL(width_hint, sign_hint, &subst_rvalue_map.stdmap()));
-					}
-					if (default_case != current_case)
-						sw->cases.push_back(current_case);
-					else
-						log_assert(current_case->compare.size() == 0);
-					current_case = backup_case;
-					current_case_assigned_bits = std::move(backup_assigned_bits);
-
-					subst_lvalue_map.restore();
-					subst_rvalue_map.restore();
-				}
-
-				if (last_generated_case != nullptr && ast->get_bool_attribute(ID::full_case) && default_case == nullptr) {
-			#if 0
-					// this is a valid transformation, but as optimization it is premature.
-					// better: add a default case that assigns 'x' to everything, and let later
-					// optimizations take care of the rest
-					last_generated_case->compare.clear();
-			#else
-					default_case = new RTLIL::CaseRule;
-					addChunkActions(default_case->actions, this_case_eq_ltemp, SigSpec(State::Sx, GetSize(this_case_eq_rvalue)));
-					sw->cases.push_back(default_case);
-			#endif
-				} else {
-					if (default_case == nullptr) {
-						default_case = new RTLIL::CaseRule;
-						addChunkActions(default_case->actions, this_case_eq_ltemp, this_case_eq_rvalue);
-					}
-					sw->cases.push_back(default_case);
-				}
+				subst_lvalue_map.save();
+				subst_rvalue_map.save();
 
 				for (int i = 0; i < GetSize(this_case_eq_lvalue); i++)
-					subst_rvalue_map.set(this_case_eq_lvalue[i], this_case_eq_ltemp[i]);
+					subst_lvalue_map.set(this_case_eq_lvalue[i], this_case_eq_ltemp[i]);
 
-				this_case_eq_lvalue.replace(subst_lvalue_map.stdmap());
-
-				// Check if any bits in lvalue have been assigned before in current_case
-				bool has_overlap = false;
-				for (auto &bit : this_case_eq_lvalue) {
-					if (bit.wire != NULL && current_case_assigned_bits.count(bit)) {
-						has_overlap = true;
-						break;
-					}
-				}
-
-				if (has_overlap)
-					removeSignalFromCaseTree(this_case_eq_lvalue, current_case);
-
-				addChunkActions(current_case->actions, this_case_eq_lvalue, this_case_eq_ltemp);
-				// Track newly assigned bits
-				for (auto &bit : this_case_eq_lvalue)
+				RTLIL::CaseRule *backup_case = current_case;
+				current_case = new RTLIL::CaseRule;
+				pool<RTLIL::SigBit> backup_assigned_bits = std::move(current_case_assigned_bits);
+				current_case_assigned_bits.clear();
+				set_src_attr(current_case, child.get());
+				last_generated_case = current_case;
+				addChunkActions(current_case->actions, this_case_eq_ltemp, this_case_eq_rvalue);
+				// Track temp assignments
+				for (auto &bit : this_case_eq_ltemp)
 					if (bit.wire != NULL)
 						current_case_assigned_bits.insert(bit);
+				for (auto& node : child->children) {
+					if (AstDefault::matches(node.get()))
+						default_case = current_case;
+					else if (AstBlock::matches(node.get()))
+						processAst(node.get());
+					else
+						current_case->compare.push_back(node->genWidthRTLIL(width_hint, sign_hint, &subst_rvalue_map.stdmap()));
+				}
+				if (default_case != current_case)
+					sw->cases.push_back(current_case);
+				else
+					log_assert(current_case->compare.size() == 0);
+				current_case = backup_case;
+				current_case_assigned_bits = std::move(backup_assigned_bits);
+
+				subst_lvalue_map.restore();
+				subst_rvalue_map.restore();
 			}
-			break;
 
-		case AST_WIRE:
+			if (last_generated_case != nullptr && ast->get_bool_attribute(ID::full_case) && default_case == nullptr) {
+		#if 0
+				// this is a valid transformation, but as optimization it is premature.
+				// better: add a default case that assigns 'x' to everything, and let later
+				// optimizations take care of the rest
+				last_generated_case->compare.clear();
+		#else
+				default_case = new RTLIL::CaseRule;
+				addChunkActions(default_case->actions, this_case_eq_ltemp, SigSpec(State::Sx, GetSize(this_case_eq_rvalue)));
+				sw->cases.push_back(default_case);
+		#endif
+			} else {
+				if (default_case == nullptr) {
+					default_case = new RTLIL::CaseRule;
+					addChunkActions(default_case->actions, this_case_eq_ltemp, this_case_eq_rvalue);
+				}
+				sw->cases.push_back(default_case);
+			}
+
+			for (int i = 0; i < GetSize(this_case_eq_lvalue); i++)
+				subst_rvalue_map.set(this_case_eq_lvalue[i], this_case_eq_ltemp[i]);
+
+			this_case_eq_lvalue.replace(subst_lvalue_map.stdmap());
+
+			// Check if any bits in lvalue have been assigned before in current_case
+			bool has_overlap = false;
+			for (auto &bit : this_case_eq_lvalue) {
+				if (bit.wire != NULL && current_case_assigned_bits.count(bit)) {
+					has_overlap = true;
+					break;
+				}
+			}
+
+			if (has_overlap)
+				removeSignalFromCaseTree(this_case_eq_lvalue, current_case);
+
+			addChunkActions(current_case->actions, this_case_eq_lvalue, this_case_eq_ltemp);
+			// Track newly assigned bits
+			for (auto &bit : this_case_eq_lvalue)
+				if (bit.wire != NULL)
+					current_case_assigned_bits.insert(bit);
+			return;
+		}
+
+		if (AstWire::matches(ast))
 			ast->input_error("Found reg declaration in block without label!\n");
-			break;
 
-		case AST_ASSIGN:
+		if (AstAssign::matches(ast))
 			ast->input_error("Found continuous assignment in always/initial block!\n");
-			break;
 
-		case AST_PARAMETER:
-		case AST_LOCALPARAM:
+		if (AstAnyParamLike::matches(ast))
 			ast->input_error("Found parameter declaration in block without label!\n");
-			break;
 
-		case AST_TCALL:
-			if (ast->str == "$display" || ast->str == "$displayb" || ast->str == "$displayh" || ast->str == "$displayo" ||
-		  ast->str == "$write"   || ast->str == "$writeb"   || ast->str == "$writeh"   || ast->str == "$writeo") {
+		if (auto tc = AstTcall::cast(ast)) {
+			if (tc->str() == "$display" || tc->str() == "$displayb" || tc->str() == "$displayh" || tc->str() == "$displayo" ||
+		  tc->str() == "$write"   || tc->str() == "$writeb"   || tc->str() == "$writeh"   || tc->str() == "$writeo") {
 				std::stringstream sstr;
-				sstr << ast->str << "$" << ast->location.begin.filename << ":" << ast->location.begin.line << "$" << (autoidx++);
+				sstr << tc->str() << "$" << ast->location.begin.filename << ":" << ast->location.begin.line << "$" << (autoidx++);
 
 				Wire *en = current_module->addWire(sstr.str() + "_EN", 1);
 				set_src_attr(en, ast);
@@ -680,11 +662,11 @@ struct AST_INTERNAL::ProcessGenerator
 				cell->setPort(ID::EN, en);
 
 				int default_base = 10;
-				if (ast->str.back() == 'b')
+				if (tc->str().back() == 'b')
 					default_base = 2;
-				else if (ast->str.back() == 'o')
+				else if (tc->str().back() == 'o')
 					default_base = 8;
-				else if (ast->str.back() == 'h')
+				else if (tc->str().back() == 'h')
 					default_base = 16;
 
 				std::vector<VerilogFmtArg> args;
@@ -716,86 +698,78 @@ struct AST_INTERNAL::ProcessGenerator
 				}
 
 				Fmt fmt;
-				fmt.parse_verilog(args, /*sformat_like=*/false, default_base, /*task_name=*/ast->str, current_module->name);
-				if (ast->str.substr(0, 8) == "$display")
+				fmt.parse_verilog(args, /*sformat_like=*/false, default_base, /*task_name=*/tc->str(), current_module->name);
+				if (tc->str().substr(0, 8) == "$display")
 					fmt.append_literal("\n");
 				fmt.emit_rtlil(cell);
-			} else if (!ast->str.empty()) {
-				log_file_error(*ast->location.begin.filename, ast->location.begin.line, "Found unsupported invocation of system task `%s'!\n", ast->str);
+			} else if (!tc->str().empty()) {
+				log_file_error(*ast->location.begin.filename, ast->location.begin.line, "Found unsupported invocation of system task `%s'!\n", tc->str());
 			}
-			break;
-
-		// generate $check cells
-		case AST_ASSERT:
-		case AST_ASSUME:
-		case AST_LIVE:
-		case AST_FAIR:
-		case AST_COVER:
-			{
-				std::string flavor, desc;
-				if (AstAssert::matches(ast)) { flavor = "assert"; desc = "assert ()"; }
-				if (AstAssume::matches(ast)) { flavor = "assume"; desc = "assume ()"; }
-				if (AstLive::matches(ast)) { flavor = "live"; desc = "assert (eventually)"; }
-				if (AstFair::matches(ast)) { flavor = "fair"; desc = "assume (eventually)"; }
-				if (AstCover::matches(ast)) { flavor = "cover"; desc = "cover ()"; }
-
-				IdString cellname;
-				if (ast->str.empty())
-					cellname = stringf("$%s$%s:%d$%d", flavor, RTLIL::encode_filename(*ast->location.begin.filename), ast->location.begin.line, autoidx++);
-				else
-					cellname = ast->str;
-				check_unique_id(current_module, cellname, ast, "procedural assertion");
-
-				RTLIL::SigSpec check = ast->children[0]->genWidthRTLIL(-1, false, &subst_rvalue_map.stdmap());
-				if (GetSize(check) != 1)
-					check = current_module->ReduceBool(NEW_ID, check);
-
-				Wire *en = current_module->addWire(cellname.str() + "_EN", 1);
-				set_src_attr(en, ast);
-				proc->root_case.actions.push_back(SigSig(en, false));
-				current_case->actions.push_back(SigSig(en, true));
-
-				RTLIL::SigSpec triggers;
-				RTLIL::Const::Builder polarity_builder;
-				for (auto sync : proc->syncs) {
-					if (sync->type == RTLIL::STp) {
-						triggers.append(sync->signal);
-						polarity_builder.push_back(RTLIL::S1);
-					} else if (sync->type == RTLIL::STn) {
-						triggers.append(sync->signal);
-						polarity_builder.push_back(RTLIL::S0);
-					}
-				}
-				RTLIL::Const polarity = polarity_builder.build();
-
-				RTLIL::Cell *cell = current_module->addCell(cellname, ID($check));
-				set_src_attr(cell, ast);
-				cell->set_bool_attribute(ID(keep));
-				copy_const_attributes(cell, ast);
-				cell->setParam(ID::FLAVOR, flavor);
-				cell->setParam(ID::TRG_WIDTH, triggers.size());
-				cell->setParam(ID::TRG_ENABLE, (AstInitial::matches(always.get())) || !triggers.empty());
-				cell->setParam(ID::TRG_POLARITY, polarity);
-				cell->setParam(ID::PRIORITY, --last_effect_priority);
-				cell->setPort(ID::TRG, triggers);
-				cell->setPort(ID::EN, en);
-				cell->setPort(ID::A, check);
-
-				// No message is emitted to ensure Verilog code roundtrips correctly.
-				Fmt fmt;
-				fmt.emit_rtlil(cell);
-				break;
-			}
-
-		case AST_NONE:
-		case AST_FOR:
-			break;
-
-		default:
-			// ast->dumpAst(nullptr, "ast> ");
-			// current_ast_mod->dumpAst(nullptr, "mod> ");
-			log_abort();
+			return;
 		}
+
+		if (FormalAssertions::accepts(ast)) {
+			std::string flavor, desc;
+			if (AstAssert::matches(ast)) { flavor = "assert"; desc = "assert ()"; }
+			if (AstAssume::matches(ast)) { flavor = "assume"; desc = "assume ()"; }
+			if (AstLive::matches(ast)) { flavor = "live"; desc = "assert (eventually)"; }
+			if (AstFair::matches(ast)) { flavor = "fair"; desc = "assume (eventually)"; }
+			if (AstCover::matches(ast)) { flavor = "cover"; desc = "cover ()"; }
+
+			IdString cellname;
+			if (ast->str.empty())
+				cellname = stringf("$%s$%s:%d$%d", flavor, RTLIL::encode_filename(*ast->location.begin.filename), ast->location.begin.line, autoidx++);
+			else
+				cellname = ast->str;
+			check_unique_id(current_module, cellname, ast, "procedural assertion");
+
+			RTLIL::SigSpec check = ast->children[0]->genWidthRTLIL(-1, false, &subst_rvalue_map.stdmap());
+			if (GetSize(check) != 1)
+				check = current_module->ReduceBool(NEW_ID, check);
+
+			Wire *en = current_module->addWire(cellname.str() + "_EN", 1);
+			set_src_attr(en, ast);
+			proc->root_case.actions.push_back(SigSig(en, false));
+			current_case->actions.push_back(SigSig(en, true));
+
+			RTLIL::SigSpec triggers;
+			RTLIL::Const::Builder polarity_builder;
+			for (auto sync : proc->syncs) {
+				if (sync->type == RTLIL::STp) {
+					triggers.append(sync->signal);
+					polarity_builder.push_back(RTLIL::S1);
+				} else if (sync->type == RTLIL::STn) {
+					triggers.append(sync->signal);
+					polarity_builder.push_back(RTLIL::S0);
+				}
+			}
+			RTLIL::Const polarity = polarity_builder.build();
+
+			RTLIL::Cell *cell = current_module->addCell(cellname, ID($check));
+			set_src_attr(cell, ast);
+			cell->set_bool_attribute(ID(keep));
+			copy_const_attributes(cell, ast);
+			cell->setParam(ID::FLAVOR, flavor);
+			cell->setParam(ID::TRG_WIDTH, triggers.size());
+			cell->setParam(ID::TRG_ENABLE, (AstInitial::matches(always.get())) || !triggers.empty());
+			cell->setParam(ID::TRG_POLARITY, polarity);
+			cell->setParam(ID::PRIORITY, --last_effect_priority);
+			cell->setPort(ID::TRG, triggers);
+			cell->setPort(ID::EN, en);
+			cell->setPort(ID::A, check);
+
+			// No message is emitted to ensure Verilog code roundtrips correctly.
+			Fmt fmt;
+			fmt.emit_rtlil(cell);
+			return;
+		}
+
+		if (AstNone::matches(ast) || ast->type == AST_FOR)
+			return;
+
+		// ast->dumpAst(nullptr, "ast> ");
+		// current_ast_mod->dumpAst(nullptr, "mod> ");
+		log_abort();
 	}
 
 	void processMemWrites(RTLIL::SyncRule *sync)
