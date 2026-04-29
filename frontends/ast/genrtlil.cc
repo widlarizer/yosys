@@ -523,10 +523,10 @@ struct AST_INTERNAL::ProcessGenerator
 
 		case AST_BLOCK:
 			for (auto& child : ast->children) {
-				if (AstAssignEq::matches(child.get()) && type_eq)
-					reg.append(child->children[0]->genRTLIL());
-				if (AstAssignLe::matches(child.get()) && type_le)
-					reg.append(child->children[0]->genRTLIL());
+				bool collect = (AstAssignEq::matches(child.get()) && type_eq) ||
+				               (AstAssignLe::matches(child.get()) && type_le);
+				if (collect)
+					reg.append(AstAnyAssign(child.get()).lhs()->genRTLIL());
 				if (ChildConstraint<AST_CASE, AST_BLOCK>::accepts(child.get()))
 					collect_lvalues(reg, child.get(), type_eq, type_le, false);
 			}
@@ -623,8 +623,9 @@ struct AST_INTERNAL::ProcessGenerator
 		case AST_ASSIGN_EQ:
 		case AST_ASSIGN_LE:
 			{
-				RTLIL::SigSpec unmapped_lvalue = ast->children[0]->genRTLIL(), lvalue = unmapped_lvalue;
-				RTLIL::SigSpec rvalue = ast->children[1]->genWidthRTLIL(lvalue.size(), true, &subst_rvalue_map.stdmap());
+				AstAnyAssign assign(ast);
+				RTLIL::SigSpec unmapped_lvalue = assign.lhs()->genRTLIL(), lvalue = unmapped_lvalue;
+				RTLIL::SigSpec rvalue = assign.rhs()->genWidthRTLIL(lvalue.size(), true, &subst_rvalue_map.stdmap());
 
 				pool<SigBit> lvalue_sigbits;
 				for (int i = 0; i < GetSize(lvalue); i++) {
