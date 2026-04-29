@@ -1134,6 +1134,15 @@ struct AstIdentifier : AstView<AST_IDENTIFIER> {
 	}
 };
 
+// The single operand expression of a sensitivity event. AST_POSEDGE/AST_NEGEDGE
+// always have exactly one child; AST_EDGE may have zero (`@(*)`-style placeholders),
+// so this asserts ClockedEdgeLike, not the broader SensitivityEvent.
+inline AstNode *sensitivity_operand(AstNode *n) {
+	log_assert(ClockedEdgeLike::accepts(n));
+	log_assert(n->children.size() == 1);
+	return n->children[0].get();
+}
+
 // If a sensitivity event (AST_POSEDGE/AST_NEGEDGE/AST_EDGE) has exactly one
 // child that is an AST_IDENTIFIER, return it; otherwise nullopt.
 inline std::optional<AstIdentifier> sensitivity_operand_identifier(AstNode *n) {

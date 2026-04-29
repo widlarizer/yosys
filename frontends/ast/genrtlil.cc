@@ -387,7 +387,7 @@ struct AST_INTERNAL::ProcessGenerator
 					always->input_error("Found non-synthesizable event list!\n");
 				RTLIL::SyncRule *syncrule = new RTLIL::SyncRule;
 				syncrule->type = AstPosedge::matches(child.get()) ? RTLIL::STp : RTLIL::STn;
-				syncrule->signal = child->children[0]->genRTLIL();
+				syncrule->signal = sensitivity_operand(child.get())->genRTLIL();
 				if (GetSize(syncrule->signal) != 1)
 					always->input_error("Found posedge/negedge event on a signal that is not 1 bit wide!\n");
 				addChunkActions(syncrule->actions, subst_lvalue_from, subst_lvalue_to, true);
