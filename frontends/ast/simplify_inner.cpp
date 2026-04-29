@@ -2754,13 +2754,7 @@ skip_dynamic_range_lvalue_expansion:;
 					num_steps = buf->asInt(true);
 				}
 
-				AstNode *block = nullptr;
-
-				for (auto& child : current_always->children)
-					if (child->type == AST_BLOCK)
-						block = child.get();
-
-				log_assert(block != nullptr);
+				AstNode *block = AstProcBase(current_always).body().raw();
 
 				if (num_steps == 0) {
 					newNode = fcall.arg(0)->clone();
