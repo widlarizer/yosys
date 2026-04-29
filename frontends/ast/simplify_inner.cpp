@@ -3268,9 +3268,10 @@ skip_dynamic_range_lvalue_expansion:;
 			auto lvalue = std::make_unique<AstNode>(location, AST_IDENTIFIER);
 			lvalue->str = wire_leaky->str;
 
-			auto always = std::make_unique<AstNode>(location, AST_ALWAYS, std::make_unique<AstNode>(location, AST_BLOCK,
-					std::make_unique<AstNode>(location, AST_ASSIGN_EQ, std::move(lvalue), clone())));
-			always->children[0]->children[0]->was_checked = true;
+			auto assign = AstAssignEq::build(location, std::move(lvalue), clone());
+			assign->was_checked = true;
+			auto always = std::make_unique<AstNode>(location, AST_ALWAYS,
+					std::make_unique<AstNode>(location, AST_BLOCK, std::move(assign)));
 
 			current_ast_mod->children.push_back(std::move(always));
 
