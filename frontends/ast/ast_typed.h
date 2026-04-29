@@ -425,7 +425,16 @@ DEFINE_AST_VIEW_4(AstFor,      AST_FOR,       init, Anything, cond, Expression, 
 DEFINE_AST_VIEW_4(AstGenFor,   AST_GENFOR,    init, Anything, cond, Anything, step, Anything, body, Anything)
 DEFINE_AST_VIEW_2(AstWhile,    AST_WHILE,     cond, Expression, body, BehavioralStatement)
 
-DEFINE_AST_VIEW_2(AstAssign,   AST_ASSIGN,    lhs, Expression, rhs, Expression)
+struct AstAssign : AstView<AST_ASSIGN> {
+	using AstView<AST_ASSIGN>::AstView;
+	ChildSlot<Expression> lhs() const { return {node, 0}; }
+	ChildSlot<Expression> rhs() const { return {node, 1}; }
+	static std::unique_ptr<AstNode> build(const AstSrcLocType &loc, std::unique_ptr<AstNode> lhs, std::unique_ptr<AstNode> rhs) {
+		return make_node(loc, std::move(lhs), std::move(rhs));
+	}
+	DEFINE_AST_CAST(AstAssign, AST_ASSIGN)
+	RTLIL::SigSpec genRTLIL(int width_hint, bool sign_hint);
+};
 DEFINE_AST_VIEW_2(AstAssignEq, AST_ASSIGN_EQ, lhs, Expression, rhs, Expression)
 DEFINE_AST_VIEW_2(AstAssignLe, AST_ASSIGN_LE, lhs, Expression, rhs, Expression)
 
@@ -466,7 +475,17 @@ struct AstAnyAssign {
 	}
 };
 
-DEFINE_AST_VIEW_3(AstTernary,  AST_TERNARY,   cond, Expression, then_, Expression, else_, Expression)
+struct AstTernary : AstView<AST_TERNARY> {
+	using AstView<AST_TERNARY>::AstView;
+	ChildSlot<Expression> cond()  const { return {node, 0}; }
+	ChildSlot<Expression> then_() const { return {node, 1}; }
+	ChildSlot<Expression> else_() const { return {node, 2}; }
+	static std::unique_ptr<AstNode> build(const AstSrcLocType &loc, std::unique_ptr<AstNode> cond, std::unique_ptr<AstNode> then_, std::unique_ptr<AstNode> else_) {
+		return make_node(loc, std::move(cond), std::move(then_), std::move(else_));
+	}
+	DEFINE_AST_CAST(AstTernary, AST_TERNARY)
+	RTLIL::SigSpec genRTLIL(int width_hint, bool sign_hint);
+};
 
 DEFINE_AST_VIEW_2(AstRange,    AST_RANGE,     msb, Expression, lsb, Expression)
 
@@ -485,12 +504,39 @@ struct AstRepeat : AstView<AST_REPEAT> {
 
 DEFINE_AST_VIEW_2(AstPrefix,   AST_PREFIX,    index, Expression, suffix, Anything)
 
-DEFINE_AST_VIEW_2(AstReplicate, AST_REPLICATE, count, Expression, pattern, Expression)
+struct AstReplicate : AstView<AST_REPLICATE> {
+	using AstView<AST_REPLICATE>::AstView;
+	ChildSlot<Expression> count()   const { return {node, 0}; }
+	ChildSlot<Expression> pattern() const { return {node, 1}; }
+	static std::unique_ptr<AstNode> build(const AstSrcLocType &loc, std::unique_ptr<AstNode> count, std::unique_ptr<AstNode> pattern) {
+		return make_node(loc, std::move(count), std::move(pattern));
+	}
+	DEFINE_AST_CAST(AstReplicate, AST_REPLICATE)
+	RTLIL::SigSpec genRTLIL(int width_hint, bool sign_hint);
+};
 
-DEFINE_AST_VIEW_2(AstCastSize, AST_CAST_SIZE, target, Anything, expr, Expression)
+struct AstCastSize : AstView<AST_CAST_SIZE> {
+	using AstView<AST_CAST_SIZE>::AstView;
+	ChildSlot<Anything>   target() const { return {node, 0}; }
+	ChildSlot<Expression> expr()   const { return {node, 1}; }
+	static std::unique_ptr<AstNode> build(const AstSrcLocType &loc, std::unique_ptr<AstNode> target, std::unique_ptr<AstNode> expr) {
+		return make_node(loc, std::move(target), std::move(expr));
+	}
+	DEFINE_AST_CAST(AstCastSize, AST_CAST_SIZE)
+	RTLIL::SigSpec genRTLIL(int width_hint, bool sign_hint);
+};
+
 DEFINE_AST_VIEW_2(AstToBits,   AST_TO_BITS,   size, Expression, expr, Expression)
 
-DEFINE_AST_VIEW_1(AstSelfSz,   AST_SELFSZ,    expr, Expression)
+struct AstSelfSz : AstView<AST_SELFSZ> {
+	using AstView<AST_SELFSZ>::AstView;
+	ChildSlot<Expression> expr() const { return {node, 0}; }
+	static std::unique_ptr<AstNode> build(const AstSrcLocType &loc, std::unique_ptr<AstNode> expr) {
+		return make_node(loc, std::move(expr));
+	}
+	DEFINE_AST_CAST(AstSelfSz, AST_SELFSZ)
+	RTLIL::SigSpec genRTLIL(int width_hint, bool sign_hint);
+};
 
 // Sensitivity events
 DEFINE_AST_VIEW_1(AstPosedge,  AST_POSEDGE,   expr, Expression)
@@ -542,6 +588,7 @@ struct AstWire : AstView<AST_WIRE> {
 	static std::optional<AstWire> cast(AstNode *n) {
 		return matches(n) ? std::optional<AstWire>(AstWire(n)) : std::nullopt;
 	}
+	RTLIL::SigSpec genRTLIL(int width_hint, bool sign_hint);
 };
 
 // AST_DEFAULT marks the default branch in a case statement. It can appear
@@ -613,6 +660,49 @@ struct AstInterfacePortType : AstView<AST_INTERFACEPORTTYPE> {
 	}
 };
 
+// AST_INTERFACEPORT: a port whose interface module type is unknown at this
+// point; lowered by the hierarchy pass after interface resolution.
+struct AstInterfacePort : AstView<AST_INTERFACEPORT> {
+	using AstView::AstView;
+	static std::optional<AstInterfacePort> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstInterfacePort>(AstInterfacePort(n)) : std::nullopt;
+	}
+	RTLIL::SigSpec genRTLIL(int width_hint, bool sign_hint);
+};
+
+// AST_TECALL: elaboration-time system task ($info / $warning / $error / $fatal).
+struct AstTecall : AstView<AST_TECALL> {
+	using AstView::AstView;
+	static std::optional<AstTecall> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstTecall>(AstTecall(n)) : std::nullopt;
+	}
+	RTLIL::SigSpec genRTLIL(int width_hint, bool sign_hint);
+};
+
+// AST_BIND: holds one or more cell instances that bind into another module.
+struct AstBind : AstView<AST_BIND> {
+	using AstView::AstView;
+	static std::optional<AstBind> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstBind>(AstBind(n)) : std::nullopt;
+	}
+	RTLIL::SigSpec genRTLIL(int width_hint, bool sign_hint);
+};
+
+// Tag-agnostic view over AST_ASSERT / AST_ASSUME / AST_LIVE / AST_FAIR /
+// AST_COVER. All five lower to a single $check cell parameterized by FLAVOR.
+struct AstAnyFormalAssertion {
+	AstNode *node;
+	static bool matches(const AstNode *n) {
+		return n && FormalAssertions::accepts(n);
+	}
+	explicit AstAnyFormalAssertion(AstNode *n) : node(n) { log_assert(matches(n)); }
+	AstNode *raw() const { return node; }
+	static std::optional<AstAnyFormalAssertion> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstAnyFormalAssertion>(AstAnyFormalAssertion(n)) : std::nullopt;
+	}
+	RTLIL::SigSpec genRTLIL(int width_hint, bool sign_hint);
+};
+
 struct AstMemory : AstView<AST_MEMORY> {
 	using AstView::AstView;
 	// Grammar: packed range, optional wiretype, address range
@@ -643,6 +733,7 @@ struct AstMemory : AstView<AST_MEMORY> {
 	static std::optional<AstMemory> cast(AstNode *n) {
 		return matches(n) ? std::optional<AstMemory>(AstMemory(n)) : std::nullopt;
 	}
+	RTLIL::SigSpec genRTLIL(int width_hint, bool sign_hint);
 };
 
 // Grammar: children[0] = default value expr; children[1] (optional) is AST_RANGE
@@ -679,6 +770,7 @@ struct AstAnyParamLike {
 	static std::optional<AstAnyParamLike> cast(AstNode *n) {
 		return matches(n) ? std::optional<AstAnyParamLike>(AstAnyParamLike(n)) : std::nullopt;
 	}
+	RTLIL::SigSpec genRTLIL(int width_hint, bool sign_hint);
 };
 
 struct AstEnum : AstView<AST_ENUM> {
@@ -744,6 +836,7 @@ struct AstConstant : AstView<AST_CONSTANT> {
 		return node->bitsAsConst(width, is_signed);
 	}
 	std::string decode_string() const { return node->bitsAsConst().decode_string(); }
+	RTLIL::SigSpec genRTLIL(int width_hint, bool sign_hint);
 };
 
 // Function and task calls. Variadic children are argument expressions.
@@ -755,6 +848,7 @@ struct AstFcall : VariadicView<AST_FCALL, Expression> {
 	// Simplify the i-th argument and return its real-valued evaluation.
 	// Errors out (via input_error) if the argument does not fold to a constant.
 	double eval_arg_as_real(size_t i, int stage, int width_hint, bool sign_hint) const;
+	RTLIL::SigSpec genRTLIL(int width_hint, bool sign_hint);
 };
 struct AstTcall : VariadicView<AST_TCALL, Expression> {
 	using VariadicView::VariadicView;
@@ -825,7 +919,13 @@ struct AstMemAccess : AstView<Tag> {
 		return AstView<Tag>::matches(n) ? std::optional<AstMemAccess>(AstMemAccess(n)) : std::nullopt;
 	}
 };
-using AstMemRd = AstMemAccess<AST_MEMRD>;
+struct AstMemRd : AstMemAccess<AST_MEMRD> {
+	using AstMemAccess::AstMemAccess;
+	static std::optional<AstMemRd> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstMemRd>(AstMemRd(n)) : std::nullopt;
+	}
+	RTLIL::SigSpec genRTLIL(int width_hint, bool sign_hint);
+};
 
 // AST_MEMWR : children = [addr, data, en, portid, prio_mask]
 struct AstMemWr : AstMemAccess<AST_MEMWR> {
@@ -850,6 +950,7 @@ struct AstMemInit : AstMemAccess<AST_MEMINIT> {
 	static std::optional<AstMemInit> cast(AstNode *n) {
 		return matches(n) ? std::optional<AstMemInit>(AstMemInit(n)) : std::nullopt;
 	}
+	RTLIL::SigSpec genRTLIL(int width_hint, bool sign_hint);
 };
 
 // MemberContainer: shared base for AST_STRUCT and AST_UNION, whose grammar is
@@ -934,6 +1035,7 @@ struct AstRealvalue : AstView<AST_REALVALUE> {
 	static std::optional<AstRealvalue> cast(AstNode *n) {
 		return matches(n) ? std::optional<AstRealvalue>(AstRealvalue(n)) : std::nullopt;
 	}
+	RTLIL::SigSpec genRTLIL(int width_hint, bool sign_hint);
 };
 
 // ---------------- Unary / binary op templates ----------------
@@ -951,6 +1053,7 @@ struct AstUnaryOp : AstView<Tag> {
 	static std::optional<AstUnaryOp> cast(AstNode *n) {
 		return AstView<Tag>::matches(n) ? std::optional<AstUnaryOp>(AstUnaryOp(n)) : std::nullopt;
 	}
+	RTLIL::SigSpec genRTLIL(int width_hint, bool sign_hint);
 };
 
 template <AstNodeType Tag>
@@ -965,6 +1068,7 @@ struct AstBinaryOp : AstView<Tag> {
 	static std::optional<AstBinaryOp> cast(AstNode *n) {
 		return AstView<Tag>::matches(n) ? std::optional<AstBinaryOp>(AstBinaryOp(n)) : std::nullopt;
 	}
+	RTLIL::SigSpec genRTLIL(int width_hint, bool sign_hint);
 };
 
 using AstBitNot       = AstUnaryOp<AST_BIT_NOT>;
@@ -987,6 +1091,8 @@ using AstShiftLeft    = AstBinaryOp<AST_SHIFT_LEFT>;
 using AstShiftRight   = AstBinaryOp<AST_SHIFT_RIGHT>;
 using AstShiftSLeft   = AstBinaryOp<AST_SHIFT_SLEFT>;
 using AstShiftSRight  = AstBinaryOp<AST_SHIFT_SRIGHT>;
+using AstShiftX       = AstBinaryOp<AST_SHIFTX>;
+using AstShift        = AstBinaryOp<AST_SHIFT>;
 using AstLt           = AstBinaryOp<AST_LT>;
 using AstLe           = AstBinaryOp<AST_LE>;
 using AstEq           = AstBinaryOp<AST_EQ>;
@@ -1132,6 +1238,7 @@ struct AstIdentifier : AstView<AST_IDENTIFIER> {
 	static std::optional<AstIdentifier> cast(AstNode *n) {
 		return matches(n) ? std::optional<AstIdentifier>(AstIdentifier(n)) : std::nullopt;
 	}
+	RTLIL::SigSpec genRTLIL(int width_hint, bool sign_hint);
 };
 
 // The single operand expression of a sensitivity event. AST_POSEDGE/AST_NEGEDGE
@@ -1202,6 +1309,7 @@ struct AstCell : AstView<AST_CELL> {
 	// module cannot be found yet (and tags reprocess_after for retry). Defined
 	// in simplify.cc where the simplify_design_context static is visible.
 	const RTLIL::Module *lookup_module();
+	RTLIL::SigSpec genRTLIL(int width_hint, bool sign_hint);
 };
 
 // Variadic: children are behavioral statements in declaration order.
@@ -1218,7 +1326,13 @@ struct AstGenBlock : VariadicView<AST_GENBLOCK, ModuleBodyStatement> {
 };
 
 // AST_CONCAT: variadic list of expression children.
-using AstConcat = VariadicView<AST_CONCAT, Expression>;
+struct AstConcat : VariadicView<AST_CONCAT, Expression> {
+	using VariadicView::VariadicView;
+	static std::optional<AstConcat> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstConcat>(AstConcat(n)) : std::nullopt;
+	}
+	RTLIL::SigSpec genRTLIL(int width_hint, bool sign_hint);
+};
 
 // AST_MULTIRANGE: variadic list of AST_RANGE children (>= 2).
 using AstMultirange = VariadicView<AST_MULTIRANGE, ChildConstraint<AST_RANGE>>;
@@ -1420,6 +1534,7 @@ struct AstInitial final : AstProcBase {
 	static std::optional<AstInitial> cast(AstNode *n) {
 		return matches(n) ? std::optional<AstInitial>(AstInitial(n)) : std::nullopt;
 	}
+	RTLIL::SigSpec genRTLIL(int width_hint, bool sign_hint);
 };
 struct AstAlways final : AstProcBase {
 	using AstProcBase::AstProcBase;
@@ -1432,6 +1547,7 @@ struct AstAlways final : AstProcBase {
 		log_assert(!node->children.empty());
 		return node->children.end() - 1;
 	}
+	RTLIL::SigSpec genRTLIL(int width_hint, bool sign_hint);
 };
 
 } // namespace AST
