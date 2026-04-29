@@ -50,6 +50,16 @@ using namespace AST_INTERNAL;
 // order as their original branches in simplify() below for ease of cross-ref.
 // ---------------------------------------------------------------------------
 
+std::unique_ptr<AstNode> AstTcall::eval_arg_as_const_clone(size_t i, const char *ord, int stage, int width_hint, bool sign_hint) const
+{
+	auto a = arg(i)->clone();
+	while (a->simplify(true, stage, width_hint, sign_hint)) { }
+	if (a->type != AST_CONSTANT)
+		node->input_error("Failed to evaluate system function `%s' with non-constant %s argument.\n",
+				RTLIL::unescape_id(node->str), ord);
+	return a;
+}
+
 double AstFcall::eval_arg_as_real(size_t i, int stage, int width_hint, bool sign_hint) const
 {
 	AstNode *a = arg(i);
@@ -3155,10 +3165,7 @@ skip_dynamic_range_lvalue_expansion:;
 					input_error("System function %s got %d arguments, expected 2-4.\n",
 							RTLIL::unescape_id(str), int(tcall.num_args()));
 
-				auto node_filename = tcall.arg(0)->clone();
-				while (node_filename->simplify(true, stage, width_hint, sign_hint)) { }
-				if (node_filename->type != AST_CONSTANT)
-					input_error("Failed to evaluate system function `%s' with non-constant 1st argument.\n", str);
+				auto node_filename = tcall.eval_arg_as_const_clone(0, "1st", stage, width_hint, sign_hint);
 
 				auto node_memory = tcall.arg(1)->clone();
 				while (node_memory->simplify(true, stage, width_hint, sign_hint)) { }
@@ -3167,21 +3174,11 @@ skip_dynamic_range_lvalue_expansion:;
 
 				int start_addr = -1, finish_addr = -1;
 
-				if (tcall.num_args() > 2) {
-					auto node_addr = tcall.arg(2)->clone();
-					while (node_addr->simplify(true, stage, width_hint, sign_hint)) { }
-					if (node_addr->type != AST_CONSTANT)
-						input_error("Failed to evaluate system function `%s' with non-constant 3rd argument.\n", str);
-					start_addr = int(node_addr->asInt(false));
-				}
+				if (tcall.num_args() > 2)
+					start_addr = int(tcall.eval_arg_as_const_clone(2, "3rd", stage, width_hint, sign_hint)->asInt(false));
 
-				if (tcall.num_args() > 3) {
-					auto node_addr = tcall.arg(3)->clone();
-					while (node_addr->simplify(true, stage, width_hint, sign_hint)) { }
-					if (node_addr->type != AST_CONSTANT)
-						input_error("Failed to evaluate system function `%s' with non-constant 4th argument.\n", str);
-					finish_addr = int(node_addr->asInt(false));
-				}
+				if (tcall.num_args() > 3)
+					finish_addr = int(tcall.eval_arg_as_const_clone(3, "4th", stage, width_hint, sign_hint)->asInt(false));
 
 				bool unconditional_init = false;
 				if (AstInitial::matches(current_always)) {

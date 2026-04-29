@@ -756,7 +756,16 @@ struct AstFcall : VariadicView<AST_FCALL, Expression> {
 	// Errors out (via input_error) if the argument does not fold to a constant.
 	double eval_arg_as_real(size_t i, int stage, int width_hint, bool sign_hint) const;
 };
-using AstTcall = VariadicView<AST_TCALL, Expression>;
+struct AstTcall : VariadicView<AST_TCALL, Expression> {
+	using VariadicView::VariadicView;
+	static std::optional<AstTcall> cast(AstNode *n) {
+		return matches(n) ? std::optional<AstTcall>(AstTcall(n)) : std::nullopt;
+	}
+	// Clone the i-th argument, simplify it to a constant, and return the
+	// folded node. Errors via input_error if folding fails. The ordinal label
+	// (e.g. "1st", "3rd") is interpolated into the diagnostic.
+	std::unique_ptr<AstNode> eval_arg_as_const_clone(size_t i, const char *ord, int stage, int width_hint, bool sign_hint) const;
+};
 
 // Defparam (defparam lvalue = value)
 struct AstDefparam : AstView<AST_DEFPARAM> {
