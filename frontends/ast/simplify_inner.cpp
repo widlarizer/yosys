@@ -719,9 +719,11 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 			for (auto& child : children) {
 				if (ClockedEdgeLike::accepts(child.get()))
 					current_always_clocked = true;
-				if (child->type == AST_EDGE && GetSize(child->children) == 1 &&
-						child->children[0]->type == AST_IDENTIFIER && child->children[0]->str == "\\$global_clock")
-					current_always_clocked = true;
+				if (AstEdge::matches(child.get())) {
+					if (auto id = sensitivity_operand_identifier(child.get());
+							id && id->str() == "\\$global_clock")
+						current_always_clocked = true;
+				}
 			}
 	}
 
