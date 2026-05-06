@@ -24,7 +24,7 @@
 USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
-void rmunused_module(RTLIL::Module *module, bool rminit, CleanRunContext &clean_ctx)
+void rmunused_module_1(RTLIL::Module *module, CleanRunContext &clean_ctx)
 {
 	if (clean_ctx.flags.verbose)
 		log("Finding unused cells or wires in module %s..\n", module->name);
@@ -33,8 +33,14 @@ void rmunused_module(RTLIL::Module *module, bool rminit, CleanRunContext &clean_
 	// we only start multithreading with at least 2000 cells.
 	int num_worker_threads = ThreadPool::work_pool_size(0, module->cells_size(), 10000);
 	ParallelDispatchThreadPool::Subpool subpool(clean_ctx.thread_pool, num_worker_threads);
-	remove_temporary_cells(module, subpool, clean_ctx.flags.verbose);
+	// remove_temporary_cells(module, subpool, clean_ctx.flags.verbose);
 	rmunused_module_cells(module, subpool, clean_ctx);
+}
+
+void rmunused_module_2(RTLIL::Module *module, bool rminit, CleanRunContext &clean_ctx)
+{
+	int num_worker_threads = ThreadPool::work_pool_size(0, module->cells_size(), 10000);
+	ParallelDispatchThreadPool::Subpool subpool(clean_ctx.thread_pool, num_worker_threads);
 	while (rmunused_module_signals(module, subpool, clean_ctx)) { }
 
 	if (rminit && rmunused_module_init(module, subpool, clean_ctx.flags.verbose))
@@ -77,8 +83,6 @@ struct OptCleanPass : public Pass {
 		}
 		extra_args(args, argidx, design);
 
-		design->sigNormalize(false);
-
 		{
 			std::vector<RTLIL::Module*> selected_modules;
 			for (auto module : design->selected_whole_modules_warn())
@@ -86,7 +90,10 @@ struct OptCleanPass : public Pass {
 					selected_modules.push_back(module);
 			CleanRunContext clean_ctx(design, selected_modules, {purge_mode, true});
 			for (auto module : selected_modules)
-				rmunused_module(module, true, clean_ctx);
+				rmunused_module_1(module, clean_ctx);
+			design->sigNormalize(false);
+			for (auto module : selected_modules)
+				rmunused_module_2(module, true, clean_ctx);
 			clean_ctx.stats.log();
 
 			design->optimize();
@@ -139,7 +146,10 @@ struct CleanPass : public Pass {
 					selected_modules.push_back(module);
 			CleanRunContext clean_ctx(design, selected_modules, {purge_mode, ys_debug()});
 			for (auto module : selected_modules)
-				rmunused_module(module, true, clean_ctx);
+				rmunused_module_1(module, clean_ctx);
+			design->sigNormalize(false);
+			for (auto module : selected_modules)
+				rmunused_module_2(module, true, clean_ctx);
 
 			log_suppressed();
 			clean_ctx.stats.log();

@@ -183,7 +183,7 @@ struct UpdateConnection {
 void fixup_cell_ports(ShardedVector<UpdateConnection> &update_connections)
 {
 	for (UpdateConnection &update : update_connections)
-		update.cell->connections_.at(update.port) = std::move(update.spec);
+		update.cell->setPort(update.port, std::move(update.spec));
 }
 
 struct InitBits {
@@ -554,7 +554,7 @@ bool rmunused_module_signals(RTLIL::Module *module, ParallelDispatchThreadPool::
 	update_assign_map(actx.assign_map, new_sigmap_rep_candidates, cell_wires, conn_kinds);
 
 	// Remove all wire-wire connections
-	module->connections_.clear();
+	module->new_connections({});
 
 	UsedSignals used;
 	DeferredUpdates deferred = analyse_connectivity(used, conn_kinds, actx, clean_ctx);
