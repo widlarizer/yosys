@@ -59,7 +59,7 @@ struct DffinitPass : public Pass {
 	{
 		log_header(design, "Executing DFFINIT pass (set INIT param on FF cells).\n");
 
-		dict<IdString, dict<IdString, IdString>> ff_types;
+		dict<IdString, dict<TwineRef, IdString>> ff_types;
 		bool highlow_mode = false, noreinit = false;
 		std::string high_string, low_string;
 
@@ -79,7 +79,7 @@ struct DffinitPass : public Pass {
 			}
 			if (args[argidx] == "-ff" && argidx+3 < args.size()) {
 				IdString cell_name = RTLIL::escape_id(args[++argidx]);
-				IdString output_port = RTLIL::escape_id(args[++argidx]);
+				TwineRef output_port = design->twines.add(std::string{RTLIL::escape_id(args[++argidx])});
 				IdString init_param = RTLIL::escape_id(args[++argidx]);
 				ff_types[cell_name][output_port] = init_param;
 				continue;
@@ -139,7 +139,7 @@ struct DffinitPass : public Pass {
 
 					if (value.size() != 0) {
 						log("Setting %s.%s.%s (port=%s, net=%s) to %s.\n", module, cell, it.second.unescape(),
-								it.first.unescape(), log_signal(sig), log_signal(value));
+								design->twines.unescaped_str(it.first), log_signal(sig), log_signal(value));
 						cell->setParam(it.second, value);
 					}
 				}

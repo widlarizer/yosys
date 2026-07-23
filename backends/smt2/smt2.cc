@@ -60,7 +60,7 @@ struct Smt2Worker
 	const char *get_id(IdString n)
 	{
 		if (ids.count(n) == 0) {
-			std::string str = n.unescape();
+			std::string str = RTLIL::unescape_id(n);
 			for (int i = 0; i < GetSize(str); i++) {
 				if (str[i] == '\\')
 					str[i] = '/';
@@ -196,8 +196,8 @@ struct Smt2Worker
 				continue;
 			}
 
-			bool is_input = ct.cell_input(cell->type, conn.first);
-			bool is_output = ct.cell_output(cell->type, conn.first);
+			bool is_input = ct.cell_input(cell->type_impl, conn.first);
+			bool is_output = ct.cell_output(cell->type_impl, conn.first);
 
 			if (is_output && !is_input)
 				for (auto bit : sigmap(conn.second)) {
@@ -207,11 +207,11 @@ struct Smt2Worker
 				}
 			else if (is_output || !is_input)
 				log_error("Unsupported or unknown directionality on port %s of cell %s.%s (%s).\n",
-						conn.first.unescape(), module, cell, cell->type.unescape());
+						module->design->twines.str(conn.first).c_str(), module, cell, cell->type.unescaped());
 
-			if (cell->type.in(ID($dff), ID($_DFF_P_), ID($_DFF_N_)) && conn.first.in(ID::CLK, ID::C))
+			if (cell->type.in(TW($dff), TW($_DFF_P_), TW($_DFF_N_)) && (conn.first == TW::CLK || conn.first == TW::C))
 			{
-				bool posedge = (cell->type == ID($_DFF_N_)) || (cell->type == ID($dff) && cell->getParam(ID::CLK_POLARITY).as_bool());
+				bool posedge = (cell->type == TW($_DFF_N_)) || (cell->type == TW($dff) && cell->getParam(ID::CLK_POLARITY).as_bool());
 				for (auto bit : sigmap(conn.second)) {
 					if (posedge)
 						clock_posedge.insert(bit);
@@ -220,19 +220,22 @@ struct Smt2Worker
 				}
 			}
 			else
-			if (mod_clk_cache.count(cell->type) && mod_clk_cache.at(cell->type).count(conn.first))
 			{
-				for (auto bit : sigmap(conn.second)) {
-					if (mod_clk_cache.at(cell->type).at(conn.first).first)
-						clock_posedge.insert(bit);
-					if (mod_clk_cache.at(cell->type).at(conn.first).second)
-						clock_negedge.insert(bit);
+				IdString port_name = IdString(module->design->twines.str(conn.first));
+				if (mod_clk_cache.count(cell->type) && mod_clk_cache.at(cell->type).count(port_name))
+				{
+					for (auto bit : sigmap(conn.second)) {
+						if (mod_clk_cache.at(cell->type).at(port_name).first)
+							clock_posedge.insert(bit);
+						if (mod_clk_cache.at(cell->type).at(port_name).second)
+							clock_negedge.insert(bit);
+					}
 				}
-			}
-			else
-			{
-				for (auto bit : sigmap(conn.second))
-					noclock.insert(bit);
+				else
+				{
+					for (auto bit : sigmap(conn.second))
+						noclock.insert(bit);
+				}
 			}
 		}
 
@@ -257,10 +260,11 @@ struct Smt2Worker
 			if (!wire->port_input || GetSize(wire) != 1)
 				continue;
 			SigBit bit = sigmap(wire);
+			IdString module_name = IdString(module->design->twines.str(module->meta_->name));
 			if (clock_posedge.count(bit))
-				mod_clk_cache[module->name][wire->name].first = true;
+				mod_clk_cache[module_name][wire->name].first = true;
 			if (clock_negedge.count(bit))
-				mod_clk_cache[module->name][wire->name].second = true;
+				mod_clk_cache[module_name][wire->name].second = true;
 		}
 	}
 
@@ -273,7 +277,7 @@ struct Smt2Worker
 
 	const char *get_id(Module *m)
 	{
-		return get_id(m->name);
+		return get_id(IdString(m->design->twines.str(m->meta_->name)));
 	}
 
 	const char *get_id(Cell *c)
@@ -435,15 +439,15 @@ struct Smt2Worker
 
 	void export_gate(RTLIL::Cell *cell, std::string expr)
 	{
-		RTLIL::SigBit bit = sigmap(cell->getPort(ID::Y).as_bit());
+		RTLIL::SigBit bit = sigmap(cell->getPort(TW::Y).as_bit());
 		std::string processed_expr;
 
 		for (char ch : expr) {
-			if (ch == 'A') processed_expr += get_bool(cell->getPort(ID::A));
-			else if (ch == 'B') processed_expr += get_bool(cell->getPort(ID::B));
-			else if (ch == 'C') processed_expr += get_bool(cell->getPort(ID::C));
-			else if (ch == 'D') processed_expr += get_bool(cell->getPort(ID::D));
-			else if (ch == 'S') processed_expr += get_bool(cell->getPort(ID::S));
+			if (ch == 'A') processed_expr += get_bool(cell->getPort(TW::A));
+			else if (ch == 'B') processed_expr += get_bool(cell->getPort(TW::B));
+			else if (ch == 'C') processed_expr += get_bool(cell->getPort(TW::C));
+			else if (ch == 'D') processed_expr += get_bool(cell->getPort(TW::D));
+			else if (ch == 'S') processed_expr += get_bool(cell->getPort(TW::S));
 			else processed_expr += ch;
 		}
 
@@ -459,26 +463,26 @@ struct Smt2Worker
 	void export_bvop(RTLIL::Cell *cell, std::string expr, char type = 0)
 	{
 		RTLIL::SigSpec sig_a, sig_b;
-		RTLIL::SigSpec sig_y = sigmap(cell->getPort(ID::Y));
+		RTLIL::SigSpec sig_y = sigmap(cell->getPort(TW::Y));
 		bool is_signed = type == 'U' ? false : cell->getParam(ID::A_SIGNED).as_bool();
 		int width = GetSize(sig_y);
 
 		if (type == 's' || type == 'S' || type == 'd' || type == 'b') {
 			if (type == 'b')
-				width = GetSize(cell->getPort(ID::A));
+				width = GetSize(cell->getPort(TW::A));
 			else
-				width = max(width, GetSize(cell->getPort(ID::A)));
-			if (cell->hasPort(ID::B))
-				width = max(width, GetSize(cell->getPort(ID::B)));
+				width = max(width, GetSize(cell->getPort(TW::A)));
+			if (cell->hasPort(TW::B))
+				width = max(width, GetSize(cell->getPort(TW::B)));
 		}
 
-		if (cell->hasPort(ID::A)) {
-			sig_a = cell->getPort(ID::A);
+		if (cell->hasPort(TW::A)) {
+			sig_a = cell->getPort(TW::A);
 			sig_a.extend_u0(width, is_signed);
 		}
 
-		if (cell->hasPort(ID::B)) {
-			sig_b = cell->getPort(ID::B);
+		if (cell->hasPort(TW::B)) {
+			sig_b = cell->getPort(TW::B);
 			sig_b.extend_u0(width, (type == 'S') || (is_signed && !(type == 's')));
 		}
 
@@ -487,8 +491,8 @@ struct Smt2Worker
 		for (char ch : expr) {
 			if (ch == 'A') processed_expr += get_bv(sig_a);
 			else if (ch == 'B') processed_expr += get_bv(sig_b);
-			else if (ch == 'P') processed_expr += get_bv(cell->getPort(ID::B));
-			else if (ch == 'S') processed_expr += get_bv(cell->getPort(ID::S));
+			else if (ch == 'P') processed_expr += get_bv(cell->getPort(TW::B));
+			else if (ch == 'S') processed_expr += get_bv(cell->getPort(TW::S));
 			else if (ch == 'L') processed_expr += is_signed ? "a" : "l";
 			else if (ch == 'U') processed_expr += is_signed ? "s" : "u";
 			else processed_expr += ch;
@@ -515,12 +519,13 @@ struct Smt2Worker
 
 	void export_reduce(RTLIL::Cell *cell, std::string expr, bool identity_val)
 	{
-		RTLIL::SigSpec sig_y = sigmap(cell->getPort(ID::Y));
+		RTLIL::SigSpec sig_y = sigmap(cell->getPort(TW::Y));
 		std::string processed_expr;
 
 		for (char ch : expr)
 			if (ch == 'A' || ch == 'B') {
-				RTLIL::SigSpec sig = sigmap(cell->getPort(stringf("\\%c", ch)));
+				TwineRef port = (ch == 'A') ? TW::A : TW::B;
+				RTLIL::SigSpec sig = sigmap(cell->getPort(port));
 				for (auto bit : sig)
 					processed_expr += " " + get_bool(bit);
 				if (GetSize(sig) == 1)
@@ -541,7 +546,7 @@ struct Smt2Worker
 	{
 		if (verbose)
 			log("%*s=> export_cell %s (%s) [%s]\n", 2+2*GetSize(recursive_cells), "",
-					cell, cell->type.unescape(), exported_cells.count(cell) ? "old" : "new");
+					cell, cell->type.unescaped(), exported_cells.count(cell) ? "old" : "new");
 
 		if (recursive_cells.count(cell))
 			log_error("Found logic loop in module %s! See cell %s.\n", get_id(module), get_id(cell));
@@ -552,9 +557,9 @@ struct Smt2Worker
 		exported_cells.insert(cell);
 		recursive_cells.insert(cell);
 
-		if (cell->type == ID($initstate))
+		if (cell->type == TW($initstate))
 		{
-			SigBit bit = sigmap(cell->getPort(ID::Y).as_bit());
+			SigBit bit = sigmap(cell->getPort(TW::Y).as_bit());
 			decls.push_back(stringf("(define-fun |%s#%d| ((state |%s_s|)) Bool (|%s_is| state)) ; %s\n",
 					get_id(module), idcounter, get_id(module), get_id(module), log_signal(bit)));
 			register_bool(bit, idcounter++);
@@ -562,62 +567,67 @@ struct Smt2Worker
 			return;
 		}
 
-		if (cell->type.in(ID($_FF_), ID($_DFF_P_), ID($_DFF_N_)))
+		if (cell->type.in(TW($_FF_), TW($_DFF_P_), TW($_DFF_N_)))
 		{
 			registers.insert(cell);
-			SigBit q_bit = cell->getPort(ID::Q);
+			SigBit q_bit = cell->getPort(TW::Q);
 			if (q_bit.is_wire())
 				decls.push_back(witness_signal("reg", 1, 0, "", idcounter, q_bit.wire));
-			makebits(stringf("%s#%d", get_id(module), idcounter), 0, log_signal(cell->getPort(ID::Q)));
-			register_bool(cell->getPort(ID::Q), idcounter++);
+			makebits(stringf("%s#%d", get_id(module), idcounter), 0, log_signal(cell->getPort(TW::Q)));
+			register_bool(cell->getPort(TW::Q), idcounter++);
 			recursive_cells.erase(cell);
 			return;
 		}
 
-		if (cell->type == ID($_BUF_)) return export_gate(cell, "A");
-		if (cell->type == ID($_NOT_)) return export_gate(cell, "(not A)");
-		if (cell->type == ID($_AND_)) return export_gate(cell, "(and A B)");
-		if (cell->type == ID($_NAND_)) return export_gate(cell, "(not (and A B))");
-		if (cell->type == ID($_OR_)) return export_gate(cell, "(or A B)");
-		if (cell->type == ID($_NOR_)) return export_gate(cell, "(not (or A B))");
-		if (cell->type == ID($_XOR_)) return export_gate(cell, "(xor A B)");
-		if (cell->type == ID($_XNOR_)) return export_gate(cell, "(not (xor A B))");
-		if (cell->type == ID($_ANDNOT_)) return export_gate(cell, "(and A (not B))");
-		if (cell->type == ID($_ORNOT_)) return export_gate(cell, "(or A (not B))");
-		if (cell->type == ID($_MUX_)) return export_gate(cell, "(ite S B A)");
-		if (cell->type == ID($_NMUX_)) return export_gate(cell, "(not (ite S B A))");
-		if (cell->type == ID($_AOI3_)) return export_gate(cell, "(not (or (and A B) C))");
-		if (cell->type == ID($_OAI3_)) return export_gate(cell, "(not (and (or A B) C))");
-		if (cell->type == ID($_AOI4_)) return export_gate(cell, "(not (or (and A B) (and C D)))");
-		if (cell->type == ID($_OAI4_)) return export_gate(cell, "(not (and (or A B) (or C D)))");
+		if (cell->type == TW($_BUF_)) return export_gate(cell, "A");
+		if (cell->type == TW($_NOT_)) return export_gate(cell, "(not A)");
+		if (cell->type == TW($_AND_)) return export_gate(cell, "(and A B)");
+		if (cell->type == TW($_NAND_)) return export_gate(cell, "(not (and A B))");
+		if (cell->type == TW($_OR_)) return export_gate(cell, "(or A B)");
+		if (cell->type == TW($_NOR_)) return export_gate(cell, "(not (or A B))");
+		if (cell->type == TW($_XOR_)) return export_gate(cell, "(xor A B)");
+		if (cell->type == TW($_XNOR_)) return export_gate(cell, "(not (xor A B))");
+		if (cell->type == TW($_ANDNOT_)) return export_gate(cell, "(and A (not B))");
+		if (cell->type == TW($_ORNOT_)) return export_gate(cell, "(or A (not B))");
+		if (cell->type == TW($_MUX_)) return export_gate(cell, "(ite S B A)");
+		if (cell->type == TW($_NMUX_)) return export_gate(cell, "(not (ite S B A))");
+		if (cell->type == TW($_AOI3_)) return export_gate(cell, "(not (or (and A B) C))");
+		if (cell->type == TW($_OAI3_)) return export_gate(cell, "(not (and (or A B) C))");
+		if (cell->type == TW($_AOI4_)) return export_gate(cell, "(not (or (and A B) (and C D)))");
+		if (cell->type == TW($_OAI4_)) return export_gate(cell, "(not (and (or A B) (or C D)))");
 
 		// FIXME: $lut
 
 		if (bvmode)
 		{
-			if (cell->type.in(ID($ff), ID($dff)))
+			if (cell->type.in(TW($ff), TW($dff)))
 			{
 				registers.insert(cell);
 				int smtoffset = 0;
-				for (auto chunk : cell->getPort(ID::Q).chunks()) {
+				for (auto chunk : cell->getPort(TW::Q).chunks()) {
 					if (chunk.is_wire())
 						decls.push_back(witness_signal("reg", chunk.width, chunk.offset, "", idcounter, chunk.wire, smtoffset));
 					smtoffset += chunk.width;
 				}
-				makebits(stringf("%s#%d", get_id(module), idcounter), GetSize(cell->getPort(ID::Q)), log_signal(cell->getPort(ID::Q)));
-				register_bv(cell->getPort(ID::Q), idcounter++);
+				makebits(stringf("%s#%d", get_id(module), idcounter), GetSize(cell->getPort(TW::Q)), log_signal(cell->getPort(TW::Q)));
+				register_bv(cell->getPort(TW::Q), idcounter++);
 				recursive_cells.erase(cell);
 				return;
 			}
 
-			if (cell->type.in(ID($anyconst), ID($anyseq), ID($anyinit), ID($allconst), ID($allseq)))
+			if (cell->type.in(TW($anyconst), TW($anyseq), TW($anyinit), TW($allconst), TW($allseq)))
 			{
-				auto QY = cell->type == ID($anyinit) ? ID::Q : ID::Y;
+				auto QY = cell->type == TW($anyinit) ? TW::Q : TW::Y;
 				registers.insert(cell);
-				string infostr = cell->attributes.count(ID::src) ? cell->attributes.at(ID::src).decode_string().c_str() : get_id(cell);
+				string infostr;
+				if (cell->has_attribute(ID::src)) {
+					infostr = cell->get_src_attribute();
+				} else {
+					infostr = get_id(cell);
+				}
 				if (cell->attributes.count(ID::reg))
 					infostr += " " + cell->attributes.at(ID::reg).decode_string();
-				decls.push_back(stringf("; yosys-smt2-%s %s#%d %d %s\n", cell->type.c_str() + 1, get_id(module), idcounter, GetSize(cell->getPort(QY)), infostr));
+				decls.push_back(stringf("; yosys-smt2-%s %s#%d %d %s\n", cell->type.unescape(), get_id(module), idcounter, GetSize(cell->getPort(QY)), infostr));
 				if (cell->getPort(QY).is_wire() && cell->getPort(QY).as_wire()->get_bool_attribute(ID::maximize)){
 					decls.push_back(stringf("; yosys-smt2-maximize %s#%d\n", get_id(module), idcounter));
 					log("Wire %s is maximized\n", cell->getPort(QY).as_wire()->name.str());
@@ -627,68 +637,68 @@ struct Smt2Worker
 					log("Wire %s is minimized\n", cell->getPort(QY).as_wire()->name.str());
 				}
 
-				bool init_only = cell->type.in(ID($anyconst), ID($anyinit), ID($allconst));
-				bool clk2fflogic = cell->type == ID($anyinit) && cell->get_bool_attribute(ID(clk2fflogic));
+				bool init_only = cell->type.in(TW($anyconst), TW($anyinit), TW($allconst));
+				bool clk2fflogic = cell->type == TW($anyinit) && cell->get_bool_attribute(ID(clk2fflogic));
 				int smtoffset = 0;
-				for (auto chunk : cell->getPort(clk2fflogic ? ID::D : QY).chunks()) {
+				for (auto chunk : cell->getPort(clk2fflogic ? TW::D : QY).chunks()) {
 					if (chunk.is_wire())
 						decls.push_back(witness_signal(init_only ? "init" : "seq", chunk.width, chunk.offset, "", idcounter, chunk.wire, smtoffset));
 					smtoffset += chunk.width;
 				}
 
 				makebits(stringf("%s#%d", get_id(module), idcounter), GetSize(cell->getPort(QY)), log_signal(cell->getPort(QY)));
-				if (cell->type == ID($anyseq))
+				if (cell->type == TW($anyseq))
 					ex_input_eq.push_back(stringf("  (= (|%s#%d| state) (|%s#%d| other_state))", get_id(module), idcounter, get_id(module), idcounter));
 				register_bv(cell->getPort(QY), idcounter++);
 				recursive_cells.erase(cell);
 				return;
 			}
 
-			if (cell->type == ID($and)) return export_bvop(cell, "(bvand A B)");
-			if (cell->type == ID($or)) return export_bvop(cell, "(bvor A B)");
-			if (cell->type == ID($xor)) return export_bvop(cell, "(bvxor A B)");
-			if (cell->type == ID($xnor)) return export_bvop(cell, "(bvxnor A B)");
+			if (cell->type == TW($and)) return export_bvop(cell, "(bvand A B)");
+			if (cell->type == TW($or)) return export_bvop(cell, "(bvor A B)");
+			if (cell->type == TW($xor)) return export_bvop(cell, "(bvxor A B)");
+			if (cell->type == TW($xnor)) return export_bvop(cell, "(bvxnor A B)");
 
-			if (cell->type == ID($bweqx)) return export_bvop(cell, "(bvxnor A B)", 'U');
-			if (cell->type == ID($bwmux)) return export_bvop(cell, "(bvor (bvand A (bvnot S)) (bvand B S))", 'U');
+			if (cell->type == TW($bweqx)) return export_bvop(cell, "(bvxnor A B)", 'U');
+			if (cell->type == TW($bwmux)) return export_bvop(cell, "(bvor (bvand A (bvnot S)) (bvand B S))", 'U');
 
-			if (cell->type == ID($shl)) return export_bvop(cell, "(bvshl A B)", 's');
-			if (cell->type == ID($shr)) return export_bvop(cell, "(bvlshr A B)", 's');
-			if (cell->type == ID($sshl)) return export_bvop(cell, "(bvshl A B)", 's');
-			if (cell->type == ID($sshr)) return export_bvop(cell, "(bvLshr A B)", 's');
+			if (cell->type == TW($shl)) return export_bvop(cell, "(bvshl A B)", 's');
+			if (cell->type == TW($shr)) return export_bvop(cell, "(bvlshr A B)", 's');
+			if (cell->type == TW($sshl)) return export_bvop(cell, "(bvshl A B)", 's');
+			if (cell->type == TW($sshr)) return export_bvop(cell, "(bvLshr A B)", 's');
 
-			if (cell->type.in(ID($shift), ID($shiftx))) {
+			if (cell->type.in(TW($shift), TW($shiftx))) {
 				if (cell->getParam(ID::B_SIGNED).as_bool()) {
 					return export_bvop(cell, stringf("(ite (bvsge P #b%0*d) "
 							"(bvlshr A B) (bvshl A (bvneg B)))",
-							GetSize(cell->getPort(ID::B)), 0), 'S'); // type 'S' sign extends B
+							GetSize(cell->getPort(TW::B)), 0), 'S'); // type 'S' sign extends B
 				} else {
 					return export_bvop(cell, "(bvlshr A B)", 's');
 				}
 			}
 
-			if (cell->type == ID($lt)) return export_bvop(cell, "(bvUlt A B)", 'b');
-			if (cell->type == ID($le)) return export_bvop(cell, "(bvUle A B)", 'b');
-			if (cell->type == ID($ge)) return export_bvop(cell, "(bvUge A B)", 'b');
-			if (cell->type == ID($gt)) return export_bvop(cell, "(bvUgt A B)", 'b');
+			if (cell->type == TW($lt)) return export_bvop(cell, "(bvUlt A B)", 'b');
+			if (cell->type == TW($le)) return export_bvop(cell, "(bvUle A B)", 'b');
+			if (cell->type == TW($ge)) return export_bvop(cell, "(bvUge A B)", 'b');
+			if (cell->type == TW($gt)) return export_bvop(cell, "(bvUgt A B)", 'b');
 
-			if (cell->type == ID($ne)) return export_bvop(cell, "(distinct A B)", 'b');
-			if (cell->type == ID($nex)) return export_bvop(cell, "(distinct A B)", 'b');
-			if (cell->type == ID($eq)) return export_bvop(cell, "(= A B)", 'b');
-			if (cell->type == ID($eqx)) return export_bvop(cell, "(= A B)", 'b');
+			if (cell->type == TW($ne)) return export_bvop(cell, "(distinct A B)", 'b');
+			if (cell->type == TW($nex)) return export_bvop(cell, "(distinct A B)", 'b');
+			if (cell->type == TW($eq)) return export_bvop(cell, "(= A B)", 'b');
+			if (cell->type == TW($eqx)) return export_bvop(cell, "(= A B)", 'b');
 
-			if (cell->type == ID($not)) return export_bvop(cell, "(bvnot A)");
-			if (cell->type == ID($pos)) return export_bvop(cell, "A");
-			if (cell->type == ID($neg)) return export_bvop(cell, "(bvneg A)");
+			if (cell->type == TW($not)) return export_bvop(cell, "(bvnot A)");
+			if (cell->type == TW($pos)) return export_bvop(cell, "A");
+			if (cell->type == TW($neg)) return export_bvop(cell, "(bvneg A)");
 
-			if (cell->type == ID($add)) return export_bvop(cell, "(bvadd A B)");
-			if (cell->type == ID($sub)) return export_bvop(cell, "(bvsub A B)");
-			if (cell->type == ID($mul)) return export_bvop(cell, "(bvmul A B)");
-			if (cell->type == ID($div)) return export_bvop(cell, "(bvUdiv A B)", 'd');
+			if (cell->type == TW($add)) return export_bvop(cell, "(bvadd A B)");
+			if (cell->type == TW($sub)) return export_bvop(cell, "(bvsub A B)");
+			if (cell->type == TW($mul)) return export_bvop(cell, "(bvmul A B)");
+			if (cell->type == TW($div)) return export_bvop(cell, "(bvUdiv A B)", 'd');
 			// "rem" = truncating modulo
-			if (cell->type == ID($mod)) return export_bvop(cell, "(bvUrem A B)", 'd');
+			if (cell->type == TW($mod)) return export_bvop(cell, "(bvUrem A B)", 'd');
 			// "mod" = flooring modulo
-			if (cell->type == ID($modfloor)) {
+			if (cell->type == TW($modfloor)) {
 				// bvumod doesn't exist because it's the same as bvurem
 				if (cell->getParam(ID::A_SIGNED).as_bool()) {
 					return export_bvop(cell, "(bvsmod A B)", 'd');
@@ -697,11 +707,11 @@ struct Smt2Worker
 				}
 			}
 			// "div" = flooring division
-			if (cell->type == ID($divfloor)) {
+			if (cell->type == TW($divfloor)) {
 				if (cell->getParam(ID::A_SIGNED).as_bool()) {
 					// bvsdiv is truncating division, so we can't use it here.
-					int width = max(GetSize(cell->getPort(ID::A)), GetSize(cell->getPort(ID::B)));
-					width = max(width, GetSize(cell->getPort(ID::Y)));
+					int width = max(GetSize(cell->getPort(TW::A)), GetSize(cell->getPort(TW::B)));
+					width = max(width, GetSize(cell->getPort(TW::Y)));
 					auto expr = stringf("(let ("
 							    "(a_neg (bvslt A #b%0*d)) "
 							    "(b_neg (bvslt B #b%0*d))) "
@@ -718,30 +728,30 @@ struct Smt2Worker
 				}
 			}
 
-			if (cell->type.in(ID($reduce_and), ID($reduce_or), ID($reduce_bool)) &&
-					2*GetSize(cell->getPort(ID::A).chunks()) < GetSize(cell->getPort(ID::A))) {
-				bool is_and = cell->type == ID($reduce_and);
-				string bits(GetSize(cell->getPort(ID::A)), is_and ? '1' : '0');
+			if (cell->type.in(TW($reduce_and), TW($reduce_or), TW($reduce_bool)) &&
+					2*GetSize(cell->getPort(TW::A).chunks()) < GetSize(cell->getPort(TW::A))) {
+				bool is_and = cell->type == TW($reduce_and);
+				string bits(GetSize(cell->getPort(TW::A)), is_and ? '1' : '0');
 				return export_bvop(cell, stringf("(%s A #b%s)", is_and ? "=" : "distinct", bits), 'b');
 			}
 
-			if (cell->type == ID($reduce_and)) return export_reduce(cell, "(and A)", true);
-			if (cell->type == ID($reduce_or)) return export_reduce(cell, "(or A)", false);
-			if (cell->type == ID($reduce_xor)) return export_reduce(cell, "(xor A)", false);
-			if (cell->type == ID($reduce_xnor)) return export_reduce(cell, "(not (xor A))", false);
-			if (cell->type == ID($reduce_bool)) return export_reduce(cell, "(or A)", false);
+			if (cell->type == TW($reduce_and)) return export_reduce(cell, "(and A)", true);
+			if (cell->type == TW($reduce_or)) return export_reduce(cell, "(or A)", false);
+			if (cell->type == TW($reduce_xor)) return export_reduce(cell, "(xor A)", false);
+			if (cell->type == TW($reduce_xnor)) return export_reduce(cell, "(not (xor A))", false);
+			if (cell->type == TW($reduce_bool)) return export_reduce(cell, "(or A)", false);
 
-			if (cell->type == ID($logic_not)) return export_reduce(cell, "(not (or A))", false);
-			if (cell->type == ID($logic_and)) return export_reduce(cell, "(and (or A) (or B))", false);
-			if (cell->type == ID($logic_or)) return export_reduce(cell, "(or A B)", false);
+			if (cell->type == TW($logic_not)) return export_reduce(cell, "(not (or A))", false);
+			if (cell->type == TW($logic_and)) return export_reduce(cell, "(and (or A) (or B))", false);
+			if (cell->type == TW($logic_or)) return export_reduce(cell, "(or A B)", false);
 
-			if (cell->type.in(ID($mux), ID($pmux)))
+			if (cell->type.in(TW($mux), TW($pmux)))
 			{
-				int width = GetSize(cell->getPort(ID::Y));
-				std::string processed_expr = get_bv(cell->getPort(ID::A));
+				int width = GetSize(cell->getPort(TW::Y));
+				std::string processed_expr = get_bv(cell->getPort(TW::A));
 
-				RTLIL::SigSpec sig_b = cell->getPort(ID::B);
-				RTLIL::SigSpec sig_s = cell->getPort(ID::S);
+				RTLIL::SigSpec sig_b = cell->getPort(TW::B);
+				RTLIL::SigSpec sig_s = cell->getPort(TW::S);
 				get_bv(sig_b);
 				get_bv(sig_s);
 
@@ -752,7 +762,7 @@ struct Smt2Worker
 				if (verbose)
 					log("%*s-> import cell: %s\n", 2+2*GetSize(recursive_cells), "", cell);
 
-				RTLIL::SigSpec sig = sigmap(cell->getPort(ID::Y));
+				RTLIL::SigSpec sig = sigmap(cell->getPort(TW::Y));
 				decls.push_back(stringf("(define-fun |%s#%d| ((state |%s_s|)) (_ BitVec %d) %s) ; %s\n",
 						get_id(module), idcounter, get_id(module), width, processed_expr.c_str(), log_signal(sig)));
 				register_bv(sig, idcounter++);
@@ -813,7 +823,7 @@ struct Smt2Worker
 
 					if (port.clk_enable)
 						log_error("Read port %d (%s) of memory %s.%s is clocked. This is not supported by \"write_smt2\"! "
-								"Call \"memory\" with -nordff to avoid this error.\n", i, log_signal(port.data), mem->memid.unescape(), module);
+								"Call \"memory\" with -nordff to avoid this error.\n", i, log_signal(port.data), RTLIL::unescape_id(mem->memid), module);
 
 					decls.push_back(stringf("(define-fun |%s_m:R%dA %s| ((state |%s_s|)) (_ BitVec %d) %s) ; %s\n",
 							get_id(module), i, get_id(mem->memid), get_id(module), abits, addr.c_str(), log_signal(addr_sig)));
@@ -857,7 +867,7 @@ struct Smt2Worker
 
 					if (port.clk_enable)
 						log_error("Read port %d (%s) of memory %s.%s is clocked. This is not supported by \"write_smt2\"! "
-								"Call \"memory\" with -nordff to avoid this error.\n", i, log_signal(port.data), mem->memid.unescape(), module);
+								"Call \"memory\" with -nordff to avoid this error.\n", i, log_signal(port.data), RTLIL::unescape_id(mem->memid), module);
 
 					decls.push_back(stringf("(define-fun |%s_m:R%dA %s| ((state |%s_s|)) (_ BitVec %d) %s) ; %s\n",
 							get_id(module), i, get_id(mem->memid), get_id(module), abits, addr.c_str(), log_signal(addr_sig)));
@@ -877,7 +887,7 @@ struct Smt2Worker
 			return;
 		}
 
-		Module *m = module->design->module(cell->type);
+		Module *m = module->design->module(cell->type_impl);
 
 		if (m != nullptr)
 		{
@@ -926,15 +936,15 @@ struct Smt2Worker
 			return;
 		}
 
-		if (cell->type.in(ID($dffe), ID($sdff), ID($sdffe), ID($sdffce)) || cell->type.str().substr(0, 6) == "$_SDFF" || (cell->type.str().substr(0, 6) == "$_DFFE" && cell->type.str().size() == 10)) {
+		if (cell->type.in(TW($dffe), TW($sdff), TW($sdffe), TW($sdffce)) || cell->type.str().substr(0, 6) == "$_SDFF" || (cell->type.str().substr(0, 6) == "$_DFFE" && cell->type.str().size() == 10)) {
 			log_error("Unsupported cell type %s for cell %s.%s -- please run `dffunmap` before `write_smt2`.\n",
 					cell->type.unescape(), module, cell);
 		}
-		if (cell->type.in(ID($adff), ID($adffe), ID($aldff), ID($aldffe), ID($dffsr), ID($dffsre)) || cell->type.str().substr(0, 5) == "$_DFF" || cell->type.str().substr(0, 7) == "$_ALDFF") {
+		if (cell->type.in(TW($adff), TW($adffe), TW($aldff), TW($aldffe), TW($dffsr), TW($dffsre)) || cell->type.str().substr(0, 5) == "$_DFF" || cell->type.str().substr(0, 7) == "$_ALDFF") {
 			log_error("Unsupported cell type %s for cell %s.%s -- please run `async2sync; dffunmap` or `clk2fflogic` before `write_smt2`.\n",
 					cell->type.unescape(), module, cell);
 		}
-		if (cell->type.in(ID($sr), ID($dlatch), ID($adlatch), ID($dlatchsr)) || cell->type.str().substr(0, 8) == "$_DLATCH" || cell->type.str().substr(0, 5) == "$_SR_") {
+		if (cell->type.in(TW($sr), TW($dlatch), TW($adlatch), TW($dlatchsr)) || cell->type.str().substr(0, 8) == "$_DLATCH" || cell->type.str().substr(0, 5) == "$_SR_") {
 			log_error("Unsupported cell type %s for cell %s.%s -- please run `clk2fflogic` before `write_smt2`.\n",
 					cell->type, module, cell);
 		}
@@ -963,9 +973,9 @@ struct Smt2Worker
 
 		pool<SigBit> reg_bits;
 		for (auto cell : module->cells())
-			if (cell->type.in(ID($ff), ID($dff), ID($_FF_), ID($_DFF_P_), ID($_DFF_N_), ID($anyinit))) {
+			if (cell->type.in(TW($ff), TW($dff), TW($_FF_), TW($_DFF_P_), TW($_DFF_N_), TW($anyinit))) {
 				// not using sigmap -- we want the net directly at the dff output
-				for (auto bit : cell->getPort(ID::Q))
+				for (auto bit : cell->getPort(TW::Q))
 					reg_bits.insert(bit);
 			}
 
@@ -1107,18 +1117,18 @@ struct Smt2Worker
 
 		for (auto cell : module->cells())
 		{
-			if (cell->type.in(ID($assert), ID($assume), ID($cover)))
+			if (cell->type.in(TW($assert), TW($assume), TW($cover)))
 			{
-				int &id = cell->type == ID($assert) ? assert_id :
-						cell->type == ID($assume) ? assume_id :
-						cell->type == ID($cover) ? cover_id : *(int*)nullptr;
+				int &id = cell->type == TW($assert) ? assert_id :
+						cell->type == TW($assume) ? assume_id :
+						cell->type == TW($cover) ? cover_id : *(int*)nullptr;
 
-				char postfix = cell->type == ID($assert) ? 'a' :
-						cell->type == ID($assume) ? 'u' :
-						cell->type == ID($cover) ? 'c' : 0;
+				char postfix = cell->type == TW($assert) ? 'a' :
+						cell->type == TW($assume) ? 'u' :
+						cell->type == TW($cover) ? 'c' : 0;
 
-				string name_a = get_bool(cell->getPort(ID::A));
-				string name_en = get_bool(cell->getPort(ID::EN));
+				string name_a = get_bool(cell->getPort(TW::A));
+				string name_en = get_bool(cell->getPort(TW::EN));
 				bool private_name = cell->name[0] == '$';
 
 				if (!private_name && cell->has_attribute(ID::hdlname)) {
@@ -1130,21 +1140,23 @@ struct Smt2Worker
 					}
 				}
 
-				if (private_name && cell->attributes.count(ID::src))
-					decls.push_back(stringf("; yosys-smt2-%s %d %s %s\n", cell->type.c_str() + 1, id, get_id(cell), cell->attributes.at(ID::src).decode_string()));
+				if (private_name && cell->has_attribute(ID::src)) {
+					string raw_src = cell->get_src_attribute();
+					decls.push_back(stringf("; yosys-smt2-%s %d %s %s\n", cell->type.unescape(), id, get_id(cell), raw_src.c_str()));
+				}
 				else
-					decls.push_back(stringf("; yosys-smt2-%s %d %s\n", cell->type.c_str() + 1, id, get_id(cell)));
+					decls.push_back(stringf("; yosys-smt2-%s %d %s\n", cell->type.unescape(), id, get_id(cell)));
 
-				if (cell->type == ID($cover))
+				if (cell->type == TW($cover))
 					decls.push_back(stringf("(define-fun |%s_%c %d| ((state |%s_s|)) Bool (and %s %s)) ; %s\n",
 							get_id(module), postfix, id, get_id(module), name_a.c_str(), name_en.c_str(), get_id(cell)));
 				else
 					decls.push_back(stringf("(define-fun |%s_%c %d| ((state |%s_s|)) Bool (or %s (not %s))) ; %s\n",
 							get_id(module), postfix, id, get_id(module), name_a.c_str(), name_en.c_str(), get_id(cell)));
 
-				if (cell->type == ID($assert))
+				if (cell->type == TW($assert))
 					assert_list.push_back(stringf("(|%s_a %d| state)", get_id(module), id));
-				else if (cell->type == ID($assume))
+				else if (cell->type == TW($assume))
 					assume_list.push_back(stringf("(|%s_u %d| state)", get_id(module), id));
 
 				id++;
@@ -1154,7 +1166,7 @@ struct Smt2Worker
 		if (verbose) log("=> export logic driving hierarchical cells\n");
 
 		for (auto cell : module->cells())
-			if (module->design->module(cell->type) != nullptr)
+			if (module->design->module(cell->type_impl) != nullptr)
 				export_cell(cell);
 
 		while (!hiercells_queue.empty())
@@ -1165,7 +1177,7 @@ struct Smt2Worker
 			for (auto cell : queue)
 			{
 				string cell_state = stringf("(|%s_h %s| state)", get_id(module), get_id(cell->name));
-				Module *m = module->design->module(cell->type);
+				Module *m = module->design->module(cell->type_impl);
 				log_assert(m != nullptr);
 
 				hier.push_back(stringf("  (= (|%s_is| state) (|%s_is| %s))\n",
@@ -1200,29 +1212,29 @@ struct Smt2Worker
 
 			for (auto cell : this_regs)
 			{
-				if (cell->type.in(ID($_FF_), ID($_DFF_P_), ID($_DFF_N_)))
+				if (cell->type.in(TW($_FF_), TW($_DFF_P_), TW($_DFF_N_)))
 				{
-					std::string expr_d = get_bool(cell->getPort(ID::D));
-					std::string expr_q = get_bool(cell->getPort(ID::Q), "next_state");
-					trans.push_back(stringf("  (= %s %s) ; %s %s\n", expr_d, expr_q, get_id(cell), log_signal(cell->getPort(ID::Q))));
-					ex_state_eq.push_back(stringf("(= %s %s)", get_bool(cell->getPort(ID::Q)), get_bool(cell->getPort(ID::Q), "other_state")));
+					std::string expr_d = get_bool(cell->getPort(TW::D));
+					std::string expr_q = get_bool(cell->getPort(TW::Q), "next_state");
+					trans.push_back(stringf("  (= %s %s) ; %s %s\n", expr_d, expr_q, get_id(cell), log_signal(cell->getPort(TW::Q))));
+					ex_state_eq.push_back(stringf("(= %s %s)", get_bool(cell->getPort(TW::Q)), get_bool(cell->getPort(TW::Q), "other_state")));
 				}
 
-				if (cell->type.in(ID($ff), ID($dff), ID($anyinit)))
+				if (cell->type.in(TW($ff), TW($dff), TW($anyinit)))
 				{
-					std::string expr_d = get_bv(cell->getPort(ID::D));
-					std::string expr_q = get_bv(cell->getPort(ID::Q), "next_state");
-					trans.push_back(stringf("  (= %s %s) ; %s %s\n", expr_d, expr_q, get_id(cell), log_signal(cell->getPort(ID::Q))));
-					ex_state_eq.push_back(stringf("(= %s %s)", get_bv(cell->getPort(ID::Q)), get_bv(cell->getPort(ID::Q), "other_state")));
+					std::string expr_d = get_bv(cell->getPort(TW::D));
+					std::string expr_q = get_bv(cell->getPort(TW::Q), "next_state");
+					trans.push_back(stringf("  (= %s %s) ; %s %s\n", expr_d, expr_q, get_id(cell), log_signal(cell->getPort(TW::Q))));
+					ex_state_eq.push_back(stringf("(= %s %s)", get_bv(cell->getPort(TW::Q)), get_bv(cell->getPort(TW::Q), "other_state")));
 				}
 
-				if (cell->type.in(ID($anyconst), ID($allconst)))
+				if (cell->type.in(TW($anyconst), TW($allconst)))
 				{
-					std::string expr_d = get_bv(cell->getPort(ID::Y));
-					std::string expr_q = get_bv(cell->getPort(ID::Y), "next_state");
-					trans.push_back(stringf("  (= %s %s) ; %s %s\n", expr_d, expr_q, get_id(cell), log_signal(cell->getPort(ID::Y))));
-					if (cell->type == ID($anyconst))
-						ex_state_eq.push_back(stringf("(= %s %s)", get_bv(cell->getPort(ID::Y)), get_bv(cell->getPort(ID::Y), "other_state")));
+					std::string expr_d = get_bv(cell->getPort(TW::Y));
+					std::string expr_q = get_bv(cell->getPort(TW::Y), "next_state");
+					trans.push_back(stringf("  (= %s %s) ; %s %s\n", expr_d, expr_q, get_id(cell), log_signal(cell->getPort(TW::Y))));
+					if (cell->type == TW($anyconst))
+						ex_state_eq.push_back(stringf("(= %s %s)", get_bv(cell->getPort(TW::Y)), get_bv(cell->getPort(TW::Y), "other_state")));
 				}
 			}
 
@@ -1469,7 +1481,8 @@ struct Smt2Worker
 
 		if (statebv) {
 			f << stringf("(define-sort |%s_s| () (_ BitVec %d))\n", get_id(module), statebv_width);
-			mod_stbv_width[module->name] = statebv_width;
+			IdString module_name = IdString(module->design->twines.str(module->meta_->name));
+			mod_stbv_width[module_name] = statebv_width;
 		} else
 		if (statedt) {
 			f << stringf("(declare-datatype |%s_s| ((|%s_mk|\n", get_id(module), get_id(module));
@@ -1523,8 +1536,7 @@ struct Smt2Worker
 	std::string witness_signal(const char *type, int width, int offset, const std::string &smtname, int smtid, RTLIL::Wire *wire, int smtoffset = 0)
 	{
 		std::vector<std::string> hiername;
-		const char *wire_name = wire->name.c_str();
-		if (wire_name[0] == '\\') {
+		if (wire->meta_->name.is_public()) {
 			auto hdlname = wire->get_string_attribute(ID::hdlname);
 			for (auto token : split_tokens(hdlname))
 				hiername.push_back("\\" + token);
@@ -1852,11 +1864,14 @@ struct Smt2Backend : public Backend {
 
 		// extract module dependencies
 		std::map<RTLIL::Module*, std::set<RTLIL::Module*>> module_deps;
+		TwineSearch search(&design->twines);
 		for (auto mod : design->modules()) {
 			module_deps[mod] = std::set<RTLIL::Module*>();
-			for (auto cell : mod->cells())
-				if (design->has(cell->type))
-					module_deps[mod].insert(design->module(cell->type));
+			for (auto cell : mod->cells()) {
+				TwineRef cell_type_ref = search.find(cell->type.str());
+				if (cell_type_ref != Twine::Null && design->has(cell_type_ref))
+					module_deps[mod].insert(design->module(cell_type_ref));
+			}
 		}
 
 		// simple good-enough topological sort
@@ -1867,12 +1882,12 @@ struct Smt2Backend : public Backend {
 				for (auto &dep : it.second)
 					if (module_deps.count(dep) > 0)
 						goto not_ready_yet;
-				// log("Next in topological sort: %s\n", it.first->name.unescape());
+				// log("Next in topological sort: %s\n", design->twines.unescaped_str(it.first->name));
 				sorted_modules.push_back(it.first);
 			not_ready_yet:;
 			}
 			if (sorted_modules_idx == sorted_modules.size())
-				log_error("Cyclic dependency between modules found! Cycle includes module %s.\n", module_deps.begin()->first->name.unescape());
+				log_error("Cyclic dependency between modules found! Cycle includes module %s.\n", module_deps.begin()->first->design->twines.str(module_deps.begin()->first->meta_->name).c_str());
 			while (sorted_modules_idx < sorted_modules.size())
 				module_deps.erase(sorted_modules.at(sorted_modules_idx++));
 		}
@@ -1884,7 +1899,7 @@ struct Smt2Backend : public Backend {
 
 		for (auto module : sorted_modules)
 			for (auto cell : module->cells())
-				if (cell->type.in(ID($allconst), ID($allseq)))
+				if (cell->type.in(TW($allconst), TW($allseq)))
 					goto found_forall;
 		if (0) {
 	found_forall:

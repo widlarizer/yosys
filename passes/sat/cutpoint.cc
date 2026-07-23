@@ -86,7 +86,7 @@ struct CutpointPass : public Pass {
 			auto &selection = design->selection();
 			for (auto module : design->modules())
 				for (auto cell : module->cells())
-					if (selection.boxed_module(cell->type))
+					if (selection.boxed_module(cell->type_impl))
 						selection.select(module, cell);
 		}
 
@@ -102,7 +102,7 @@ struct CutpointPass : public Pass {
 					if (wire->port_output)
 						output_wires.push_back(wire);
 				for (auto wire : output_wires)
-					module->connect(wire, flag_undef ? Const(State::Sx, GetSize(wire)) : module->Anyseq(NEW_ID, GetSize(wire)));
+					module->connect(wire, flag_undef ? Const(State::Sx, GetSize(wire)) : module->Anyseq(NEW_TWINE, GetSize(wire)));
 				continue;
 			}
 
@@ -123,7 +123,7 @@ struct CutpointPass : public Pass {
 						wire_drivers.insert(bit);
 
 			for (auto cell : module->selected_cells()) {
-				if (cell->type == ID($anyseq))
+				if (cell->type == TW($anyseq))
 					continue;
 				log("Removing cell %s.%s, making all cell outputs cutpoints.\n", module, cell);
 				for (auto &conn : cell->connections()) {
@@ -132,15 +132,15 @@ struct CutpointPass : public Pass {
 						if (cell->input(conn.first))
 							for (auto bit : sigmap(conn.second))
 								if (wire_drivers.count(bit)) {
-									log_debug("  Treating inout port '%s' as input.\n", conn.first.unescape());
+									log_debug("  Treating inout port '%s' as input.\n", design->twines.unescaped_str(conn.first));
 									do_cut = false;
 									break;
 								}
 
 						if (do_cut) {
-							module->connect(conn.second, flag_undef ? Const(State::Sx, GetSize(conn.second)) : module->Anyseq(NEW_ID, GetSize(conn.second)));
+							module->connect(conn.second, flag_undef ? Const(State::Sx, GetSize(conn.second)) : module->Anyseq(NEW_TWINE, GetSize(conn.second)));
 							if (cell->input(conn.first)) {
-								log_debug("  Treating inout port '%s' as output.\n", conn.first.unescape());
+								log_debug("  Treating inout port '%s' as output.\n", design->twines.unescaped_str(conn.first));
 								for (auto bit : sigmap(conn.second))
 									wire_drivers.insert(bit);
 							}
@@ -149,9 +149,10 @@ struct CutpointPass : public Pass {
 				}
 
 				RTLIL::Cell *scopeinfo = nullptr;
-				auto cell_name = cell->name;
-				if (flag_scopeinfo && cell_name.isPublic()) {
-					auto scopeinfo = module->addCell(NEW_ID, ID($scopeinfo));
+				TwineRef cell_name_ref = cell->name.ref();
+					bool cell_name_is_public = cell->name.isPublic();
+				if (flag_scopeinfo && cell_name_is_public) {
+					auto scopeinfo = module->addCell(NEW_TWINE, TW($scopeinfo));
 					scopeinfo->setParam(ID::TYPE, RTLIL::Const("blackbox"));
 
 					for (auto const &attr : cell->attributes)
@@ -159,22 +160,22 @@ struct CutpointPass : public Pass {
 						if (attr.first == ID::hdlname)
 							scopeinfo->attributes.insert(attr);
 						else
-							scopeinfo->attributes.emplace(stringf("\\cell_%s", attr.first.unescape()), attr.second);
+							scopeinfo->attributes.emplace(stringf("\\cell_%s", RTLIL::unescape_id(attr.first)), attr.second);
 					}
 				}
 
 				module->remove(cell);
 
 				if (scopeinfo != nullptr)
-					module->rename(scopeinfo, cell_name);
+					module->rename(scopeinfo, cell_name_ref);
 			}
 
 			for (auto wire : module->selected_wires()) {
 				if (wire->port_output) {
 					log("Making output wire %s.%s a cutpoint.\n", module, wire);
-					Wire *new_wire = module->addWire(NEW_ID, wire);
+					Wire *new_wire = module->addWire(NEW_TWINE, wire);
 					module->swap_names(wire, new_wire);
-					module->connect(new_wire, flag_undef ? Const(State::Sx, GetSize(new_wire)) : module->Anyseq(NEW_ID, GetSize(new_wire)));
+					module->connect(new_wire, flag_undef ? Const(State::Sx, GetSize(new_wire)) : module->Anyseq(NEW_TWINE, GetSize(new_wire)));
 					wire->port_id = 0;
 					wire->port_input = false;
 					wire->port_output = false;
@@ -199,7 +200,7 @@ struct CutpointPass : public Pass {
 						}
 						if (bit_count == 0)
 							continue;
-						SigSpec dummy = module->addWire(NEW_ID, bit_count);
+						SigSpec dummy = module->addWire(NEW_TWINE, bit_count);
 						bit_count = 0;
 						for (auto &bit : sig) {
 							if (cutpoint_bits.count(bit))
@@ -223,7 +224,7 @@ struct CutpointPass : public Pass {
 				}
 
 				for (auto wire : rewrite_wires) {
-					Wire *new_wire = module->addWire(NEW_ID, wire);
+					Wire *new_wire = module->addWire(NEW_TWINE, wire);
 					SigSpec lhs, rhs, sig = sigmap(wire);
 					for (int i = 0; i < GetSize(sig); i++)
 						if (!cutpoint_bits.count(sig[i])) {
@@ -243,7 +244,7 @@ struct CutpointPass : public Pass {
 
 				for (auto chunk : sig.chunks()) {
 					SigSpec s(chunk);
-					module->connect(s, flag_undef ? Const(State::Sx, GetSize(s)) : module->Anyseq(NEW_ID, GetSize(s)));
+					module->connect(s, flag_undef ? Const(State::Sx, GetSize(s)) : module->Anyseq(NEW_TWINE, GetSize(s)));
 				}
 			}
 		}

@@ -40,11 +40,11 @@ struct FmcombineWorker
 	Design *design;
 	Module *original = nullptr;
 	Module *module = nullptr;
-	IdString orig_type, combined_type;
+	TwineRef orig_type, combined_type;
 
-	FmcombineWorker(Design *design, IdString orig_type, const opts_t &opts) :
+	FmcombineWorker(Design *design, TwineRef orig_type, const opts_t &opts) :
 			opts(opts), design(design), original(design->module(orig_type)),
-			orig_type(orig_type), combined_type(stringf("$fmcombine%s", orig_type))
+			orig_type(orig_type), combined_type(design->twines.add(stringf("$fmcombine%s", design->twines.str(orig_type).c_str())))
 	{
 	}
 
@@ -53,7 +53,7 @@ struct FmcombineWorker
 		SigSpec newsig;
 		for (auto chunk : sig.chunks()) {
 			if (chunk.wire != nullptr)
-				chunk.wire = module->wire(chunk.wire->name.str() + suffix);
+				chunk.wire = module->wire(design->twines.add(std::string{chunk.wire->name.str() + suffix}));
 			newsig.append(chunk);
 		}
 		return newsig;
@@ -61,7 +61,7 @@ struct FmcombineWorker
 
 	Cell *import_prim_cell(Cell *cell, const string &suffix)
 	{
-		Cell *c = module->addCell(cell->name.str() + suffix, cell->type);
+		Cell *c = module->addCell(Twine{cell->name.str() + suffix}, cell->type_impl);
 		c->parameters = cell->parameters;
 		c->attributes = cell->attributes;
 
@@ -79,38 +79,38 @@ struct FmcombineWorker
 		if (!cell->parameters.empty())
 			log_cmd_error("Cell %s.%s has unresolved instance parameters.\n", original, cell);
 
-		FmcombineWorker sub_worker(design, cell->type, opts);
+		FmcombineWorker sub_worker(design, cell->type_impl, opts);
 		sub_worker.generate();
 
-		Cell *c = module->addCell(cell->name.str() + "_combined", sub_worker.combined_type);
+		Cell *c = module->addCell(Twine{cell->name.str() + "_combined"}, sub_worker.combined_type);
 		// c->parameters = cell->parameters;
 		c->attributes = cell->attributes;
 
 		for (auto &conn : cell->connections()) {
-			c->setPort(conn.first.str() + "_gold", import_sig(conn.second, "_gold"));
-			c->setPort(conn.first.str() + "_gate", import_sig(conn.second, "_gate"));
+			c->setPort(design->twines.add(std::string{design->twines.str(conn.first) + "_gold"}), import_sig(conn.second, "_gold"));
+			c->setPort(design->twines.add(std::string{design->twines.str(conn.first) + "_gate"}), import_sig(conn.second, "_gate"));
 		}
 	}
 
 	void generate()
 	{
 		if (design->module(combined_type)) {
-			// log("Combined module %s already exists.\n", combined_type.unescape());
+			// log("Combined module %s already exists.\n", design->twines.unescaped_str(combined_type));
 			return;
 		}
 
-		log("Generating combined module %s from module %s.\n", combined_type.unescape(), orig_type.unescape());
+		log("Generating combined module %s from module %s.\n", design->twines.unescaped_str(combined_type), design->twines.unescaped_str(orig_type));
 		module = design->addModule(combined_type);
 
 		for (auto wire : original->wires()) {
-			module->addWire(wire->name.str() + "_gold", wire);
-			module->addWire(wire->name.str() + "_gate", wire);
+			module->addWire(Twine{wire->name.str() + "_gold"}, wire);
+			module->addWire(Twine{wire->name.str() + "_gate"}, wire);
 		}
 		module->fixup_ports();
 
 		for (auto cell : original->cells()) {
-			if (design->module(cell->type) == nullptr) {
-				if (opts.anyeq && cell->type.in(ID($anyseq), ID($anyconst))) {
+			if (design->module(cell->type_impl) == nullptr) {
+				if (opts.anyeq && cell->type.in(TW($anyseq), TW($anyconst))) {
 					Cell *gold = import_prim_cell(cell, "_gold");
 					for (auto &conn : cell->connections())
 						module->connect(import_sig(conn.second, "_gate"), gold->getPort(conn.first));
@@ -119,11 +119,11 @@ struct FmcombineWorker
 					Cell *gate = import_prim_cell(cell, "_gate");
 					if (opts.initeq) {
 						if (cell->is_builtin_ff()) {
-							SigSpec gold_q = gold->getPort(ID::Q);
-							SigSpec gate_q = gate->getPort(ID::Q);
-							SigSpec en = module->Initstate(NEW_ID);
-							SigSpec eq = module->Eq(NEW_ID, gold_q, gate_q);
-							module->addAssume(NEW_ID, eq, en);
+							SigSpec gold_q = gold->getPort(TW::Q);
+							SigSpec gate_q = gate->getPort(TW::Q);
+							SigSpec en = module->Initstate(NEW_TWINE);
+							SigSpec eq = module->Eq(NEW_TWINE, gold_q, gate_q);
+							module->addAssume(NEW_TWINE, eq, en);
 						}
 					}
 				}
@@ -153,7 +153,7 @@ struct FmcombineWorker
 
 		for (auto cell : original->cells())
 		{
-			if (!ct.cell_known(cell->type))
+			if (!ct.cell_known(cell->type_impl))
 				continue;
 
 			for (auto &conn : cell->connections())
@@ -163,7 +163,7 @@ struct FmcombineWorker
 
 				SigSpec A = import_sig(conn.second, "_gold");
 				SigSpec B = import_sig(conn.second, "_gate");
-				SigBit EQ = module->Eq(NEW_ID, A, B);
+				SigBit EQ = module->Eq(NEW_TWINE, A, B);
 
 				for (auto bit : sigmap({A, B}))
 					data_bit_to_eq_net[bit] = EQ;
@@ -174,7 +174,7 @@ struct FmcombineWorker
 
 		for (auto cell : original->cells())
 		{
-			if (!ct.cell_known(cell->type))
+			if (!ct.cell_known(cell->type_impl))
 				continue;
 
 			bool skip_cell = !cell_to_eq_nets.count(cell);
@@ -205,7 +205,7 @@ struct FmcombineWorker
 
 				if (GetSize(antecedent) > 1) {
 					if (reduce_db.count(antecedent) == 0)
-						reduce_db[antecedent] = module->ReduceAnd(NEW_ID, antecedent);
+						reduce_db[antecedent] = module->ReduceAnd(NEW_TWINE, antecedent);
 					antecedent = reduce_db.at(antecedent);
 				}
 
@@ -214,22 +214,22 @@ struct FmcombineWorker
 
 				if (GetSize(consequent) > 1) {
 					if (reduce_db.count(consequent) == 0)
-						reduce_db[consequent] = module->ReduceAnd(NEW_ID, consequent);
+						reduce_db[consequent] = module->ReduceAnd(NEW_TWINE, consequent);
 					consequent = reduce_db.at(consequent);
 				}
 
 				if (opts.fwd)
-					module->addAssume(NEW_ID, consequent, antecedent);
+					module->addAssume(NEW_TWINE, consequent, antecedent);
 
 				if (opts.bwd)
 				{
 					if (invert_db.count(antecedent) == 0)
-						invert_db[antecedent] = module->Not(NEW_ID, antecedent);
+						invert_db[antecedent] = module->Not(NEW_TWINE, antecedent);
 
 					if (invert_db.count(consequent) == 0)
-						invert_db[consequent] = module->Not(NEW_ID, consequent);
+						invert_db[consequent] = module->Not(NEW_TWINE, consequent);
 
-					module->addAssume(NEW_ID, invert_db.at(antecedent), invert_db.at(consequent));
+					module->addAssume(NEW_TWINE, invert_db.at(antecedent), invert_db.at(consequent));
 				}
 			}
 		}
@@ -326,21 +326,21 @@ struct FmcombinePass : public Pass {
 		}
 		else if (argidx+3 == args.size())
 		{
-			IdString module_name = RTLIL::escape_id(args[argidx++]);
-			IdString gold_name = RTLIL::escape_id(args[argidx++]);
-			IdString gate_name = RTLIL::escape_id(args[argidx++]);
+			TwineRef module_name = design->twines.add(RTLIL::escape_id(args[argidx++]));
+			TwineRef gold_name = design->twines.add(RTLIL::escape_id(args[argidx++]));
+			TwineRef gate_name = design->twines.add(RTLIL::escape_id(args[argidx++]));
 
 			module = design->module(module_name);
 			if (module == nullptr)
-				log_cmd_error("Module %s not found.\n", module_name.unescape());
+				log_cmd_error("Module %s not found.\n", design->twines.unescaped_str(module_name));
 
 			gold_cell = module->cell(gold_name);
 			if (gold_cell == nullptr)
-				log_cmd_error("Gold cell %s not found in module %s.\n", gold_name.unescape(), module);
+				log_cmd_error("Gold cell %s not found in module %s.\n", design->twines.unescaped_str(gold_name), module);
 
 			gate_cell = module->cell(gate_name);
 			if (gate_cell == nullptr)
-				log_cmd_error("Gate cell %s not found in module %s.\n", gate_name.unescape(), module);
+				log_cmd_error("Gate cell %s not found in module %s.\n", design->twines.unescaped_str(gate_name), module);
 		}
 		else
 		{
@@ -361,22 +361,22 @@ struct FmcombinePass : public Pass {
 		if (!gate_cell->parameters.empty())
 			log_cmd_error("Gate cell has unresolved instance parameters.\n");
 
-		FmcombineWorker worker(design, gold_cell->type, opts);
+		FmcombineWorker worker(design, gold_cell->type_impl, opts);
 		worker.generate();
-		IdString combined_cell_name = module->uniquify(stringf("\\%s_%s", gold_cell, gate_cell));
+		TwineRef combined_cell_name = module->uniquify(Twine{stringf("\\%s_%s", gold_cell, gate_cell)});
 
 		Cell *cell = module->addCell(combined_cell_name, worker.combined_type);
 		cell->attributes = gold_cell->attributes;
-		cell->add_strpool_attribute(ID::src, gate_cell->get_strpool_attribute(ID::src));
+		module->design->merge_src(cell, gate_cell);
 
 		log("Combining cells %s and %s in module %s into new cell %s.\n", gold_cell, gate_cell, module, cell);
 
 		for (auto &conn : gold_cell->connections())
-			cell->setPort(conn.first.str() + "_gold", conn.second);
+			cell->setPort(design->twines.add(std::string{design->twines.str(conn.first) + "_gold"}), conn.second);
 		module->remove(gold_cell);
 
 		for (auto &conn : gate_cell->connections())
-			cell->setPort(conn.first.str() + "_gate", conn.second);
+			cell->setPort(design->twines.add(std::string{design->twines.str(conn.first) + "_gate"}), conn.second);
 		module->remove(gate_cell);
 	}
 } FmcombinePass;

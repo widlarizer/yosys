@@ -91,7 +91,9 @@ struct node {
 	// Is this name final?
 	bool decided = false;
 
-	const IdString& name() const { return cell ? cell->name : wire->name; }
+	// cell->name / wire->name are distinct masquerade types under twines;
+	// materialise a plain IdString (by value) for the naming logic.
+	IdString name() const { return cell ? IdString(cell->name) : IdString(wire->name); }
 };
 
 // Decides the order of exploring neighbors
@@ -142,7 +144,7 @@ struct ModuleAutonamer
 					if (!seen_in_this_port.insert(bit.wire).second)
 						continue;
 					Edge edge{
-						.port = conn.first,
+						.port = module->design->twines.str(conn.first),
 						.cell = ci,
 						.wire = wi,
 						.cell_is_output = cell_is_output,
@@ -237,12 +239,12 @@ struct ModuleAutonamer
 		full.reserve(nd.name_length);
 		append_name(nd.from_node, full);
 		full += nd.suffix;
-		IdString name = module->uniquify(IdString(full));
+		TwineRef name = module->uniquify(module->design->twines.add(std::string(full)));
 		if (nd.cell) {
-			log_debug("Rename cell %s in %s to %s.\n", nd.cell, module, name.unescape());
+			log_debug("Rename cell %s in %s to %s.\n", nd.cell, module, module->design->twines.unescaped_str(name));
 			module->rename(nd.cell, name);
 		} else {
-			log_debug("Rename wire %s in %s to %s.\n", nd.wire, module, name.unescape());
+			log_debug("Rename wire %s in %s to %s.\n", nd.wire, module, module->design->twines.unescaped_str(name));
 			module->rename(nd.wire, name);
 		}
 		renamed++;

@@ -187,7 +187,7 @@ struct SetparamPass : public Pass {
 		{
 			for (auto cell : module->selected_cells()) {
 				if (!new_cell_type.empty())
-					cell->type = new_cell_type;
+					cell->type_impl = cell->module->design->twines.add(Twine{new_cell_type});
 				do_setunset(cell->parameters, setunset_list);
 			}
 		}
@@ -234,9 +234,10 @@ struct ChparamPass : public Pass {
 			break;
 		}
 
+		TwineSearch search(&design->twines);
 		for (int i = argidx; i < GetSize(args); i++)
-			if (design->module("$abstract\\" + args[i]) != nullptr &&
-					design->module(RTLIL::escape_id(args[i])) == nullptr)
+			if (design->module(search.find("$abstract\\" + args[i])) != nullptr &&
+					design->module(search.find(RTLIL::escape_id(args[i]))) == nullptr)
 				args[i] = "$abstract\\" + args[i];
 
 		extra_args(args, argidx, design);
@@ -254,10 +255,10 @@ struct ChparamPass : public Pass {
 			return;
 		}
 
-		pool<IdString> modnames, old_modnames;
+		pool<TwineRef> modnames, old_modnames;
 		for (auto module : design->selected_whole_modules_warn()) {
-			modnames.insert(module->name);
-			old_modnames.insert(module->name);
+			modnames.insert(module->meta_->name);
+			old_modnames.insert(module->meta_->name);
 		}
 		modnames.sort();
 
@@ -266,11 +267,11 @@ struct ChparamPass : public Pass {
 			Module *new_module = design->module(module->derive(design, new_parameters));
 			if (module != new_module) {
 				Module *m = new_module->clone();
-				m->name = module->name;
+				m->meta_->name = module->meta_->name;
 				design->remove(module);
 				design->add(m);
 			}
-			if (old_modnames.count(new_module->name) == 0)
+			if (old_modnames.count(new_module->meta_->name) == 0)
 				design->remove(new_module);
 		}
 	}

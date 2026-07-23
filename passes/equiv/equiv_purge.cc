@@ -37,23 +37,24 @@ struct EquivPurgeWorker
 			Wire *wire = sig.as_wire();
 			if (wire->name.isPublic()) {
 				if (!wire->port_output) {
-					log("  Module output: %s (%s)\n", log_signal(wire), cellname.unescape());
+					log("  Module output: %s (%s)\n", log_signal(wire), log_id(cellname));
 					wire->port_output = true;
 				}
 				return wire;
 			}
 		}
 
+		TwineSearch search(&module->design->twines);
 		while (1)
 		{
-			IdString name = stringf("\\equiv_%d", name_cnt++);
-			if (module->count_id(name))
+			std::string name = stringf("\\equiv_%d", name_cnt++);
+			if (module->count_id(search.find(name)))
 				continue;
 
-			Wire *wire = module->addWire(name, GetSize(sig));
+			Wire *wire = module->addWire(Twine{name}, GetSize(sig));
 			wire->port_output = true;
 			module->connect(wire, sig);
-			log("  Module output: %s (%s)\n", log_signal(wire), cellname.unescape());
+			log("  Module output: %s (%s)\n", log_signal(wire), log_id(cellname));
 			return wire;
 		}
 	}
@@ -67,21 +68,22 @@ struct EquivPurgeWorker
 					log("  Module input: %s\n", log_signal(wire));
 					wire->port_input = true;
 				}
-				return module->addWire(NEW_ID, GetSize(sig));
+				return module->addWire(NEW_TWINE, GetSize(sig));
 			}
 		}
 
+		TwineSearch search(&module->design->twines);
 		while (1)
 		{
-			IdString name = stringf("\\equiv_%d", name_cnt++);
-			if (module->count_id(name))
+			std::string name = stringf("\\equiv_%d", name_cnt++);
+			if (module->count_id(search.find(name)))
 				continue;
 
-			Wire *wire = module->addWire(name, GetSize(sig));
+			Wire *wire = module->addWire(Twine{name}, GetSize(sig));
 			wire->port_input = true;
 			module->connect(sig, wire);
 			log("  Module input: %s (%s)\n", log_signal(wire), log_signal(sig));
-			return module->addWire(NEW_ID, GetSize(sig));
+			return module->addWire(NEW_TWINE, GetSize(sig));
 		}
 	}
 
@@ -97,26 +99,26 @@ struct EquivPurgeWorker
 		pool<SigBit> queue, visited;
 
 		// cache for traversing signal flow graph
-		dict<SigBit, pool<IdString>> up_bit2cells;
-		dict<IdString, pool<SigBit>> up_cell2bits;
+		dict<SigBit, pool<TwineRef>> up_bit2cells;
+		dict<TwineRef, pool<SigBit>> up_cell2bits;
 
 		for (auto cell : module->cells())
 		{
-			if (cell->type != ID($equiv)) {
+			if (cell->type != TW($equiv)) {
 				for (auto &port : cell->connections()) {
 					if (cell->input(port.first))
 						for (auto bit : sigmap(port.second))
-							up_cell2bits[cell->name].insert(bit);
+							up_cell2bits[cell->meta_->name].insert(bit);
 					if (cell->output(port.first))
 						for (auto bit : sigmap(port.second))
-							up_bit2cells[bit].insert(cell->name);
+							up_bit2cells[bit].insert(cell->meta_->name);
 				}
 				continue;
 			}
 
-			SigSpec sig_a = sigmap(cell->getPort(ID::A));
-			SigSpec sig_b = sigmap(cell->getPort(ID::B));
-			SigSpec sig_y = sigmap(cell->getPort(ID::Y));
+			SigSpec sig_a = sigmap(cell->getPort(TW::A));
+			SigSpec sig_b = sigmap(cell->getPort(TW::B));
+			SigSpec sig_y = sigmap(cell->getPort(TW::Y));
 
 			if (sig_a == sig_b)
 				continue;
@@ -130,7 +132,7 @@ struct EquivPurgeWorker
 			for (auto bit : sig_y)
 				visited.insert(bit);
 
-			cell->setPort(ID::Y, make_output(sig_y, cell->name));
+			cell->setPort(TW::Y, make_output(sig_y, cell->name));
 		}
 
 		SigSpec srcsig;
@@ -167,8 +169,8 @@ struct EquivPurgeWorker
 				rewrite_sigmap.add(chunk, make_input(chunk));
 
 		for (auto cell : module->cells())
-			if (cell->type == ID($equiv))
-				cell->setPort(ID::Y, rewrite_sigmap(sigmap(cell->getPort(ID::Y))));
+			if (cell->type == TW($equiv))
+				cell->setPort(TW::Y, rewrite_sigmap(sigmap(cell->getPort(TW::Y))));
 
 		module->fixup_ports();
 	}

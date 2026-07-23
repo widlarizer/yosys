@@ -31,15 +31,15 @@ void create_ice40_dsp(ice40_dsp_pm &pm)
 
 	log("Checking %s.%s for iCE40 DSP inference.\n", pm.module, st.mul);
 
-	log_debug("ffA:    %s\n", st.ffA ? st.ffA->name.unescape() : "--");
-	log_debug("ffB:    %s\n", st.ffB ? st.ffB->name.unescape() : "--");
-	log_debug("ffCD:   %s\n", st.ffCD ? st.ffCD->name.unescape() : "--");
-	log_debug("mul:    %s\n", st.mul ? st.mul->name.unescape() : "--");
-	log_debug("ffFJKG: %s\n", st.ffFJKG ? st.ffFJKG->name.unescape() : "--");
-	log_debug("ffH:    %s\n", st.ffH ? st.ffH->name.unescape() : "--");
-	log_debug("add:    %s\n", st.add ? st.add->name.unescape() : "--");
-	log_debug("mux:    %s\n", st.mux ? st.mux->name.unescape() : "--");
-	log_debug("ffO:    %s\n", st.ffO ? st.ffO->name.unescape() : "--");
+	log_debug("ffA:    %s\n", st.ffA ? pm.module->design->twines.unescaped_str(st.ffA->name.ref()) : "--");
+	log_debug("ffB:    %s\n", st.ffB ? pm.module->design->twines.unescaped_str(st.ffB->name.ref()) : "--");
+	log_debug("ffCD:   %s\n", st.ffCD ? pm.module->design->twines.unescaped_str(st.ffCD->name.ref()) : "--");
+	log_debug("mul:    %s\n", st.mul ? pm.module->design->twines.unescaped_str(st.mul->name.ref()) : "--");
+	log_debug("ffFJKG: %s\n", st.ffFJKG ? pm.module->design->twines.unescaped_str(st.ffFJKG->name.ref()) : "--");
+	log_debug("ffH:    %s\n", st.ffH ? pm.module->design->twines.unescaped_str(st.ffH->name.ref()) : "--");
+	log_debug("add:    %s\n", st.add ? pm.module->design->twines.unescaped_str(st.add->name.ref()) : "--");
+	log_debug("mux:    %s\n", st.mux ? pm.module->design->twines.unescaped_str(st.mux->name.ref()) : "--");
+	log_debug("ffO:    %s\n", st.ffO ? pm.module->design->twines.unescaped_str(st.ffO->name.ref()) : "--");
 	log_debug("\n");
 
 	if (GetSize(st.sigA) > 16) {
@@ -63,10 +63,10 @@ void create_ice40_dsp(ice40_dsp_pm &pm)
 	}
 
 	Cell *cell = st.mul;
-	if (cell->type == ID($mul)) {
-		log("  replacing %s with SB_MAC16 cell.\n", st.mul->type.unescape());
+	if (cell->type == TW($mul)) {
+		log("  replacing %s with SB_MAC16 cell.\n", pm.module->design->twines.unescaped_str(st.mul->type_impl));
 
-		cell = pm.module->addCell(NEW_ID, ID(SB_MAC16));
+		cell = pm.module->addCell(NEW_TWINE, TW::SB_MAC16);
 		pm.module->swap_names(cell, st.mul);
 	}
 	else log_assert(cell->type == ID(SB_MAC16));
@@ -86,10 +86,10 @@ void create_ice40_dsp(ice40_dsp_pm &pm)
 	else
 		log_assert(GetSize(CD) == 32);
 
-	cell->setPort(ID::A, A);
-	cell->setPort(ID::B, B);
-	cell->setPort(ID::C, CD.extract(16, 16));
-	cell->setPort(ID::D, CD.extract(0, 16));
+	cell->setPort(TW::A, A);
+	cell->setPort(TW::B, B);
+	cell->setPort(TW::C, CD.extract(16, 16));
+	cell->setPort(TW::D, CD.extract(0, 16));
 
 	cell->setParam(ID(A_REG), st.ffA ? State::S1 : State::S0);
 	cell->setParam(ID(B_REG), st.ffB ? State::S1 : State::S0);
@@ -97,39 +97,39 @@ void create_ice40_dsp(ice40_dsp_pm &pm)
 	cell->setParam(ID(D_REG), st.ffCD ? State::S1 : State::S0);
 
 	SigSpec AHOLD, BHOLD, CDHOLD;
-	if (st.ffA && st.ffA->hasPort(ID::EN))
-		AHOLD = st.ffA->getParam(ID::EN_POLARITY).as_bool() ? pm.module->Not(NEW_ID, st.ffA->getPort(ID::EN)) : st.ffA->getPort(ID::EN);
+	if (st.ffA && st.ffA->hasPort(TW::EN))
+		AHOLD = st.ffA->getParam(ID::EN_POLARITY).as_bool() ? pm.module->Not(NEW_TWINE, st.ffA->getPort(TW::EN)) : st.ffA->getPort(TW::EN);
 	else
 		AHOLD = State::S0;
-	if (st.ffB && st.ffB->hasPort(ID::EN))
-		BHOLD = st.ffB->getParam(ID::EN_POLARITY).as_bool() ? pm.module->Not(NEW_ID, st.ffB->getPort(ID::EN)) : st.ffB->getPort(ID::EN);
+	if (st.ffB && st.ffB->hasPort(TW::EN))
+		BHOLD = st.ffB->getParam(ID::EN_POLARITY).as_bool() ? pm.module->Not(NEW_TWINE, st.ffB->getPort(TW::EN)) : st.ffB->getPort(TW::EN);
 	else
 		BHOLD = State::S0;
-	if (st.ffCD && st.ffCD->hasPort(ID::EN))
-		CDHOLD = st.ffCD->getParam(ID::EN_POLARITY).as_bool() ? pm.module->Not(NEW_ID, st.ffCD->getPort(ID::EN)) : st.ffCD->getPort(ID::EN);
+	if (st.ffCD && st.ffCD->hasPort(TW::EN))
+		CDHOLD = st.ffCD->getParam(ID::EN_POLARITY).as_bool() ? pm.module->Not(NEW_TWINE, st.ffCD->getPort(TW::EN)) : st.ffCD->getPort(TW::EN);
 	else
 		CDHOLD = State::S0;
-	cell->setPort(ID(AHOLD), AHOLD);
-	cell->setPort(ID(BHOLD), BHOLD);
-	cell->setPort(ID(CHOLD), CDHOLD);
-	cell->setPort(ID(DHOLD), CDHOLD);
+	cell->setPort(TW::AHOLD, AHOLD);
+	cell->setPort(TW::BHOLD, BHOLD);
+	cell->setPort(TW::CHOLD, CDHOLD);
+	cell->setPort(TW::DHOLD, CDHOLD);
 
 	SigSpec IRSTTOP, IRSTBOT;
-	if (st.ffA && st.ffA->hasPort(ID::ARST))
-		IRSTTOP = st.ffA->getParam(ID::ARST_POLARITY).as_bool() ? st.ffA->getPort(ID::ARST) : pm.module->Not(NEW_ID, st.ffA->getPort(ID::ARST));
+	if (st.ffA && st.ffA->hasPort(TW::ARST))
+		IRSTTOP = st.ffA->getParam(ID::ARST_POLARITY).as_bool() ? st.ffA->getPort(TW::ARST) : pm.module->Not(NEW_TWINE, st.ffA->getPort(TW::ARST));
 	else
 		IRSTTOP = State::S0;
-	if (st.ffB && st.ffB->hasPort(ID::ARST))
-		IRSTBOT = st.ffB->getParam(ID::ARST_POLARITY).as_bool() ? st.ffB->getPort(ID::ARST) : pm.module->Not(NEW_ID, st.ffB->getPort(ID::ARST));
+	if (st.ffB && st.ffB->hasPort(TW::ARST))
+		IRSTBOT = st.ffB->getParam(ID::ARST_POLARITY).as_bool() ? st.ffB->getPort(TW::ARST) : pm.module->Not(NEW_TWINE, st.ffB->getPort(TW::ARST));
 	else
 		IRSTBOT = State::S0;
-	cell->setPort(ID(IRSTTOP), IRSTTOP);
-	cell->setPort(ID(IRSTBOT), IRSTBOT);
+	cell->setPort(TW::IRSTTOP, IRSTTOP);
+	cell->setPort(TW::IRSTBOT, IRSTBOT);
 
 	if (st.clock != SigBit())
 	{
-		cell->setPort(ID::CLK, st.clock);
-		cell->setPort(ID(CE), State::S1);
+		cell->setPort(TW::CLK, st.clock);
+		cell->setPort(TW::CE, State::S1);
 		cell->setParam(ID(NEG_TRIGGER), st.clock_pol ? State::S0 : State::S1);
 
 		log("  clock: %s (%s)", log_signal(st.clock), st.clock_pol ? "posedge" : "negedge");
@@ -156,20 +156,20 @@ void create_ice40_dsp(ice40_dsp_pm &pm)
 	}
 	else
 	{
-		cell->setPort(ID::CLK, State::S0);
-		cell->setPort(ID(CE), State::S0);
+		cell->setPort(TW::CLK, State::S0);
+		cell->setPort(TW::CE, State::S0);
 		cell->setParam(ID(NEG_TRIGGER), State::S0);
 	}
 
 	// SB_MAC16 Cascade Interface
 
-	cell->setPort(ID(SIGNEXTIN), State::Sx);
-	cell->setPort(ID(SIGNEXTOUT), pm.module->addWire(NEW_ID));
+	cell->setPort(TW::SIGNEXTIN, State::Sx);
+	cell->setPort(TW::SIGNEXTOUT, pm.module->addWire(NEW_TWINE));
 
-	cell->setPort(ID::CI, State::Sx);
+	cell->setPort(TW::CI, State::Sx);
 
-	cell->setPort(ID(ACCUMCI), State::Sx);
-	cell->setPort(ID(ACCUMCO), pm.module->addWire(NEW_ID));
+	cell->setPort(TW::ACCUMCI, State::Sx);
+	cell->setPort(TW::ACCUMCO, pm.module->addWire(NEW_TWINE));
 
 	// SB_MAC16 Output Interface
 
@@ -181,58 +181,58 @@ void create_ice40_dsp(ice40_dsp_pm &pm)
 		if (st.add->getParam(ID::A_SIGNED).as_bool() && st.add->getParam(ID::B_SIGNED).as_bool())
 			pm.module->connect(O[32], O[31]);
 		else
-			cell->setPort(ID::CO, O[32]);
+			cell->setPort(TW::CO, O[32]);
 		O.remove(O_width-1);
 	}
 	else
-		cell->setPort(ID::CO, pm.module->addWire(NEW_ID));
+		cell->setPort(TW::CO, pm.module->addWire(NEW_TWINE));
 	log_assert(GetSize(O) <= 32);
 	if (GetSize(O) < 32)
-		O.append(pm.module->addWire(NEW_ID, 32-GetSize(O)));
+		O.append(pm.module->addWire(NEW_TWINE, 32-GetSize(O)));
 
-	cell->setPort(ID::O, O);
+	cell->setPort(TW::O, O);
 
 	bool accum = false;
 	if (st.add) {
-		accum = (st.ffO && st.add->getPort(st.addAB == ID::A ? ID::B : ID::A) == st.sigO);
+		accum = (st.ffO && st.add->getPort(st.addAB == TW::A ? TW::B : TW::A) == st.sigO);
 		if (accum)
-			log("  accumulator %s (%s)\n", st.add, st.add->type.unescape());
+			log("  accumulator %s (%s)\n", st.add, pm.module->design->twines.unescaped_str(st.add->type_impl));
 		else
-			log("  adder %s (%s)\n", st.add, st.add->type.unescape());
-		cell->setPort(ID(ADDSUBTOP), st.add->type == ID($add) ? State::S0 : State::S1);
-		cell->setPort(ID(ADDSUBBOT), st.add->type == ID($add) ? State::S0 : State::S1);
+			log("  adder %s (%s)\n", st.add, pm.module->design->twines.unescaped_str(st.add->type_impl));
+		cell->setPort(TW::ADDSUBTOP, st.add->type == TW($add) ? State::S0 : State::S1);
+		cell->setPort(TW::ADDSUBBOT, st.add->type == TW($add) ? State::S0 : State::S1);
 	} else {
-		cell->setPort(ID(ADDSUBTOP), State::S0);
-		cell->setPort(ID(ADDSUBBOT), State::S0);
+		cell->setPort(TW::ADDSUBTOP, State::S0);
+		cell->setPort(TW::ADDSUBBOT, State::S0);
 	}
 
 	SigSpec OHOLD;
-	if (st.ffO && st.ffO->hasPort(ID::EN))
-		OHOLD = st.ffO->getParam(ID::EN_POLARITY).as_bool() ? pm.module->Not(NEW_ID, st.ffO->getPort(ID::EN)) : st.ffO->getPort(ID::EN);
+	if (st.ffO && st.ffO->hasPort(TW::EN))
+		OHOLD = st.ffO->getParam(ID::EN_POLARITY).as_bool() ? pm.module->Not(NEW_TWINE, st.ffO->getPort(TW::EN)) : st.ffO->getPort(TW::EN);
 	else
 		OHOLD = State::S0;
-	cell->setPort(ID(OHOLDTOP), OHOLD);
-	cell->setPort(ID(OHOLDBOT), OHOLD);
+	cell->setPort(TW::OHOLDTOP, OHOLD);
+	cell->setPort(TW::OHOLDBOT, OHOLD);
 
 	SigSpec ORST;
-	if (st.ffO && st.ffO->hasPort(ID::ARST))
-		ORST = st.ffO->getParam(ID::ARST_POLARITY).as_bool() ? st.ffO->getPort(ID::ARST) : pm.module->Not(NEW_ID, st.ffO->getPort(ID::ARST));
+	if (st.ffO && st.ffO->hasPort(TW::ARST))
+		ORST = st.ffO->getParam(ID::ARST_POLARITY).as_bool() ? st.ffO->getPort(TW::ARST) : pm.module->Not(NEW_TWINE, st.ffO->getPort(TW::ARST));
 	else
 		ORST = State::S0;
-	cell->setPort(ID(ORSTTOP), ORST);
-	cell->setPort(ID(ORSTBOT), ORST);
+	cell->setPort(TW::ORSTTOP, ORST);
+	cell->setPort(TW::ORSTBOT, ORST);
 
 	SigSpec acc_reset = State::S0;
 	if (st.mux) {
 		if (st.muxAB == ID::A)
-			acc_reset = st.mux->getPort(ID::S);
+			acc_reset = st.mux->getPort(TW::S);
 		else
-			acc_reset = pm.module->Not(NEW_ID, st.mux->getPort(ID::S));
-	} else if (st.ffO && st.ffO->hasPort(ID::SRST)) {
-		acc_reset = st.ffO->getParam(ID::SRST_POLARITY).as_bool() ? st.ffO->getPort(ID::SRST) : pm.module->Not(NEW_ID, st.ffO->getPort(ID::SRST));
+			acc_reset = pm.module->Not(NEW_TWINE, st.mux->getPort(TW::S));
+	} else if (st.ffO && st.ffO->hasPort(TW::SRST)) {
+		acc_reset = st.ffO->getParam(ID::SRST_POLARITY).as_bool() ? st.ffO->getPort(TW::SRST) : pm.module->Not(NEW_TWINE, st.ffO->getPort(TW::SRST));
 	}
-	cell->setPort(ID(OLOADTOP), acc_reset);
-	cell->setPort(ID(OLOADBOT), acc_reset);
+	cell->setPort(TW::OLOADTOP, acc_reset);
+	cell->setPort(TW::OLOADBOT, acc_reset);
 
 	// SB_MAC16 Remaining Parameters
 
@@ -259,7 +259,7 @@ void create_ice40_dsp(ice40_dsp_pm &pm)
 		else
 			cell->setParam(ID(TOPOUTPUT_SELECT), Const(1, 2));
 
-		st.ffO->connections_.at(ID::Q).replace(O, pm.module->addWire(NEW_ID, GetSize(O)));
+		st.ffO->connections_.at(TW::Q).replace(O, pm.module->addWire(NEW_TWINE, GetSize(O)));
 		cell->setParam(ID(BOTOUTPUT_SELECT), Const(1, 2));
 	}
 	else {
@@ -311,8 +311,10 @@ struct Ice40DspPass : public Pass {
 		}
 		extra_args(args, argidx, design);
 
-		for (auto module : design->selected_modules())
-			ice40_dsp_pm(module, module->selected_cells()).run_ice40_dsp(create_ice40_dsp);
+		for (auto module : design->selected_modules()) {
+			SigMap sigmap(module);
+			ice40_dsp_pm(module, &sigmap, module->selected_cells()).run_ice40_dsp(create_ice40_dsp);
+		}
 	}
 } Ice40DspPass;
 

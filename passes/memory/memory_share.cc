@@ -80,7 +80,7 @@ struct MemoryShareWorker
 		if (GetSize(mem.rd_ports) <= 1)
 			return false;
 
-		log("Consolidating read ports of memory %s.%s by address:\n", module, mem.memid.unescape());
+		log("Consolidating read ports of memory %s.%s by address:\n", module, log_id(mem.memid));
 
 		bool changed = false;
 		int abits = 0;
@@ -164,7 +164,7 @@ struct MemoryShareWorker
 					port2.addr = addr2;
 					mem.prepare_rd_merge(i, j, &initvals);
 					mem.widen_prep(wide_log2);
-					SigSpec new_data = module->addWire(NEW_ID, mem.width << wide_log2);
+					SigSpec new_data = module->addWire(NEW_TWINE, mem.width << wide_log2);
 					module->connect(port1.data, new_data.extract(sub1 * mem.width, mem.width << port1.wide_log2));
 					module->connect(port2.data, new_data.extract(sub2 * mem.width, mem.width << port2.wide_log2));
 					for (int k = 0; k < wide_log2; k++)
@@ -197,7 +197,7 @@ struct MemoryShareWorker
 		if (GetSize(mem.wr_ports) <= 1)
 			return false;
 
-		log("Consolidating write ports of memory %s.%s by address:\n", module, mem.memid.unescape());
+		log("Consolidating write ports of memory %s.%s by address:\n", module, log_id(mem.memid));
 
 		bool changed = false;
 		int abits = 0;
@@ -271,8 +271,8 @@ struct MemoryShareWorker
 						port1.data.replace(pos, port2.data.extract(pos, width));
 						new_en = port2.en[pos];
 					} else {
-						port1.data.replace(pos, module->Mux(NEW_ID, port1.data.extract(pos, width), port2.data.extract(pos, width), port2.en[pos]));
-						new_en = module->Or(NEW_ID, port1.en[pos], port2.en[pos]);
+						port1.data.replace(pos, module->Mux(NEW_TWINE, port1.data.extract(pos, width), port2.data.extract(pos, width), port2.en[pos]));
+						new_en = module->Or(NEW_TWINE, port1.en[pos], port2.en[pos]);
 					}
 					for (int k = pos; k < epos; k++)
 						port1.en[k] = new_en;
@@ -316,7 +316,7 @@ struct MemoryShareWorker
 		if (eligible_ports.size() <= 1)
 			return;
 
-		log("Consolidating write ports of memory %s.%s using sat-based resource sharing:\n", module, mem.memid.unescape());
+		log("Consolidating write ports of memory %s.%s using sat-based resource sharing:\n", module, log_id(mem.memid));
 
 		// Group eligible ports by clock domain and width.
 
@@ -424,21 +424,21 @@ struct MemoryShareWorker
 					RTLIL::SigSpec this_data = port2.data;
 					std::vector<RTLIL::SigBit> this_en = modwalker.sigmap(port2.en);
 
-					RTLIL::SigBit this_en_active = module->ReduceOr(NEW_ID, this_en);
+					RTLIL::SigBit this_en_active = module->ReduceOr(NEW_TWINE, this_en);
 
 					if (GetSize(last_addr) < GetSize(this_addr))
 						last_addr.extend_u0(GetSize(this_addr));
 					else
 						this_addr.extend_u0(GetSize(last_addr));
 
-					SigSpec new_addr = module->Mux(NEW_ID, last_addr.extract_end(port1.wide_log2), this_addr.extract_end(port1.wide_log2), this_en_active);
+					SigSpec new_addr = module->Mux(NEW_TWINE, last_addr.extract_end(port1.wide_log2), this_addr.extract_end(port1.wide_log2), this_en_active);
 
 					port1.addr = SigSpec({new_addr, port1.addr.extract(0, port1.wide_log2)});
-					port1.data = module->Mux(NEW_ID, last_data, this_data, this_en_active);
+					port1.data = module->Mux(NEW_TWINE, last_data, this_data, this_en_active);
 
 					std::map<std::pair<RTLIL::SigBit, RTLIL::SigBit>, int> groups_en;
 					RTLIL::SigSpec grouped_last_en, grouped_this_en, en;
-					RTLIL::Wire *grouped_en = module->addWire(NEW_ID, 0);
+					RTLIL::Wire *grouped_en = module->addWire(NEW_TWINE, 0);
 
 					for (int j = 0; j < int(this_en.size()); j++) {
 						std::pair<RTLIL::SigBit, RTLIL::SigBit> key(last_en[j], this_en[j]);
@@ -451,7 +451,7 @@ struct MemoryShareWorker
 						en.append(RTLIL::SigSpec(grouped_en, groups_en[key]));
 					}
 
-					module->addMux(NEW_ID, grouped_last_en, grouped_this_en, this_en_active, grouped_en);
+					module->addMux(NEW_TWINE, grouped_last_en, grouped_this_en, this_en_active, grouped_en);
 					port1.en = en;
 
 					port2.removed = true;
@@ -482,15 +482,15 @@ struct MemoryShareWorker
 		sigmap_xmux = sigmap;
 		for (auto cell : module->cells())
 		{
-			if (cell->type == ID($mux))
+			if (cell->type == TW($mux))
 			{
-				RTLIL::SigSpec sig_a = sigmap_xmux(cell->getPort(ID::A));
-				RTLIL::SigSpec sig_b = sigmap_xmux(cell->getPort(ID::B));
+				RTLIL::SigSpec sig_a = sigmap_xmux(cell->getPort(TW::A));
+				RTLIL::SigSpec sig_b = sigmap_xmux(cell->getPort(TW::B));
 
 				if (sig_a.is_fully_undef())
-					sigmap_xmux.add(cell->getPort(ID::Y), sig_b);
+					sigmap_xmux.add(cell->getPort(TW::Y), sig_b);
 				else if (sig_b.is_fully_undef())
-					sigmap_xmux.add(cell->getPort(ID::Y), sig_a);
+					sigmap_xmux.add(cell->getPort(TW::Y), sig_a);
 			}
 		}
 

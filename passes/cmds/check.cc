@@ -28,6 +28,66 @@
 USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
+int check_bufnorm_cell(RTLIL::Module *module, RTLIL::Cell *cell)
+{
+	bool bufnorm = module->design->flagBufferedNormalized;
+	if (!bufnorm)
+		return 0;
+
+	int counter = 0;
+	for (auto &conn : cell->connections()) {
+		if (cell->port_dir(conn.first) != RTLIL::PD_INPUT && !conn.second.empty()) {
+			if (!conn.second.is_wire()) {
+				log_warning("bufNorm: cell %s.%s port %s output is not a full wire: %s\n",
+					log_id(module), log_id(cell), module->design->twines.str(conn.first).c_str(), log_signal(conn.second));
+				counter++;
+			} else {
+				Wire *w = conn.second.as_wire();
+				if (!w->known_driver())
+					log_warning("bufNorm: cell %s.%s port %s drives wire %s but wire has no driverCell_ set\n",
+						log_id(module), log_id(cell), module->design->twines.str(conn.first).c_str(), log_id(w)), counter++;
+				else if (w->driverCell() != cell || w->driverPort() != conn.first)
+					log_warning("bufNorm: wire %s.%s driverCell_/driverPort_ mismatch: recorded driver is cell %s port %s, but cell %s port %s also drives it\n",
+						log_id(module), log_id(w),
+						log_id(w->driverCell()), module->design->twines.str(w->driverPort()).c_str(),
+						log_id(cell), module->design->twines.str(conn.first).c_str()), counter++;
+			}
+		}
+	}
+	return counter;
+}
+
+int check_bufnorm_wire(RTLIL::Module *module, RTLIL::Wire *wire)
+{
+	bool bufnorm = module->design->flagBufferedNormalized;
+	if (!bufnorm)
+		return 0;
+
+	int counter = 0;
+	if (wire->known_driver()) {
+		Cell *driver = wire->driverCell();
+		TwineRef dport = wire->driverPort();
+		if (!driver->hasPort(dport)) {
+			log_warning("bufNorm: wire %s.%s driverPort_ %s does not exist on driverCell_ %s\n",
+				log_id(module), log_id(wire), module->design->twines.str(dport).c_str(), log_id(driver));
+			counter++;
+		} else {
+			const SigSpec &dsig = driver->getPort(dport);
+			if (!dsig.is_wire() || dsig.as_wire() != wire)
+				log_warning("bufNorm: wire %s.%s driverCell_ %s port %s does not connect back to this wire\n",
+					log_id(module), log_id(wire), log_id(driver), module->design->twines.str(dport).c_str()), counter++;
+			if (wire->port_input && !wire->port_output && driver->type != TW($input_port))
+				log_warning("bufNorm: module input wire %s.%s is driven by non-$input_port cell %s of type %s\n",
+					log_id(module), log_id(wire), log_id(driver), log_id(driver->type)), counter++;
+		}
+	} else if (wire->port_input && !wire->port_output) {
+		log_warning("bufNorm: module input wire %s.%s has no driverCell_ set\n",
+			log_id(module), log_id(wire));
+		counter++;
+	}
+	return counter;
+}
+
 struct CheckPass : public Pass {
 	CheckPass() : Pass("check", "check for obvious problems in the design") { }
 	bool formatted_help() override {
@@ -163,12 +223,12 @@ struct CheckPass : public Pass {
 				std::vector<RTLIL::CaseRule*> all_cases = {&proc_it.second->root_case};
 				for (size_t i = 0; i < all_cases.size(); i++) {
 					for (auto action : all_cases[i]->actions) {
-						for (auto bit : sigmap(action.first))
+						for (auto bit : sigmap(action.lhs))
 							wire_drivers[bit].push_back(
 								stringf("action %s <= %s (case rule) in process %s",
-										log_signal(action.first), log_signal(action.second), proc_it.first.unescape()));
+										log_signal(action.lhs), log_signal(action.rhs), module->design->twines.str(proc_it.first).c_str()));
 
-						for (auto bit : sigmap(action.second))
+						for (auto bit : sigmap(action.rhs))
 							if (bit.wire) used_wires.insert(bit);
 					}
 					for (auto switch_ : all_cases[i]->switches) {
@@ -184,11 +244,11 @@ struct CheckPass : public Pass {
 					for (auto bit : sigmap(sync->signal))
 						if (bit.wire) used_wires.insert(bit);
 					for (auto action : sync->actions) {
-						for (auto bit : sigmap(action.first))
+						for (auto bit : sigmap(action.lhs))
 							wire_drivers[bit].push_back(
 								stringf("action %s <= %s (sync rule) in process %s",
-										log_signal(action.first), log_signal(action.second), proc_it.first.unescape()));
-						for (auto bit : sigmap(action.second))
+										log_signal(action.lhs), log_signal(action.rhs), module->design->twines.str(proc_it.first).c_str()));
+						for (auto bit : sigmap(action.rhs))
 							if (bit.wire) used_wires.insert(bit);
 					}
 					for (auto memwr : sync->mem_write_actions) {
@@ -210,8 +270,8 @@ struct CheckPass : public Pass {
 				CircuitEdgesDatabase(TopoSort<std::pair<RTLIL::IdString, int>> &topo, SigMap &sigmap, bool force_detail)
 					: topo(topo), sigmap(sigmap), force_detail(force_detail) {}
 
-				void add_edge(RTLIL::Cell *cell, RTLIL::IdString from_port, int from_bit,
-							  RTLIL::IdString to_port, int to_bit, int) override {
+				void add_edge(RTLIL::Cell *cell, TwineRef from_port, int from_bit,
+							  TwineRef to_port, int to_bit, int) override {
 					SigSpec from_portsig = cell->getPort(from_port);
 					SigSpec to_portsig = cell->getPort(to_port);
 					log_assert(from_bit >= 0 && from_bit < from_portsig.size());
@@ -220,24 +280,24 @@ struct CheckPass : public Pass {
 					SigBit to = sigmap(to_portsig[to_bit]);
 
 					if (from.wire && to.wire)
-						topo.edge(std::make_pair(from.wire->name, from.offset), std::make_pair(to.wire->name, to.offset));
+						topo.edge(std::make_pair(RTLIL::IdString(from.wire->name), from.offset), std::make_pair(RTLIL::IdString(to.wire->name), to.offset));
 				}
 
 				bool detail_costly(Cell *cell) {
 					// Only those cell types for which the edge data can expode quadratically
 					// in port widths are those for us to check.
 					if (!cell->type.in(
-							ID($add), ID($sub),
-							ID($shl), ID($shr), ID($sshl), ID($sshr), ID($shift), ID($shiftx),
-							ID($pmux), ID($bmux)))
+							TW($add), TW($sub),
+							TW($shl), TW($shr), TW($sshl), TW($sshr), TW($shift), TW($shiftx),
+							TW($pmux), TW($bmux)))
 						return false;
 
 					int in_widths = 0, out_widths = 0;
 
-					if (cell->type.in(ID($pmux), ID($bmux))) {
+					if (cell->type.in(TW($pmux), TW($bmux))) {
 						// We're skipping inputs A and B, since each of their bits contributes only one edge
-						in_widths = GetSize(cell->getPort(ID::S));
-						out_widths = GetSize(cell->getPort(ID::Y));
+						in_widths = GetSize(cell->getPort(TW::S));
+						out_widths = GetSize(cell->getPort(TW::Y));
 					} else {
 						for (auto &conn : cell->connections()) {
 							if (cell->input(conn.first))
@@ -270,14 +330,14 @@ struct CheckPass : public Pass {
 						if (cell->input(conn.first))
 						for (auto bit : sigmap(conn.second))
 						if (bit.wire)
-							topo.edge(std::make_pair(bit.wire->name, bit.offset),
-									  std::make_pair(cell->name, -1));
+							topo.edge(std::make_pair(RTLIL::IdString(bit.wire->name), bit.offset),
+									  std::make_pair(RTLIL::IdString(cell->name), -1));
 
 						if (cell->output(conn.first))
 						for (auto bit : sigmap(conn.second))
 						if (bit.wire)
-							topo.edge(std::make_pair(cell->name, -1),
-									  std::make_pair(bit.wire->name, bit.offset));
+							topo.edge(std::make_pair(RTLIL::IdString(cell->name), -1),
+									  std::make_pair(RTLIL::IdString(bit.wire->name), bit.offset));
 					}
 
 					// Return false to signify the fallback
@@ -290,9 +350,9 @@ struct CheckPass : public Pass {
 			pool<Cell *> coarsened_cells;
 			for (auto cell : module->cells())
 			{
-				if (mapped && cell->type.begins_with("$") && design->module(cell->type) == nullptr) {
-					if (allow_tbuf && cell->type == ID($_TBUF_)) goto cell_allowed;
-					log_warning("Cell %s.%s is an unmapped internal cell of type %s.\n", module, cell, cell->type.unescape());
+				if (mapped && cell->type.begins_with("$") && design->module(cell->type_impl) == nullptr) {
+					if (allow_tbuf && cell->type == TW($_TBUF_)) goto cell_allowed;
+					log_warning("Cell %s.%s is an unmapped internal cell of type %s.\n", module, cell, cell->type.unescaped());
 					counter++;
 				cell_allowed:;
 				}
@@ -306,6 +366,30 @@ struct CheckPass : public Pass {
 					counter++;
 				}
 
+				if (cell->type == TW($connect)) {
+					// Inefficient, but rare case in sane design
+					auto sig_a = cell->getPort(TW::A);
+					auto sig_b = cell->getPort(TW::B);
+					for (int i = 0; i < sig_a.size(); i++) {
+						int count_a = wire_drivers_count[sig_a[i]];
+						int count_b = wire_drivers_count[sig_b[i]];
+						wire_drivers_count[sig_a[i]] += count_b;
+						wire_drivers_count[sig_b[i]] += count_a;
+						// Guarantee default constructed members if missing
+						(void)wire_drivers[sig_a[i]];
+						(void)wire_drivers[sig_b[i]];
+						auto& drivers_a = wire_drivers[sig_a[i]];
+						auto& drivers_b = wire_drivers[sig_b[i]];
+						vector<string> drivers;
+						drivers.reserve(std::max(drivers_a.size(), drivers_b.size()));
+						for (auto driver : drivers_a)
+							drivers.push_back(driver);
+						for (auto driver : drivers_b)
+							drivers.push_back(driver);
+						drivers_a = drivers;
+						drivers_b = drivers;
+					}
+				}
 				for (auto &conn : cell->connections()) {
 					bool input = cell->input(conn.first);
 					bool output = cell->output(conn.first);
@@ -319,18 +403,20 @@ struct CheckPass : public Pass {
 						if (output && !input && bit.wire)
 						wire_drivers_count[bit]++;
 						if (output && (bit.wire || !input))
-							wire_drivers[bit].push_back(stringf("port %s[%d] of cell %s (%s)", conn.first.unescape(), i,
-																cell, cell->type.unescape()));
+							wire_drivers[bit].push_back(stringf("port %s[%d] of cell %s (%s)", cell->module->design->twines.str(conn.first).c_str(), i,
+																cell, cell->type.unescaped()));
 						if (output)
 							driver_cells[bit] = cell;
 					}
 				}
 
-				if (yosys_celltypes.cell_evaluable(cell->type) || cell->type.in(ID($mem_v2), ID($memrd), ID($memrd_v2)) \
+				if (yosys_celltypes.cell_evaluable(cell->type.ref()) || cell->type.in(TW($mem_v2), TW($memrd), TW($memrd_v2)) \
 						|| cell->is_builtin_ff()) {
 					if (!edges_db.add_edges_from_cell(cell))
 						coarsened_cells.insert(cell);
 				}
+
+				counter += check_bufnorm_cell(module, cell);
 			}
 
 			pool<SigBit> init_bits;
@@ -358,6 +444,8 @@ struct CheckPass : public Pass {
 						counter++;
 					}
 				}
+
+				counter += check_bufnorm_wire(module, wire);
 			}
 
 			for (auto state : {State::S0, State::S1, State::Sx})
@@ -392,10 +480,11 @@ struct CheckPass : public Pass {
 				// which we have done the edges fallback. The cell and its ports that led to an edge are
 				// a piece of information we need to recover now. For that we need to have the previous
 				// wire bit of the loop at hand.
+				TwineSearch search(&module->design->twines);
 				SigBit prev;
 				for (auto it = loop.rbegin(); it != loop.rend(); it++)
 				if (it->second != -1) { // skip the fallback helper nodes
-					prev = SigBit(module->wire(it->first), it->second);
+					prev = SigBit(module->wire(search.find(it->first.str())), it->second);
 					break;
 				}
 				log_assert(prev != SigBit());
@@ -414,22 +503,22 @@ struct CheckPass : public Pass {
 						MatchingEdgePrinter(std::string &message, SigMap &sigmap, SigBit from, SigBit to)
 							: message(message), sigmap(sigmap), from(from), to(to), nhits(0) {}
 
-						void add_edge(RTLIL::Cell *cell, RTLIL::IdString from_port, int from_bit,
-									  RTLIL::IdString to_port, int to_bit, int) override {
+						void add_edge(RTLIL::Cell *cell, TwineRef from_port, int from_bit,
+									  TwineRef to_port, int to_bit, int) override {
 							SigBit edge_from = sigmap(cell->getPort(from_port))[from_bit];
 							SigBit edge_to = sigmap(cell->getPort(to_port))[to_bit];
 
 							if (edge_from == from && edge_to == to && nhits++ < HITS_LIMIT)
-								message += stringf("      %s[%d] --> %s[%d]\n", from_port.unescape(), from_bit,
-												   to_port.unescape(), to_bit);
+								message += stringf("      %s[%d] --> %s[%d]\n", cell->module->design->twines.str(from_port).c_str(), from_bit,
+												   cell->module->design->twines.str(to_port).c_str(), to_bit);
 							if (nhits == HITS_LIMIT)
 								message += "      ...\n";
 						}
 					};
 
-					Wire *wire = module->wire(pair.first);
+					Wire *wire = module->wire(search.find(pair.first.str()));
 					log_assert(wire);
-					SigBit bit(module->wire(pair.first), pair.second);
+					SigBit bit(wire, pair.second);
 					log_assert(driver_cells.count(bit));
 					Cell *driver = driver_cells.at(bit);
 
@@ -439,7 +528,7 @@ struct CheckPass : public Pass {
 						driver_src = stringf(" source: %s", src_attr);
 					}
 
-					message += stringf("    cell %s (%s)%s\n", driver, driver->type.unescape(), driver_src);
+					message += stringf("    cell %s (%s)%s\n", driver, design->twines.unescaped_str(driver->type.ref()), driver_src);
 
 					if (!coarsened_cells.count(driver)) {
 						MatchingEdgePrinter printer(message, sigmap, prev, bit);
@@ -471,7 +560,7 @@ struct CheckPass : public Pass {
 					if (cell->is_builtin_ff() == 0)
 						continue;
 
-					for (auto bit : sigmap(cell->getPort(ID::Q)))
+					for (auto bit : sigmap(cell->getPort(TW::Q)))
 						init_bits.erase(bit);
 				}
 
@@ -543,12 +632,12 @@ struct CheckMemPass : public Pass {
 				for (auto &init : mem.inits) {
 					int start = init.addr.as_int();
 					if (start < min_addr) {
-						log_warning("Mem %s.%s starts at %d but initializes address %d.\n", module, mem.mem, min_addr, start);
+						log_warning("Mem %s.%s starts at %d but initializes address %d.\n", module, log_id(mem.mem), min_addr, start);
 						counter++;
 					}
 					int end = start + (GetSize(init.data) / mem.width) - 1;
 					if (end > max_addr) {
-						log_warning("Mem %s.%s ends at %d but initializes address %d.\n", module, mem.mem, max_addr, end);
+						log_warning("Mem %s.%s ends at %d but initializes address %d.\n", module, log_id(mem.mem), max_addr, end);
 						counter++;
 					}
 				}
@@ -557,7 +646,7 @@ struct CheckMemPass : public Pass {
 					if (addr_sig.is_fully_const()) {
 						auto addr = addr_sig.as_int();
 						if (addr < min_addr || addr > max_addr) {
-							log_warning("Mem %s.%s contains entries for addresses %d..%d but %s address %d.\n", module, mem.mem, min_addr, max_addr, access, addr);
+							log_warning("Mem %s.%s contains entries for addresses %d..%d but %s address %d.\n", module, log_id(mem.mem), min_addr, max_addr, access, addr);
 							counter++;
 						}
 					} else if (nonconst_mode) {
@@ -566,7 +655,7 @@ struct CheckMemPass : public Pass {
 						int addr_sig_min = 0;
 						int addr_sig_max = (1 << addr_sig.size()) - 1;
 						if (min_addr > addr_sig_min || max_addr < addr_sig_max) {
-							log_warning("Mem %s.%s contains entries for addresses %d..%d but has a potentially dangerous non-const input %s\n", module, mem.mem, min_addr, max_addr, log_signal(addr_sig));
+							log_warning("Mem %s.%s contains entries for addresses %d..%d but has a potentially dangerous non-const input %s\n", module, log_id(mem.mem), min_addr, max_addr, log_signal(addr_sig));
 							counter++;
 						}
 					}

@@ -23,7 +23,9 @@
 
 #include "kernel/register.h"
 #include "kernel/log.h"
+#include "kernel/rtlil.h"
 #include "kernel/utils.h"
+#include "kernel/twine.h"
 #include <charconv>
 #include <deque>
 #include <optional>
@@ -45,8 +47,22 @@ struct RTLILFrontendWorker {
 
 	RTLIL::Module *current_module;
 	dict<RTLIL::IdString, RTLIL::Const> attrbuf;
+
+	TwineRef pending_src = Twine::Null;
 	std::vector<std::vector<RTLIL::SwitchRule*>*> switch_stack;
 	std::vector<RTLIL::CaseRule*> case_stack;
+
+	dict<size_t, TwineRef> twine_remap;
+	std::vector<TwineRef> twine_parser_holds;
+
+	struct TwineDesc {
+		enum Kind { Leaf, Suffix, Concat } kind;
+		std::string text;
+		size_t parent = 0;
+		std::vector<size_t> children;
+		bool materializing = false;
+	};
+	dict<size_t, TwineDesc> twine_descs;
 
 	template <typename... Args>
 	[[noreturn]]
@@ -158,7 +174,7 @@ struct RTLILFrontendWorker {
 			error("Expected EOL, got `%s'.", error_token());
 	}
 
-	std::optional<RTLIL::IdString> try_parse_id()
+	std::optional<std::string> try_parse_id()
 	{
 		char ch = line[0];
 		if (ch != '\\' && ch != '$')
@@ -170,15 +186,15 @@ struct RTLILFrontendWorker {
 				break;
 			++idx;
 		}
-		IdString result(line.substr(0, idx));
+		std::string result(line.substr(0, idx));
 		line = line.substr(idx);
 		consume_whitespace_and_comments();
 		return result;
 	}
 
-	RTLIL::IdString parse_id()
+	std::string parse_id()
 	{
-		std::optional<RTLIL::IdString> id = try_parse_id();
+		std::optional<std::string> id = try_parse_id();
 		if (!id.has_value())
 			error("Expected ID, got `%s'.", error_token());
 		return std::move(*id);
@@ -328,7 +344,7 @@ struct RTLILFrontendWorker {
 			error("No wires found for legalization");
 		int hash = hash_ops<RTLIL::IdString>::hash(id).yield();
 		RTLIL::Wire *wire = current_module->wire_at(abs(hash % wires_size));
-		log("Legalizing wire `%s' to `%s'.\n", id.unescape(), wire->name.unescape());
+		log("Legalizing wire `%s' to `%s'.\n", log_id(id), design->twines.unescaped_str(wire->name.ref()));
 		return wire;
 	}
 
@@ -342,18 +358,34 @@ struct RTLILFrontendWorker {
 				parts.push_back(parse_sigspec());
 			for (auto it = parts.rbegin(); it != parts.rend(); ++it)
 				sig.append(std::move(*it));
+		} else if (std::optional<TwineRef> handle = try_parse_twine_handle()) {
+			TwineRef ref = *handle;
+			RTLIL::Wire *wire = current_module->wire(ref);
+			if (wire == nullptr) {
+				if (flag_legalize)
+					wire = legalize_wire(RTLIL::IdString(design->twines.str(ref)));
+				else
+					error("Wire %s not found.", design->twines.str(ref).c_str());
+			}
+			sig = RTLIL::SigSpec(wire);
 		} else {
 			// We could add a special path for parsing IdStrings that must already exist,
 			// as here.
 			// We don't need to addref/release in this case.
 			std::optional<RTLIL::IdString> id = try_parse_id();
 			if (id.has_value()) {
-				RTLIL::Wire *wire = current_module->wire(*id);
+				std::string s = id->str();
+				bool pub = !s.empty() && s[0] == '\\';
+				TwineRef ref = twine_tag(design->twines.find(Twine{pub ? s.substr(1) : s}), pub);
+				RTLIL::Wire *wire = current_module->wire(ref);
 				if (wire == nullptr) {
 					if (flag_legalize)
 						wire = legalize_wire(*id);
-					else
+					else {
+						for (auto wire : current_module->wires())
+							design->twines.dump(wire->meta_->name);
 						error("Wire `%s' not found.", *id);
+					}
 				}
 				sig = RTLIL::SigSpec(wire);
 			} else {
@@ -410,31 +442,38 @@ struct RTLILFrontendWorker {
 
 	void parse_module()
 	{
-		RTLIL::IdString module_name = parse_id();
+		TwineRef module_name = parse_twine();
 		expect_eol();
 
 		bool delete_current_module = false;
 		if (design->has(module_name)) {
 			RTLIL::Module *existing_mod = design->module(module_name);
 			if (!flag_overwrite && (flag_lib || (attrbuf.count(ID::blackbox) && attrbuf.at(ID::blackbox).as_bool()))) {
-				log("Ignoring blackbox re-definition of module %s.\n", module_name);
+				log("Ignoring blackbox re-definition of module %s.\n", design->twines.str(module_name).c_str());
 				delete_current_module = true;
 			} else if (!flag_nooverwrite && !flag_overwrite && !existing_mod->get_bool_attribute(ID::blackbox)) {
-				error("RTLIL error: redefinition of module %s.", module_name);
+				error("RTLIL error: redefinition of module %s.", design->twines.str(module_name).c_str());
 			} else if (flag_nooverwrite) {
-				log("Ignoring re-definition of module %s.\n", module_name);
+				log("Ignoring re-definition of module %s.\n", design->twines.str(module_name).c_str());
 				delete_current_module = true;
 			} else {
-				log("Replacing existing%s module %s.\n", existing_mod->get_bool_attribute(ID::blackbox) ? " blackbox" : "", module_name);
+				log("Replacing existing%s module %s.\n", existing_mod->get_bool_attribute(ID::blackbox) ? " blackbox" : "", design->twines.str(module_name).c_str());
 				design->remove(existing_mod);
 			}
 		}
 
 		current_module = new RTLIL::Module;
-		current_module->name = std::move(module_name);
-		current_module->attributes = std::move(attrbuf);
-		if (!delete_current_module)
+		current_module->design = design;
+		current_module->meta_->name = module_name;
+		if (delete_current_module) {
+			attrbuf.erase(ID::src);
+			pending_src = Twine::Null;
+			current_module->attributes = std::move(attrbuf);
+		} else {
 			design->add(current_module);
+			current_module->absorb_attrs(std::move(attrbuf));
+			flush_src(current_module);
+		}
 
 		while (true)
 		{
@@ -487,7 +526,167 @@ struct RTLILFrontendWorker {
 	{
 		RTLIL::IdString id = parse_id();
 		RTLIL::Const c = parse_const();
+		if (id == RTLIL::ID::src && (c.flags & RTLIL::CONST_FLAG_STRING)) {
+			std::string raw = c.decode_string();
+			if (!raw.empty() && raw[0] == '@') {
+				size_t file_id = 0;
+				auto [ptr, ec] = std::from_chars(raw.data() + 1, raw.data() + raw.size(), file_id);
+				if (ec != std::errc() || ptr != raw.data() + raw.size())
+					error("Malformed src twine reference %s at line %d", raw.c_str(), line_num);
+				pending_src = resolve_file_twine(file_id);
+				expect_eol();
+				return;
+			}
+			if (raw.find('|') != std::string::npos) {
+				log_warning("line %d: src attribute %s contains '|' separators. "
+						"That convention is Yosys-internal; the producing tool "
+						"should emit a single path:line.col per attribute and "
+						"let Yosys merge through the twine pool.\n",
+						line_num, raw.c_str());
+			}
+		}
 		attrbuf.insert({std::move(id), std::move(c)});
+		expect_eol();
+	}
+
+	// Apply a pending "@N" src reference to the object just built from attrbuf.
+	void flush_src(RTLIL::AttrObject *obj)
+	{
+		if (pending_src != Twine::Null) {
+			design->set_src_attribute(obj, pending_src);
+			pending_src = Twine::Null;
+		}
+	}
+
+	TwineRef resolve_file_twine(size_t id, bool is_public = false)
+	{
+		TwineRef base;
+		if (id < STATIC_TWINE_END) {
+			base = TwineRef(id);
+		} else {
+			auto it = twine_remap.find(id);
+			base = (it == twine_remap.end()) ? materialize_file_twine(id) : it->second;
+		}
+		return twine_tag(base, is_public);
+	}
+
+	// Tolerates nodes listed out of dependency order
+	TwineRef materialize_file_twine(size_t id)
+	{
+		if (id < STATIC_TWINE_END)
+			return TwineRef(id);
+		auto rit = twine_remap.find(id);
+		if (rit != twine_remap.end())
+			return rit->second;
+		auto dit = twine_descs.find(id);
+		if (dit == twine_descs.end())
+			error("Unknown twine reference @%zu at line %d", id, line_num);
+		TwineDesc &desc = dit->second;
+		if (desc.materializing)
+			error("Cyclic twine reference @%zu at line %d", id, line_num);
+		desc.materializing = true;
+		TwineRef ref;
+		switch (desc.kind) {
+		case TwineDesc::Leaf:
+			ref = design->twines.add(Twine{desc.text});
+			break;
+		case TwineDesc::Suffix:
+			ref = design->twines.add(Twine{Twine::Suffix{
+					materialize_file_twine(desc.parent), desc.text}});
+			break;
+		case TwineDesc::Concat: {
+			std::vector<TwineRef> children;
+			children.reserve(desc.children.size());
+			for (size_t c : desc.children)
+				children.push_back(materialize_file_twine(c));
+			ref = design->twines.add(Twine{children});
+			break;
+		}
+		}
+		desc.materializing = false;
+		twine_remap[id] = ref;
+		return ref;
+	}
+
+	// Parse a "$pub@N"/"$priv@N" twine handle into a resolved, retagged ref
+	std::optional<TwineRef> try_parse_twine_handle()
+	{
+		bool is_public;
+		if (line.substr(0, 5) == "$pub@")
+			is_public = true, line = line.substr(5);
+		else if (line.substr(0, 6) == "$priv@")
+			is_public = false, line = line.substr(6);
+		else
+			return std::nullopt;
+		return resolve_file_twine(parse_integer(), is_public);
+	}
+
+	// A twine-typed token at a definition site: a $pub@/$priv@ reference into
+	// the twines table, or an escaped identifier interned into the pool.
+	std::optional<TwineRef> try_parse_twine()
+	{
+		if (std::optional<TwineRef> handle = try_parse_twine_handle())
+			return handle;
+		std::optional<std::string> id = try_parse_id();
+		if (!id)
+			return std::nullopt;
+		return design->twines.add(std::move(*id));
+	}
+
+	TwineRef parse_twine()
+	{
+		std::optional<TwineRef> t = try_parse_twine();
+		if (!t)
+			error("Expected twine reference or ID, got `%s'.", error_token());
+		return *t;
+	}
+
+	// Parse a `twines` ... `end` block into per-file node descriptors, then
+	// intern them all into design->twines. The destination pool may already
+	// hold twines (multi-file load); it dedups by content. Static ids are
+	// universal and never appear in the block.
+	void parse_twines()
+	{
+		expect_eol();
+		while (true) {
+			if (try_parse_keyword("end"))
+				break;
+			if (try_parse_keyword("leaf")) {
+				size_t file_id = parse_integer();
+				TwineDesc &desc = twine_descs[file_id];
+				desc.kind = TwineDesc::Leaf;
+				desc.text = parse_string();
+				expect_eol();
+				continue;
+			}
+			if (try_parse_keyword("suffix")) {
+				size_t file_id = parse_integer();
+				TwineDesc &desc = twine_descs[file_id];
+				desc.kind = TwineDesc::Suffix;
+				desc.parent = parse_integer();
+				desc.text = parse_string();
+				expect_eol();
+				continue;
+			}
+			if (try_parse_keyword("concat")) {
+				size_t file_id = parse_integer();
+				TwineDesc &desc = twine_descs[file_id];
+				desc.kind = TwineDesc::Concat;
+				while (!try_parse_eol())
+					desc.children.push_back(parse_integer());
+				continue;
+			}
+			error("Expected `leaf`, `suffix` or `concat` inside twines block, got `%s'.",
+					error_token());
+		}
+		std::vector<size_t> ordered_ids;
+		ordered_ids.reserve(twine_descs.size());
+		for (auto &it : twine_descs)
+			ordered_ids.push_back(it.first);
+		std::sort(ordered_ids.begin(), ordered_ids.end());
+		for (size_t id : ordered_ids)
+			materialize_file_twine(id);
+		twine_descs.clear();
 		expect_eol();
 	}
 
@@ -515,17 +714,18 @@ struct RTLILFrontendWorker {
 
 		while (true)
 		{
-			std::optional<RTLIL::IdString> id = try_parse_id();
-			if (id.has_value()) {
-				if (current_module->wire(*id) != nullptr) {
-				  if (flag_legalize) {
-						log("Legalizing redefinition of wire %s.\n", *id);
-						pool<RTLIL::Wire*> wires = {current_module->wire(*id)};
+			std::optional<TwineRef> name = try_parse_twine();
+			if (name) {
+				TwineRef wire_name = *name;
+				if (current_module->wire(wire_name) != nullptr) {
+					if (flag_legalize) {
+						log("Legalizing redefinition of wire %s.\n", design->twines.str(wire_name).c_str());
+						pool<RTLIL::Wire*> wires = {current_module->wire(wire_name)};
 						current_module->remove(wires);
 					} else
-						error("RTLIL error: redefinition of wire %s.", *id);
+						error("RTLIL error: redefinition of wire %s.", design->twines.str(wire_name).c_str());
 				}
-				wire = current_module->addWire(std::move(*id));
+				wire = current_module->addWire(wire_name);
 				break;
 			}
 			if (try_parse_keyword("width")){
@@ -560,7 +760,8 @@ struct RTLILFrontendWorker {
 				error("Unexpected wire option: %s", error_token());
 		}
 
-		wire->attributes = std::move(attrbuf);
+		wire->absorb_attrs(std::move(attrbuf));
+		flush_src(wire);
 		wire->width = width;
 		wire->upto = upto;
 		wire->start_offset = start_offset;
@@ -574,23 +775,29 @@ struct RTLILFrontendWorker {
 	void parse_memory()
 	{
 		RTLIL::Memory *memory = new RTLIL::Memory;
-		memory->attributes = std::move(attrbuf);
+		memory->module = current_module;
+		memory->absorb_attrs(std::move(attrbuf));
+		flush_src(memory);
 
 		int width = 1;
 		int start_offset = 0;
 		int size = 0;
+		TwineRef mem_name = Twine::Null;
 		while (true)
 		{
-			std::optional<RTLIL::IdString> id = try_parse_id();
-			if (id.has_value()) {
-				if (current_module->memories.count(*id) != 0) {
+			std::optional<TwineRef> name = try_parse_twine();
+			if (name.has_value()) {
+				mem_name = *name;
+				if (current_module->memories.count(mem_name) != 0) {
 					if (flag_legalize) {
-						log("Legalizing redefinition of memory %s.\n", *id);
-						current_module->remove(current_module->memories.at(*id));
+						log("Legalizing redefinition of memory %s.\n", design->twines.str(mem_name).c_str());
+						current_module->remove(current_module->memories.at(mem_name));
 					} else
-						error("RTLIL error: redefinition of memory %s.", *id);
+						error("RTLIL error: redefinition of memory %s.", design->twines.str(mem_name).c_str());
 				}
-				memory->name = std::move(*id);
+				if (memory->meta_ == nullptr)
+					memory->meta_ = design->alloc_obj_meta();
+				memory->meta_->name = mem_name;
 				break;
 			}
 			if (try_parse_keyword("width")){
@@ -619,42 +826,44 @@ struct RTLILFrontendWorker {
 		memory->width = width;
 		memory->start_offset = start_offset;
 		memory->size = size;
-		current_module->memories.insert({memory->name, memory});
+		current_module->memories.insert({mem_name, memory});
 		expect_eol();
 	}
 
-	void legalize_width_parameter(RTLIL::Cell *cell, RTLIL::IdString port_name)
+	void legalize_width_parameter(RTLIL::Cell *cell, TwineRef port_name)
 	{
-		std::string width_param_name = port_name.str() + "_WIDTH";
-		if (cell->parameters.count(width_param_name) == 0)
+		std::string width_param_name = design->twines.str(port_name) + "_WIDTH";
+		if (cell->parameters.count(RTLIL::IdString(width_param_name)) == 0)
 			return;
-		RTLIL::Const &param = cell->parameters.at(width_param_name);
+		RTLIL::Const &param = cell->parameters.at(RTLIL::IdString(width_param_name));
 		if (param.as_int() != 0)
 			return;
-		cell->parameters[width_param_name] = RTLIL::Const(cell->getPort(port_name).size());
+		cell->parameters[RTLIL::IdString(width_param_name)] = RTLIL::Const(cell->getPort(port_name).size());
 	}
 
 	void parse_cell()
 	{
-		RTLIL::IdString cell_type = parse_id();
-		RTLIL::IdString cell_name = parse_id();
+		TwineRef cell_type_ref = parse_twine();
+		TwineRef cell_name_ref = parse_twine();
 		expect_eol();
 
-		if (current_module->cell(cell_name) != nullptr) {
+		if (current_module->cell(cell_name_ref) != nullptr) {
 			if (flag_legalize) {
-				RTLIL::IdString new_name;
+				std::string base = design->twines.str(cell_name_ref);
+				std::string new_name_str;
 				int suffix = 1;
 				do {
-					new_name = RTLIL::IdString(cell_name.str() + "_" + std::to_string(suffix));
+					new_name_str = base + "_" + std::to_string(suffix);
+					cell_name_ref = design->twines.add(std::string(new_name_str));
 					++suffix;
-				} while (current_module->cell(new_name) != nullptr);
-				log("Legalizing redefinition of cell %s by renaming to %s.\n", cell_name, new_name);
-				cell_name = new_name;
+				} while (current_module->cell(cell_name_ref) != nullptr);
+				log("Legalizing redefinition of cell %s by renaming to %s.\n", base.c_str(), new_name_str.c_str());
 			} else
-				error("RTLIL error: redefinition of cell %s.", cell_name);
+				error("RTLIL error: redefinition of cell %s.", design->twines.str(cell_name_ref).c_str());
 		}
-		RTLIL::Cell *cell = current_module->addCell(cell_name, cell_type);
-		cell->attributes = std::move(attrbuf);
+		RTLIL::Cell *cell = current_module->addCell(cell_name_ref, cell_type_ref);
+		cell->absorb_attrs(std::move(attrbuf));
+		flush_src(cell);
 
 		while (true)
 		{
@@ -680,14 +889,14 @@ struct RTLILFrontendWorker {
 				cell->parameters.insert({std::move(param_name), std::move(val)});
 				expect_eol();
 			} else if (try_parse_keyword("connect")) {
-				RTLIL::IdString port_name = parse_id();
+				TwineRef port_name = parse_twine();
 				if (cell->hasPort(port_name)) {
 					if (flag_legalize)
-						log("Legalizing redefinition of cell port %s.", port_name);
+						log("Legalizing redefinition of cell port %s.", design->twines.str(port_name).c_str());
 					else
-						error("RTLIL error: redefinition of cell port %s.", port_name);
+						error("RTLIL error: redefinition of cell port %s.", design->twines.str(port_name).c_str());
 				}
-				cell->setPort(std::move(port_name), parse_sigspec());
+				cell->setPort(port_name, parse_sigspec());
 				if (flag_legalize)
 					legalize_width_parameter(cell, port_name);
 				expect_eol();
@@ -733,7 +942,7 @@ struct RTLILFrontendWorker {
 						"The assign statement is reordered to come before all switch statements.");
 				RTLIL::SigSpec s1 = parse_sigspec();
 				RTLIL::SigSpec s2 = parse_sigspec();
-				current_case->actions.push_back(RTLIL::SigSig(std::move(s1), std::move(s2)));
+				current_case->actions.push_back({std::move(s1), std::move(s2), Twine::Null});
 				expect_eol();
 			} else
 				return;
@@ -743,8 +952,10 @@ struct RTLILFrontendWorker {
 	void parse_switch()
 	{
 		RTLIL::SwitchRule *rule = new RTLIL::SwitchRule;
+		rule->module = current_module;
 		rule->signal = parse_sigspec();
-		rule->attributes = std::move(attrbuf);
+		rule->absorb_attrs(std::move(attrbuf));
+		flush_src(rule);
 		switch_stack.back()->push_back(rule);
 		expect_eol();
 
@@ -761,7 +972,9 @@ struct RTLILFrontendWorker {
 
 			expect_keyword("case");
 			RTLIL::CaseRule *case_rule = new RTLIL::CaseRule;
-			case_rule->attributes = std::move(attrbuf);
+			case_rule->module = current_module;
+			case_rule->absorb_attrs(std::move(attrbuf));
+			flush_src(case_rule);
 			rule->cases.push_back(case_rule);
 			switch_stack.push_back(&case_rule->switches);
 			case_stack.push_back(case_rule);
@@ -784,18 +997,19 @@ struct RTLILFrontendWorker {
 
 	void parse_process()
 	{
-		RTLIL::IdString proc_name = parse_id();
+		TwineRef proc_name = parse_twine();
 		expect_eol();
 
 		if (current_module->processes.count(proc_name) != 0) {
 			if (flag_legalize) {
-				log("Legalizing redefinition of process %s.\n", proc_name);
+				log("Legalizing redefinition of process %s.\n", design->twines.str(proc_name).c_str());
 				current_module->remove(current_module->processes.at(proc_name));
 			} else
-				error("RTLIL error: redefinition of process %s.", proc_name);
+				error("RTLIL error: redefinition of process %s.", design->twines.str(proc_name).c_str());
 		}
-		RTLIL::Process *proc = current_module->addProcess(std::move(proc_name));
-		proc->attributes = std::move(attrbuf);
+		RTLIL::Process *proc = current_module->addProcess(proc_name);
+		proc->absorb_attrs(std::move(attrbuf));
+		flush_src(proc);
 
 		switch_stack.clear();
 		switch_stack.push_back(&proc->root_case.switches);
@@ -829,7 +1043,7 @@ struct RTLILFrontendWorker {
 				if (try_parse_keyword("update")) {
 					RTLIL::SigSpec s1 = parse_sigspec();
 					RTLIL::SigSpec s2 = parse_sigspec();
-					rule->actions.push_back(RTLIL::SigSig(std::move(s1), std::move(s2)));
+					rule->actions.push_back({std::move(s1), std::move(s2), Twine::Null});
 					expect_eol();
 					continue;
 				}
@@ -844,13 +1058,16 @@ struct RTLILFrontendWorker {
 					break;
 
 				RTLIL::MemWriteAction act;
-				act.attributes = std::move(attrbuf);
+				act.module = current_module;
+				design->absorb_attrs(&act, std::move(attrbuf));
+				flush_src(&act);
 				act.memid = parse_id();
 				act.address = parse_sigspec();
 				act.data = parse_sigspec();
 				act.enable = parse_sigspec();
 				act.priority_mask = parse_const();
-				rule->mem_write_actions.push_back(std::move(act));
+				rule->mem_write_actions.push_back(act);
+				act.meta_ = nullptr;
 				expect_eol();
 			}
 			// The old parser allowed dangling attributes before a "sync" to carry through
@@ -885,10 +1102,17 @@ struct RTLILFrontendWorker {
 				expect_eol();
 				continue;
 			}
+			if (try_parse_keyword("twines")) {
+				parse_twines();
+				continue;
+			}
 			error("Unexpected token: %s", error_token());
 		}
 		if (attrbuf.size() != 0)
 			error("dangling attribute");
+
+		twine_parser_holds.clear();
+		twine_remap.clear();
 	}
 };
 

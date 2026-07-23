@@ -157,8 +157,8 @@ struct RpcServer {
 struct RpcModule : RTLIL::Module {
 	std::shared_ptr<RpcServer> server;
 
-	RTLIL::IdString derive(RTLIL::Design *design, const dict<RTLIL::IdString, RTLIL::Const> &parameters, bool /*mayfail*/) override {
-		std::string stripped_name = name.str();
+	TwineRef derive(RTLIL::Design *design, const dict<RTLIL::IdString, RTLIL::Const> &parameters, bool /*mayfail*/) override {
+		std::string stripped_name = design->twines.str(meta_->name);
 		if (stripped_name.compare(0, 9, "$abstract") == 0)
 			stripped_name = stripped_name.substr(9);
 		log_assert(stripped_name[0] == '\\');
@@ -179,7 +179,8 @@ struct RpcModule : RTLIL::Module {
 		else
 			derived_name = "$paramod" + stripped_name + parameter_info;
 
-		if (design->has(derived_name)) {
+		TwineSearch search(&design->twines);
+		if (design->has(search.find(derived_name))) {
 			log("Found cached RTLIL representation for module `%s'.\n", derived_name);
 		} else {
 			std::string command, input;
@@ -193,12 +194,12 @@ struct RpcModule : RTLIL::Module {
 			dict<std::string, std::string> name_mangling;
 			bool found_derived_top = false;
 			for (auto module : derived_design->modules()) {
-				std::string original_name = module->name.str();
+				std::string original_name = derived_design->twines.str(module->meta_->name);
 				if (original_name == stripped_name) {
 					found_derived_top = true;
 					name_mangling[original_name] = derived_name;
 				} else {
-					name_mangling[original_name] = derived_name + module->name.str();
+					name_mangling[original_name] = derived_name + derived_design->twines.str(module->meta_->name);
 				}
 			}
 			if (!found_derived_top)
@@ -207,26 +208,24 @@ struct RpcModule : RTLIL::Module {
 			for (auto module : derived_design->modules())
 				for (auto cell : module->cells())
 					if (name_mangling.count(cell->type.str()))
-						cell->type = name_mangling[cell->type.str()];
+						cell->type_impl = cell->module->design->twines.add(Twine{name_mangling[cell->type.str()]});
 
 			for (auto module : derived_design->modules_) {
-				std::string mangled_name = name_mangling[module.first.str()];
+				std::string mangled_name = name_mangling[derived_design->twines.str(module.first)];
 
-				log("Importing `%s' as `%s'.\n", module.first.unescape(), mangled_name);
+				log("Importing `%s' as `%s'.\n", derived_design->twines.str(module.first), mangled_name);
 
-				module.second->name = mangled_name;
-				module.second->design = design;
-				module.second->attributes.erase(ID::top);
-				if (!module.second->has_attribute(ID::hdlname))
-					module.second->set_string_attribute(ID::hdlname, module.first.str());
-				design->modules_[mangled_name] = module.second;
-				derived_design->modules_.erase(module.first);
+				RTLIL::IdString original_name = RTLIL::IdString(derived_design->twines.str(module.first));
+				RTLIL::Module *t = module.second->clone(design, design->twines.add(Twine{mangled_name}));
+				t->attributes.erase(ID::top);
+				if (!t->has_attribute(ID::hdlname))
+					t->set_string_attribute(ID::hdlname, original_name.str());
 			}
 
 			delete derived_design;
 		}
 
-		return derived_name;
+		return design->twines.add(Twine{derived_name});
 	}
 
 	RTLIL::Module *clone() const override {
@@ -588,7 +587,8 @@ cleanup_path:
 		for (auto &module_name : server->get_module_names()) {
 			log("Linking module `%s'.\n", module_name);
 			RpcModule *module = new RpcModule;
-			module->name = "$abstract\\" + module_name;
+			module->design = design;
+			module->meta_->name = design->twines.add(Twine{"$abstract\\" + module_name});
 			module->server = server;
 			design->add(module);
 		}

@@ -77,50 +77,50 @@ struct OptLutInsPass : public Pass {
 				std::vector<SigBit> output;
 				bool ignore_const = false;
 				if (techname == "") {
-					if (cell->type != ID($lut))
+					if (cell->type != TW($lut))
 						continue;
-					inputs = cell->getPort(ID::A);
-					output = cell->getPort(ID::Y);
+					inputs = cell->getPort(TW::A);
+					output = cell->getPort(TW::Y);
 					lut = cell->getParam(ID::LUT);
 				} else if (techname == "xilinx" || techname == "gowin" || techname == "analogdevices") {
-					if (cell->type == ID(LUT1)) {
+					if (cell->type == ID::LUT1) {
 						inputs = {
-							cell->getPort(ID(I0)),
+							cell->getPort(TW::I0),
 						};
-					} else if (cell->type == ID(LUT2)) {
+					} else if (cell->type == ID::LUT2) {
 						inputs = {
-							cell->getPort(ID(I0)),
-							cell->getPort(ID(I1)),
+							cell->getPort(TW::I0),
+							cell->getPort(TW::I1),
 						};
-					} else if (cell->type == ID(LUT3)) {
+					} else if (cell->type == ID::LUT3) {
 						inputs = {
-							cell->getPort(ID(I0)),
-							cell->getPort(ID(I1)),
-							cell->getPort(ID(I2)),
+							cell->getPort(TW::I0),
+							cell->getPort(TW::I1),
+							cell->getPort(TW::I2),
 						};
-					} else if (cell->type == ID(LUT4)) {
+					} else if (cell->type == ID::LUT4) {
 						inputs = {
-							cell->getPort(ID(I0)),
-							cell->getPort(ID(I1)),
-							cell->getPort(ID(I2)),
-							cell->getPort(ID(I3)),
+							cell->getPort(TW::I0),
+							cell->getPort(TW::I1),
+							cell->getPort(TW::I2),
+							cell->getPort(TW::I3),
 						};
-					} else if (cell->type == ID(LUT5)) {
+					} else if (cell->type == ID::LUT5) {
 						inputs = {
-							cell->getPort(ID(I0)),
-							cell->getPort(ID(I1)),
-							cell->getPort(ID(I2)),
-							cell->getPort(ID(I3)),
-							cell->getPort(ID(I4)),
+							cell->getPort(TW::I0),
+							cell->getPort(TW::I1),
+							cell->getPort(TW::I2),
+							cell->getPort(TW::I3),
+							cell->getPort(TW::I4),
 						};
-					} else if (cell->type == ID(LUT6)) {
+					} else if (cell->type == ID::LUT6) {
 						inputs = {
-							cell->getPort(ID(I0)),
-							cell->getPort(ID(I1)),
-							cell->getPort(ID(I2)),
-							cell->getPort(ID(I3)),
-							cell->getPort(ID(I4)),
-							cell->getPort(ID(I5)),
+							cell->getPort(TW::I0),
+							cell->getPort(TW::I1),
+							cell->getPort(TW::I2),
+							cell->getPort(TW::I3),
+							cell->getPort(TW::I4),
+							cell->getPort(TW::I5),
 						};
 					} else {
 						// Not a LUT.
@@ -128,19 +128,19 @@ struct OptLutInsPass : public Pass {
 					}
 					lut = cell->getParam(ID::INIT);
 					if (techname == "xilinx" || techname == "analogdevices")
-						output = cell->getPort(ID::O);
+						output = cell->getPort(TW::O);
 					else
-						output = cell->getPort(ID::F);
+						output = cell->getPort(TW::F);
 				} else if (techname == "lattice") {
 					if (cell->type == ID(LUT4)) {
 						inputs = {
-							cell->getPort(ID::A),
-							cell->getPort(ID::B),
-							cell->getPort(ID::C),
-							cell->getPort(ID::D),
+							cell->getPort(TW::A),
+							cell->getPort(TW::B),
+							cell->getPort(TW::C),
+							cell->getPort(TW::D),
 						};
 						lut = cell->getParam(ID::INIT);
-						output = cell->getPort(ID(Z));
+						output = cell->getPort(TW::Z);
 						ignore_const = true;
 					} else {
 						// Not a LUT.
@@ -226,14 +226,14 @@ struct OptLutInsPass : public Pass {
 					if (techname == "") {
 						cell->setParam(ID::LUT, new_lut);
 						cell->setParam(ID::WIDTH, GetSize(new_inputs));
-						cell->setPort(ID::A, new_inputs);
+						cell->setPort(TW::A, new_inputs);
 					} else if (techname == "lattice" || techname == "ecp5") {
 						log_assert(GetSize(new_inputs) == 4);
 						cell->setParam(ID::INIT, new_lut);
-						cell->setPort(ID::A, new_inputs[0]);
-						cell->setPort(ID::B, new_inputs[1]);
-						cell->setPort(ID::C, new_inputs[2]);
-						cell->setPort(ID::D, new_inputs[3]);
+						cell->setPort(TW::A, new_inputs[0]);
+						cell->setPort(TW::B, new_inputs[1]);
+						cell->setPort(TW::C, new_inputs[2]);
+						cell->setPort(TW::D, new_inputs[3]);
 					} else {
 						// xilinx, gowin
 						cell->setParam(ID::INIT, new_lut);
@@ -242,36 +242,36 @@ struct OptLutInsPass : public Pass {
 						else
 							log_assert(GetSize(new_inputs) <= 4);
 						if (GetSize(new_inputs) == 1)
-							cell->type = ID(LUT1);
+							cell->type_impl = TW::LUT1;
 						else if (GetSize(new_inputs) == 2)
-							cell->type = ID(LUT2);
+							cell->type_impl = TW::LUT2;
 						else if (GetSize(new_inputs) == 3)
-							cell->type = ID(LUT3);
+							cell->type_impl = TW::LUT3;
 						else if (GetSize(new_inputs) == 4)
-							cell->type = ID(LUT4);
+							cell->type_impl = TW::LUT4;
 						else if (GetSize(new_inputs) == 5)
-							cell->type = ID(LUT5);
+							cell->type_impl = TW::LUT5;
 						else if (GetSize(new_inputs) == 6)
-							cell->type = ID(LUT6);
+							cell->type_impl = TW::LUT6;
 						else
 							log_assert(0);
-						cell->unsetPort(ID(I0));
-						cell->unsetPort(ID(I1));
-						cell->unsetPort(ID(I2));
-						cell->unsetPort(ID(I3));
-						cell->unsetPort(ID(I4));
-						cell->unsetPort(ID(I5));
-						cell->setPort(ID(I0), new_inputs[0]);
+						cell->unsetPort(TW::I0);
+						cell->unsetPort(TW::I1);
+						cell->unsetPort(TW::I2);
+						cell->unsetPort(TW::I3);
+						cell->unsetPort(TW::I4);
+						cell->unsetPort(TW::I5);
+						cell->setPort(TW::I0, new_inputs[0]);
 						if (GetSize(new_inputs) >= 2)
-							cell->setPort(ID(I1), new_inputs[1]);
+							cell->setPort(TW::I1, new_inputs[1]);
 						if (GetSize(new_inputs) >= 3)
-							cell->setPort(ID(I2), new_inputs[2]);
+							cell->setPort(TW::I2, new_inputs[2]);
 						if (GetSize(new_inputs) >= 4)
-							cell->setPort(ID(I3), new_inputs[3]);
+							cell->setPort(TW::I3, new_inputs[3]);
 						if (GetSize(new_inputs) >= 5)
-							cell->setPort(ID(I4), new_inputs[4]);
+							cell->setPort(TW::I4, new_inputs[4]);
 						if (GetSize(new_inputs) >= 6)
-							cell->setPort(ID(I5), new_inputs[5]);
+							cell->setPort(TW::I5, new_inputs[5]);
 					}
 				}
 			}

@@ -28,7 +28,7 @@ void Mem::remove() {
 		cell = nullptr;
 	}
 	if (mem) {
-		module->memories.erase(mem->name);
+		module->memories.erase(mem->meta_->name);
 		delete mem;
 		mem = nullptr;
 	}
@@ -116,16 +116,16 @@ void Mem::emit() {
 
 	if (packed) {
 		if (mem) {
-			module->memories.erase(mem->name);
+			module->memories.erase(mem->meta_->name);
 			delete mem;
 			mem = nullptr;
 		}
 		if (!cell) {
 			if (memid.empty())
 				memid = NEW_ID;
-			cell = module->addCell(memid, ID($mem_v2));
+			cell = module->addCell(Twine{memid.str()}, TW::$mem_v2);
 		}
-		cell->type = ID($mem_v2);
+		cell->type_impl = TW::$mem_v2;
 		cell->attributes = attributes;
 		cell->parameters[ID::MEMID] = Const(memid.str());
 		cell->parameters[ID::WIDTH] = Const(width);
@@ -221,12 +221,12 @@ void Mem::emit() {
 		cell->parameters[ID::RD_SRST_VALUE] = rd_srst_value;
 		cell->parameters[ID::RD_INIT_VALUE] = rd_init_value;
 		cell->parameters.erase(ID::RD_TRANSPARENT);
-		cell->setPort(ID::RD_CLK, rd_clk);
-		cell->setPort(ID::RD_EN, rd_en);
-		cell->setPort(ID::RD_ARST, rd_arst);
-		cell->setPort(ID::RD_SRST, rd_srst);
-		cell->setPort(ID::RD_ADDR, rd_addr);
-		cell->setPort(ID::RD_DATA, rd_data);
+		cell->setPort(TW::RD_CLK, rd_clk);
+		cell->setPort(TW::RD_EN, rd_en);
+		cell->setPort(TW::RD_ARST, rd_arst);
+		cell->setPort(TW::RD_SRST, rd_srst);
+		cell->setPort(TW::RD_ADDR, rd_addr);
+		cell->setPort(TW::RD_DATA, rd_data);
 		Const::Builder wr_wide_continuation_builder;
 		Const::Builder wr_clk_enable_builder;
 		Const::Builder wr_clk_polarity_builder;
@@ -270,10 +270,10 @@ void Mem::emit() {
 		cell->parameters[ID::WR_CLK_POLARITY] = wr_clk_polarity;
 		cell->parameters[ID::WR_PRIORITY_MASK] = wr_priority_mask;
 		cell->parameters[ID::WR_WIDE_CONTINUATION] = wr_wide_continuation;
-		cell->setPort(ID::WR_CLK, wr_clk);
-		cell->setPort(ID::WR_EN, wr_en);
-		cell->setPort(ID::WR_ADDR, wr_addr);
-		cell->setPort(ID::WR_DATA, wr_data);
+		cell->setPort(TW::WR_CLK, wr_clk);
+		cell->setPort(TW::WR_EN, wr_en);
+		cell->setPort(TW::WR_ADDR, wr_addr);
+		cell->setPort(TW::WR_DATA, wr_data);
 		for (auto &init : inits) {
 			for (auto attr: init.attributes)
 				if (!cell->has_attribute(attr.first))
@@ -292,9 +292,7 @@ void Mem::emit() {
 		if (!mem) {
 			if (memid.empty())
 				memid = NEW_ID;
-			mem = new RTLIL::Memory;
-			mem->name = memid;
-			module->memories[memid] = mem;
+			mem = module->addMemory(Twine{memid.str()});
 		}
 		mem->width = width;
 		mem->start_offset = start_offset;
@@ -302,8 +300,8 @@ void Mem::emit() {
 		mem->attributes = attributes;
 		for (auto &port : rd_ports) {
 			if (!port.cell)
-				port.cell = module->addCell(NEW_ID, ID($memrd_v2));
-			port.cell->type = ID($memrd_v2);
+				port.cell = module->addCell(NEW_TWINE, TW::$memrd_v2);
+			port.cell->type_impl = TW::$memrd_v2;
 			port.cell->attributes = port.attributes;
 			port.cell->parameters[ID::MEMID] = memid.str();
 			port.cell->parameters[ID::ABITS] = GetSize(port.addr);
@@ -317,18 +315,18 @@ void Mem::emit() {
 			port.cell->parameters[ID::TRANSPARENCY_MASK] = port.transparency_mask;
 			port.cell->parameters[ID::COLLISION_X_MASK] = port.collision_x_mask;
 			port.cell->parameters.erase(ID::TRANSPARENT);
-			port.cell->setPort(ID::CLK, port.clk);
-			port.cell->setPort(ID::EN, port.en);
-			port.cell->setPort(ID::ARST, port.arst);
-			port.cell->setPort(ID::SRST, port.srst);
-			port.cell->setPort(ID::ADDR, port.addr);
-			port.cell->setPort(ID::DATA, port.data);
+			port.cell->setPort(TW::CLK, port.clk);
+			port.cell->setPort(TW::EN, port.en);
+			port.cell->setPort(TW::ARST, port.arst);
+			port.cell->setPort(TW::SRST, port.srst);
+			port.cell->setPort(TW::ADDR, port.addr);
+			port.cell->setPort(TW::DATA, port.data);
 		}
 		int idx = 0;
 		for (auto &port : wr_ports) {
 			if (!port.cell)
-				port.cell = module->addCell(NEW_ID, ID($memwr_v2));
-			port.cell->type = ID($memwr_v2);
+				port.cell = module->addCell(NEW_TWINE, TW::$memwr_v2);
+			port.cell->type_impl = TW::$memwr_v2;
 			port.cell->attributes = port.attributes;
 			if (port.cell->parameters.count(ID::PRIORITY))
 				port.cell->parameters.erase(ID::PRIORITY);
@@ -339,30 +337,31 @@ void Mem::emit() {
 			port.cell->parameters[ID::CLK_POLARITY] = port.clk_polarity;
 			port.cell->parameters[ID::PORTID] = idx++;
 			port.cell->parameters[ID::PRIORITY_MASK] = port.priority_mask;
-			port.cell->setPort(ID::CLK, port.clk);
-			port.cell->setPort(ID::EN, port.en);
-			port.cell->setPort(ID::ADDR, port.addr);
-			port.cell->setPort(ID::DATA, port.data);
+			port.cell->setPort(TW::CLK, port.clk);
+			port.cell->setPort(TW::EN, port.en);
+			port.cell->setPort(TW::ADDR, port.addr);
+			port.cell->setPort(TW::DATA, port.data);
 		}
 		idx = 0;
 		for (auto &init : inits) {
 			bool v2 = !init.en.is_fully_ones();
 			if (!init.cell)
-				init.cell = module->addCell(NEW_ID, v2 ? ID($meminit_v2) : ID($meminit));
-			else
-				init.cell->type = v2 ? ID($meminit_v2) : ID($meminit);
+				init.cell = module->addCell(NEW_TWINE, v2 ? TW::$meminit_v2 : TW::$meminit);
+			else {
+				if (!v2)
+					init.cell->unsetPort(TW::EN);
+				init.cell->type_impl = v2 ? TW::$meminit_v2 : TW::$meminit;
+			}
 			init.cell->attributes = init.attributes;
 			init.cell->parameters[ID::MEMID] = memid.str();
 			init.cell->parameters[ID::ABITS] = GetSize(init.addr);
 			init.cell->parameters[ID::WIDTH] = width;
 			init.cell->parameters[ID::WORDS] = GetSize(init.data) / width;
 			init.cell->parameters[ID::PRIORITY] = idx++;
-			init.cell->setPort(ID::ADDR, init.addr);
-			init.cell->setPort(ID::DATA, init.data);
+			init.cell->setPort(TW::ADDR, init.addr);
+			init.cell->setPort(TW::DATA, init.data);
 			if (v2)
-				init.cell->setPort(ID::EN, init.en);
-			else
-				init.cell->unsetPort(ID::EN);
+				init.cell->setPort(TW::EN, init.en);
 		}
 	}
 }
@@ -549,35 +548,35 @@ namespace {
 		dict<IdString, pool<Cell *>> inits;
 		MemIndex (Module *module) {
 			for (auto cell: module->cells()) {
-				if (cell->type.in(ID($memwr), ID($memwr_v2)))
+				if (cell->type.in(TW($memwr), TW($memwr_v2)))
 					wr_ports[cell->parameters.at(ID::MEMID).decode_string()].insert(cell);
-				else if (cell->type.in(ID($memrd), ID($memrd_v2)))
+				else if (cell->type.in(TW($memrd), TW($memrd_v2)))
 					rd_ports[cell->parameters.at(ID::MEMID).decode_string()].insert(cell);
-				else if (cell->type.in(ID($meminit), ID($meminit_v2)))
+				else if (cell->type.in(TW($meminit), TW($meminit_v2)))
 					inits[cell->parameters.at(ID::MEMID).decode_string()].insert(cell);
 			}
 		}
 	};
 
 	Mem mem_from_memory(Module *module, RTLIL::Memory *mem, const MemIndex &index) {
-		Mem res(module, mem->name, mem->width, mem->start_offset, mem->size);
+		Mem res(module, RTLIL::IdString(module->design->twines.str(mem->meta_->name)), mem->width, mem->start_offset, mem->size);
 		res.packed = false;
 		res.mem = mem;
 		res.attributes = mem->attributes;
 		std::vector<bool> rd_transparent;
 		std::vector<int> wr_portid;
-		if (index.rd_ports.count(mem->name)) {
-			for (auto cell : index.rd_ports.at(mem->name)) {
+		if (index.rd_ports.count(RTLIL::IdString(module->design->twines.str(mem->meta_->name)))) {
+			for (auto cell : index.rd_ports.at(RTLIL::IdString(module->design->twines.str(mem->meta_->name)))) {
 				MemRd mrd;
-				bool is_compat = cell->type == ID($memrd);
+				bool is_compat = cell->type == TW($memrd);
 				mrd.cell = cell;
 				mrd.attributes = cell->attributes;
 				mrd.clk_enable = cell->parameters.at(ID::CLK_ENABLE).as_bool();
 				mrd.clk_polarity = cell->parameters.at(ID::CLK_POLARITY).as_bool();
-				mrd.clk = cell->getPort(ID::CLK);
-				mrd.en = cell->getPort(ID::EN);
-				mrd.addr = cell->getPort(ID::ADDR);
-				mrd.data = cell->getPort(ID::DATA);
+				mrd.clk = cell->getPort(TW::CLK);
+				mrd.en = cell->getPort(TW::EN);
+				mrd.addr = cell->getPort(TW::ADDR);
+				mrd.data = cell->getPort(TW::DATA);
 				mrd.wide_log2 = ceil_log2(GetSize(mrd.data) / mem->width);
 				bool transparent = false;
 				if (is_compat) {
@@ -602,26 +601,26 @@ namespace {
 					mrd.arst_value = cell->parameters.at(ID::ARST_VALUE);
 					mrd.srst_value = cell->parameters.at(ID::SRST_VALUE);
 					mrd.init_value = cell->parameters.at(ID::INIT_VALUE);
-					mrd.arst = cell->getPort(ID::ARST);
-					mrd.srst = cell->getPort(ID::SRST);
+					mrd.arst = cell->getPort(TW::ARST);
+					mrd.srst = cell->getPort(TW::SRST);
 				}
 				res.rd_ports.push_back(mrd);
 				rd_transparent.push_back(transparent);
 			}
 		}
-		if (index.wr_ports.count(mem->name)) {
+		if (index.wr_ports.count(RTLIL::IdString(module->design->twines.str(mem->meta_->name)))) {
 			std::vector<std::pair<int, MemWr>> ports;
-			for (auto cell : index.wr_ports.at(mem->name)) {
+			for (auto cell : index.wr_ports.at(RTLIL::IdString(module->design->twines.str(mem->meta_->name)))) {
 				MemWr mwr;
-				bool is_compat = cell->type == ID($memwr);
+				bool is_compat = cell->type == TW($memwr);
 				mwr.cell = cell;
 				mwr.attributes = cell->attributes;
 				mwr.clk_enable = cell->parameters.at(ID::CLK_ENABLE).as_bool();
 				mwr.clk_polarity = cell->parameters.at(ID::CLK_POLARITY).as_bool();
-				mwr.clk = cell->getPort(ID::CLK);
-				mwr.en = cell->getPort(ID::EN);
-				mwr.addr = cell->getPort(ID::ADDR);
-				mwr.data = cell->getPort(ID::DATA);
+				mwr.clk = cell->getPort(TW::CLK);
+				mwr.en = cell->getPort(TW::EN);
+				mwr.addr = cell->getPort(TW::ADDR);
+				mwr.data = cell->getPort(TW::DATA);
 				mwr.wide_log2 = ceil_log2(GetSize(mwr.data) / mem->width);
 				ports.push_back(std::make_pair(cell->parameters.at(is_compat ? ID::PRIORITY : ID::PORTID).as_int(), mwr));
 			}
@@ -632,7 +631,7 @@ namespace {
 			}
 			for (int i = 0; i < GetSize(res.wr_ports); i++) {
 				auto &port = res.wr_ports[i];
-				bool is_compat = port.cell->type == ID($memwr);
+				bool is_compat = port.cell->type == TW($memwr);
 				if (is_compat) {
 					port.priority_mask.resize(GetSize(res.wr_ports));
 					for (int j = 0; j < i; j++) {
@@ -654,22 +653,22 @@ namespace {
 				}
 			}
 		}
-		if (index.inits.count(mem->name)) {
+		if (index.inits.count(RTLIL::IdString(module->design->twines.str(mem->meta_->name)))) {
 			std::vector<std::pair<int, MemInit>> inits;
-			for (auto cell : index.inits.at(mem->name)) {
+			for (auto cell : index.inits.at(RTLIL::IdString(module->design->twines.str(mem->meta_->name)))) {
 				MemInit init;
 				init.cell = cell;
 				init.attributes = cell->attributes;
-				auto addr = cell->getPort(ID::ADDR);
-				auto data = cell->getPort(ID::DATA);
+				auto addr = cell->getPort(TW::ADDR);
+				auto data = cell->getPort(TW::DATA);
 				if (!addr.is_fully_const())
 					log_error("Non-constant address %s in memory initialization %s.\n", log_signal(addr), cell);
 				if (!data.is_fully_const())
 					log_error("Non-constant data %s in memory initialization %s.\n", log_signal(data), cell);
 				init.addr = addr.as_const();
 				init.data = data.as_const();
-				if (cell->type == ID($meminit_v2)) {
-					auto en = cell->getPort(ID::EN);
+				if (cell->type == TW($meminit_v2)) {
+					auto en = cell->getPort(TW::EN);
 					if (!en.is_fully_const())
 						log_error("Non-constant enable %s in memory initialization %s.\n", log_signal(en), cell);
 					init.en = en.as_const();
@@ -684,7 +683,7 @@ namespace {
 		}
 		for (int i = 0; i < GetSize(res.rd_ports); i++) {
 			auto &port = res.rd_ports[i];
-			bool is_compat = port.cell->type == ID($memrd);
+			bool is_compat = port.cell->type == TW($memrd);
 			if (is_compat) {
 				port.transparency_mask.resize(GetSize(res.wr_ports));
 				port.collision_x_mask.resize(GetSize(res.wr_ports));
@@ -721,7 +720,7 @@ namespace {
 			cell->parameters.at(ID::OFFSET).as_int(),
 			cell->parameters.at(ID::SIZE).as_int()
 		);
-		bool is_compat = cell->type == ID($mem);
+		bool is_compat = cell->type == TW($mem);
 		int abits = cell->parameters.at(ID::ABITS).as_int();
 		res.packed = true;
 		res.cell = cell;
@@ -762,10 +761,10 @@ namespace {
 			log_assert(ni - i == (1 << mrd.wide_log2));
 			mrd.clk_enable = cell->parameters.at(ID::RD_CLK_ENABLE).extract(i, 1).as_bool();
 			mrd.clk_polarity = cell->parameters.at(ID::RD_CLK_POLARITY).extract(i, 1).as_bool();
-			mrd.clk = cell->getPort(ID::RD_CLK).extract(i, 1);
-			mrd.en = cell->getPort(ID::RD_EN).extract(i, 1);
-			mrd.addr = cell->getPort(ID::RD_ADDR).extract(i * abits, abits);
-			mrd.data = cell->getPort(ID::RD_DATA).extract(i * res.width, (ni - i) * res.width);
+			mrd.clk = cell->getPort(TW::RD_CLK).extract(i, 1);
+			mrd.en = cell->getPort(TW::RD_EN).extract(i, 1);
+			mrd.addr = cell->getPort(TW::RD_ADDR).extract(i * abits, abits);
+			mrd.data = cell->getPort(TW::RD_DATA).extract(i * res.width, (ni - i) * res.width);
 			if (is_compat) {
 				mrd.ce_over_srst = false;
 				mrd.arst_value = Const(State::Sx, res.width << mrd.wide_log2);
@@ -778,8 +777,8 @@ namespace {
 				mrd.arst_value = cell->parameters.at(ID::RD_ARST_VALUE).extract(i * res.width, (ni - i) * res.width);
 				mrd.srst_value = cell->parameters.at(ID::RD_SRST_VALUE).extract(i * res.width, (ni - i) * res.width);
 				mrd.init_value = cell->parameters.at(ID::RD_INIT_VALUE).extract(i * res.width, (ni - i) * res.width);
-				mrd.arst = cell->getPort(ID::RD_ARST).extract(i, 1);
-				mrd.srst = cell->getPort(ID::RD_SRST).extract(i, 1);
+				mrd.arst = cell->getPort(TW::RD_ARST).extract(i, 1);
+				mrd.srst = cell->getPort(TW::RD_SRST).extract(i, 1);
 			}
 			if (!is_compat) {
 				Const transparency_mask = cell->parameters.at(ID::RD_TRANSPARENCY_MASK).extract(i * n_wr_ports, n_wr_ports);
@@ -801,10 +800,10 @@ namespace {
 			log_assert(ni - i == (1 << mwr.wide_log2));
 			mwr.clk_enable = cell->parameters.at(ID::WR_CLK_ENABLE).extract(i, 1).as_bool();
 			mwr.clk_polarity = cell->parameters.at(ID::WR_CLK_POLARITY).extract(i, 1).as_bool();
-			mwr.clk = cell->getPort(ID::WR_CLK).extract(i, 1);
-			mwr.en = cell->getPort(ID::WR_EN).extract(i * res.width, (ni - i) * res.width);
-			mwr.addr = cell->getPort(ID::WR_ADDR).extract(i * abits, abits);
-			mwr.data = cell->getPort(ID::WR_DATA).extract(i * res.width, (ni - i) * res.width);
+			mwr.clk = cell->getPort(TW::WR_CLK).extract(i, 1);
+			mwr.en = cell->getPort(TW::WR_EN).extract(i * res.width, (ni - i) * res.width);
+			mwr.addr = cell->getPort(TW::WR_ADDR).extract(i * abits, abits);
+			mwr.data = cell->getPort(TW::WR_DATA).extract(i * res.width, (ni - i) * res.width);
 			if (!is_compat) {
 				Const priority_mask = cell->parameters.at(ID::WR_PRIORITY_MASK).extract(i * n_wr_ports, n_wr_ports);
 				for (int j = 0; j < n_wr_ports; j++)
@@ -861,7 +860,7 @@ std::vector<Mem> Mem::get_all_memories(Module *module) {
 		res.push_back(mem_from_memory(module, it.second, index));
 	}
 	for (auto cell: module->cells()) {
-		if (cell->type.in(ID($mem), ID($mem_v2)))
+		if (cell->type.in(TW($mem), TW($mem_v2)))
 			res.push_back(mem_from_cell(cell));
 	}
 	return res;
@@ -875,7 +874,7 @@ std::vector<Mem> Mem::get_selected_memories(Module *module) {
 			res.push_back(mem_from_memory(module, it.second, index));
 	}
 	for (auto cell: module->selected_cells()) {
-		if (cell->type.in(ID($mem), ID($mem_v2)))
+		if (cell->type.in(TW($mem), TW($mem_v2)))
 			res.push_back(mem_from_cell(cell));
 	}
 	return res;
@@ -886,6 +885,13 @@ Cell *Mem::extract_rdff(int idx, FfInitVals *initvals) {
 
 	if (!port.clk_enable)
 		return nullptr;
+
+	// Keep src as a "@N" reference into the design's twine pool throughout
+	// below adopts the same slot as Mem itself (via set_src_attribute's
+	// "@N" parse_ref path), and there's no flatten → re-intern → pipe-
+	// leaf round-trip on cells whose src is a Concat node.
+	log_assert(module && module->design);
+	TwineRef mem_src = module->design->obj_src_id(this);
 
 	Cell *c;
 
@@ -923,7 +929,7 @@ Cell *Mem::extract_rdff(int idx, FfInitVals *initvals) {
 
 		if (width)
 		{
-			SigSpec sig_q = module->addWire(stringf("$%s$rdreg[%d]$q", memid, idx), width);
+			SigSpec sig_q = module->addWire(Twine{stringf("$%s$rdreg[%d]$q", memid, idx)}, width);
 			SigSpec sig_d;
 
 			int pos = 0;
@@ -933,7 +939,7 @@ Cell *Mem::extract_rdff(int idx, FfInitVals *initvals) {
 					port.addr[i] = sig_q[pos++];
 				}
 
-			c = module->addDff(stringf("$%s$rdreg[%d]", memid, idx), port.clk, sig_d, sig_q, port.clk_polarity);
+			c = module->addDff(Twine{stringf("$%s$rdreg[%d]", memid, idx)}, port.clk, sig_d, sig_q, port.clk_polarity, mem_src);
 		} else {
 			c = nullptr;
 		}
@@ -942,7 +948,7 @@ Cell *Mem::extract_rdff(int idx, FfInitVals *initvals) {
 	{
 		log_assert(port.arst == State::S0 || port.srst == State::S0);
 
-		SigSpec async_d = module->addWire(stringf("$%s$rdreg[%d]$d", memid, idx), GetSize(port.data));
+		SigSpec async_d = module->addWire(Twine{stringf("$%s$rdreg[%d]$d", memid, idx)}, GetSize(port.data));
 		SigSpec sig_d = async_d;
 
 		for (int i = 0; i < GetSize(wr_ports); i++) {
@@ -965,7 +971,7 @@ Cell *Mem::extract_rdff(int idx, FfInitVals *initvals) {
 						raddr = port.sub_addr(sub);
 					SigSpec addr_eq;
 					if (raddr != waddr)
-						addr_eq = module->Eq(stringf("$%s$rdtransen[%d][%d][%d]$d", memid, idx, i, sub), raddr, waddr);
+						addr_eq = module->Eq(Twine{stringf("$%s$rdtransen[%d][%d][%d]$d", memid, idx, i, sub)}, raddr, waddr, false, mem_src);
 					int pos = 0;
 					int ewidth = width << min_wide_log2;
 					int wsub = wide_write ? sub : 0;
@@ -978,10 +984,10 @@ Cell *Mem::extract_rdff(int idx, FfInitVals *initvals) {
 						SigSpec other = port.transparency_mask[i] ? wport.data.extract(pos + wsub * width, epos-pos) : Const(State::Sx, epos-pos);
 						SigSpec cond;
 						if (raddr != waddr)
-							cond = module->And(stringf("$%s$rdtransgate[%d][%d][%d][%d]$d", memid, idx, i, sub, pos), wport.en[pos + wsub * width], addr_eq);
+							cond = module->And(Twine{stringf("$%s$rdtransgate[%d][%d][%d][%d]$d", memid, idx, i, sub, pos)}, wport.en[pos + wsub * width], addr_eq, false, mem_src);
 						else
 							cond = wport.en[pos + wsub * width];
-						SigSpec merged = module->Mux(stringf("$%s$rdtransmux[%d][%d][%d][%d]$d", memid, idx, i, sub, pos), cur, other, cond);
+						SigSpec merged = module->Mux(Twine{stringf("$%s$rdtransmux[%d][%d][%d][%d]$d", memid, idx, i, sub, pos)}, cur, other, cond, mem_src);
 						sig_d.replace(pos + rsub * width, merged);
 						pos = epos;
 					}
@@ -991,6 +997,8 @@ Cell *Mem::extract_rdff(int idx, FfInitVals *initvals) {
 
 		IdString name = stringf("$%s$rdreg[%d]", memid, idx);
 		FfData ff(module, initvals, name);
+		// pool, direct id retain. emit() transfers verbatim.
+		ff.src_twine = mem_src;
 		ff.width = GetSize(port.data);
 		ff.has_clk = true;
 		ff.sig_clk = port.clk;
@@ -1127,7 +1135,7 @@ void Mem::emulate_priority(int idx1, int idx2, FfInitVals *initvals)
 			addr1 = port1.sub_addr(sub);
 		else
 			addr2 = port2.sub_addr(sub);
-		SigSpec addr_eq = module->Eq(NEW_ID, addr1, addr2);
+		SigSpec addr_eq = module->Eq(NEW_TWINE, addr1, addr2);
 		int ewidth = width << min_wide_log2;
 		int sub1 = wide1 ? sub : 0;
 		int sub2 = wide1 ? 0 : sub;
@@ -1139,9 +1147,9 @@ void Mem::emulate_priority(int idx1, int idx2, FfInitVals *initvals)
 			if (cache.count(key)) {
 				en1 = cache[key];
 			} else {
-				SigBit active2 = module->And(NEW_ID, addr_eq, en2);
-				SigBit nactive2 = module->Not(NEW_ID, active2);
-				en1 = cache[key] = module->And(NEW_ID, en1, nactive2);
+				SigBit active2 = module->And(NEW_TWINE, addr_eq, en2);
+				SigBit nactive2 = module->Not(NEW_TWINE, active2);
+				en1 = cache[key] = module->And(NEW_TWINE, en1, nactive2);
 			}
 		}
 	}
@@ -1165,8 +1173,8 @@ void Mem::emulate_transparency(int widx, int ridx, FfInitVals *initvals) {
 	// The write data FF doesn't need full reset/init behavior, as it'll be masked by
 	// the mux whenever this would be relevant.  It does, however, need to have the same
 	// clock enable signal as the read port.
-	SigSpec wdata_q = module->addWire(NEW_ID, GetSize(wport.data));
-	module->addDffe(NEW_ID, rport.clk, rport.en, wport.data, wdata_q, rport.clk_polarity, true);
+	SigSpec wdata_q = module->addWire(NEW_TWINE, GetSize(wport.data));
+	module->addDffe(NEW_TWINE, rport.clk, rport.en, wport.data, wdata_q, rport.clk_polarity, true);
 	for (int sub = 0; sub < (1 << max_wide_log2); sub += (1 << min_wide_log2)) {
 		SigSpec raddr = rport.addr;
 		SigSpec waddr = wport.addr;
@@ -1177,22 +1185,22 @@ void Mem::emulate_transparency(int widx, int ridx, FfInitVals *initvals) {
 				raddr = rport.sub_addr(sub);
 		SigSpec addr_eq;
 		if (raddr != waddr)
-			addr_eq = module->Eq(NEW_ID, raddr, waddr);
+			addr_eq = module->Eq(NEW_TWINE, raddr, waddr);
 		int pos = 0;
 		int ewidth = width << min_wide_log2;
 		int wsub = wide_write ? sub : 0;
 		int rsub = wide_write ? 0 : sub;
-		SigSpec rdata_a = module->addWire(NEW_ID, ewidth);
+		SigSpec rdata_a = module->addWire(NEW_TWINE, ewidth);
 		while (pos < ewidth) {
 			int epos = pos;
 			while (epos < ewidth && wport.en[epos + wsub * width] == wport.en[pos + wsub * width])
 				epos++;
 			SigSpec cond;
 			if (raddr != waddr)
-				cond = module->And(NEW_ID, wport.en[pos + wsub * width], addr_eq);
+				cond = module->And(NEW_TWINE, wport.en[pos + wsub * width], addr_eq);
 			else
 				cond = wport.en[pos + wsub * width];
-			SigSpec cond_q = module->addWire(NEW_ID);
+			SigSpec cond_q = module->addWire(NEW_TWINE);
 			// The FF for storing the bypass enable signal must be carefully
 			// constructed to preserve the overall init/reset/enable behavior
 			// of the whole port.
@@ -1230,7 +1238,7 @@ void Mem::emulate_transparency(int widx, int ridx, FfInitVals *initvals) {
 			SigSpec cur = rdata_a.extract(pos, epos-pos);
 			SigSpec other = wdata_q.extract(pos + wsub * width, epos-pos);
 			SigSpec dest = rport.data.extract(pos + rsub * width, epos-pos);
-			module->addMux(NEW_ID, cur, other, cond_q, dest);
+			module->addMux(NEW_TWINE, cur, other, cond_q, dest);
 			pos = epos;
 		}
 		rport.data.replace(rsub * width, rdata_a);
@@ -1376,8 +1384,8 @@ void Mem::widen_wr_port(int idx, int wide_log2) {
 			} else {
 				// May or may not write to this subword.
 				new_data.append(port.data);
-				SigSpec addr_eq = module->Eq(NEW_ID, addr_lo, cur_addr_lo);
-				SigSpec en = module->Mux(NEW_ID, Const(State::S0, GetSize(port.data)), port.en, addr_eq);
+				SigSpec addr_eq = module->Eq(NEW_TWINE, addr_lo, cur_addr_lo);
+				SigSpec en = module->Mux(NEW_TWINE, Const(State::S0, GetSize(port.data)), port.en, addr_eq);
 				new_en.append(en);
 			}
 		}
@@ -1392,9 +1400,9 @@ void Mem::emulate_rden(int idx, FfInitVals *initvals) {
 	auto &port = rd_ports[idx];
 	log_assert(port.clk_enable);
 	emulate_rd_ce_over_srst(idx);
-	Wire *new_data = module->addWire(NEW_ID, GetSize(port.data));
-	Wire *prev_data = module->addWire(NEW_ID, GetSize(port.data));
-	Wire *sel = module->addWire(NEW_ID);
+	Wire *new_data = module->addWire(NEW_TWINE, GetSize(port.data));
+	Wire *prev_data = module->addWire(NEW_TWINE, GetSize(port.data));
+	Wire *sel = module->addWire(NEW_TWINE);
 	FfData ff_sel(module, initvals, NEW_ID);
 	FfData ff_data(module, initvals, NEW_ID);
 	ff_sel.width = 1;
@@ -1444,7 +1452,7 @@ void Mem::emulate_rden(int idx, FfInitVals *initvals) {
 	}
 	ff_sel.emit();
 	ff_data.emit();
-	module->addMux(NEW_ID, prev_data, new_data, sel, port.data);
+	module->addMux(NEW_TWINE, prev_data, new_data, sel, port.data);
 	port.data = new_data;
 	port.en = State::S1;
 }
@@ -1452,9 +1460,9 @@ void Mem::emulate_rden(int idx, FfInitVals *initvals) {
 void Mem::emulate_reset(int idx, bool emu_init, bool emu_arst, bool emu_srst, FfInitVals *initvals) {
 	auto &port = rd_ports[idx];
 	if (emu_init && !port.init_value.is_fully_undef()) {
-		Wire *sel = module->addWire(NEW_ID);
+		Wire *sel = module->addWire(NEW_TWINE);
 		FfData ff_sel(module, initvals, NEW_ID);
-		Wire *new_data = module->addWire(NEW_ID, GetSize(port.data));
+		Wire *new_data = module->addWire(NEW_TWINE, GetSize(port.data));
 		ff_sel.width = 1;
 		ff_sel.has_clk = true;
 		ff_sel.sig_clk = port.clk;
@@ -1493,14 +1501,14 @@ void Mem::emulate_reset(int idx, bool emu_init, bool emu_arst, bool emu_srst, Ff
 			}
 		}
 		ff_sel.emit();
-		module->addMux(NEW_ID, port.init_value, new_data, sel, port.data);
+		module->addMux(NEW_TWINE, port.init_value, new_data, sel, port.data);
 		port.data = new_data;
 		port.init_value = Const(State::Sx, GetSize(port.data));
 	}
 	if (emu_arst && port.arst != State::S0) {
-		Wire *sel = module->addWire(NEW_ID);
+		Wire *sel = module->addWire(NEW_TWINE);
 		FfData ff_sel(module, initvals, NEW_ID);
-		Wire *new_data = module->addWire(NEW_ID, GetSize(port.data));
+		Wire *new_data = module->addWire(NEW_TWINE, GetSize(port.data));
 		ff_sel.width = 1;
 		ff_sel.has_clk = true;
 		ff_sel.sig_clk = port.clk;
@@ -1533,14 +1541,14 @@ void Mem::emulate_reset(int idx, bool emu_init, bool emu_arst, bool emu_srst, Ff
 			}
 		}
 		ff_sel.emit();
-		module->addMux(NEW_ID, port.arst_value, new_data, sel, port.data);
+		module->addMux(NEW_TWINE, port.arst_value, new_data, sel, port.data);
 		port.data = new_data;
 		port.arst = State::S0;
 	}
 	if (emu_srst && port.srst != State::S0) {
-		Wire *sel = module->addWire(NEW_ID);
+		Wire *sel = module->addWire(NEW_TWINE);
 		FfData ff_sel(module, initvals, NEW_ID);
-		Wire *new_data = module->addWire(NEW_ID, GetSize(port.data));
+		Wire *new_data = module->addWire(NEW_TWINE, GetSize(port.data));
 		ff_sel.width = 1;
 		ff_sel.has_clk = true;
 		ff_sel.sig_clk = port.clk;
@@ -1568,7 +1576,7 @@ void Mem::emulate_reset(int idx, bool emu_init, bool emu_arst, bool emu_srst, Ff
 			ff_sel.val_arst = State::S1;
 		}
 		ff_sel.emit();
-		module->addMux(NEW_ID, port.srst_value, new_data, sel, port.data);
+		module->addMux(NEW_TWINE, port.srst_value, new_data, sel, port.data);
 		port.data = new_data;
 		port.srst = State::S0;
 	}
@@ -1582,7 +1590,7 @@ void Mem::emulate_rd_ce_over_srst(int idx) {
 		return;
 	}
 	port.ce_over_srst = false;
-	port.srst = module->And(NEW_ID, port.en, port.srst);
+	port.srst = module->And(NEW_TWINE, port.en, port.srst);
 }
 
 void Mem::emulate_rd_srst_over_ce(int idx) {
@@ -1593,7 +1601,7 @@ void Mem::emulate_rd_srst_over_ce(int idx) {
 		return;
 	}
 	port.ce_over_srst = true;
-	port.en = module->Or(NEW_ID, port.en, port.srst);
+	port.en = module->Or(NEW_TWINE, port.en, port.srst);
 }
 
 bool Mem::emulate_read_first_ok() {
@@ -1639,10 +1647,10 @@ void Mem::emulate_read_first(FfInitVals *initvals) {
 			rd_ports[i].transparency_mask[j] = true;
 		}
 	for (auto &port: wr_ports) {
-		Wire *new_data = module->addWire(NEW_ID, GetSize(port.data));
-		Wire *new_addr = module->addWire(NEW_ID, GetSize(port.addr));
+		Wire *new_data = module->addWire(NEW_TWINE, GetSize(port.data));
+		Wire *new_addr = module->addWire(NEW_TWINE, GetSize(port.addr));
 		auto compressed = port.compress_en();
-		Wire *new_en = module->addWire(NEW_ID, GetSize(compressed.first));
+		Wire *new_en = module->addWire(NEW_TWINE, GetSize(compressed.first));
 		FfData ff_data(module, initvals, NEW_ID);
 		FfData ff_addr(module, initvals, NEW_ID);
 		FfData ff_en(module, initvals, NEW_ID);

@@ -29,7 +29,7 @@ struct dff_map_info_t {
 	RTLIL::SigSpec sig_d, sig_clk, sig_arst;
 	bool clk_polarity, arst_polarity;
 	RTLIL::Const arst_value;
-	std::vector<RTLIL::IdString> cells;
+	std::vector<TwineRef> cells;
 };
 
 struct dff_map_bit_info_t {
@@ -39,20 +39,20 @@ struct dff_map_bit_info_t {
 	RTLIL::Cell *cell;
 };
 
-bool consider_wire(RTLIL::Wire *wire, std::map<RTLIL::IdString, dff_map_info_t> &dff_dq_map)
+bool consider_wire(RTLIL::Wire *wire, std::map<TwineRef, dff_map_info_t> &dff_dq_map)
 {
-	if (wire->name[0] == '$' || dff_dq_map.count(wire->name))
+	if (wire->name[0] == '$' || dff_dq_map.count(wire->name.ref()))
 		return false;
 	if (wire->port_input)
 		return false;
 	return true;
 }
 
-bool consider_cell(RTLIL::Design *design, std::set<RTLIL::IdString> &dff_cells, RTLIL::Cell *cell)
+bool consider_cell(RTLIL::Design *design, std::set<TwineRef> &dff_cells, RTLIL::Cell *cell)
 {
-	if (cell->name[0] == '$' || dff_cells.count(cell->name))
+	if (cell->name[0] == '$' || dff_cells.count(cell->name.ref()))
 		return false;
-	if (cell->type[0] == '\\' && (design->module(cell->type) == nullptr))
+	if (cell->type[0] == '\\' && (design->module(cell->type_impl) == nullptr))
 		return false;
 	return true;
 }
@@ -75,7 +75,7 @@ bool compare_cells(RTLIL::Cell *cell1, RTLIL::Cell *cell2)
 	return true;
 }
 
-void find_dff_wires(std::set<RTLIL::IdString> &dff_wires, RTLIL::Module *module)
+void find_dff_wires(std::set<TwineRef> &dff_wires, RTLIL::Module *module)
 {
 	CellTypes ct;
 	ct.setup_internals_mem();
@@ -85,17 +85,17 @@ void find_dff_wires(std::set<RTLIL::IdString> &dff_wires, RTLIL::Module *module)
 	SigPool dffsignals;
 
 	for (auto cell : module->cells()) {
-		if (ct.cell_known(cell->type) && cell->hasPort(ID::Q))
-			dffsignals.add(sigmap(cell->getPort(ID::Q)));
+		if (ct.cell_known(cell->type_impl) && cell->hasPort(TW::Q))
+			dffsignals.add(sigmap(cell->getPort(TW::Q)));
 	}
 
 	for (auto w : module->wires()) {
 		if (dffsignals.check_any(w))
-			dff_wires.insert(w->name);
+			dff_wires.insert(w->name.ref());
 	}
 }
 
-void create_dff_dq_map(std::map<RTLIL::IdString, dff_map_info_t> &map, RTLIL::Module *module)
+void create_dff_dq_map(std::map<TwineRef, dff_map_info_t> &map, RTLIL::Module *module)
 {
 	std::map<RTLIL::SigBit, dff_map_bit_info_t> bit_info;
 	SigMap sigmap(module);
@@ -111,11 +111,11 @@ void create_dff_dq_map(std::map<RTLIL::IdString, dff_map_info_t> &map, RTLIL::Mo
 		info.arst_value = RTLIL::State::Sm;
 		info.cell = cell;
 
-		if (info.cell->type == ID($dff)) {
-			info.bit_clk = sigmap(info.cell->getPort(ID::CLK)).as_bit();
+		if (info.cell->type == TW($dff)) {
+			info.bit_clk = sigmap(info.cell->getPort(TW::CLK)).as_bit();
 			info.clk_polarity = info.cell->parameters.at(ID::CLK_POLARITY).as_bool();
-			std::vector<RTLIL::SigBit> sig_d = sigmap(info.cell->getPort(ID::D)).to_sigbit_vector();
-			std::vector<RTLIL::SigBit> sig_q = sigmap(info.cell->getPort(ID::Q)).to_sigbit_vector();
+			std::vector<RTLIL::SigBit> sig_d = sigmap(info.cell->getPort(TW::D)).to_sigbit_vector();
+			std::vector<RTLIL::SigBit> sig_q = sigmap(info.cell->getPort(TW::Q)).to_sigbit_vector();
 			for (size_t i = 0; i < sig_d.size(); i++) {
 				info.bit_d = sig_d.at(i);
 				bit_info[sig_q.at(i)] = info;
@@ -123,13 +123,13 @@ void create_dff_dq_map(std::map<RTLIL::IdString, dff_map_info_t> &map, RTLIL::Mo
 			continue;
 		}
 
-		if (info.cell->type == ID($adff)) {
-			info.bit_clk = sigmap(info.cell->getPort(ID::CLK)).as_bit();
-			info.bit_arst = sigmap(info.cell->getPort(ID::ARST)).as_bit();
+		if (info.cell->type == TW($adff)) {
+			info.bit_clk = sigmap(info.cell->getPort(TW::CLK)).as_bit();
+			info.bit_arst = sigmap(info.cell->getPort(TW::ARST)).as_bit();
 			info.clk_polarity = info.cell->parameters.at(ID::CLK_POLARITY).as_bool();
 			info.arst_polarity = info.cell->parameters.at(ID::ARST_POLARITY).as_bool();
-			std::vector<RTLIL::SigBit> sig_d = sigmap(info.cell->getPort(ID::D)).to_sigbit_vector();
-			std::vector<RTLIL::SigBit> sig_q = sigmap(info.cell->getPort(ID::Q)).to_sigbit_vector();
+			std::vector<RTLIL::SigBit> sig_d = sigmap(info.cell->getPort(TW::D)).to_sigbit_vector();
+			std::vector<RTLIL::SigBit> sig_q = sigmap(info.cell->getPort(TW::Q)).to_sigbit_vector();
 			std::vector<RTLIL::State> arst_value = info.cell->parameters.at(ID::ARST_VALUE).to_bits();
 			for (size_t i = 0; i < sig_d.size(); i++) {
 				info.bit_d = sig_d.at(i);
@@ -139,27 +139,27 @@ void create_dff_dq_map(std::map<RTLIL::IdString, dff_map_info_t> &map, RTLIL::Mo
 			continue;
 		}
 
-		if (info.cell->type.in(ID($_DFF_N_), ID($_DFF_P_))) {
-			info.bit_clk = sigmap(info.cell->getPort(ID::C)).as_bit();
-			info.clk_polarity = info.cell->type == ID($_DFF_P_);
-			info.bit_d = sigmap(info.cell->getPort(ID::D)).as_bit();
-			bit_info[sigmap(info.cell->getPort(ID::Q)).as_bit()] = info;
+		if (info.cell->type.in(TW($_DFF_N_), TW($_DFF_P_))) {
+			info.bit_clk = sigmap(info.cell->getPort(TW::C)).as_bit();
+			info.clk_polarity = info.cell->type == TW($_DFF_P_);
+			info.bit_d = sigmap(info.cell->getPort(TW::D)).as_bit();
+			bit_info[sigmap(info.cell->getPort(TW::Q)).as_bit()] = info;
 			continue;
 		}
 
 		if (info.cell->type.size() == 10 && info.cell->type.begins_with("$_DFF_")) {
-			info.bit_clk = sigmap(info.cell->getPort(ID::C)).as_bit();
-			info.bit_arst = sigmap(info.cell->getPort(ID::R)).as_bit();
+			info.bit_clk = sigmap(info.cell->getPort(TW::C)).as_bit();
+			info.bit_arst = sigmap(info.cell->getPort(TW::R)).as_bit();
 			info.clk_polarity = info.cell->type[6] == 'P';
 			info.arst_polarity = info.cell->type[7] == 'P';
 			info.arst_value = info.cell->type[0] == '1' ? RTLIL::State::S1 : RTLIL::State::S0;
-			info.bit_d = sigmap(info.cell->getPort(ID::D)).as_bit();
-			bit_info[sigmap(info.cell->getPort(ID::Q)).as_bit()] = info;
+			info.bit_d = sigmap(info.cell->getPort(TW::D)).as_bit();
+			bit_info[sigmap(info.cell->getPort(TW::Q)).as_bit()] = info;
 			continue;
 		}
 	}
 
-	std::map<RTLIL::IdString, dff_map_info_t> empty_dq_map;
+	std::map<TwineRef, dff_map_info_t> empty_dq_map;
 	for (auto w : module->wires())
 	{
 		if (!consider_wire(w, empty_dq_map))
@@ -202,16 +202,17 @@ void create_dff_dq_map(std::map<RTLIL::IdString, dff_map_info_t> &map, RTLIL::Mo
 		info.arst_polarity = ref_info.arst_polarity;
 		info.arst_value = arst_value;
 		for (auto it : cells)
-			info.cells.push_back(it->name);
-		map[w->name] = info;
+			info.cells.push_back(it->name.ref());
+		map[w->name.ref()] = info;
 	}
 }
 
-RTLIL::Wire *add_new_wire(RTLIL::Module *module, RTLIL::IdString name, int width = 1)
+RTLIL::Wire *add_new_wire(RTLIL::Module *module, std::string name, int width = 1)
 {
-	if (module->count_id(name))
-		log_error("Attempting to create wire %s, but a wire of this name exists already! Hint: Try another value for -sep.\n", name.unescape());
-	return module->addWire(name, width);
+	TwineRef ref = module->design->twines.add(std::string{name});
+	if (module->count_id(ref))
+		log_error("Attempting to create wire %s, but a wire of this name exists already! Hint: Try another value for -sep.\n", name.c_str());
+	return module->addWire(ref, width);
 }
 
 struct ExposePass : public Pass {
@@ -311,13 +312,13 @@ struct ExposePass : public Pass {
 
 		CellTypes ct(design);
 
-		std::map<RTLIL::Module*, std::map<RTLIL::IdString, dff_map_info_t>> dff_dq_maps;
-		std::map<RTLIL::Module*, std::set<RTLIL::IdString>> dff_cells;
+		std::map<RTLIL::Module*, std::map<TwineRef, dff_map_info_t>> dff_dq_maps;
+		std::map<RTLIL::Module*, std::set<TwineRef>> dff_cells;
 
 		if (flag_evert_dff)
 		{
 			RTLIL::Module *first_module = NULL;
-			std::set<RTLIL::IdString> shared_dff_wires;
+			std::set<TwineRef> shared_dff_wires;
 
 			for (auto mod : design->selected_modules())
 			{
@@ -331,7 +332,7 @@ struct ExposePass : public Pass {
 						shared_dff_wires.insert(it.first);
 					first_module = mod;
 				} else {
-					std::set<RTLIL::IdString> new_shared_dff_wires;
+					std::set<TwineRef> new_shared_dff_wires;
 					for (auto &it : shared_dff_wires) {
 						if (!dff_dq_maps[mod].count(it))
 							continue;
@@ -346,7 +347,7 @@ struct ExposePass : public Pass {
 			if (flag_shared)
 				for (auto &map_it : dff_dq_maps)
 				{
-					std::map<RTLIL::IdString, dff_map_info_t> new_map;
+					std::map<TwineRef, dff_map_info_t> new_map;
 					for (auto &it : map_it.second)
 						if (shared_dff_wires.count(it.first))
 							new_map[it.first] = it.second;
@@ -359,8 +360,8 @@ struct ExposePass : public Pass {
 				dff_cells[it1.first].insert(it3);
 		}
 
-		std::set<RTLIL::IdString> shared_wires, shared_cells;
-		std::set<RTLIL::IdString> used_names;
+		std::set<TwineRef> shared_wires, shared_cells;
+		std::set<TwineRef> used_names;
 
 		if (flag_shared)
 		{
@@ -368,7 +369,7 @@ struct ExposePass : public Pass {
 
 			for (auto module : design->selected_modules())
 			{
-				std::set<RTLIL::IdString> dff_wires;
+				std::set<TwineRef> dff_wires;
 				if (flag_dff)
 					find_dff_wires(dff_wires, module);
 
@@ -376,19 +377,19 @@ struct ExposePass : public Pass {
 				{
 					for (auto w : module->wires())
 						if (design->selected(module, w) && consider_wire(w, dff_dq_maps[module]))
-							if (!flag_dff || dff_wires.count(w->name))
-								shared_wires.insert(w->name);
+							if (!flag_dff || dff_wires.count(w->name.ref()))
+								shared_wires.insert(w->name.ref());
 
 					if (flag_evert)
 						for (auto cell : module->cells())
 							if (design->selected(module, cell) && consider_cell(design, dff_cells[module], cell))
-								shared_cells.insert(cell->name);
+								shared_cells.insert(cell->name.ref());
 
 					first_module = module;
 				}
 				else
 				{
-					std::vector<RTLIL::IdString> delete_shared_wires, delete_shared_cells;
+					std::vector<TwineRef> delete_shared_wires, delete_shared_cells;
 
 					for (auto &it : shared_wires)
 					{
@@ -445,7 +446,7 @@ struct ExposePass : public Pass {
 
 		for (auto module : design->selected_modules())
 		{
-			std::set<RTLIL::IdString> dff_wires;
+			std::set<TwineRef> dff_wires;
 			if (flag_dff && !flag_shared)
 				find_dff_wires(dff_wires, module);
 
@@ -453,17 +454,17 @@ struct ExposePass : public Pass {
 
 			SigMap out_to_in_map;
 
-			std::map<RTLIL::Wire*, RTLIL::IdString> wire_map;
+			std::map<RTLIL::Wire*, std::string> wire_map;
 
 			for (auto w : module->wires())
 			{
 				if (flag_shared) {
-					if (shared_wires.count(w->name) == 0)
+					if (shared_wires.count(w->name.ref()) == 0)
 						continue;
 				} else {
 					if (!design->selected(module, w) || !consider_wire(w, dff_dq_maps[module]))
 						continue;
-					if (flag_dff && !dff_wires.count(w->name))
+					if (flag_dff && !dff_wires.count(w->name.ref()))
 						continue;
 				}
 
@@ -472,7 +473,7 @@ struct ExposePass : public Pass {
 					if (!w->port_input) {
 						w->port_input = true;
 						log("New module port: %s/%s\n", module, w);
-						wire_map[w] = NEW_ID;
+						wire_map[w] = NEW_ID.str();
 					}
 				}
 				else
@@ -492,15 +493,15 @@ struct ExposePass : public Pass {
 			{
 				for (auto &wm : wire_map)
 				{
-					RTLIL::Wire *in_wire = module->addWire(wm.second, GetSize(wm.first));
+					RTLIL::Wire *in_wire = module->addWire(module->design->twines.add(std::string{wm.second}), GetSize(wm.first));
 					out_to_in_map.add(wm.first, in_wire);
 				}
 
 				for (auto cell : module->cells()) {
-					if (!ct.cell_known(cell->type))
+					if (!ct.cell_known(cell->type_impl))
 						continue;
 					for (auto &conn : cell->connections_)
-						if (ct.cell_output(cell->type, conn.first))
+						if (ct.cell_output(cell->type_impl, conn.first))
 							conn.second = out_to_in_map(sigmap(conn.second));
 				}
 
@@ -518,10 +519,10 @@ struct ExposePass : public Pass {
 				}
 
 				for (auto cell : module->cells()) {
-					if (!ct.cell_known(cell->type))
+					if (!ct.cell_known(cell->type_impl))
 						continue;
 					for (auto &conn : cell->connections_)
-						if (ct.cell_input(cell->type, conn.first))
+						if (ct.cell_input(cell->type_impl, conn.first))
 							conn.second = out_to_in_map(sigmap(conn.second));
 				}
 
@@ -542,15 +543,15 @@ struct ExposePass : public Pass {
 
 				dff_map_info_t &info = dq.second;
 
-				RTLIL::Wire *wire_dummy_q = add_new_wire(module, NEW_ID, 0);
+				RTLIL::Wire *wire_dummy_q = add_new_wire(module, NEW_ID.str(), 0);
 
 				for (auto &cell_name : info.cells) {
 					RTLIL::Cell *cell = module->cell(cell_name);
-					std::vector<RTLIL::SigBit> cell_q_bits = sigmap(cell->getPort(ID::Q)).to_sigbit_vector();
+					std::vector<RTLIL::SigBit> cell_q_bits = sigmap(cell->getPort(TW::Q)).to_sigbit_vector();
 					for (auto &bit : cell_q_bits)
 						if (wire_bits_set.count(bit))
 							bit = RTLIL::SigBit(wire_dummy_q, wire_dummy_q->width++);
-					cell->setPort(ID::Q, cell_q_bits);
+					cell->setPort(TW::Q, cell_q_bits);
 				}
 
 				RTLIL::Wire *wire_q = add_new_wire(module, wire->name.str() + sep + "q", wire->width);
@@ -578,12 +579,12 @@ struct ExposePass : public Pass {
 				if (info.clk_polarity) {
 					module->connect(RTLIL::SigSig(wire_c, info.sig_clk));
 				} else {
-					RTLIL::Cell *c = module->addCell(NEW_ID, ID($not));
+					RTLIL::Cell *c = module->addCell(NEW_TWINE, TW($not));
 					c->parameters[ID::A_SIGNED] = 0;
 					c->parameters[ID::A_WIDTH] = 1;
 					c->parameters[ID::Y_WIDTH] = 1;
-					c->setPort(ID::A, info.sig_clk);
-					c->setPort(ID::Y, wire_c);
+					c->setPort(TW::A, info.sig_clk);
+					c->setPort(TW::Y, wire_c);
 				}
 
 				if (info.sig_arst != RTLIL::State::Sm)
@@ -594,12 +595,12 @@ struct ExposePass : public Pass {
 					if (info.arst_polarity) {
 						module->connect(RTLIL::SigSig(wire_r, info.sig_arst));
 					} else {
-						RTLIL::Cell *c = module->addCell(NEW_ID, ID($not));
+						RTLIL::Cell *c = module->addCell(NEW_TWINE, TW($not));
 						c->parameters[ID::A_SIGNED] = 0;
 						c->parameters[ID::A_WIDTH] = 1;
 						c->parameters[ID::Y_WIDTH] = 1;
-						c->setPort(ID::A, info.sig_arst);
-						c->setPort(ID::Y, wire_r);
+						c->setPort(TW::A, info.sig_arst);
+						c->setPort(TW::Y, wire_r);
 					}
 
 					RTLIL::Wire *wire_v = add_new_wire(module, wire->name.str() + sep + "v", wire->width);
@@ -616,33 +617,33 @@ struct ExposePass : public Pass {
 				for (auto cell : module->cells())
 				{
 					if (flag_shared) {
-						if (shared_cells.count(cell->name) == 0)
+						if (shared_cells.count(cell->name.ref()) == 0)
 							continue;
 					} else {
 						if (!design->selected(module, cell) || !consider_cell(design, dff_cells[module], cell))
 							continue;
 					}
 
-					if (design->module(cell->type) != nullptr)
+					if (design->module(cell->type_impl) != nullptr)
 					{
-						RTLIL::Module *mod = design->module(cell->type);
+						RTLIL::Module *mod = design->module(cell->type_impl);
 
 						for (auto p : mod->wires())
 						{
 							if (!p->port_input && !p->port_output)
 								continue;
 
-							RTLIL::Wire *w = add_new_wire(module, cell->name.str() + sep + p->name.unescape(), p->width);
+							RTLIL::Wire *w = add_new_wire(module, cell->name.str() + sep + design->twines.unescaped_str(p->name.ref()), p->width);
 							if (p->port_input)
 								w->port_output = true;
 							if (p->port_output)
 								w->port_input = true;
 
-							log("New module port: %s/%s (%s)\n", module, w, cell->type.unescape());
+							log("New module port: %s/%s (%s)\n", module, w, cell->type.unescaped());
 
 							RTLIL::SigSpec sig;
-							if (cell->hasPort(p->name))
-								sig = cell->getPort(p->name);
+							if (cell->hasPort(p->name.ref()))
+								sig = cell->getPort(p->name.ref());
 							sig.extend_u0(w->width);
 							if (w->port_input)
 								module->connect(RTLIL::SigSig(sig, w));
@@ -654,13 +655,13 @@ struct ExposePass : public Pass {
 					{
 						for (auto &it : cell->connections())
 						{
-							RTLIL::Wire *w = add_new_wire(module, cell->name.str() + sep + it.first.unescape(), it.second.size());
-							if (ct.cell_input(cell->type, it.first))
+							RTLIL::Wire *w = add_new_wire(module, cell->name.str() + sep + design->twines.unescaped_str(it.first), it.second.size());
+							if (ct.cell_input(cell->type_impl, it.first))
 								w->port_output = true;
-							if (ct.cell_output(cell->type, it.first))
+							if (ct.cell_output(cell->type_impl, it.first))
 								w->port_input = true;
 
-							log("New module port: %s/%s (%s)\n", module, w, cell->type.unescape());
+							log("New module port: %s/%s (%s)\n", module, w, cell->type.unescaped());
 
 							if (w->port_input)
 								module->connect(RTLIL::SigSig(it.second, w));
@@ -673,7 +674,7 @@ struct ExposePass : public Pass {
 				}
 
 				for (auto cell : delete_cells) {
-					log("Removing cell: %s/%s (%s)\n", module, cell, cell->type.unescape());
+					log("Removing cell: %s/%s (%s)\n", module, cell, cell->type.unescaped());
 					module->remove(cell);
 				}
 			}

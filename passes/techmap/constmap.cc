@@ -25,6 +25,7 @@ USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
 static std::string celltype, cell_portname, cell_paramname;
+static TwineRef celltype_ref, cell_portname_ref;
 
 static RTLIL::Module *module;
 static RTLIL::SigChunk value;
@@ -32,10 +33,10 @@ static RTLIL::SigChunk value;
 void constmap_worker(RTLIL::SigSpec &sig)
 {
 	if (sig.is_fully_const()){
-		value = module->addWire(NEW_ID, sig.size());
-		RTLIL::Cell *cell = module->addCell(NEW_ID, celltype);
+		value = module->addWire(NEW_TWINE, sig.size());
+		RTLIL::Cell *cell = module->addCell(NEW_TWINE, celltype_ref);
 		cell->setParam(cell_paramname, sig.as_const());
-		cell->setPort(cell_portname, value);
+		cell->setPort(cell_portname_ref, value);
 		sig = value;
 	}
 }
@@ -74,8 +75,12 @@ struct ConstmapPass : public Pass {
 		if (celltype.empty())
 			log_cmd_error("Missing required option -cell.\n");
 
-		if (design->has(celltype)) {
-			Module *existing = design->module(celltype);
+		celltype_ref = design->twines.add(std::string{celltype});
+		cell_portname_ref = design->twines.add(std::string{cell_portname});
+
+		TwineSearch design_search(&design->twines);
+		if (design->has(design_search.find(celltype))) {
+			Module *existing = design->module(design_search.find(celltype));
 			bool has_port = false;
 			for (auto &p : existing->ports){
 				if (p == cell_portname){

@@ -82,8 +82,9 @@ struct ExactCellWires {
 
 int count_nontrivial_wire_attrs(RTLIL::Wire *w)
 {
+	// w->attributes no longer holds ID::src (typed src field), so it isn't
+	// counted in attributes.size() and we don't subtract for it here.
 	int count = w->attributes.size();
-	count -= w->attributes.count(ID::src);
 	count -= w->attributes.count(ID::hdlname);
 	count -= w->attributes.count(ID::scopename);
 	count -= w->attributes.count(ID::unused_bits);
@@ -131,7 +132,7 @@ bool compare_signals(const RTLIL::SigBit &s1, const RTLIL::SigBit &s2, const Sha
 	if (w1->port_output != w2->port_output)
 		return w2->port_output;
 
-	if (w1->name[0] != w2->name[0])
+	if (w1->name.isPublic() != w2->name.isPublic())
 		return w2->name.isPublic();
 
 	int attrs1 = count_nontrivial_wire_attrs(w1);
@@ -140,19 +141,8 @@ bool compare_signals(const RTLIL::SigBit &s1, const RTLIL::SigBit &s2, const Sha
 	if (attrs1 != attrs2)
 		return attrs2 > attrs1;
 
-	return w2->name.lt_by_name(w1->name);
-}
-
-bool check_public_name(RTLIL::IdString id)
-{
-	if (id.begins_with("$"))
-		return false;
-	const std::string &id_str = id.str();
-	if (id.begins_with("\\_") && (id.ends_with("_") || id_str.find("_[") != std::string::npos))
-		return false;
-	if (id_str.find(".$") != std::string::npos)
-		return false;
-	return true;
+	// Stable even though not lexicographic
+	return w2->meta_->name < w1->meta_->name;
 }
 
 void add_spec(ShardedSigPool::Builder &builder, const ThreadIndex &thread, const RTLIL::SigSpec &spec) {
@@ -177,7 +167,7 @@ bool check_all(const ShardedSigPool &sigs, const RTLIL::SigSpec &spec) {
 
 struct UpdateConnection {
 	RTLIL::Cell *cell;
-	RTLIL::IdString port;
+	TwineRef port;
 	RTLIL::SigSpec spec;
 };
 void fixup_cell_ports(ShardedVector<UpdateConnection> &update_connections)
@@ -250,20 +240,20 @@ struct SigConnKinds {
 			for (int i : ctx.item_range(actx.mod->cells_size())) {
 				RTLIL::Cell *cell = actx.mod->cell_at(i);
 				if (!purge_mode) {
-					if (clean_ctx.ct_reg(cell->type)) {
+					if (clean_ctx.ct_reg(cell->type_impl)) {
 						// Improve witness signal naming when clk2fflogic used
 						// see commit message e36c71b5
 						bool clk2fflogic = cell->get_bool_attribute(ID::clk2fflogic);
 						for (auto &[port, sig] : cell->connections())
-							if (clk2fflogic ? port == ID::D : clean_ctx.ct_all.cell_output(cell->type, port))
+							if (clk2fflogic ? port == TW::D : clean_ctx.ct_all.cell_output(cell->type_impl, port))
 								add_spec(raw_register_builder, ctx, sig);
 					}
 					for (auto &[_, sig] : cell->connections())
 						add_spec(raw_cell_connected_builder, ctx, sig);
 				}
-				if (clean_ctx.ct_all.cell_known(cell->type))
+				if (clean_ctx.ct_all.cell_known(cell->type_impl))
 					for (auto &[port, sig] : cell->connections())
-						if (clean_ctx.ct_all.cell_output(cell->type, port)) {
+						if (clean_ctx.ct_all.cell_output(cell->type_impl, port)) {
 							RTLIL::SigSpec spec = actx.assign_map(sig);
 							unsigned int hash = spec.hash_into(Hasher()).yield();
 							exact_cell_output_builder.insert(ctx, {std::move(spec), hash});
@@ -366,7 +356,7 @@ DeferredUpdates analyse_connectivity(UsedSignals& used, SigConnKinds& sig_analys
 					deferred.update_connections.insert(ctx, {cell, port, spec});
 				add_spec(raw_conn_builder, ctx, spec);
 				add_spec(conn_builder, ctx, spec);
-				if (!clean_ctx.ct_all.cell_output(cell->type, port))
+				if (!clean_ctx.ct_all.cell_output(cell->type_impl, port))
 					add_spec(used_builder, ctx, spec);
 			}
 		}
@@ -437,7 +427,7 @@ struct WireDeleter {
 				if (wire->port_id != 0 || wire->get_bool_attribute(ID::keep) || !initval.is_fully_undef()) {
 					// do not delete anything with "keep" or module ports or initialized wires
 				} else
-				if (!purge_mode && check_public_name(wire->name) && (check_any(used_sig_analysis.raw_connected, s1) || check_any(used_sig_analysis.connected, s2) || s1 != s2)) {
+				if (!purge_mode && check_public_name(wire) && (check_any(used_sig_analysis.raw_connected, s1) || check_any(used_sig_analysis.connected, s2) || s1 != s2)) {
 					// do not get rid of public names unless in purge mode or if the wire is entirely unused, not even aliased
 				} else
 				if (!check_any(used_sig_analysis.raw_connected, s1)) {
@@ -519,7 +509,7 @@ struct WireDeleter {
 	int delete_wires(RTLIL::Module* mod, bool verbose) {
 		int deleted_and_unreported = 0;
 		for (auto wire : del_wires_queue) {
-			if (ys_debug() || (check_public_name(wire->name) && verbose))
+			if (ys_debug() || (check_public_name(wire) && verbose))
 				log_debug("  removing unused non-port wire %s.\n", wire->name);
 			else
 				deleted_and_unreported++;
@@ -532,6 +522,20 @@ struct WireDeleter {
 PRIVATE_NAMESPACE_END
 
 YOSYS_NAMESPACE_BEGIN
+
+bool check_public_name(Wire* wire)
+{
+	if (!wire->meta_->name.is_public())
+		return false;
+	std::string id_str = wire->name;
+	if (!id_str.empty() && id_str[0] == '$')
+		return false;
+	if (id_str.rfind("\\_", 0) == 0 && (id_str.back() == '_' || id_str.find("_[") != std::string::npos))
+		return false;
+	if (id_str.find(".$") != std::string::npos)
+		return false;
+	return true;
+}
 
 bool rmunused_module_signals(RTLIL::Module *module, ParallelDispatchThreadPool::Subpool &subpool, CleanRunContext &clean_ctx)
 {
@@ -576,8 +580,8 @@ bool rmunused_module_signals(RTLIL::Module *module, ParallelDispatchThreadPool::
 	if (clean_ctx.flags.verbose && deleted_and_unreported)
 		log_debug("  removed %d unused temporary wires.\n", deleted_and_unreported);
 
-	if (deleted_total)
-		module->design->scratchpad_set_bool("opt.did_something", true);
+	// if (deleted_total)
+	// 	module->design->scratchpad_set_bool("opt.did_something", true);
 
 	return deleted_total != 0;
 }

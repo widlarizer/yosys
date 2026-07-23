@@ -84,7 +84,7 @@ struct Macc
 
 	void from_cell_v1(RTLIL::Cell *cell)
 	{
-		RTLIL::SigSpec port_a = cell->getPort(ID::A);
+		RTLIL::SigSpec port_a = cell->getPort(TW::A);
 
 		terms.clear();
 
@@ -129,7 +129,7 @@ struct Macc
 				terms.push_back(this_port);
 		}
 
-		for (auto bit : cell->getPort(ID::B))
+		for (auto bit : cell->getPort(TW::B))
 			terms.push_back(term_t{{bit}, {}, false, false});
 
 		log_assert(config_cursor == config_width);
@@ -138,15 +138,15 @@ struct Macc
 
 	void from_cell(RTLIL::Cell *cell)
 	{
-		if (cell->type == ID($macc)) {
+		if (cell->type == TW($macc)) {
 			from_cell_v1(cell);
 			return;
 		}
-		log_assert(cell->type == ID($macc_v2));
+		log_assert(cell->type == TW($macc_v2));
 
-		RTLIL::SigSpec port_a = cell->getPort(ID::A);
-		RTLIL::SigSpec port_b = cell->getPort(ID::B);
-		RTLIL::SigSpec port_c = cell->getPort(ID::C);
+		RTLIL::SigSpec port_a = cell->getPort(TW::A);
+		RTLIL::SigSpec port_b = cell->getPort(TW::B);
+		RTLIL::SigSpec port_c = cell->getPort(TW::C);
 
 		terms.clear();
 
@@ -198,7 +198,7 @@ struct Macc
 
 	void to_cell(RTLIL::Cell *cell)
 	{
-		cell->type = ID($macc_v2);
+		cell->type_impl = TW::$macc_v2;
 
 		int nproducts = 0, naddends = 0;
 		Const a_signed, b_signed, a_widths, b_widths, product_negated;
@@ -255,9 +255,9 @@ struct Macc
 		cell->setParam(ID::A_WIDTHS, a_widths);
 		cell->setParam(ID::B_WIDTHS, b_widths);
 		cell->setParam(ID::C_WIDTHS, c_widths);
-		cell->setPort(ID::A, a);
-		cell->setPort(ID::B, b);
-		cell->setPort(ID::C, c);
+		cell->setPort(TW::A, a);
+		cell->setPort(TW::B, b);
+		cell->setPort(TW::C, c);
 	}
 
 	bool eval(RTLIL::Const &result) const

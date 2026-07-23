@@ -47,8 +47,9 @@ private:
 
 		//Get a SigSpec for the corresponding taint signal for the cell port, creating one if necessary:
 		if (sig.is_wire()) {
-			RTLIL::Wire *w = module->wire(sig.as_wire()->name.str() + "_t");
-			if (w == nullptr) w = module->addWire(sig.as_wire()->name.str() + "_t", 1);
+			TwineRef taint_name_ref = module->design->twines.add(Twine{sig.as_wire()->name.str() + "_t"});
+			RTLIL::Wire *w = module->wire(taint_name_ref);
+			if (w == nullptr) w = module->addWire(Twine{sig.as_wire()->name.str() + "_t"}, 1);
 			ret = w;
 		}
 		else if (sig.is_fully_const() && opt_taintconstants)
@@ -69,35 +70,35 @@ private:
 
 	void add_precise_GLIFT_logic(const RTLIL::Cell *cell, RTLIL::SigSpec &port_a, RTLIL::SigSpec &port_a_taint, RTLIL::SigSpec &port_b, RTLIL::SigSpec &port_b_taint, RTLIL::SigSpec &port_y_taint) {
 		//AKA AN2_SH2 or OR2_SH2
-		bool is_and = cell->type.in(ID($_AND_), ID($_NAND_));
-		RTLIL::SigSpec n_port_a = module->LogicNot(cell->name.str() + "_t_1_1", port_a, false, cell->get_src_attribute());
-		RTLIL::SigSpec n_port_b = module->LogicNot(cell->name.str() + "_t_1_2", port_b, false, cell->get_src_attribute());
-		auto subexpr1 = module->And(cell->name.str() + "_t_1_3", is_and? port_a : n_port_a, port_b_taint, false, cell->get_src_attribute());
-		auto subexpr2 = module->And(cell->name.str() + "_t_1_4", is_and? port_b : n_port_b, port_a_taint, false, cell->get_src_attribute());
-		auto subexpr3 = module->And(cell->name.str() + "_t_1_5", port_a_taint, port_b_taint, false, cell->get_src_attribute());
-		auto subexpr4 = module->Or(cell->name.str() + "_t_1_6", subexpr1, subexpr2, false, cell->get_src_attribute());
-		module->addOr(cell->name.str() + "_t_1_7", subexpr4, subexpr3, port_y_taint, false, cell->get_src_attribute());
+		bool is_and = cell->type.in(TW($_AND_), TW($_NAND_));
+		RTLIL::SigSpec n_port_a = module->LogicNot(Twine{cell->name.str() + "_t_1_1"}, port_a, false, cell->src_ref());
+		RTLIL::SigSpec n_port_b = module->LogicNot(Twine{cell->name.str() + "_t_1_2"}, port_b, false, cell->src_ref());
+		auto subexpr1 = module->And(Twine{cell->name.str() + "_t_1_3"}, is_and? port_a : n_port_a, port_b_taint, false, cell->src_ref());
+		auto subexpr2 = module->And(Twine{cell->name.str() + "_t_1_4"}, is_and? port_b : n_port_b, port_a_taint, false, cell->src_ref());
+		auto subexpr3 = module->And(Twine{cell->name.str() + "_t_1_5"}, port_a_taint, port_b_taint, false, cell->src_ref());
+		auto subexpr4 = module->Or(Twine{cell->name.str() + "_t_1_6"}, subexpr1, subexpr2, false, cell->src_ref());
+		module->addOr(Twine{cell->name.str() + "_t_1_7"}, subexpr4, subexpr3, port_y_taint, false, cell->src_ref());
 	}
 
 	void add_imprecise_GLIFT_logic_1(const RTLIL::Cell *cell, RTLIL::SigSpec &port_a, RTLIL::SigSpec &port_a_taint, RTLIL::SigSpec &port_b, RTLIL::SigSpec &port_b_taint, RTLIL::SigSpec &port_y_taint) {
 		//AKA AN2_SH3 or OR2_SH3
-		bool is_and = cell->type.in(ID($_AND_), ID($_NAND_));
-		RTLIL::SigSpec n_port_a = module->LogicNot(cell->name.str() + "_t_2_1", port_a, false, cell->get_src_attribute());
-		auto subexpr1 = module->And(cell->name.str() + "_t_2_2", is_and? port_b : n_port_a, is_and? port_a_taint : port_b_taint, false, cell->get_src_attribute());
-		module->addOr(cell->name.str() + "_t_2_3", is_and? port_b_taint : port_a_taint, subexpr1, port_y_taint, false, cell->get_src_attribute());
+		bool is_and = cell->type.in(TW($_AND_), TW($_NAND_));
+		RTLIL::SigSpec n_port_a = module->LogicNot(Twine{cell->name.str() + "_t_2_1"}, port_a, false, cell->src_ref());
+		auto subexpr1 = module->And(Twine{cell->name.str() + "_t_2_2"}, is_and? port_b : n_port_a, is_and? port_a_taint : port_b_taint, false, cell->src_ref());
+		module->addOr(Twine{cell->name.str() + "_t_2_3"}, is_and? port_b_taint : port_a_taint, subexpr1, port_y_taint, false, cell->src_ref());
 	}
 
 	void add_imprecise_GLIFT_logic_2(const RTLIL::Cell *cell, RTLIL::SigSpec &port_a, RTLIL::SigSpec &port_a_taint, RTLIL::SigSpec &port_b, RTLIL::SigSpec &port_b_taint, RTLIL::SigSpec &port_y_taint) {
 		//AKA AN2_SH4 or OR2_SH4
-		bool is_and = cell->type.in(ID($_AND_), ID($_NAND_));
-		RTLIL::SigSpec n_port_b = module->LogicNot(cell->name.str() + "_t_3_1", port_b, false, cell->get_src_attribute());
-		auto subexpr1 = module->And(cell->name.str() + "_t_3_2", is_and? port_a : n_port_b, is_and? port_b_taint : port_a_taint, false, cell->get_src_attribute());
-		module->addOr(cell->name.str() + "_t_3_3", is_and? port_a_taint : port_b_taint, subexpr1, port_y_taint, false, cell->get_src_attribute());
+		bool is_and = cell->type.in(TW($_AND_), TW($_NAND_));
+		RTLIL::SigSpec n_port_b = module->LogicNot(Twine{cell->name.str() + "_t_3_1"}, port_b, false, cell->src_ref());
+		auto subexpr1 = module->And(Twine{cell->name.str() + "_t_3_2"}, is_and? port_a : n_port_b, is_and? port_b_taint : port_a_taint, false, cell->src_ref());
+		module->addOr(Twine{cell->name.str() + "_t_3_3"}, is_and? port_a_taint : port_b_taint, subexpr1, port_y_taint, false, cell->src_ref());
 	}
 
 	void add_imprecise_GLIFT_logic_3(const RTLIL::Cell *cell, RTLIL::SigSpec &port_a_taint, RTLIL::SigSpec &port_b_taint, RTLIL::SigSpec &port_y_taint) {
 		//AKA AN2_SH5 or OR2_SH5 or XR2_SH2
-		module->addOr(cell->name.str() + "_t_4_1", port_a_taint, port_b_taint, port_y_taint, false, cell->get_src_attribute());
+		module->addOr(Twine{cell->name.str() + "_t_4_1"}, port_a_taint, port_b_taint, port_y_taint, false, cell->src_ref());
 	}
 
 	void add_imprecise_GLIFT_logic_4(RTLIL::SigSpec &port_a_taint, RTLIL::SigSpec &port_y_taint) {
@@ -118,22 +119,22 @@ private:
 
 	void add_precise_GLIFT_mux(const RTLIL::Cell *cell, RTLIL::SigSpec &port_a, RTLIL::SigSpec &port_a_taint, RTLIL::SigSpec &port_b, RTLIL::SigSpec &port_b_taint, RTLIL::SigSpec &port_s, RTLIL::SigSpec &port_s_taint, RTLIL::SigSpec &port_y_taint) {
 		//S&At | ~S&Bt | ~A&B&St | A&~B&St | At&St | Bt&St
-		RTLIL::SigSpec n_port_a = module->LogicNot(cell->name.str() + "_t_4_1", port_a, false, cell->get_src_attribute());
-		RTLIL::SigSpec n_port_b = module->LogicNot(cell->name.str() + "_t_4_2", port_b, false, cell->get_src_attribute());
-		RTLIL::SigSpec n_port_s = module->LogicNot(cell->name.str() + "_t_4_3", port_s, false, cell->get_src_attribute());
-		auto subexpr1 = module->And(cell->name.str() + "_t_4_4", port_s, port_a_taint, false, cell->get_src_attribute());
-		auto subexpr2 = module->And(cell->name.str() + "_t_4_5", n_port_s, port_b_taint, false, cell->get_src_attribute());
-		auto subexpr3 = module->And(cell->name.str() + "_t_4_6", n_port_a, port_b, false, cell->get_src_attribute());
-		auto subexpr4 = module->And(cell->name.str() + "_t_4_7", subexpr3, port_s_taint, false, cell->get_src_attribute());
-		auto subexpr5 = module->And(cell->name.str() + "_t_4_8", port_a, n_port_b, false, cell->get_src_attribute());
-		auto subexpr6 = module->And(cell->name.str() + "_t_4_9", subexpr5, port_s_taint, false, cell->get_src_attribute());
-		auto subexpr7 = module->And(cell->name.str() + "_t_4_10", port_a_taint, port_s_taint, false, cell->get_src_attribute());
-		auto subexpr8 = module->And(cell->name.str() + "_t_4_11", port_b_taint, port_s_taint, false, cell->get_src_attribute());
-		auto subexpr9  = module->Or(cell->name.str() + "_t_4_12", subexpr1, subexpr2, false, cell->get_src_attribute());
-		auto subexpr10 = module->Or(cell->name.str() + "_t_4_13", subexpr4, subexpr6, false, cell->get_src_attribute());
-		auto subexpr11 = module->Or(cell->name.str() + "_t_4_14", subexpr7, subexpr8, false, cell->get_src_attribute());
-		auto subexpr12 = module->Or(cell->name.str() + "_t_4_15", subexpr9, subexpr10, false, cell->get_src_attribute());
-		module->addOr(cell->name.str() + "_t_4_16", subexpr11, subexpr12, port_y_taint, false, cell->get_src_attribute());
+		RTLIL::SigSpec n_port_a = module->LogicNot(Twine{cell->name.str() + "_t_4_1"}, port_a, false, cell->src_ref());
+		RTLIL::SigSpec n_port_b = module->LogicNot(Twine{cell->name.str() + "_t_4_2"}, port_b, false, cell->src_ref());
+		RTLIL::SigSpec n_port_s = module->LogicNot(Twine{cell->name.str() + "_t_4_3"}, port_s, false, cell->src_ref());
+		auto subexpr1 = module->And(Twine{cell->name.str() + "_t_4_4"}, port_s, port_a_taint, false, cell->src_ref());
+		auto subexpr2 = module->And(Twine{cell->name.str() + "_t_4_5"}, n_port_s, port_b_taint, false, cell->src_ref());
+		auto subexpr3 = module->And(Twine{cell->name.str() + "_t_4_6"}, n_port_a, port_b, false, cell->src_ref());
+		auto subexpr4 = module->And(Twine{cell->name.str() + "_t_4_7"}, subexpr3, port_s_taint, false, cell->src_ref());
+		auto subexpr5 = module->And(Twine{cell->name.str() + "_t_4_8"}, port_a, n_port_b, false, cell->src_ref());
+		auto subexpr6 = module->And(Twine{cell->name.str() + "_t_4_9"}, subexpr5, port_s_taint, false, cell->src_ref());
+		auto subexpr7 = module->And(Twine{cell->name.str() + "_t_4_10"}, port_a_taint, port_s_taint, false, cell->src_ref());
+		auto subexpr8 = module->And(Twine{cell->name.str() + "_t_4_11"}, port_b_taint, port_s_taint, false, cell->src_ref());
+		auto subexpr9  = module->Or(Twine{cell->name.str() + "_t_4_12"}, subexpr1, subexpr2, false, cell->src_ref());
+		auto subexpr10 = module->Or(Twine{cell->name.str() + "_t_4_13"}, subexpr4, subexpr6, false, cell->src_ref());
+		auto subexpr11 = module->Or(Twine{cell->name.str() + "_t_4_14"}, subexpr7, subexpr8, false, cell->src_ref());
+		auto subexpr12 = module->Or(Twine{cell->name.str() + "_t_4_15"}, subexpr9, subexpr10, false, cell->src_ref());
+		module->addOr(Twine{cell->name.str() + "_t_4_16"}, subexpr11, subexpr12, port_y_taint, false, cell->src_ref());
 	}
 
 	RTLIL::SigSpec score_metamux_select(const RTLIL::SigSpec &metamux_select, const RTLIL::IdString celltype) {
@@ -143,19 +144,19 @@ private:
 			//The complex model is an area model, so a lower score should mean smaller.
 			//In this case, a nonzero hole metamux select value means less logic.
 			//Thus we should invert the ReduceOr over the metamux_select signal.
-			RTLIL::SigSpec pmux_select = module->ReduceOr(metamux_select.as_wire()->name.str() + "_nonzero", metamux_select);
-			return module->Pmux(NEW_ID, RTLIL::Const(1), RTLIL::Const(0), pmux_select, metamux_select.as_wire()->get_src_attribute());
+			RTLIL::SigSpec pmux_select = module->ReduceOr(Twine{metamux_select.as_wire()->name.str() + "_nonzero"}, metamux_select);
+			return module->Pmux(NEW_TWINE, RTLIL::Const(1), RTLIL::Const(0), pmux_select, metamux_select.as_wire()->src_ref());
 		} else {
 			auto select_width = metamux_select.as_wire()->width;
 
 			std::vector<RTLIL::Const> costs;
-			if (celltype == ID($_AND_) || celltype == ID($_OR_)) {
+			if (celltype == TW($_AND_) || celltype == TW($_OR_)) {
 				costs = {5, 2, 2, 1, 0, 0, 0, 0};
 				log_assert(select_width == 2 || select_width == 3);
 				log_assert(opt_instrumentmore || select_width == 2);
 				log_assert(!opt_instrumentmore || select_width == 3);
 			}
-			else if (celltype == ID($_XOR_) || celltype == ID($_XNOR_)) {
+			else if (celltype == TW($_XOR_) || celltype == TW($_XNOR_)) {
 				costs = {1, 0, 0, 0};
 				log_assert(select_width == 2);
 			}
@@ -163,7 +164,7 @@ private:
 			std::vector<RTLIL::SigSpec> next_pmux_y_ports, pmux_y_ports(costs.begin(), costs.begin() + exp2(select_width));
 			for (auto i = 0; pmux_y_ports.size() > 1; ++i) {
 				for (auto j = 0; j+1 < GetSize(pmux_y_ports); j += 2) {
-					next_pmux_y_ports.emplace_back(module->Pmux(stringf("%s_mux_%d_%d", metamux_select.as_wire()->name, i, j), pmux_y_ports[j], pmux_y_ports[j+1], metamux_select[GetSize(metamux_select) - 1 - i], metamux_select.as_wire()->get_src_attribute()));
+					next_pmux_y_ports.emplace_back(module->Pmux(Twine{stringf("%s_mux_%d_%d", metamux_select.as_wire()->name.str().c_str(), i, j)}, pmux_y_ports[j], pmux_y_ports[j+1], metamux_select[GetSize(metamux_select) - 1 - i], metamux_select.as_wire()->src_ref()));
 				}
 				if (GetSize(pmux_y_ports) % 2 == 1)
 					next_pmux_y_ports.push_back(pmux_y_ports[GetSize(pmux_y_ports) - 1]);
@@ -183,13 +184,13 @@ private:
 		std::vector<RTLIL::SigSig> connections(module->connections());
 
 		for(auto &cell : module->cells().to_vector()) {
-			if (!cell->type.in(ID($_AND_), ID($_NAND_), ID($_OR_), ID($_NOR_), ID($_XOR_), ID($_XNOR_), ID($_MUX_), ID($_NMUX_), ID($_NOT_), ID($anyconst), ID($allconst), ID($assume), ID($assert)) && module->design->module(cell->type) == nullptr) {
+			if (!cell->type.in(TW($_AND_), TW($_NAND_), TW($_OR_), TW($_NOR_), TW($_XOR_), TW($_XNOR_), TW($_MUX_), TW($_NMUX_), TW($_NOT_), TW($anyconst), TW($allconst), TW($assume), TW($assert)) && module->design->module(cell->type_impl) == nullptr) {
 				log_cmd_error("Unsupported cell type \"%s\" found.  Run `techmap` first.\n", cell->type);
 			}
-			if (cell->type.in(ID($_AND_), ID($_NAND_), ID($_OR_), ID($_NOR_))) {
+			if (cell->type.in(TW($_AND_), TW($_NAND_), TW($_OR_), TW($_NOR_))) {
 				const unsigned int A = 0, B = 1, Y = 2;
 				const unsigned int NUM_PORTS = 3;
-				RTLIL::SigSpec ports[NUM_PORTS] = {cell->getPort(ID::A), cell->getPort(ID::B), cell->getPort(ID::Y)};
+				RTLIL::SigSpec ports[NUM_PORTS] = {cell->getPort(TW::A), cell->getPort(TW::B), cell->getPort(TW::Y)};
 				RTLIL::SigSpec port_taints[NUM_PORTS];
 
 				if (ports[A].size() != 1 || ports[B].size() != 1 || ports[Y].size() != 1)
@@ -206,7 +207,7 @@ private:
 					int num_versions = opt_instrumentmore? 8 : 4;
 
 					for (auto i = 1; i <= num_versions; ++i)
-						taint_version.emplace_back(RTLIL::SigSpec(module->addWire(stringf("%s_y%d", cell->name, i), 1)));
+						taint_version.emplace_back(RTLIL::SigSpec(module->addWire(Twine{stringf("%s_y%d", cell->name.str().c_str(), i)}, 1)));
 
 					for (auto i = 0; i < num_versions; ++i) {
 						switch(i) {
@@ -232,14 +233,14 @@ private:
 
 					auto select_width = log2(num_versions);
 					log_assert(exp2(select_width) == num_versions);
-					RTLIL::SigSpec meta_mux_select(module->addWire(cell->name.str() + "_sel", select_width));
-					meta_mux_selects.push_back(make_pair(meta_mux_select, cell->type));
-					module->connect(meta_mux_select, module->Anyconst(cell->name.str() + "_hole", select_width, cell->get_src_attribute()));
+					RTLIL::SigSpec meta_mux_select(module->addWire(Twine{cell->name.str() + "_sel"}, select_width));
+					meta_mux_selects.push_back(make_pair(meta_mux_select, RTLIL::IdString(cell->type)));
+					module->connect(meta_mux_select, module->Anyconst(module->design->twines.add(Twine{cell->name.str() + "_hole"}), select_width, cell->src_ref()));
 
 					std::vector<RTLIL::SigSpec> next_meta_mux_y_ports, meta_mux_y_ports(taint_version);
 					for (auto i = 0; meta_mux_y_ports.size() > 1; ++i) {
 						for (auto j = 0; j+1 < GetSize(meta_mux_y_ports); j += 2) {
-							next_meta_mux_y_ports.emplace_back(module->Mux(stringf("%s_mux_%d_%d", cell->name, i, j), meta_mux_y_ports[j], meta_mux_y_ports[j+1], meta_mux_select[GetSize(meta_mux_select) - 1 - i]));
+							next_meta_mux_y_ports.emplace_back(module->Mux(Twine{stringf("%s_mux_%d_%d", cell->name.str().c_str(), i, j)}, meta_mux_y_ports[j], meta_mux_y_ports[j+1], meta_mux_select[GetSize(meta_mux_select) - 1 - i]));
 						}
 						if (GetSize(meta_mux_y_ports) % 2 == 1)
 							next_meta_mux_y_ports.push_back(meta_mux_y_ports[GetSize(meta_mux_y_ports) - 1]);
@@ -251,10 +252,10 @@ private:
 				}
 				else log_cmd_error("This is a bug (1).\n");
 			}
-			else if (cell->type.in(ID($_XOR_), ID($_XNOR_))) {
+			else if (cell->type.in(TW($_XOR_), TW($_XNOR_))) {
 				const unsigned int A = 0, B = 1, Y = 2;
 				const unsigned int NUM_PORTS = 3;
-				RTLIL::SigSpec ports[NUM_PORTS] = {cell->getPort(ID::A), cell->getPort(ID::B), cell->getPort(ID::Y)};
+				RTLIL::SigSpec ports[NUM_PORTS] = {cell->getPort(TW::A), cell->getPort(TW::B), cell->getPort(TW::Y)};
 				RTLIL::SigSpec port_taints[NUM_PORTS];
 
 				if (ports[A].size() != 1 || ports[B].size() != 1 || ports[Y].size() != 1)
@@ -271,7 +272,7 @@ private:
 					log_assert(exp2(select_width) == num_versions);
 
 					for (auto i = 1; i <= num_versions; ++i)
-						taint_version.emplace_back(RTLIL::SigSpec(module->addWire(stringf("%s_y%d", cell->name, i), 1)));
+						taint_version.emplace_back(RTLIL::SigSpec(module->addWire(Twine{stringf("%s_y%d", cell->name.str().c_str(), i)}, 1)));
 
 					for (auto i = 0; i < num_versions; ++i) {
 						switch(i) {
@@ -287,14 +288,14 @@ private:
 						}
 					}
 
-					RTLIL::SigSpec meta_mux_select(module->addWire(cell->name.str() + "_sel", select_width));
-					meta_mux_selects.push_back(make_pair(meta_mux_select, cell->type));
-					module->connect(meta_mux_select, module->Anyconst(cell->name.str() + "_hole", select_width, cell->get_src_attribute()));
+					RTLIL::SigSpec meta_mux_select(module->addWire(Twine{cell->name.str() + "_sel"}, select_width));
+					meta_mux_selects.push_back(make_pair(meta_mux_select, RTLIL::IdString(cell->type)));
+					module->connect(meta_mux_select, module->Anyconst(module->design->twines.add(Twine{cell->name.str() + "_hole"}), select_width, cell->src_ref()));
 
 					std::vector<RTLIL::SigSpec> next_meta_mux_y_ports, meta_mux_y_ports(taint_version);
 					for (auto i = 0; meta_mux_y_ports.size() > 1; ++i) {
 						for (auto j = 0; j+1 < GetSize(meta_mux_y_ports); j += 2) {
-							next_meta_mux_y_ports.emplace_back(module->Mux(stringf("%s_mux_%d_%d", cell->name, i, j), meta_mux_y_ports[j], meta_mux_y_ports[j+1], meta_mux_select[GetSize(meta_mux_select) - 1 - i]));
+							next_meta_mux_y_ports.emplace_back(module->Mux(Twine{stringf("%s_mux_%d_%d", cell->name.str().c_str(), i, j)}, meta_mux_y_ports[j], meta_mux_y_ports[j+1], meta_mux_select[GetSize(meta_mux_select) - 1 - i]));
 						}
 						if (GetSize(meta_mux_y_ports) % 2 == 1)
 							next_meta_mux_y_ports.push_back(meta_mux_y_ports[GetSize(meta_mux_y_ports) - 1]);
@@ -307,10 +308,10 @@ private:
 				else log_cmd_error("This is a bug (2).\n");
 
 			}
-			else if (cell->type.in(ID($_MUX_), ID($_NMUX_))) {
+			else if (cell->type.in(TW($_MUX_), TW($_NMUX_))) {
 				const unsigned int A = 0, B = 1, S = 2, Y = 3;
 				const unsigned int NUM_PORTS = 4;
-				RTLIL::SigSpec ports[NUM_PORTS] = {cell->getPort(ID::A), cell->getPort(ID::B), cell->getPort(ID::S), cell->getPort(ID::Y)};
+				RTLIL::SigSpec ports[NUM_PORTS] = {cell->getPort(TW::A), cell->getPort(TW::B), cell->getPort(TW::S), cell->getPort(TW::Y)};
 				RTLIL::SigSpec port_taints[NUM_PORTS];
 
 				if (ports[A].size() != 1 || ports[B].size() != 1 || ports[S].size() != 1 || ports[Y].size() != 1)
@@ -320,10 +321,10 @@ private:
 
 				add_precise_GLIFT_mux(cell, ports[A], port_taints[A], ports[B], port_taints[B], ports[S], port_taints[S], port_taints[Y]);
 			}
-			else if (cell->type.in(ID($_NOT_))) {
+			else if (cell->type.in(TW($_NOT_))) {
 				const unsigned int A = 0, Y = 1;
 				const unsigned int NUM_PORTS = 2;
-				RTLIL::SigSpec ports[NUM_PORTS] = {cell->getPort(ID::A), cell->getPort(ID::Y)};
+				RTLIL::SigSpec ports[NUM_PORTS] = {cell->getPort(TW::A), cell->getPort(TW::Y)};
 				RTLIL::SigSpec port_taints[NUM_PORTS];
 
 				if (ports[A].size() != 1 || ports[Y].size() != 1)
@@ -331,26 +332,26 @@ private:
 				for (unsigned int i = 0; i < NUM_PORTS; ++i)
 					port_taints[i] = get_corresponding_taint_signal(ports[i]);
 
-				if (cell->type == ID($_NOT_)) {
+				if (cell->type == TW($_NOT_)) {
 					module->connect(port_taints[Y], port_taints[A]);
 				}
 				else log_cmd_error("This is a bug (3).\n");
 			}
-			else if (module->design->module(cell->type) != nullptr) {
+			else if (module->design->module(cell->type_impl) != nullptr) {
 				//User cell type
 				//This function is called on modules according to topological order, so we do not need to
 				//recurse to GLIFT model the child module. However, we need to augment the ports list
 				//with taint signals and connect the new ports to the corresponding taint signals.
-				RTLIL::Module *cell_module_def = module->design->module(cell->type);
-				dict<RTLIL::IdString, RTLIL::SigSpec> orig_ports = cell->connections();
-				log("Adding cell %s\n", cell_module_def->name);
+				RTLIL::Module *cell_module_def = module->design->module(cell->type_impl);
+				auto orig_ports = cell->connections();
+				log("Adding cell %s\n", module->design->twines.str(cell_module_def->meta_->name).c_str());
 				for (auto &it : orig_ports) {
 					RTLIL::SigSpec port = it.second;
 					RTLIL::SigSpec port_taint = get_corresponding_taint_signal(port);
 
 					log_assert(port_taint.is_wire());
-					log_assert(std::find(cell_module_def->ports.begin(), cell_module_def->ports.end(), port_taint.as_wire()->name) != cell_module_def->ports.end());
-					cell->setPort(port_taint.as_wire()->name, port_taint);
+					log_assert(std::find(cell_module_def->ports.begin(), cell_module_def->ports.end(), port_taint.as_wire()->meta_->name) != cell_module_def->ports.end());
+					cell->setPort(module->design->twines.add(Twine{module->design->twines.str(port_taint.as_wire()->meta_->name) + "_t"}), port_taint);
 				}
 			}
 			else log_cmd_error("This is a bug (4).\n");
@@ -378,7 +379,7 @@ private:
 			for (unsigned int i = 0; meta_mux_select_sums.size() > 1; ) {
 				meta_mux_select_sums_buf.clear();
 				for (i = 0; i + 1 < meta_mux_select_sums.size(); i += 2) {
-					meta_mux_select_sums_buf.push_back(module->Add(meta_mux_select_sums[i].as_wire()->name.str() + "_add", meta_mux_select_sums[i], meta_mux_select_sums[i+1], false));
+					meta_mux_select_sums_buf.push_back(module->Add(Twine{module->design->twines.str(meta_mux_select_sums[i].as_wire()->meta_->name) + "_add"}, meta_mux_select_sums[i], meta_mux_select_sums[i+1], false));
 				}
 				if (meta_mux_select_sums.size() % 2 == 1)
 					meta_mux_select_sums_buf.push_back(meta_mux_select_sums[meta_mux_select_sums.size()-1]);
@@ -387,7 +388,7 @@ private:
 			if (meta_mux_select_sums.size() > 0) {
 				meta_mux_select_sums[0].as_wire()->set_bool_attribute("\\minimize");
 				meta_mux_select_sums[0].as_wire()->set_bool_attribute("\\keep");
-				module->rename(meta_mux_select_sums[0].as_wire(), cost_model_wire_name);
+				module->rename(meta_mux_select_sums[0].as_wire(), module->design->twines.add(Twine{cost_model_wire_name.str()}));
 			}
 		}
 
@@ -576,7 +577,13 @@ struct GliftPass : public Pass {
 		if (GetSize(design->selected_modules()) == 0)
 			log_cmd_error("Can't operate on an empty selection!\n");
 
-		TopoSort<RTLIL::Module*, IdString::compare_ptr_by_name<RTLIL::Module>> topo_modules; //cribbed from passes/techmap/flatten.cc
+		struct ModuleNameCmp {
+			bool operator()(const RTLIL::Module *a, const RTLIL::Module *b) const {
+				if (a == nullptr || b == nullptr) return a < b;
+				return a->design->twines.str(a->meta_->name) < b->design->twines.str(b->meta_->name);
+			}
+		};
+		TopoSort<RTLIL::Module*, ModuleNameCmp> topo_modules; //cribbed from passes/techmap/flatten.cc
 		auto worklist = design->selected_modules();
 		pool<RTLIL::IdString> non_top_modules;
 		while (!worklist.empty()) {
@@ -585,7 +592,7 @@ struct GliftPass : public Pass {
 			topo_modules.node(module);
 
 			for (auto cell : module->selected_cells()) {
-				RTLIL::Module *tpl = design->module(cell->type);
+				RTLIL::Module *tpl = design->module(cell->type_impl);
 				if (tpl != nullptr) {
 					if (!topo_modules.has_node(tpl))
 						worklist.push_back(tpl);
@@ -600,7 +607,7 @@ struct GliftPass : public Pass {
 
 		for (auto i = 0; i < GetSize(topo_modules.sorted); ++i) {
 			RTLIL::Module *module = topo_modules.sorted[i];
-			GliftWorker(module, !non_top_modules[module->name], opt_create_precise_model, opt_create_imprecise_model, opt_create_instrumented_model, opt_taintconstants, opt_keepoutputs, opt_simplecostmodel, opt_nocostmodel, opt_instrumentmore);
+			GliftWorker(module, !non_top_modules[ID(module->design->twines.str(module->meta_->name))], opt_create_precise_model, opt_create_imprecise_model, opt_create_instrumented_model, opt_taintconstants, opt_keepoutputs, opt_simplecostmodel, opt_nocostmodel, opt_instrumentmore);
 		}
 	}
 } GliftPass;

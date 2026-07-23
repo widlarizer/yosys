@@ -37,19 +37,19 @@ void reduce_chain(test_pmgen_pm &pm)
 	if (ud.longest_chain.empty())
 		return;
 
-	log("Found chain of length %d (%s):\n", GetSize(ud.longest_chain), st.first->type.unescape());
+	log("Found chain of length %d (%s):\n", GetSize(ud.longest_chain), pm.module->design->twines.unescaped_str(st.first->type_impl));
 
 	SigSpec A;
-	SigSpec Y = ud.longest_chain.front().first->getPort(ID::Y);
+	SigSpec Y = ud.longest_chain.front().first->getPort(TW::Y);
 	auto last_cell = ud.longest_chain.back().first;
 
 	for (auto it : ud.longest_chain) {
 		auto cell = it.first;
 		if (cell == last_cell) {
-			A.append(cell->getPort(ID::A));
-			A.append(cell->getPort(ID::B));
+			A.append(cell->getPort(TW::A));
+			A.append(cell->getPort(TW::B));
 		} else {
-			A.append(cell->getPort(it.second == ID::A ? ID::B : ID::A));
+			A.append(cell->getPort(it.second == TW::A ? TW::B : TW::A));
 		}
 		log("    %s\n", cell);
 		pm.autoremove(cell);
@@ -57,16 +57,16 @@ void reduce_chain(test_pmgen_pm &pm)
 
 	Cell *c;
 
-	if (last_cell->type == ID($_AND_))
-		c = pm.module->addReduceAnd(NEW_ID, A, Y);
-	else if (last_cell->type == ID($_OR_))
-		c = pm.module->addReduceOr(NEW_ID, A, Y);
-	else if (last_cell->type == ID($_XOR_))
-		c = pm.module->addReduceXor(NEW_ID, A, Y);
+	if (last_cell->type == TW($_AND_))
+		c = pm.module->addReduceAnd(NEW_TWINE, A, Y);
+	else if (last_cell->type == TW($_OR_))
+		c = pm.module->addReduceOr(NEW_TWINE, A, Y);
+	else if (last_cell->type == TW($_XOR_))
+		c = pm.module->addReduceXor(NEW_TWINE, A, Y);
 	else
 		log_abort();
 
-	log("    -> %s (%s)\n", c, c->type.unescape());
+	log("    -> %s (%s)\n", c, pm.module->design->twines.unescaped_str(c->type_impl));
 }
 
 void reduce_tree(test_pmgen_pm &pm)
@@ -78,42 +78,42 @@ void reduce_tree(test_pmgen_pm &pm)
 		return;
 
 	SigSpec A = ud.leaves;
-	SigSpec Y = st.first->getPort(ID::Y);
+	SigSpec Y = st.first->getPort(TW::Y);
 	pm.autoremove(st.first);
 
-	log("Found %s tree with %d leaves for %s (%s).\n", st.first->type.unescape(),
+	log("Found %s tree with %d leaves for %s (%s).\n", pm.module->design->twines.unescaped_str(st.first->type_impl),
 			GetSize(A), log_signal(Y), st.first);
 
 	Cell *c;
 
-	if (st.first->type == ID($_AND_))
-		c = pm.module->addReduceAnd(NEW_ID, A, Y);
-	else if (st.first->type == ID($_OR_))
-		c = pm.module->addReduceOr(NEW_ID, A, Y);
-	else if (st.first->type == ID($_XOR_))
-		c = pm.module->addReduceXor(NEW_ID, A, Y);
+	if (st.first->type == TW($_AND_))
+		c = pm.module->addReduceAnd(NEW_TWINE, A, Y);
+	else if (st.first->type == TW($_OR_))
+		c = pm.module->addReduceOr(NEW_TWINE, A, Y);
+	else if (st.first->type == TW($_XOR_))
+		c = pm.module->addReduceXor(NEW_TWINE, A, Y);
 	else
 		log_abort();
 
-	log("    -> %s (%s)\n", c, c->type.unescape());
+	log("    -> %s (%s)\n", c, pm.module->design->twines.unescaped_str(c->type_impl));
 }
 
 void opt_eqpmux(test_pmgen_pm &pm)
 {
 	auto &st = pm.st_eqpmux;
 
-	SigSpec Y = st.pmux->getPort(ID::Y);
+	SigSpec Y = st.pmux->getPort(TW::Y);
 	int width = GetSize(Y);
 
-	SigSpec EQ = st.pmux->getPort(ID::B).extract(st.pmux_slice_eq*width, width);
-	SigSpec NE = st.pmux->getPort(ID::B).extract(st.pmux_slice_ne*width, width);
+	SigSpec EQ = st.pmux->getPort(TW::B).extract(st.pmux_slice_eq*width, width);
+	SigSpec NE = st.pmux->getPort(TW::B).extract(st.pmux_slice_ne*width, width);
 
 	log("Found eqpmux circuit driving %s (eq=%s, ne=%s, pmux=%s).\n",
 			log_signal(Y), st.eq, st.ne, st.pmux);
 
 	pm.autoremove(st.pmux);
-	Cell *c = pm.module->addMux(NEW_ID, NE, EQ, st.eq->getPort(ID::Y), Y);
-	log("    -> %s (%s)\n", c, c->type.unescape());
+	Cell *c = pm.module->addMux(NEW_TWINE, NE, EQ, st.eq->getPort(TW::Y), Y);
+	log("    -> %s (%s)\n", c, pm.module->design->twines.unescaped_str(c->type_impl));
 }
 
 struct TestPmgenPass : public Pass {
@@ -163,8 +163,10 @@ struct TestPmgenPass : public Pass {
 		}
 		extra_args(args, argidx, design);
 
-		for (auto module : design->selected_modules())
-			while (test_pmgen_pm(module, module->selected_cells()).run_reduce(reduce_chain)) {}
+		for (auto module : design->selected_modules()) {
+			SigMap sigmap(module);
+			while (test_pmgen_pm(module, &sigmap, module->selected_cells()).run_reduce(reduce_chain)) {}
+		}
 	}
 
 	void execute_reduce_tree(std::vector<std::string> args, RTLIL::Design *design)
@@ -182,8 +184,10 @@ struct TestPmgenPass : public Pass {
 		}
 		extra_args(args, argidx, design);
 
-		for (auto module : design->selected_modules())
-			test_pmgen_pm(module, module->selected_cells()).run_reduce(reduce_tree);
+		for (auto module : design->selected_modules()) {
+			SigMap sigmap(module);
+			test_pmgen_pm(module, &sigmap, module->selected_cells()).run_reduce(reduce_tree);
+		}
 	}
 
 	void execute_eqpmux(std::vector<std::string> args, RTLIL::Design *design)
@@ -201,8 +205,10 @@ struct TestPmgenPass : public Pass {
 		}
 		extra_args(args, argidx, design);
 
-		for (auto module : design->selected_modules())
-			test_pmgen_pm(module, module->selected_cells()).run_eqpmux(opt_eqpmux);
+		for (auto module : design->selected_modules()) {
+			SigMap sigmap(module);
+			test_pmgen_pm(module, &sigmap, module->selected_cells()).run_eqpmux(opt_eqpmux);
+		}
 	}
 
 	void execute_generate(std::vector<std::string> args, RTLIL::Design *design)

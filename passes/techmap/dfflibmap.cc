@@ -505,24 +505,27 @@ static void dfflibmap(RTLIL::Design *design, RTLIL::Module *module)
 	for (auto cell : module->cells()) {
 		if (design->selected(module, cell) && cell_mappings.count(cell->type) > 0)
 			cell_list.push_back(cell);
-		if (cell->type == ID($_NOT_))
-			notmap[sigmap(cell->getPort(ID::A))].insert(cell);
+		if (cell->type.in(TwineRef{TW($_NOT_)}))
+			notmap[sigmap(cell->getPort(TW::A))].insert(cell);
 	}
+
+	auto &twines = module->design->twines;
+	auto conn_key = [&](char c) { return twines.add(std::string{std::string("\\") + c}); };
 
 	std::map<std::string, int> stats;
 	for (auto cell : cell_list)
 	{
-		auto cell_type = cell->type;
-		auto cell_name = cell->name;
+		IdString cell_type = cell->type;
+		RTLIL::IdString cell_name(cell->name);
 		auto cell_connections = cell->connections();
 		std::string src = cell->get_src_attribute();
 
 		module->remove(cell);
 
 		cell_mapping &cm = cell_mappings[cell_type];
-		RTLIL::Cell *new_cell = module->addCell(cell_name, cm.cell_name);
+		RTLIL::Cell *new_cell = module->addCell(twines.add(std::string{cell_name.str()}), twines.add(std::string{cm.cell_name.str()}));
 
-		new_cell->set_src_attribute(src);
+		new_cell->set_src_attribute(twines.add(Twine{src}));
 
 		bool has_q = false, has_qn = false;
 		for (auto &port : cm.ports) {
@@ -533,35 +536,35 @@ static void dfflibmap(RTLIL::Design *design, RTLIL::Module *module)
 		for (auto &port : cm.ports) {
 			RTLIL::SigSpec sig;
 			if ('A' <= port.second && port.second <= 'Z') {
-				sig = cell_connections[std::string("\\") + port.second];
+				sig = cell_connections[conn_key(port.second)];
 			} else
 			if (port.second == 'q') {
-				RTLIL::SigSpec old_sig = cell_connections[std::string("\\") + char(port.second - ('a' - 'A'))];
-				sig = module->addWire(NEW_ID, GetSize(old_sig));
+				RTLIL::SigSpec old_sig = cell_connections[conn_key(char(port.second - ('a' - 'A')))];
+				sig = module->addWire(NEW_TWINE, GetSize(old_sig));
 				if (has_q && has_qn) {
 					for (auto &it : notmap[sigmap(old_sig)]) {
-						module->connect(it->getPort(ID::Y), sig);
-						it->setPort(ID::Y, module->addWire(NEW_ID, GetSize(old_sig)));
+						module->connect(it->getPort(TW::Y), sig);
+						it->setPort(TW::Y, module->addWire(NEW_TWINE, GetSize(old_sig)));
 					}
 				} else {
-					module->addNotGate(NEW_ID, sig, old_sig);
+					module->addNotGate(NEW_TWINE, sig, old_sig);
 				}
 			} else
 			if ('a' <= port.second && port.second <= 'z') {
-				sig = cell_connections[std::string("\\") + char(port.second - ('a' - 'A'))];
-				sig = module->NotGate(NEW_ID, sig);
+				sig = cell_connections[conn_key(char(port.second - ('a' - 'A')))];
+				sig = module->NotGate(NEW_TWINE, sig);
 			} else
 			if (port.second == '0' || port.second == '1') {
 				sig = RTLIL::SigSpec(port.second == '0' ? 0 : 1, 1);
 			} else
 			if (port.second == 0) {
-				sig = module->addWire(NEW_ID);
+				sig = module->addWire(NEW_TWINE);
 			} else
 				log_abort();
-			new_cell->setPort("\\" + port.first, sig);
+			new_cell->setPort(twines.add(std::string{"\\" + port.first}), sig);
 		}
 
-		stats[stringf("%s cells to %s cells", cell_type, new_cell->type)]++;
+		stats[stringf("%s cells to %s cells", cell_type.c_str(), new_cell->type.unescape())]++;
 	}
 
 	for (auto &stat: stats)

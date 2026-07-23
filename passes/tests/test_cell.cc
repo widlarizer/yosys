@@ -39,165 +39,165 @@ static uint32_t xorshift32(uint32_t limit) {
 	return xorshift32_state % limit;
 }
 
-static RTLIL::Cell* create_gold_module(RTLIL::Design *design, RTLIL::IdString cell_type, std::string cell_type_flags, bool constmode, bool muxdiv)
+static RTLIL::Cell* create_gold_module(RTLIL::Design *design, TwineRef cell_type, std::string cell_type_flags, bool constmode, bool muxdiv)
 {
-	RTLIL::Module *module = design->addModule(ID(gold));
-	RTLIL::Cell *cell = module->addCell(ID(UUT), cell_type);
+	RTLIL::Module *module = design->addModule(TW::gold);
+	RTLIL::Cell *cell = module->addCell(TW::UUT, cell_type);
 	RTLIL::Wire *wire;
 
-	if (cell_type.in(ID($mux), ID($pmux)))
+	if (cell_type.in(TW($mux), TW($pmux)))
 	{
 		int width = 1 + xorshift32(8 * bloat_factor);
-		int swidth = cell_type == ID($mux) ? 1 : 1 + xorshift32(8);
+		int swidth = cell_type == TW($mux) ? 1 : 1 + xorshift32(8);
 
-		wire = module->addWire(ID::A);
+		wire = module->addWire(TW::A);
 		wire->width = width;
 		wire->port_input = true;
-		cell->setPort(ID::A, wire);
+		cell->setPort(TW::A, wire);
 
-		wire = module->addWire(ID::B);
+		wire = module->addWire(TW::B);
 		wire->width = width * swidth;
 		wire->port_input = true;
-		cell->setPort(ID::B, wire);
+		cell->setPort(TW::B, wire);
 
-		wire = module->addWire(ID::S);
+		wire = module->addWire(TW::S);
 		wire->width = swidth;
 		wire->port_input = true;
-		cell->setPort(ID::S, wire);
+		cell->setPort(TW::S, wire);
 
-		wire = module->addWire(ID::Y);
+		wire = module->addWire(TW::Y);
 		wire->width = width;
 		wire->port_output = true;
-		cell->setPort(ID::Y, wire);
+		cell->setPort(TW::Y, wire);
 	}
 
-	if (cell_type.in(ID($_MUX_), ID($_NMUX_)))
+	if (cell_type.in(TW($_MUX_), TW($_NMUX_)))
 	{
-		wire = module->addWire(ID::A);
+		wire = module->addWire(TW::A);
 		wire->width = 1;
 		wire->port_input = true;
-		cell->setPort(ID::A, wire);
+		cell->setPort(TW::A, wire);
 
-		wire = module->addWire(ID::B);
+		wire = module->addWire(TW::B);
 		wire->width = 1;
 		wire->port_input = true;
-		cell->setPort(ID::B, wire);
+		cell->setPort(TW::B, wire);
 
-		wire = module->addWire(ID::S);
+		wire = module->addWire(TW::S);
 		wire->width = 1;
 		wire->port_input = true;
-		cell->setPort(ID::S, wire);
+		cell->setPort(TW::S, wire);
 
-		wire = module->addWire(ID::Y);
+		wire = module->addWire(TW::Y);
 		wire->width = 1;
 		wire->port_output = true;
-		cell->setPort(ID::Y, wire);
+		cell->setPort(TW::Y, wire);
 	}
 
-	if (cell_type == ID($bmux))
+	if (cell_type == TW($bmux))
 	{
 		int width = 1 + xorshift32(8 * bloat_factor);
 		int swidth = 1 + xorshift32(4 * bloat_factor);
 
-		wire = module->addWire(ID::A);
+		wire = module->addWire(TW::A);
 		wire->width = width << swidth;
 		wire->port_input = true;
-		cell->setPort(ID::A, wire);
+		cell->setPort(TW::A, wire);
 
-		wire = module->addWire(ID::S);
+		wire = module->addWire(TW::S);
 		wire->width = swidth;
 		wire->port_input = true;
-		cell->setPort(ID::S, wire);
+		cell->setPort(TW::S, wire);
 
-		wire = module->addWire(ID::Y);
+		wire = module->addWire(TW::Y);
 		wire->width = width;
 		wire->port_output = true;
-		cell->setPort(ID::Y, wire);
+		cell->setPort(TW::Y, wire);
 	}
 
-	if (cell_type == ID($demux))
+	if (cell_type == TW($demux))
 	{
 		int width = 1 + xorshift32(8 * bloat_factor);
 		int swidth = 1 + xorshift32(6 * bloat_factor);
 
-		wire = module->addWire(ID::A);
+		wire = module->addWire(TW::A);
 		wire->width = width;
 		wire->port_input = true;
-		cell->setPort(ID::A, wire);
+		cell->setPort(TW::A, wire);
 
-		wire = module->addWire(ID::S);
+		wire = module->addWire(TW::S);
 		wire->width = swidth;
 		wire->port_input = true;
-		cell->setPort(ID::S, wire);
+		cell->setPort(TW::S, wire);
 
-		wire = module->addWire(ID::Y);
+		wire = module->addWire(TW::Y);
 		wire->width = width << swidth;
 		wire->port_output = true;
-		cell->setPort(ID::Y, wire);
+		cell->setPort(TW::Y, wire);
 	}
 
-	if (cell_type == ID($fa))
+	if (cell_type == TW($fa))
 	{
 		int width = 1 + xorshift32(8 * bloat_factor);
 
-		wire = module->addWire(ID::A);
+		wire = module->addWire(TW::A);
 		wire->width = width;
 		wire->port_input = true;
-		cell->setPort(ID::A, wire);
+		cell->setPort(TW::A, wire);
 
-		wire = module->addWire(ID::B);
+		wire = module->addWire(TW::B);
 		wire->width = width;
 		wire->port_input = true;
-		cell->setPort(ID::B, wire);
+		cell->setPort(TW::B, wire);
 
-		wire = module->addWire(ID::C);
+		wire = module->addWire(TW::C);
 		wire->width = width;
 		wire->port_input = true;
-		cell->setPort(ID::C, wire);
+		cell->setPort(TW::C, wire);
 
-		wire = module->addWire(ID::X);
+		wire = module->addWire(TW::X);
 		wire->width = width;
 		wire->port_output = true;
-		cell->setPort(ID::X, wire);
+		cell->setPort(TW::X, wire);
 
-		wire = module->addWire(ID::Y);
+		wire = module->addWire(TW::Y);
 		wire->width = width;
 		wire->port_output = true;
-		cell->setPort(ID::Y, wire);
+		cell->setPort(TW::Y, wire);
 	}
 
-	if (cell_type == ID($lcu))
+	if (cell_type == TW($lcu))
 	{
 		int width = 1 + xorshift32(8 * bloat_factor);
 
-		wire = module->addWire(ID::P);
+		wire = module->addWire(TW::P);
 		wire->width = width;
 		wire->port_input = true;
-		cell->setPort(ID::P, wire);
+		cell->setPort(TW::P, wire);
 
-		wire = module->addWire(ID::G);
+		wire = module->addWire(TW::G);
 		wire->width = width;
 		wire->port_input = true;
-		cell->setPort(ID::G, wire);
+		cell->setPort(TW::G, wire);
 
-		wire = module->addWire(ID::CI);
+		wire = module->addWire(TW::CI);
 		wire->port_input = true;
-		cell->setPort(ID::CI, wire);
+		cell->setPort(TW::CI, wire);
 
-		wire = module->addWire(ID::CO);
+		wire = module->addWire(TW::CO);
 		wire->width = width;
 		wire->port_output = true;
-		cell->setPort(ID::CO, wire);
+		cell->setPort(TW::CO, wire);
 	}
 
-	if (cell_type == ID($macc_v2))
+	if (cell_type == TW($macc_v2))
 	{
 		Macc macc;
 		int width = 1 + xorshift32(8 * bloat_factor);
 		int depth = 1 + xorshift32(6);
 		int mulbits_a = 0, mulbits_b = 0;
 
-		RTLIL::Wire *wire_a = module->addWire(ID::A);
+		RTLIL::Wire *wire_a = module->addWire(TW::A);
 		wire_a->width = 0;
 		wire_a->port_input = true;
 
@@ -228,24 +228,24 @@ static RTLIL::Cell* create_gold_module(RTLIL::Design *design, RTLIL::IdString ce
 		// Macc::to_cell sets the input ports
 		macc.to_cell(cell);
 
-		wire = module->addWire(ID::Y);
+		wire = module->addWire(TW::Y);
 		wire->width = width;
 		wire->port_output = true;
-		cell->setPort(ID::Y, wire);
+		cell->setPort(TW::Y, wire);
 	}
 
-	if (cell_type == ID($lut))
+	if (cell_type == TW($lut))
 	{
 		int width = 1 + xorshift32(6 * bloat_factor);
 
-		wire = module->addWire(ID::A);
+		wire = module->addWire(TW::A);
 		wire->width = width;
 		wire->port_input = true;
-		cell->setPort(ID::A, wire);
+		cell->setPort(TW::A, wire);
 
-		wire = module->addWire(ID::Y);
+		wire = module->addWire(TW::Y);
 		wire->port_output = true;
-		cell->setPort(ID::Y, wire);
+		cell->setPort(TW::Y, wire);
 
 		RTLIL::SigSpec config;
 		for (int i = 0; i < (1 << width); i++)
@@ -254,19 +254,19 @@ static RTLIL::Cell* create_gold_module(RTLIL::Design *design, RTLIL::IdString ce
 		cell->setParam(ID::LUT, config.as_const());
 	}
 
-	if (cell_type == ID($sop))
+	if (cell_type == TW($sop))
 	{
 		int width = 1 + xorshift32(8 * bloat_factor);
 		int depth = 1 + xorshift32(8 * bloat_factor);
 
-		wire = module->addWire(ID::A);
+		wire = module->addWire(TW::A);
 		wire->width = width;
 		wire->port_input = true;
-		cell->setPort(ID::A, wire);
+		cell->setPort(TW::A, wire);
 
-		wire = module->addWire(ID::Y);
+		wire = module->addWire(TW::Y);
 		wire->port_output = true;
-		cell->setPort(ID::Y, wire);
+		cell->setPort(TW::Y, wire);
 
 		RTLIL::SigSpec config;
 		for (int i = 0; i < width*depth; i++)
@@ -290,17 +290,17 @@ static RTLIL::Cell* create_gold_module(RTLIL::Design *design, RTLIL::IdString ce
 	}
 
 	if (cell_type_flags.find('A') != std::string::npos) {
-		wire = module->addWire(ID::A);
+		wire = module->addWire(TW::A);
 		if (cell_type_flags.find('b') != std::string::npos)
 			wire->width = 1;
 		else
 			wire->width = 1 + xorshift32(8 * bloat_factor);
 		wire->port_input = true;
-		cell->setPort(ID::A, wire);
+		cell->setPort(TW::A, wire);
 	}
 
 	if (cell_type_flags.find('B') != std::string::npos) {
-		wire = module->addWire(ID::B);
+		wire = module->addWire(TW::B);
 		if (cell_type_flags.find('b') != std::string::npos)
 			wire->width = 1;
 		else if (cell_type_flags.find('h') != std::string::npos)
@@ -308,27 +308,27 @@ static RTLIL::Cell* create_gold_module(RTLIL::Design *design, RTLIL::IdString ce
 		else
 			wire->width = 1 + xorshift32(8 * bloat_factor);
 		wire->port_input = true;
-		cell->setPort(ID::B, wire);
+		cell->setPort(TW::B, wire);
 	}
 
 	if (cell_type_flags.find('C') != std::string::npos) {
-		wire = module->addWire(ID::C);
+		wire = module->addWire(TW::C);
 		if (cell_type_flags.find('b') != std::string::npos)
 			wire->width = 1;
 		else
 			wire->width = 1 + xorshift32(8 * bloat_factor);
 		wire->port_input = true;
-		cell->setPort(ID::C, wire);
+		cell->setPort(TW::C, wire);
 	}
 
 	if (cell_type_flags.find('D') != std::string::npos) {
-		wire = module->addWire(ID::D);
+		wire = module->addWire(TW::D);
 		if (cell_type_flags.find('b') != std::string::npos)
 			wire->width = 1;
 		else
 			wire->width = 1 + xorshift32(8 * bloat_factor);
 		wire->port_input = true;
-		cell->setPort(ID::D, wire);
+		cell->setPort(TW::D, wire);
 	}
 
 	if (cell_type_flags.find('S') != std::string::npos && xorshift32(2)) {
@@ -346,101 +346,101 @@ static RTLIL::Cell* create_gold_module(RTLIL::Design *design, RTLIL::IdString ce
 	}
 
 	if (cell_type_flags.find('Y') != std::string::npos) {
-		wire = module->addWire(ID::Y);
+		wire = module->addWire(TW::Y);
 		if (cell_type_flags.find('b') != std::string::npos)
 			wire->width = 1;
 		else
 			wire->width = 1 + xorshift32(8 * bloat_factor);
 		wire->port_output = true;
-		cell->setPort(ID::Y, wire);
+		cell->setPort(TW::Y, wire);
 	}
 
-	if (cell_type.in(ID($shiftx))) {
+	if (cell_type.in(TW($shiftx))) {
 		cell->parameters[ID::A_SIGNED] = false;
 	}
 
-	if (cell_type.in(ID($shl), ID($shr), ID($sshl), ID($sshr))) {
+	if (cell_type.in(TW($shl), TW($shr), TW($sshl), TW($sshr))) {
 		cell->parameters[ID::B_SIGNED] = false;
 	}
 
-	if (muxdiv && cell_type.in(ID($div), ID($mod), ID($divfloor), ID($modfloor))) {
-		auto b_not_zero = module->ReduceBool(NEW_ID, cell->getPort(ID::B));
-		auto div_out = module->addWire(NEW_ID, GetSize(cell->getPort(ID::Y)));
-		module->addMux(NEW_ID, RTLIL::SigSpec(0, GetSize(div_out)), div_out, b_not_zero, cell->getPort(ID::Y));
-		cell->setPort(ID::Y, div_out);
+	if (muxdiv && cell_type.in(TW($div), TW($mod), TW($divfloor), TW($modfloor))) {
+		auto b_not_zero = module->ReduceBool(NEW_TWINE, cell->getPort(TW::B));
+		auto div_out = module->addWire(NEW_TWINE, GetSize(cell->getPort(TW::Y)));
+		module->addMux(NEW_TWINE, RTLIL::SigSpec(0, GetSize(div_out)), div_out, b_not_zero, cell->getPort(TW::Y));
+		cell->setPort(TW::Y, div_out);
 	}
 
-	if (cell_type == ID($alu))
+	if (cell_type == TW($alu))
 	{
-		wire = module->addWire(ID::CI);
+		wire = module->addWire(TW::CI);
 		wire->port_input = true;
-		cell->setPort(ID::CI, wire);
+		cell->setPort(TW::CI, wire);
 
-		wire = module->addWire(ID::BI);
+		wire = module->addWire(TW::BI);
 		wire->port_input = true;
-		cell->setPort(ID::BI, wire);
+		cell->setPort(TW::BI, wire);
 
-		wire = module->addWire(ID::X);
-		wire->width = GetSize(cell->getPort(ID::Y));
+		wire = module->addWire(TW::X);
+		wire->width = GetSize(cell->getPort(TW::Y));
 		wire->port_output = true;
-		cell->setPort(ID::X, wire);
+		cell->setPort(TW::X, wire);
 
-		wire = module->addWire(ID::CO);
-		wire->width = GetSize(cell->getPort(ID::Y));
+		wire = module->addWire(TW::CO);
+		wire->width = GetSize(cell->getPort(TW::Y));
 		wire->port_output = true;
-		cell->setPort(ID::CO, wire);
+		cell->setPort(TW::CO, wire);
 	}
 
-	if (cell_type == ID($slice))
+	if (cell_type == TW($slice))
 	{
-		int a_size = GetSize(cell->getPort(ID::A));
+		int a_size = GetSize(cell->getPort(TW::A));
 		int y_size = 1;
 		if (a_size > 1)
 			y_size += (xorshift32(8 * bloat_factor) % (a_size - 1));
-		wire = module->addWire(ID::Y);
+		wire = module->addWire(TW::Y);
 		wire->width = y_size;
 		wire->port_output = true;
-		cell->setPort(ID::Y, wire);
+		cell->setPort(TW::Y, wire);
 		if (a_size > y_size)
 			cell->setParam(ID::OFFSET, (xorshift32(8 * bloat_factor) % (a_size - y_size)));
 		else
 			cell->setParam(ID::OFFSET, 0);
 	}
 
-	if (cell_type == ID($concat))
+	if (cell_type == TW($concat))
 	{
-		wire = module->addWire(ID::Y);
-		wire->width = GetSize(cell->getPort(ID::A)) + GetSize(cell->getPort(ID::B));
+		wire = module->addWire(TW::Y);
+		wire->width = GetSize(cell->getPort(TW::A)) + GetSize(cell->getPort(TW::B));
 		wire->port_output = true;
-		cell->setPort(ID::Y, wire);
+		cell->setPort(TW::Y, wire);
 	}
 
-	if (cell_type == ID($buf))
+	if (cell_type == TW($buf))
 	{
-		wire = module->addWire(ID::Y);
-		wire->width = GetSize(cell->getPort(ID::A));
+		wire = module->addWire(TW::Y);
+		wire->width = GetSize(cell->getPort(TW::A));
 		wire->port_output = true;
-		cell->setPort(ID::Y, wire);
+		cell->setPort(TW::Y, wire);
 	}
 
-	if (cell_type.in(ID($bwmux), ID($bweqx)))
+	if (cell_type.in(TW($bwmux), TW($bweqx)))
 	{
-		int a_size = GetSize(cell->getPort(ID::A));
-		wire = module->addWire(ID::B);
+		int a_size = GetSize(cell->getPort(TW::A));
+		wire = module->addWire(TW::B);
 		wire->width = a_size;
 		wire->port_input = true;
-		cell->setPort(ID::B, wire);
-		if (cell_type == ID($bwmux))
+		cell->setPort(TW::B, wire);
+		if (cell_type == TW($bwmux))
 		{
-			wire = module->addWire(ID::S);
+			wire = module->addWire(TW::S);
 			wire->width = a_size;
 			wire->port_input = true;
-			cell->setPort(ID::S, wire);
+			cell->setPort(TW::S, wire);
 		}
-		wire = module->addWire(ID::Y);
+		wire = module->addWire(TW::Y);
 		wire->width = a_size;
 		wire->port_output = true;
-		cell->setPort(ID::Y, wire);
+		cell->setPort(TW::Y, wire);
 	}
 
 	if (constmode)
@@ -573,8 +573,8 @@ static void run_eval_test(RTLIL::Design *design, bool verbose, bool nosat, std::
 {
 	log("Eval testing:%c", verbose ? '\n' : ' ');
 
-	RTLIL::Module *gold_mod = design->module(ID(gold));
-	RTLIL::Module *gate_mod = design->module(ID(gate));
+	RTLIL::Module *gold_mod = design->module(TW::gold);
+	RTLIL::Module *gate_mod = design->module(TW::gate);
 	ConstEval gold_ce(gold_mod), gate_ce(gate_mod);
 
 	ezSatPtr ez1, ez2;
@@ -602,15 +602,19 @@ static void run_eval_test(RTLIL::Design *design, bool verbose, bool nosat, std::
 		}
 
 		vlog_file << stringf("  %s_expr uut_expr(", uut_name);
-		for (int i = 0; i < GetSize(gold_mod->ports); i++)
-			vlog_file << stringf("%s.%s(%s%s)", i ? ", " : "", gold_mod->ports[i].unescape(), gold_mod->ports[i].unescape(),
+		for (int i = 0; i < GetSize(gold_mod->ports); i++) {
+			std::string port_name = gold_mod->design->twines.str(gold_mod->ports[i]);
+			vlog_file << stringf("%s.%s(%s%s)", i ? ", " : "", port_name, port_name,
 					gold_mod->wire(gold_mod->ports[i])->port_input ? "" : "_expr");
+		}
 		vlog_file << stringf(");\n");
 
 		vlog_file << stringf("  %s_expr uut_noexpr(", uut_name);
-		for (int i = 0; i < GetSize(gold_mod->ports); i++)
-			vlog_file << stringf("%s.%s(%s%s)", i ? ", " : "", gold_mod->ports[i].unescape(), gold_mod->ports[i].unescape(),
+		for (int i = 0; i < GetSize(gold_mod->ports); i++) {
+			std::string port_name = gold_mod->design->twines.str(gold_mod->ports[i]);
+			vlog_file << stringf("%s.%s(%s%s)", i ? ", " : "", port_name, port_name,
 					gold_mod->wire(gold_mod->ports[i])->port_input ? "" : "_noexpr");
+		}
 		vlog_file << stringf(");\n");
 
 		vlog_file << stringf("  task run;\n");
@@ -977,104 +981,111 @@ struct TestCellPass : public Pass {
 			log("Rng seed value: %d\n", int(xorshift32_state));
 		}
 
-		std::map<IdString, std::string> cell_types;
-		std::vector<IdString> selected_cell_types;
+		std::map<TwineRef, std::string> cell_types;
+		std::vector<TwineRef> selected_cell_types;
 
-		cell_types[ID($not)] = "ASY";
-		cell_types[ID($pos)] = "ASY";
-		cell_types[ID($neg)] = "ASY";
+		cell_types[TW($not)] = "ASY";
+		cell_types[TW($pos)] = "ASY";
+		cell_types[TW($neg)] = "ASY";
 		// $buf is unsupported with techmap -assert
 		if (techmap_cmd.compare("techmap -assert") != 0)
-			cell_types[ID($buf)] = "A";
+			cell_types[TW($buf)] = "A";
 
-		cell_types[ID($and)]  = "ABSY";
-		cell_types[ID($or)]   = "ABSY";
-		cell_types[ID($xor)]  = "ABSY";
-		cell_types[ID($xnor)] = "ABSY";
+		cell_types[TW($and)]  = "ABSY";
+		cell_types[TW($or)]   = "ABSY";
+		cell_types[TW($xor)]  = "ABSY";
+		cell_types[TW($xnor)] = "ABSY";
 
-		cell_types[ID($reduce_and)]  = "ASY";
-		cell_types[ID($reduce_or)]   = "ASY";
-		cell_types[ID($reduce_xor)]  = "ASY";
-		cell_types[ID($reduce_xnor)] = "ASY";
-		cell_types[ID($reduce_bool)] = "ASY";
+		cell_types[TW($reduce_and)]  = "ASY";
+		cell_types[TW($reduce_or)]   = "ASY";
+		cell_types[TW($reduce_xor)]  = "ASY";
+		cell_types[TW($reduce_xnor)] = "ASY";
+		cell_types[TW($reduce_bool)] = "ASY";
 
-		cell_types[ID($shl)]    = "ABshY";
-		cell_types[ID($shr)]    = "ABshY";
-		cell_types[ID($sshl)]   = "ABshY";
-		cell_types[ID($sshr)]   = "ABshY";
-		cell_types[ID($shift)]  = "ABshY";
-		cell_types[ID($shiftx)] = "ABshY";
+		cell_types[TW($shl)]    = "ABshY";
+		cell_types[TW($shr)]    = "ABshY";
+		cell_types[TW($sshl)]   = "ABshY";
+		cell_types[TW($sshr)]   = "ABshY";
+		cell_types[TW($shift)]  = "ABshY";
+		cell_types[TW($shiftx)] = "ABshY";
 
-		cell_types[ID($lt)]  = "ABSY";
-		cell_types[ID($le)]  = "ABSY";
-		cell_types[ID($eq)]  = "ABSY";
-		cell_types[ID($ne)]  = "ABSY";
+		cell_types[TW($lt)]  = "ABSY";
+		cell_types[TW($le)]  = "ABSY";
+		cell_types[TW($eq)]  = "ABSY";
+		cell_types[TW($ne)]  = "ABSY";
 		// $eqx, $nex, and $bweqx don't work in sat, and are unsupported with
 		// 'techmap -assert'
 		if (nosat && techmap_cmd.compare("techmap -assert") != 0)
 		{
-			cell_types[ID($eqx)] = "ABSY";
-			cell_types[ID($nex)] = "ABSY";
-			cell_types[ID($bweqx)] = "A";
+			cell_types[TW($eqx)] = "ABSY";
+			cell_types[TW($nex)] = "ABSY";
+			cell_types[TW($bweqx)] = "A";
 		}
-		cell_types[ID($ge)]  = "ABSY";
-		cell_types[ID($gt)]  = "ABSY";
+		cell_types[TW($ge)]  = "ABSY";
+		cell_types[TW($gt)]  = "ABSY";
 
-		cell_types[ID($add)] = "ABSY";
-		cell_types[ID($sub)] = "ABSY";
-		cell_types[ID($mul)] = "ABSY";
-		cell_types[ID($div)] = "ABSY";
-		cell_types[ID($mod)] = "ABSY";
-		cell_types[ID($divfloor)] = "ABSY";
-		cell_types[ID($modfloor)] = "ABSY";
+		cell_types[TW($add)] = "ABSY";
+		cell_types[TW($sub)] = "ABSY";
+		cell_types[TW($mul)] = "ABSY";
+		cell_types[TW($div)] = "ABSY";
+		cell_types[TW($mod)] = "ABSY";
+		cell_types[TW($divfloor)] = "ABSY";
+		cell_types[TW($modfloor)] = "ABSY";
 		// $pow doesnt work in sat, not supported with 'techmap -assert', and only
 		// only partially supported with '-simlib'
 		if (nosat && techmap_cmd.compare("aigmap") == 0)
-			cell_types[ID($pow)] = "ABsY";
+			cell_types[TW($pow)] = "ABsY";
 
-		cell_types[ID($logic_not)] = "ASY";
-		cell_types[ID($logic_and)] = "ABSY";
-		cell_types[ID($logic_or)]  = "ABSY";
+		cell_types[TW($logic_not)] = "ASY";
+		cell_types[TW($logic_and)] = "ABSY";
+		cell_types[TW($logic_or)]  = "ABSY";
 
-		cell_types[ID($mux)] = "*";
-		cell_types[ID($bmux)] = "*";
-		cell_types[ID($demux)] = "*";
+		cell_types[TW($mux)] = "*";
+		cell_types[TW($bmux)] = "*";
+		cell_types[TW($demux)] = "*";
 		// $pmux doesn't work in sat, and is not supported with 'techmap -assert' or
 		// '-simlib'
 		if (nosat && techmap_cmd.compare("aigmap") == 0)
-			cell_types[ID($pmux)] = "*";
-		cell_types[ID($bwmux)] = "A";
+			cell_types[TW($pmux)] = "*";
+		cell_types[TW($bwmux)] = "A";
 
-		cell_types[ID($slice)] = "A";
-		cell_types[ID($concat)] = "AB";
+		cell_types[TW($slice)] = "A";
+		cell_types[TW($concat)] = "AB";
 
-		cell_types[ID($lut)] = "*";
-		cell_types[ID($sop)] = "*";
-		cell_types[ID($alu)] = "ABSY";
-		cell_types[ID($lcu)] = "*";
-		cell_types[ID($macc_v2)] = "*";
-		cell_types[ID($fa)] = "*";
+		cell_types[TW($lut)] = "*";
+		cell_types[TW($sop)] = "*";
+		cell_types[TW($alu)] = "ABSY";
+		cell_types[TW($lcu)] = "*";
+		cell_types[TW($macc_v2)] = "*";
+		cell_types[TW($fa)] = "*";
 
-		cell_types[ID($_BUF_)] = "AYb";
-		cell_types[ID($_NOT_)] = "AYb";
-		cell_types[ID($_AND_)] = "ABYb";
-		cell_types[ID($_NAND_)] = "ABYb";
-		cell_types[ID($_OR_)] = "ABYb";
-		cell_types[ID($_NOR_)] = "ABYb";
-		cell_types[ID($_XOR_)] = "ABYb";
-		cell_types[ID($_XNOR_)] = "ABYb";
-		cell_types[ID($_ANDNOT_)] = "ABYb";
-		cell_types[ID($_ORNOT_)] = "ABYb";
-		cell_types[ID($_MUX_)] = "*";
-		cell_types[ID($_NMUX_)] = "*";
+		cell_types[TW($_BUF_)] = "AYb";
+		cell_types[TW($_NOT_)] = "AYb";
+		cell_types[TW($_AND_)] = "ABYb";
+		cell_types[TW($_NAND_)] = "ABYb";
+		cell_types[TW($_OR_)] = "ABYb";
+		cell_types[TW($_NOR_)] = "ABYb";
+		cell_types[TW($_XOR_)] = "ABYb";
+		cell_types[TW($_XNOR_)] = "ABYb";
+		cell_types[TW($_ANDNOT_)] = "ABYb";
+		cell_types[TW($_ORNOT_)] = "ABYb";
+		cell_types[TW($_MUX_)] = "*";
+		cell_types[TW($_NMUX_)] = "*";
 		// wide $_MUX_ cells are not yet implemented
-		// cell_types[ID($_MUX4_)] = "*";
-		// cell_types[ID($_MUX8_)] = "*";
-		// cell_types[ID($_MUX16_)] = "*";
-		cell_types[ID($_AOI3_)] = "ABCYb";
-		cell_types[ID($_OAI3_)] = "ABCYb";
-		cell_types[ID($_AOI4_)] = "ABCDYb";
-		cell_types[ID($_OAI4_)] = "ABCDYb";
+		// cell_types[TW($_MUX4_)] = "*";
+		// cell_types[TW($_MUX8_)] = "*";
+		// cell_types[TW($_MUX16_)] = "*";
+		cell_types[TW($_AOI3_)] = "ABCYb";
+		cell_types[TW($_OAI3_)] = "ABCYb";
+		cell_types[TW($_AOI4_)] = "ABCDYb";
+		cell_types[TW($_OAI4_)] = "ABCDYb";
+
+		auto find_type = [&](const std::string &s) -> TwineRef {
+			for (auto &it : cell_types)
+				if (TW::str(it.first) == s)
+					return it.first;
+			return Twine::Null;
+		};
 
 		for (; argidx < GetSize(args); argidx++)
 		{
@@ -1089,37 +1100,38 @@ struct TestCellPass : public Pass {
 			}
 
 			if (args[argidx].compare(0, 1, "/") == 0) {
-				std::vector<IdString> new_selected_cell_types;
+				std::vector<TwineRef> new_selected_cell_types;
 				for (auto it : selected_cell_types)
-					if (it != args[argidx].substr(1))
+					if (TW::str(it) != args[argidx].substr(1))
 						new_selected_cell_types.push_back(it);
 				new_selected_cell_types.swap(selected_cell_types);
 				continue;
 			}
 
-			if (cell_types.count(args[argidx]) == 0) {
+			TwineRef arg_type = find_type(args[argidx]);
+			if (arg_type == Twine::Null) {
 				std::string cell_type_list;
 				int charcount = 100;
 				for (auto &it : cell_types) {
 					if (charcount > 60) {
-						cell_type_list += stringf("\n%s", it.first.unescape());
+						cell_type_list += stringf("\n%s", TW::str(it.first).c_str());
 						charcount = 0;
 					} else
-						cell_type_list += stringf(" %s", it.first.unescape());
-					charcount += GetSize(it.first);
+						cell_type_list += stringf(" %s", TW::str(it.first).c_str());
+					charcount += GetSize(TW::str(it.first));
 				}
 				log_cmd_error("The cell type `%s' is currently not supported. Try one of these:%s\n",
 						args[argidx].c_str(), cell_type_list.c_str());
 			}
 
-			if (std::count(selected_cell_types.begin(), selected_cell_types.end(), args[argidx]) == 0)
-				selected_cell_types.push_back(args[argidx]);
+			if (std::count(selected_cell_types.begin(), selected_cell_types.end(), arg_type) == 0)
+				selected_cell_types.push_back(arg_type);
 		}
 
 		if (!rtlil_file.empty()) {
 			if (!selected_cell_types.empty())
 				log_cmd_error("Do not specify any cell types when using -f.\n");
-			selected_cell_types.push_back(ID(rtlil));
+			selected_cell_types.push_back(TW(rtlil));
 		}
 
 		if (selected_cell_types.empty())
@@ -1157,7 +1169,7 @@ struct TestCellPass : public Pass {
 								}
 						if (is_unconverted) {
 							// skip unconverted cells
-							log_warning("Skipping %s\n", cell_type);
+							log_warning("Skipping %s\n", TW::str(cell_type).c_str());
 							delete design;
 							break;
 						} else {
@@ -1165,7 +1177,7 @@ struct TestCellPass : public Pass {
 							suffix = "aag";
 						}
 					}
-					Pass::call(design, stringf("%s %s_%s_%05d.%s", writer, write_prefix, cell_type.c_str()+1, i, suffix));
+					Pass::call(design, stringf("%s %s_%s_%05d.%s", writer, write_prefix, TW::str(cell_type).c_str()+1, i, suffix));
 				} else if (edges) {
 					Pass::call(design, "dump gold");
 					run_edges_test(design, verbose);
@@ -1180,7 +1192,7 @@ struct TestCellPass : public Pass {
 					Pass::call(design, "dump gold");
 					if (!nosat)
 						Pass::call(design, "sat -verify -enable_undef -prove trigger 0 -show-inputs -show-outputs miter");
-					std::string uut_name = stringf("uut_%s_%d", cell_type.substr(1), i);
+					std::string uut_name = stringf("uut_%s_%d", TW::str(cell_type).substr(1), i);
 					if (vlog_file.is_open()) {
 						Pass::call(design, stringf("copy gold %s_expr; select %s_expr", uut_name, uut_name));
 						Backend::backend_call(design, &vlog_file, "<test_cell -vlog>", "verilog -selected");
@@ -1203,18 +1215,18 @@ struct TestCellPass : public Pass {
 						CellCosts costs(design);
 						Pass::call(design, "select gold");
 						for (auto mod : design->selected_modules()) {
-							log_assert(mod->name.str() == "\\gold");
+							log_assert(design->twines.str(mod->meta_->name) == "\\gold");
 							// Expected to run once
 							int num_cells_estimate = costs.get(uut);
 							if (num_cells <= num_cells_estimate) {
-								log_debug("Correct upper bound for %s: %d <= %d\n", cell_type, num_cells, num_cells_estimate);
+								log_debug("Correct upper bound for %s: %d <= %d\n", design->twines.str(cell_type).c_str(), num_cells, num_cells_estimate);
 							} else {
 								failed++;
 								if (worst_abs < num_cells - num_cells_estimate) {
 									worst_abs = num_cells - num_cells_estimate;
 									worst_rel = (float)(num_cells - num_cells_estimate) / (float)num_cells_estimate;
 								}
-								log_warning("Upper bound violated for %s: %d > %d\n", cell_type, num_cells, num_cells_estimate);
+								log_warning("Upper bound violated for %s: %d > %d\n", design->twines.str(cell_type).c_str(), num_cells, num_cells_estimate);
 							}
 						}
 					}
@@ -1224,7 +1236,7 @@ struct TestCellPass : public Pass {
 			if (check_cost && failed) {
 				log_warning("Cell type %s cost underestimated in %.1f%% cases "
 					    "with worst offender being by %d (%.1f%%)\n",
-					    cell_type.c_str(), 100 * (float)failed / (float)num_iter,
+					    TW::str(cell_type).c_str(), 100 * (float)failed / (float)num_iter,
 						worst_abs, 100 * worst_rel);
 			}
 		}

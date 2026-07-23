@@ -49,11 +49,11 @@ struct ScatterPass : public Pass {
 		for (auto module : design->selected_modules())
 		{
 			for (auto cell : module->cells()) {
-				dict<RTLIL::IdString, RTLIL::SigSig> new_connections;
+				dict<TwineRef, RTLIL::SigSig> new_connections;
 				for (auto conn : cell->connections())
-					new_connections.emplace(conn.first, RTLIL::SigSig(conn.second, module->addWire(NEW_ID, GetSize(conn.second))));
+					new_connections.emplace(conn.first, RTLIL::SigSig(conn.second, module->addWire(NEW_TWINE, GetSize(conn.second))));
 				for (auto &it : new_connections) {
-					if (ct.cell_output(cell->type, it.first))
+					if (ct.cell_output(cell->type.ref(), it.first))
 						module->connect(RTLIL::SigSig(it.second.first, it.second.second));
 					else
 						module->connect(RTLIL::SigSig(it.second.second, it.second.first));

@@ -31,12 +31,12 @@ void proc_init(RTLIL::Module *mod, SigMap &sigmap, RTLIL::Process *proc)
 	for (auto &sync : proc->syncs)
 		if (sync->type == RTLIL::SyncType::STi)
 		{
-			log("Found init rule in `%s.%s'.\n", mod->name, proc->name);
+			log("Found init rule in `%s.%s'.\n", log_id(mod), log_id(proc));
 
 			for (auto &action : sync->actions)
 			{
-				RTLIL::SigSpec lhs = action.first;
-				RTLIL::SigSpec rhs = sigmap(action.second);
+				RTLIL::SigSpec lhs = action.lhs;
+				RTLIL::SigSpec rhs = sigmap(action.rhs);
 
 				if (!rhs.is_fully_const())
 					log_cmd_error("Failed to get a constant init value for %s: %s\n", log_signal(lhs), log_signal(rhs));

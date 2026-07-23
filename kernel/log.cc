@@ -588,7 +588,7 @@ void log_dump_val_worker(RTLIL::State v) {
 std::string log_signal(const RTLIL::SigSpec &sig, bool autoint)
 {
 	std::stringstream buf;
-	RTLIL_BACKEND::dump_sigspec(buf, sig, autoint);
+	RTLIL_BACKEND::dump_sigspec(buf, sig, autoint, RTLIL_BACKEND::DumpMode::Readable);
 	return buf.str();
 }
 
@@ -607,24 +607,57 @@ const char *log_id(const RTLIL::IdString &str)
 	return log_id_cache.back();
 }
 
+static const char *log_id_twine(const RTLIL::Design *design, TwineRef name)
+{
+	std::string unescaped = RTLIL::unescape_id(design->twines.str(name));
+	log_id_cache.push_back(strdup(unescaped.c_str()));
+	return log_id_cache.back();
+}
+
+const char *log_id(const RTLIL::Module *obj, const char *nullstr)
+{
+	if (nullstr && obj == nullptr) return nullstr;
+	return log_id_twine(obj->design, obj->meta_->name);
+}
+const char *log_id(const RTLIL::Cell *obj, const char *nullstr)
+{
+	if (nullstr && obj == nullptr) return nullstr;
+	return log_id_twine(obj->module->design, obj->meta_->name);
+}
+const char *log_id(const RTLIL::Wire *obj, const char *nullstr)
+{
+	if (nullstr && obj == nullptr) return nullstr;
+	return log_id_twine(obj->module->design, obj->meta_->name);
+}
+const char *log_id(const RTLIL::Memory *obj, const char *nullstr)
+{
+	if (nullstr && obj == nullptr) return nullstr;
+	return log_id_twine(obj->module->design, obj->meta_->name);
+}
+const char *log_id(const RTLIL::Process *obj, const char *nullstr)
+{
+	if (nullstr && obj == nullptr) return nullstr;
+	return log_id_twine(obj->module->design, obj->meta_->name);
+}
+
 void log_module(RTLIL::Module *module, std::string indent)
 {
 	std::stringstream buf;
-	RTLIL_BACKEND::dump_module(buf, indent, module, module->design, false);
+	RTLIL_BACKEND::dump_module(buf, indent, module, module->design, false, true, false, RTLIL_BACKEND::DumpMode::Readable);
 	log("%s", buf.str());
 }
 
 void log_cell(RTLIL::Cell *cell, std::string indent)
 {
 	std::stringstream buf;
-	RTLIL_BACKEND::dump_cell(buf, indent, cell);
+	RTLIL_BACKEND::dump_cell(buf, indent, cell, cell->module ? cell->module->design : nullptr, RTLIL_BACKEND::DumpMode::Readable);
 	log("%s", buf.str());
 }
 
 void log_wire(RTLIL::Wire *wire, std::string indent)
 {
 	std::stringstream buf;
-	RTLIL_BACKEND::dump_wire(buf, indent, wire);
+	RTLIL_BACKEND::dump_wire(buf, indent, wire, wire->module ? wire->module->design : nullptr, RTLIL_BACKEND::DumpMode::Readable);
 	log("%s", buf.str());
 }
 

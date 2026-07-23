@@ -254,28 +254,26 @@ struct DesignPass : public Pass {
 		if (import_mode)
 		{
 			std::string prefix = RTLIL::escape_id(as_name);
+			TwineRef as_name_ref = copy_to_design->twines.add(std::string{prefix});
 
 			pool<Module*> queue;
 			dict<IdString, IdString> done;
 
-			if (copy_to_design->module(prefix) != nullptr)
-				copy_to_design->remove(copy_to_design->module(prefix));
+			if (copy_to_design->module(as_name_ref) != nullptr)
+				copy_to_design->remove(copy_to_design->module(as_name_ref));
 
 			if (GetSize(copy_src_modules) != 1)
 				log_cmd_error("No top module found in source design.\n");
 
 			for (auto mod : copy_src_modules)
 			{
-				log("Importing %s as %s.\n", mod, RTLIL::unescape_id(prefix));
+				log("Importing %s as %s.\n", mod, design->twines.unescaped_str(as_name_ref));
 
-				RTLIL::Module *t = mod->clone();
-				t->name = prefix;
-				t->design = copy_to_design;
+				RTLIL::Module *t = mod->clone(copy_to_design, as_name_ref);
 				t->attributes.erase(ID::top);
-				copy_to_design->add(t);
 
 				queue.insert(t);
-				done[mod->name] = prefix;
+				done[RTLIL::escape_id(copy_from_design->twines.str(mod->meta_->name))] = prefix;
 			}
 
 			while (!queue.empty() && copy_from_design)
@@ -286,31 +284,29 @@ struct DesignPass : public Pass {
 				for (auto mod : old_queue)
 				for (auto cell : mod->cells())
 				{
-					Module *fmod = copy_from_design->module(cell->type);
+					Module *fmod = copy_from_design->module(cell->type_impl);
 
 					if (fmod == nullptr)
 						continue;
 
 					if (done.count(cell->type) == 0)
 					{
-						std::string trg_name = prefix + "." + (cell->type.c_str() + (*cell->type.c_str() == '\\'));
+						std::string trg_name = prefix + "." + cell->type.unescape();
+						TwineRef trg_ref = copy_to_design->twines.add(std::string{trg_name});
 
-						log("Importing %s as %s.\n", fmod, RTLIL::unescape_id(trg_name));
+						log("Importing %s as %s.\n", log_id(fmod), RTLIL::unescape_id(trg_name).c_str());
 
-						if (copy_to_design->module(trg_name) != nullptr)
-							copy_to_design->remove(copy_to_design->module(trg_name));
+						if (copy_to_design->module(trg_ref) != nullptr)
+							copy_to_design->remove(copy_to_design->module(trg_ref));
 
-						RTLIL::Module *t = fmod->clone();
-						t->name = trg_name;
-						t->design = copy_to_design;
+						RTLIL::Module *t = fmod->clone(copy_to_design, trg_ref);
 						t->attributes.erase(ID::top);
-						copy_to_design->add(t);
 
 						queue.insert(t);
 						done[cell->type] = trg_name;
 					}
 
-					cell->type = done.at(cell->type);
+					cell->type_impl = cell->module->design->twines.add(std::string{done.at(cell->type).str()});
 				}
 			}
 		}
@@ -322,15 +318,13 @@ struct DesignPass : public Pass {
 
 			for (auto mod : copy_src_modules)
 			{
-				std::string trg_name = as_name.empty() ? mod->name.str() : RTLIL::escape_id(as_name);
+				std::string trg_name = as_name.empty() ? copy_from_design->twines.str(mod->meta_->name) : RTLIL::escape_id(as_name);
+				TwineRef trg_ref = copy_to_design->twines.add(std::string{trg_name});
 
-				if (copy_to_design->module(trg_name) != nullptr)
-					copy_to_design->remove(copy_to_design->module(trg_name));
+				if (copy_to_design->module(trg_ref) != nullptr)
+					copy_to_design->remove(copy_to_design->module(trg_ref));
 
-				RTLIL::Module *t = mod->clone();
-				t->name = trg_name;
-				t->design = copy_to_design;
-				copy_to_design->add(t);
+				mod->clone(copy_to_design, trg_ref);
 			}
 		}
 
@@ -338,8 +332,7 @@ struct DesignPass : public Pass {
 		{
 			RTLIL::Design *design_copy = new RTLIL::Design;
 
-			for (auto mod : design->modules())
-				design_copy->add(mod->clone());
+			design->clone_into(design_copy);
 
 			design_copy->selection_stack = design->selection_stack;
 			design_copy->selection_vars = design->selection_vars;
@@ -361,7 +354,7 @@ struct DesignPass : public Pass {
 
 			design->selection_stack.clear();
 			design->selection_vars.clear();
-			design->selected_active_module.clear();
+			design->selected_active_module = Twine::Null;
 
 			design->push_full_selection();
 		}
@@ -377,8 +370,7 @@ struct DesignPass : public Pass {
 		{
 			RTLIL::Design *saved_design = pop_mode ? pushed_designs.back() : saved_designs.at(load_name);
 
-			for (auto mod : saved_design->modules())
-				design->add(mod->clone());
+			saved_design->clone_into(design);
 
 			design->selection_stack = saved_design->selection_stack;
 			design->selection_vars = saved_design->selection_vars;

@@ -176,7 +176,7 @@ Fmt AstNode::processFormat(int stage, bool sformat_like, int default_base, size_
 	}
 
 	Fmt fmt;
-	fmt.parse_verilog(args, sformat_like, default_base, /*task_name=*/str, current_module->name);
+	fmt.parse_verilog(args, sformat_like, default_base, /*task_name=*/str, RTLIL::IdString(current_module->design->twines.str(current_module->meta_->name)));
 	return fmt;
 }
 
@@ -704,7 +704,7 @@ void AST::set_simplify_design_context(const RTLIL::Design *design)
 // lookup the module with the given name in the current design context
 static const RTLIL::Module* lookup_module(const std::string &name)
 {
-	return simplify_design_context->module(name);
+	return simplify_design_context->module(TwineSearch(&simplify_design_context->twines).find(name));
 }
 
 const RTLIL::Module* AstNode::lookup_cell_module()
@@ -1474,14 +1474,15 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 			module = lookup_cell_module();
 		if (module) {
 			size_t port_counter = 0;
+			TwineSearch search(&module->design->twines);
 			for (auto& child : children) {
 				if (child->type != AST_ARGUMENT)
 					continue;
 
 				// determine the full name of port this argument is connected to
-				RTLIL::IdString port_name;
+				TwineRef port_name;
 				if (child->str.size())
-					port_name = child->str;
+					port_name = search.find(child->str);
 				else {
 					if (port_counter >= module->ports.size())
 						input_error("Cell instance has more ports than the module!\n");
@@ -1492,7 +1493,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 				const RTLIL::Wire *ref = module->wire(port_name);
 				if (ref == nullptr)
 					input_error("Cell instance refers to port %s which does not exist in module %s!.\n",
-							port_name.unescape(), module->name.unescape());
+							module->design->twines.str(port_name).c_str(), module->design->twines.str(module->meta_->name).c_str());
 
 				// select the argument, if present
 				log_assert(child->children.size() <= 1);
@@ -1517,7 +1518,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 
 				// create the indirection wire
 				std::stringstream sstr;
-				sstr << "$indirect$" << ref->name.c_str() << "$" << RTLIL::encode_filename(*location.begin.filename) << ":" << location.begin.line << "$" << (autoidx++);
+				sstr << "$indirect$" << ref->name.str() << "$" << RTLIL::encode_filename(*location.begin.filename) << ":" << location.begin.line << "$" << (autoidx++);
 				std::string tmp_str = sstr.str();
 				add_wire_for_ref(location, ref, tmp_str);
 

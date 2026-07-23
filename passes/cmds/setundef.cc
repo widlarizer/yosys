@@ -37,9 +37,9 @@ PRIVATE_NAMESPACE_BEGIN
 static RTLIL::Wire * add_wire(RTLIL::Module *module, std::string name, int width, bool flag_input, bool flag_output)
 {
 	RTLIL::Wire *wire = NULL;
-	name = RTLIL::escape_id(name);
+	TwineRef t = module->design->twines.add(Twine{name});
 
-	if (module->count_id(name) != 0)
+	if (module->count_id(t) != 0)
 	{
 		log("Module %s already has such an object %s.\n", module->name, name);
 		name += "$";
@@ -47,7 +47,7 @@ static RTLIL::Wire * add_wire(RTLIL::Module *module, std::string name, int width
 	}
 	else
 	{
-		wire = module->addWire(name, width);
+		wire = module->addWire(t, width);
 		wire->port_input = flag_input;
 		wire->port_output = flag_output;
 
@@ -305,7 +305,7 @@ struct SetundefPass : public Pass {
 					CellTypes ct(design);
 					for (auto &it : module->cells_)
 					for (auto &conn : it.second->connections())
-						if (!ct.cell_known(it.second->type) || ct.cell_output(it.second->type, conn.first))
+						if (!ct.cell_known(it.second->type.ref()) || ct.cell_output(it.second->type.ref(), conn.first))
 							undriven_signals.del(sigmap(conn.second));
 
 					RTLIL::SigSpec sig = undriven_signals.export_all();
@@ -340,16 +340,16 @@ struct SetundefPass : public Pass {
 					CellTypes ct(design);
 					for (auto &it : module->cells_)
 					for (auto &conn : it.second->connections())
-						if (!ct.cell_known(it.second->type) || ct.cell_output(it.second->type, conn.first))
+						if (!ct.cell_known(it.second->type.ref()) || ct.cell_output(it.second->type.ref(), conn.first))
 							undriven_signals.del(sigmap(conn.second));
 
 					RTLIL::SigSpec sig = undriven_signals.export_all();
 					for (auto &c : sig.chunks()) {
 						RTLIL::SigSpec bits;
 						if (worker.next_bit_mode == MODE_ANYSEQ)
-							bits = module->Anyseq(NEW_ID, c.width);
+							bits = module->Anyseq(NEW_TWINE, c.width);
 						else if (worker.next_bit_mode == MODE_ANYCONST)
-							bits = module->Anyconst(NEW_ID, c.width);
+							bits = module->Anyconst(NEW_TWINE, c.width);
 						else
 							for (int i = 0; i < c.width; i++)
 								bits.append(worker.next_bit());
@@ -371,13 +371,13 @@ struct SetundefPass : public Pass {
 
 					bool cell_selected = design->selected(module, cell);
    	 			bool wire_selected = false;
-					for (auto bit : sigmap(cell->getPort(ID::Q)))
+					for (auto bit : sigmap(cell->getPort(TW::Q)))
 						if (bit.wire && design->selected(module, bit.wire))
 							wire_selected = true;
 					if (!cell_selected && !wire_selected)
 						continue;
 
-					for (auto bit : sigmap(cell->getPort(ID::Q)))
+					for (auto bit : sigmap(cell->getPort(TW::Q)))
 						ffbits.insert(bit);
 				}
 
@@ -547,9 +547,9 @@ struct SetundefPass : public Pass {
 
 						if (width > 0) {
 							if (worker.next_bit_mode == MODE_ANYSEQ)
-								sig.replace(cursor, module->Anyseq(NEW_ID, width));
+								sig.replace(cursor, module->Anyseq(NEW_TWINE, width));
 							else
-								sig.replace(cursor, module->Anyconst(NEW_ID, width));
+								sig.replace(cursor, module->Anyconst(NEW_TWINE, width));
 							cursor += width;
 						} else {
 							cursor++;

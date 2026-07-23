@@ -1259,6 +1259,7 @@ bool VerificImporter::import_netlist_instance_cells(Instance *inst, RTLIL::IdStr
 		current_case = &proc->root_case;
 
 		RTLIL::SwitchRule *sw = new RTLIL::SwitchRule;
+		sw->module = module;
 		sw->signal = sig_select;
 		current_case->switches.push_back(sw);
 
@@ -1271,7 +1272,7 @@ bool VerificImporter::import_netlist_instance_cells(Instance *inst, RTLIL::IdStr
 
 		for (unsigned i = 0 ; i < selector->GetNumBranches() ; ++i) {
 
-			SigSig action(sig_out_val, sig_data_values.extract(offset_data, data_width));
+			RTLIL::SyncAction action{sig_out_val, sig_data_values.extract(offset_data, data_width), Twine::Null};
 			offset_data += data_width;
 
 			for (unsigned j = 0 ; j < selector->GetNumConditions(i) ; ++j) {
@@ -1294,6 +1295,7 @@ bool VerificImporter::import_netlist_instance_cells(Instance *inst, RTLIL::IdStr
 
 					for (int32_t i = right; i<left; i++) {
 						RTLIL::CaseRule *cs = new RTLIL::CaseRule;
+						cs->module = module;
 						cs->compare.push_back(RTLIL::Const(i,width));
 						cs->actions.push_back(action);
 						sw->cases.push_back(cs);
@@ -1301,13 +1303,15 @@ bool VerificImporter::import_netlist_instance_cells(Instance *inst, RTLIL::IdStr
 				}
 
 				RTLIL::CaseRule *cs = new RTLIL::CaseRule;
+				cs->module = module;
 				cs->compare.push_back(sel_left);
 				cs->actions.push_back(action);
 				sw->cases.push_back(cs);
 			}
 		}
 		RTLIL::CaseRule *cs_default = new RTLIL::CaseRule;
-		cs_default->actions.push_back(SigSig(sig_out_val, sig_data_default));
+		cs_default->module = module;
+		cs_default->actions.push_back({sig_out_val, sig_data_default, Twine::Null});
 		sw->cases.push_back(cs_default);
 
 		return true;
@@ -1546,6 +1550,7 @@ void VerificImporter::import_netlist(RTLIL::Design *design, Netlist *nl, std::ma
 	}
 
 	module = new RTLIL::Module;
+	module->design = design;
 	module->name = module_name;
 	design->add(module);
 
@@ -1683,6 +1688,7 @@ void VerificImporter::import_netlist(RTLIL::Design *design, Netlist *nl, std::ma
 		{
 			RTLIL::Memory *memory = new RTLIL::Memory;
 			memory->name = RTLIL::escape_id(net->Name());
+			memory->module = module;
 			log_assert(module->count_id(memory->name) == 0);
 			module->memories[memory->name] = memory;
 			import_attributes(memory->attributes, net, nl);

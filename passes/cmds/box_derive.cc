@@ -77,7 +77,8 @@ struct BoxDerivePass : Pass {
 
 		Module *base_override = nullptr;
 		if (!base_name.empty()) {
-			base_override = d->module(base_name);
+			TwineSearch search(&d->twines);
+			base_override = d->module(search.find(base_name.str()));
 			if (!base_override)
 				log_cmd_error("Base module %s not found.\n", base_name.unescape());
 		}
@@ -86,7 +87,7 @@ struct BoxDerivePass : Pass {
 
 		for (auto module : d->selected_modules()) {
 			for (auto cell : module->selected_cells()) {
-				Module *inst_module = d->module(cell->type);
+				Module *inst_module = d->module(cell->type_impl);
 				if (!inst_module || !inst_module->get_blackbox_attribute())
 					continue;
 
@@ -94,16 +95,16 @@ struct BoxDerivePass : Pass {
 				if (base_override)
 					base = base_override;
 
-				auto index = std::make_pair(base->name, cell->parameters);
+				auto index = std::make_pair(RTLIL::IdString(base->design->twines.str(base->meta_->name)), cell->parameters);
 
 				if (cell->parameters.empty())
 					continue;
 
 				if (!done.count(index)) {
-					IdString derived_type = base->derive(d, cell->parameters);
+					TwineRef derived_type = base->derive(d, cell->parameters);
 					Module *derived = d->module(derived_type);
 					log_assert(derived && "Failed to derive module\n");
-					log("derived %s\n", derived_type);
+					log("derived %s\n", d->twines.str(derived_type).c_str());
 
 					if (!naming_attr.empty() && derived->has_attribute(naming_attr)) {
 						IdString new_name = RTLIL::escape_id(derived->get_string_attribute(naming_attr));
@@ -111,14 +112,14 @@ struct BoxDerivePass : Pass {
 							log_error("Derived module %s cannot be renamed to private name %s.\n",
 									  derived, new_name.unescape());
 						derived->attributes.erase(naming_attr);
-						d->rename(derived, new_name);
+						d->rename(derived, d->twines.add(Twine{new_name.str()}));
 					}
 
 					done[index] = derived;
 				}
 
 				if (apply_mode)
-					cell->type = done[index]->name;
+					cell->type_impl = cell->module->design->twines.copy_from(done[index]->design->twines, done[index]->meta_->name);
 			}
 		}
 	}

@@ -42,40 +42,40 @@ void proc_memwr(RTLIL::Module *mod, RTLIL::Process *proc, dict<IdString, int> &n
 					priority_mask.set(prev_port_ids[i], State::S1);
 			prev_port_ids.push_back(port_id);
 
-			RTLIL::Cell *cell = mod->addCell(NEW_ID, ID($memwr_v2));
+			RTLIL::Cell *cell = mod->addCell(NEW_TWINE, TW($memwr_v2));
 			cell->attributes = memwr.attributes;
 			cell->setParam(ID::MEMID, Const(memwr.memid.str()));
 			cell->setParam(ID::ABITS, GetSize(memwr.address));
 			cell->setParam(ID::WIDTH, GetSize(memwr.data));
 			cell->setParam(ID::PORTID, port_id);
 			cell->setParam(ID::PRIORITY_MASK, priority_mask);
-			cell->setPort(ID::ADDR, memwr.address);
-			cell->setPort(ID::DATA, memwr.data);
+			cell->setPort(TW::ADDR, memwr.address);
+			cell->setPort(TW::DATA, memwr.data);
 			SigSpec enable = memwr.enable;
 			for (auto sr2 : proc->syncs) {
 				if (sr2->type == RTLIL::SyncType::ST0) {
 					log_assert(sr2->mem_write_actions.empty());
-					enable = mod->Mux(NEW_ID, Const(State::S0, GetSize(enable)), enable, sr2->signal);
+					enable = mod->Mux(NEW_TWINE, Const(State::S0, GetSize(enable)), enable, sr2->signal);
 				} else if (sr2->type == RTLIL::SyncType::ST1) {
 					log_assert(sr2->mem_write_actions.empty());
-					enable = mod->Mux(NEW_ID, enable, Const(State::S0, GetSize(enable)), sr2->signal);
+					enable = mod->Mux(NEW_TWINE, enable, Const(State::S0, GetSize(enable)), sr2->signal);
 				}
 			}
-			cell->setPort(ID::EN, enable);
+			cell->setPort(TW::EN, enable);
 			if (sr->type == RTLIL::SyncType::STa) {
-				cell->setPort(ID::CLK, State::Sx);
+				cell->setPort(TW::CLK, State::Sx);
 				cell->setParam(ID::CLK_ENABLE, State::S0);
 				cell->setParam(ID::CLK_POLARITY, State::Sx);
 			} else if (sr->type == RTLIL::SyncType::STp) {
-				cell->setPort(ID::CLK, sr->signal);
+				cell->setPort(TW::CLK, sr->signal);
 				cell->setParam(ID::CLK_ENABLE, State::S1);
 				cell->setParam(ID::CLK_POLARITY, State::S1);
 			} else if (sr->type == RTLIL::SyncType::STn) {
-				cell->setPort(ID::CLK, sr->signal);
+				cell->setPort(TW::CLK, sr->signal);
 				cell->setParam(ID::CLK_ENABLE, State::S1);
 				cell->setParam(ID::CLK_POLARITY, State::S0);
 			} else {
-				log_error("process memory write with unsupported sync type in %s.%s", mod, proc);
+				log_error("process memory write with unsupported sync type in %s.%s", mod, log_id(proc));
 			}
 		}
 		sr->mem_write_actions.clear();
@@ -102,8 +102,8 @@ struct ProcMemWrPass : public Pass {
 		for (auto mod : design->all_selected_modules()) {
 			dict<IdString, int> next_port_id;
 			for (auto cell : mod->cells()) {
-				if (cell->type.in(ID($memwr), ID($memwr_v2))) {
-					bool is_compat = cell->type == ID($memwr);
+				if (cell->type.in(TW($memwr), TW($memwr_v2))) {
+					bool is_compat = cell->type == TW($memwr);
 					IdString memid = cell->parameters.at(ID::MEMID).decode_string();
 					int port_id = cell->parameters.at(is_compat ? ID::PRIORITY : ID::PORTID).as_int();
 					if (port_id >= next_port_id[memid])

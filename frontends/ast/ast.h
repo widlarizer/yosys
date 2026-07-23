@@ -396,12 +396,14 @@ namespace AST
 	struct AstModule : RTLIL::Module {
 		std::unique_ptr<AstNode> ast;
 		bool nolatches, nomeminit, nomem2reg, mem2reg, noblackbox, lib, nowb, noopt, icells, pwires, autowire;
-		RTLIL::IdString derive(RTLIL::Design *design, const dict<RTLIL::IdString, RTLIL::Const> &parameters, bool mayfail) override;
-		RTLIL::IdString derive(RTLIL::Design *design, const dict<RTLIL::IdString, RTLIL::Const> &parameters, const dict<RTLIL::IdString, RTLIL::Module*> &interfaces, const dict<RTLIL::IdString, RTLIL::IdString> &modports, bool mayfail) override;
+		TwineRef derive(RTLIL::Design *design, const dict<RTLIL::IdString, RTLIL::Const> &parameters, bool mayfail) override;
+		TwineRef derive(RTLIL::Design *design, const dict<RTLIL::IdString, RTLIL::Const> &parameters, const dict<TwineRef, RTLIL::Module*> &interfaces, const dict<TwineRef, TwineRef> &modports, bool mayfail) override;
 		std::string derive_common(RTLIL::Design *design, const dict<RTLIL::IdString, RTLIL::Const> &parameters, std::unique_ptr<AstNode>* new_ast_out, bool quiet = false);
 		void expand_interfaces(RTLIL::Design *design, const dict<RTLIL::IdString, RTLIL::Module *> &local_interfaces) override;
 		bool reprocess_if_necessary(RTLIL::Design *design) override;
 		RTLIL::Module *clone() const override;
+		RTLIL::Module *clone(RTLIL::Design *dst, bool src_id_verbatim = false) const override;
+		RTLIL::Module *clone(RTLIL::Design *dst, TwineRef target_name, bool src_id_verbatim = false) const override;
 		void loadconfig() const;
 	};
 
@@ -426,6 +428,9 @@ namespace AST
 	std::pair<std::string,std::string> split_modport_from_type(std::string name_type);
 	AstNode * find_modport(AstNode *intf, std::string name);
 	void explode_interface_port(AstNode *module_ast, RTLIL::Module * intfmodule, std::string intfname, AstNode *modport);
+
+	// Intern Verilog hierarchical reference "a.b.c" as a Suffix chain "a" ".b" ".c"
+	TwineRef intern_hier_name(RTLIL::Design *design, std::string_view escaped);
 
 	// Helper for setting the src attribute.
 	void set_src_attr(RTLIL::AttrObject *obj, const AstNode *ast);

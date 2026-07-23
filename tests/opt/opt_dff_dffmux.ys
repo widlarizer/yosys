@@ -54,6 +54,7 @@ EOT
 proc
 equiv_opt -assert opt
 design -load postopt
+dump
 select -assert-count 1 t:$dffe r:WIDTH=4 %i
 select -assert-count 0 t:$dffe %% t:* %D
 

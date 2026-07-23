@@ -33,7 +33,7 @@ YOSYS_NAMESPACE_BEGIN
 namespace Functional {
 	// each function is documented with a short pseudocode declaration or definition
 	// standard C/Verilog operators are used to describe the result
-	//
+	// 
 	// the sorts used in this are:
 	// - bit[N]: a bitvector of N bits
 	//   bit[N] can be indicated as signed or unsigned. this is not tracked by the functional backend
@@ -42,11 +42,11 @@ namespace Functional {
 	// - memory[N, M]: a memory with N address and M data bits
 	// - int: C++ int
 	// - Const[N]: yosys RTLIL::Const (with size() == N)
-	// - IdString: yosys IdString
+	// - TwineRef: yosys TwineRef
 	// - any: used in documentation to indicate that the sort is unconstrained
 	//
 	// nodes in the functional backend are either of sort bit[N] or memory[N,M] (for some N, M: int)
-	// additionally, they can carry a constant of sort int, Const[N] or IdString
+	// additionally, they can carry a constant of sort int, Const[N] or TwineRef
 	// each node has a 'sort' field that stores the sort of the node
 	// slice, zero_extend, sign_extend use the sort field to store out_width
 	enum class Fn {
@@ -159,22 +159,22 @@ namespace Functional {
 	class IRInput {
 		friend class Factory;
 	public:
-		IdString name;
-		IdString kind;
+		TwineRef name;
+		TwineRef kind;
 		Sort sort;
 	private:
-		IRInput(IR &, IdString name, IdString kind, Sort sort)
+		IRInput(IR &, TwineRef name, TwineRef kind, Sort sort)
 		: name(name), kind(kind), sort(std::move(sort)) {}
 	};
 	class IROutput {
 		friend class Factory;
 		IR &_ir;
 	public:
-		IdString name;
-		IdString kind;
+		TwineRef name;
+		TwineRef kind;
 		Sort sort;
 	private:
-		IROutput(IR &ir, IdString name, IdString kind, Sort sort)
+		IROutput(IR &ir, TwineRef name, TwineRef kind, Sort sort)
 		: _ir(ir), name(name), kind(kind), sort(std::move(sort)) {}
 	public:
 		Node value() const;
@@ -185,12 +185,12 @@ namespace Functional {
 		friend class Factory;
 		IR &_ir;
 	public:
-		IdString name;
-		IdString kind;
+		TwineRef name;
+		TwineRef kind;
 		Sort sort;
 	private:
 		std::variant<RTLIL::Const, MemContents> _initial;
-		IRState(IR &ir, IdString name, IdString kind, Sort sort)
+		IRState(IR &ir, TwineRef name, TwineRef kind, Sort sort)
 		: _ir(ir), name(name), kind(kind), sort(std::move(sort)) {}
 	public:
 		Node next_value() const;
@@ -214,7 +214,7 @@ namespace Functional {
 			std::variant<
 				std::monostate,
 				RTLIL::Const,
-				std::pair<IdString, IdString>,
+				std::pair<TwineRef, TwineRef>,
 				int
 			> _extra;
 		public:
@@ -223,7 +223,7 @@ namespace Functional {
 			template<class T> NodeData(Fn fn, T &&extra) : _fn(fn), _extra(std::forward<T>(extra)) {}
 			Fn fn() const { return _fn; }
 			const RTLIL::Const &as_const() const { return std::get<RTLIL::Const>(_extra); }
-			std::pair<IdString, IdString> as_idstring_pair() const { return std::get<std::pair<IdString, IdString>>(_extra); }
+			std::pair<TwineRef, TwineRef> as_idstring_pair() const { return std::get<std::pair<TwineRef, TwineRef>>(_extra); }
 			int as_int() const { return std::get<int>(_extra); }
 			[[nodiscard]] Hasher hash_into(Hasher h) const {
 				h.eat((unsigned int) _fn);
@@ -239,37 +239,38 @@ namespace Functional {
 			Sort sort;
 		};
 		// our specialised version of ComputeGraph
-		// the sparse_attr IdString stores a naming suggestion, retrieved with name()
+		// the sparse_attr TwineRef stores a naming suggestion, retrieved with name()
 		// the key is currently used to identify the nodes that represent output and next state values
 		// the bool is true for next state values
-		using Graph = ComputeGraph<NodeData, Attr, IdString, std::tuple<IdString, IdString, bool>>;
+		using Graph = ComputeGraph<NodeData, Attr, TwineRef, std::tuple<TwineRef, TwineRef, bool>>;
 		Graph _graph;
-		dict<std::pair<IdString, IdString>, IRInput> _inputs;
-		dict<std::pair<IdString, IdString>, IROutput> _outputs;
-		dict<std::pair<IdString, IdString>, IRState> _states;
+		dict<std::pair<TwineRef, TwineRef>, IRInput> _inputs;
+		dict<std::pair<TwineRef, TwineRef>, IROutput> _outputs;
+		dict<std::pair<TwineRef, TwineRef>, IRState> _states;
 		IR::Graph::Ref mutate(Node n);
 	public:
+		Design *design = nullptr;
 		static IR from_module(Module *module);
 		Factory factory();
 		int size() const { return _graph.size(); }
 		Node operator[](int i);
 		void topological_sort();
 		void forward_buf();
-		IRInput const& input(IdString name, IdString kind) const { return _inputs.at({name, kind}); }
-		IRInput const& input(IdString name) const { return input(name, ID($input)); }
-		IROutput const& output(IdString name, IdString kind) const { return _outputs.at({name, kind}); }
-		IROutput const& output(IdString name) const { return output(name, ID($output)); }
-		IRState const& state(IdString name, IdString kind) const { return _states.at({name, kind}); }
-		IRState const& state(IdString name) const { return state(name, ID($state)); }
-		bool has_input(IdString name, IdString kind) const { return _inputs.count({name, kind}); }
-		bool has_output(IdString name, IdString kind) const { return _outputs.count({name, kind}); }
-		bool has_state(IdString name, IdString kind) const { return _states.count({name, kind}); }
-		vector<IRInput const*> inputs(IdString kind) const;
-		vector<IRInput const*> inputs() const { return inputs(ID($input)); }
-		vector<IROutput const*> outputs(IdString kind) const;
-		vector<IROutput const*> outputs() const { return outputs(ID($output)); }
-		vector<IRState const*> states(IdString kind) const;
-		vector<IRState const*> states() const { return states(ID($state)); }
+		IRInput const& input(TwineRef name, TwineRef kind) const { return _inputs.at({name, kind}); }
+		IRInput const& input(TwineRef name) const { return input(name, TW($input)); }
+		IROutput const& output(TwineRef name, TwineRef kind) const { return _outputs.at({name, kind}); }
+		IROutput const& output(TwineRef name) const { return output(name, TW($output)); }
+		IRState const& state(TwineRef name, TwineRef kind) const { return _states.at({name, kind}); }
+		IRState const& state(TwineRef name) const { return state(name, TW($state)); }
+		bool has_input(TwineRef name, TwineRef kind) const { return _inputs.count({name, kind}); }
+		bool has_output(TwineRef name, TwineRef kind) const { return _outputs.count({name, kind}); }
+		bool has_state(TwineRef name, TwineRef kind) const { return _states.count({name, kind}); }
+		vector<IRInput const*> inputs(TwineRef kind) const;
+		vector<IRInput const*> inputs() const { return inputs(TW($input)); }
+		vector<IROutput const*> outputs(TwineRef kind) const;
+		vector<IROutput const*> outputs() const { return outputs(TW($output)); }
+		vector<IRState const*> states(TwineRef kind) const;
+		vector<IRState const*> states() const { return states(TW($state)); }
 		vector<IRInput const*> all_inputs() const;
 		vector<IROutput const*> all_outputs() const;
 		vector<IRState const*> all_states() const;
@@ -301,24 +302,25 @@ namespace Functional {
 		friend class IROutput;
 		friend class IRState;
 		IR::Graph::ConstRef _ref;
-		explicit Node(IR::Graph::ConstRef ref) : _ref(ref) { }
+		Node(IR::Graph::ConstRef ref, Design *design) : _ref(ref), design(design) { }
 		explicit operator IR::Graph::ConstRef() { return _ref; }
 	public:
+		Design *design = nullptr;
 		// the node's index. may change if nodes are added or removed
 		int id() const { return _ref.index(); }
 		// a name suggestion for the node, which need not be unique
-		IdString name() const {
+		TwineRef name() const {
 			if(_ref.has_sparse_attr())
 				return _ref.sparse_attr();
 			else
-				return std::string("\\n") + std::to_string(id());
+				return design->twines.add(std::string("\\n") + std::to_string(id()));
 		}
 		Fn fn() const { return _ref.function().fn(); }
 		Sort sort() const { return _ref.attr().sort; }
 		// returns the width of a bitvector node, errors out for other nodes
 		int width() const { return sort().width(); }
 		size_t arg_count() const { return _ref.size(); }
-		Node arg(int n) const { return Node(_ref.arg(n)); }
+		Node arg(int n) const { return Node(_ref.arg(n), design); }
 		// visit calls the appropriate visitor method depending on the type of the node
 		template<class Visitor> auto visit(Visitor v) const
 		{
@@ -345,9 +347,9 @@ namespace Functional {
 			case Fn::reduce_xor: return v.reduce_xor(*this, arg(0)); break;
 			case Fn::equal: return v.equal(*this, arg(0), arg(1)); break;
 			case Fn::not_equal: return v.not_equal(*this, arg(0), arg(1)); break;
-			case Fn::signed_greater_than: return v.signed_greater_than(*this, arg(0), arg(1)); break;
+			case Fn::signed_greater_than: return v.signed_greater_than(*this, arg(0), arg(1)); break; 
 			case Fn::signed_greater_equal: return v.signed_greater_equal(*this, arg(0), arg(1)); break;
-			case Fn::unsigned_greater_than: return v.unsigned_greater_than(*this, arg(0), arg(1)); break;
+			case Fn::unsigned_greater_than: return v.unsigned_greater_than(*this, arg(0), arg(1)); break; 
 			case Fn::unsigned_greater_equal: return v.unsigned_greater_equal(*this, arg(0), arg(1)); break;
 			case Fn::logical_shift_left: return v.logical_shift_left(*this, arg(0), arg(1)); break;
 			case Fn::logical_shift_right: return v.logical_shift_right(*this, arg(0), arg(1)); break;
@@ -365,14 +367,14 @@ namespace Functional {
 		std::string to_string(std::function<std::string(Node)>);
 	};
 	inline IR::Graph::Ref IR::mutate(Node n) { return _graph[n._ref.index()]; }
-	inline Node IR::operator[](int i) { return Node(_graph[i]); }
-	inline Node IROutput::value() const { return Node(_ir._graph({name, kind, false})); }
+	inline Node IR::operator[](int i) { return Node(_graph[i], design); }
+	inline Node IROutput::value() const { return Node(_ir._graph({name, kind, false}), _ir.design); }
 	inline bool IROutput::has_value() const { return _ir._graph.has_key({name, kind, false}); }
 	inline void IROutput::set_value(Node value) { log_assert(sort == value.sort()); _ir.mutate(value).assign_key({name, kind, false}); }
-	inline Node IRState::next_value() const { return Node(_ir._graph({name, kind, true})); }
+	inline Node IRState::next_value() const { return Node(_ir._graph({name, kind, true}), _ir.design); }
 	inline bool IRState::has_next_value() const { return _ir._graph.has_key({name, kind, true}); }
 	inline void IRState::set_next_value(Node value) { log_assert(sort == value.sort()); _ir.mutate(value).assign_key({name, kind, true}); }
-	inline Node IR::iterator::operator*() { return Node(_ir->_graph[_index]); }
+	inline Node IR::iterator::operator*() { return Node(_ir->_graph[_index], _ir->design); }
 	inline arrow_proxy<Node> IR::iterator::operator->() { return arrow_proxy<Node>(**this); }
 	// AbstractVisitor provides an abstract base class for visitors
 	template<class T> struct AbstractVisitor {
@@ -405,8 +407,8 @@ namespace Functional {
 		virtual T arithmetic_shift_right(Node self, Node a, Node b) = 0;
 		virtual T mux(Node self, Node a, Node b, Node s) = 0;
 		virtual T constant(Node self, RTLIL::Const const & value) = 0;
-		virtual T input(Node self, IdString name, IdString kind) = 0;
-		virtual T state(Node self, IdString name, IdString kind) = 0;
+		virtual T input(Node self, TwineRef name, TwineRef kind) = 0;
+		virtual T state(Node self, TwineRef name, TwineRef kind) = 0;
 		virtual T memory_read(Node self, Node mem, Node addr) = 0;
 		virtual T memory_write(Node self, Node mem, Node addr, Node data) = 0;
 	};
@@ -442,8 +444,8 @@ namespace Functional {
 		T arithmetic_shift_right(Node self, Node, Node) override { return default_handler(self); }
 		T mux(Node self, Node, Node, Node) override { return default_handler(self); }
 		T constant(Node self, RTLIL::Const const &) override { return default_handler(self); }
-		T input(Node self, IdString, IdString) override { return default_handler(self); }
-		T state(Node self, IdString, IdString) override { return default_handler(self); }
+		T input(Node self, TwineRef, TwineRef) override { return default_handler(self); }
+		T state(Node self, TwineRef, TwineRef) override { return default_handler(self); }
 		T memory_read(Node self, Node, Node) override { return default_handler(self); }
 		T memory_write(Node self, Node, Node, Node) override { return default_handler(self); }
 	};
@@ -458,7 +460,7 @@ namespace Functional {
 			IR::Graph::Ref ref = _ir._graph.add(std::move(fn), {std::move(sort)});
 			for (auto arg : args)
 				ref.append_arg(IR::Graph::ConstRef(arg));
-			return Node(ref);
+			return Node(ref, _ir.design);
 		}
 		void check_basic_binary(Node const &a, Node const &b) { log_assert(a.sort().is_signal() && a.sort() == b.sort()); }
 		void check_shift(Node const &a, Node const &b) { log_assert(a.sort().is_signal() && b.sort().is_signal() && b.width() == ceil_log2(a.width())); }
@@ -510,7 +512,7 @@ namespace Functional {
 				return a;
 			return add(Fn::reduce_or, Sort(1), {a});
 		}
-		Node reduce_xor(Node a) {
+		Node reduce_xor(Node a) { 
 			check_unary(a);
 			if(a.width() == 1)
 				return a;
@@ -550,19 +552,19 @@ namespace Functional {
 			log_assert(node.sort() == value.sort());
 			_ir.mutate(node).append_arg(value._ref);
 		}
-		IRInput &add_input(IdString name, IdString kind, Sort sort) {
+		IRInput &add_input(TwineRef name, TwineRef kind, Sort sort) {
 			auto [it, inserted] = _ir._inputs.emplace({name, kind}, IRInput(_ir, name, kind, std::move(sort)));
-			if (!inserted) log_error("input `%s` was re-defined", name);
+			if (!inserted) log_error("input `%s` was re-defined", _ir.design->twines.str(name).c_str());
 			return it->second;
 		}
-		IROutput &add_output(IdString name, IdString kind, Sort sort) {
+		IROutput &add_output(TwineRef name, TwineRef kind, Sort sort) {
 			auto [it, inserted] = _ir._outputs.emplace({name, kind}, IROutput(_ir, name, kind, std::move(sort)));
-			if (!inserted) log_error("output `%s` was re-defined", name);
+			if (!inserted) log_error("output `%s` was re-defined", _ir.design->twines.str(name).c_str());
 			return it->second;
 		}
-		IRState &add_state(IdString name, IdString kind, Sort sort) {
+		IRState &add_state(TwineRef name, TwineRef kind, Sort sort) {
 			auto [it, inserted] = _ir._states.emplace({name, kind}, IRState(_ir, name, kind, std::move(sort)));
-			if (!inserted) log_error("state `%s` was re-defined", name);
+			if (!inserted) log_error("state `%s` was re-defined", _ir.design->twines.str(name).c_str());
 			return it->second;
 		}
 		Node value(IRInput const& input) {
@@ -571,7 +573,7 @@ namespace Functional {
 		Node value(IRState const& state) {
 			return add(IR::NodeData(Fn::state, std::pair(state.name, state.kind)), state.sort, {});
 		}
-		void suggest_name(Node node, IdString name) {
+		void suggest_name(Node node, TwineRef name) {
 			_ir.mutate(node).sparse_attr() = name;
 		}
 	};
@@ -579,6 +581,7 @@ namespace Functional {
 	template<class Id> class Scope {
 	protected:
 		char substitution_character = '_';
+		Design *design = nullptr;
 		virtual bool is_character_legal(char, int) = 0;
 	private:
 		pool<std::string> _used_names;
@@ -587,8 +590,8 @@ namespace Functional {
 		void reserve(std::string name) {
 			_used_names.insert(std::move(name));
 		}
-		std::string unique_name(IdString suggestion) {
-			std::string str = suggestion.unescape();
+		std::string unique_name(TwineRef suggestion) {
+			std::string str = design->twines.unescaped_str(suggestion);
 			for(size_t i = 0; i < str.size(); i++)
 				if(!is_character_legal(str[i], i))
 					str[i] = substitution_character;
@@ -604,7 +607,7 @@ namespace Functional {
 				}
 			}
 		}
-		std::string operator()(Id id, IdString suggestion) {
+		std::string operator()(Id id, TwineRef suggestion) {
 			auto it = _by_id.find(id);
 			if(it != _by_id.end())
 				return it->second;

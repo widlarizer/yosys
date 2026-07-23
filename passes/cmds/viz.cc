@@ -309,12 +309,12 @@ struct Graph {
 		{
 			GraphNode *g = nullptr;
 
-			if (!grp.second.selected_module(module->name))
+			if (!grp.second.selected_module(module->meta_->name))
 				continue;
 
 			for (auto wire : module->wires()) {
 				if (!wire->name.isPublic()) continue;
-				if (!grp.second.selected_member(module->name, wire->name)) continue;
+				if (!grp.second.selected_member(module->meta_->name, wire->name.ref())) continue;
 				for (auto bit : sigmap(wire)) {
 					auto it = wire_nodes.find(bit);
 					if (it == wire_nodes.end())
@@ -706,10 +706,12 @@ struct VizWorker
 		IdString vg_id("\\vg");
 		for (auto c : module->cells())
 			c->attributes.erase(vg_id);
+		TwineSearch search(&module->design->twines);
 		for (auto g : graph.nodes) {
 			for (auto name : g->names()) {
-				auto w = module->wire(name);
-				auto c = module->cell(name);
+				TwineRef ref = search.find(name.str());
+				auto w = module->wire(ref);
+				auto c = module->cell(ref);
 				if (w) w->attributes[vg_id] = g->index;
 				if (c) c->attributes[vg_id] = g->index;
 			}
@@ -718,7 +720,7 @@ struct VizWorker
 
 	void write_dot(FILE *f)
 	{
-		fprintf(f, "digraph \"%s\" {\n", module->name.unescape().c_str());
+		fprintf(f, "digraph \"%s\" {\n", module->design->twines.unescaped_str(module->meta_->name).c_str());
 		fprintf(f, "  rankdir = LR;\n");
 
 		dict<GraphNode*, std::vector<std::vector<std::string>>> extra_lines;
@@ -782,7 +784,7 @@ struct VizWorker
 				g->names().sort();
 				std::string label; // = stringf("vg=%d\\n", g->index);
 				for (auto n : g->names())
-					label = label + (label.empty() ? "" : "\\n") + n.unescape();
+					label = label + (label.empty() ? "" : "\\n") + log_id(n);
 				fprintf(f, "\tn%d [shape=rectangle,label=\"%s\"];\n", g->index, label.c_str());
 			} else {
 				std::string label = stringf("vg=%d | %d cells", g->index, GetSize(g->names()));

@@ -537,8 +537,8 @@ DriverMap::BitMode DriverMap::bit_mode(DriveBit const &bit)
 		}
 		case DriveType::PORT: {
 			auto const &port = bit.port();
-			bool driver = celltypes.cell_output(port.cell->type, port.port);
-			bool driven = celltypes.cell_input(port.cell->type, port.port);
+			bool driver = celltypes.cell_output(port.cell->type.ref(), port.port);
+			bool driven = celltypes.cell_input(port.cell->type.ref(), port.port);
 			if (driver && !driven)
 				return BitMode::DRIVER;
 			else if (driven && !driver)
@@ -746,7 +746,7 @@ void DriverMap::add(SigSpec const &a, SigSpec const &b)
 	}
 }
 
-void DriverMap::add_port(Cell *cell, IdString const &port, SigSpec const &b)
+void DriverMap::add_port(Cell *cell, TwineRef port, SigSpec const &b)
 {
 	int offset = 0;
 	for (auto const &chunk : b.chunks()) {
@@ -866,7 +866,7 @@ DriveSpec DriverMap::operator()(DriveSpec spec)
 
 std::string log_signal(DriveChunkWire const &chunk)
 {
-	std::string id = chunk.wire->name.unescape();
+	std::string id = chunk.wire->module->design->twines.unescaped_str(chunk.wire->name.ref());
 	if (chunk.is_whole())
 		return id;
 	if (chunk.width == 1)
@@ -877,8 +877,8 @@ std::string log_signal(DriveChunkWire const &chunk)
 
 std::string log_signal(DriveChunkPort const &chunk)
 {
-	std::string cell_id = chunk.cell->name.unescape();
-	std::string port_id = chunk.port.unescape();
+	std::string cell_id = chunk.cell->module->design->twines.str(chunk.cell->meta_->name);
+	std::string port_id = chunk.cell->module->design->twines.str(chunk.port);
 	if (chunk.is_whole())
 		return stringf("%s <%s>", cell_id, port_id);
 	if (chunk.width == 1)

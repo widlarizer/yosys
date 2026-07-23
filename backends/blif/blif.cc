@@ -62,12 +62,13 @@ struct BlifDumper
 	RTLIL::Design *design;
 	BlifDumperConfig *config;
 	NewCellTypes ct;
+	TwineSearch search;
 
 	SigMap sigmap;
 	dict<SigBit, int> init_bits;
 
 	BlifDumper(std::ostream &f, RTLIL::Module *module, RTLIL::Design *design, BlifDumperConfig *config) :
-			f(f), module(module), design(design), config(config), ct(design), sigmap(module)
+			f(f), module(module), design(design), config(config), ct(design), search(&design->twines), sigmap(module)
 	{
 		for (Wire *wire : module->wires())
 			if (wire->attributes.count(ID::init)) {
@@ -91,7 +92,7 @@ struct BlifDumper
 
 	const std::string str(RTLIL::IdString id)
 	{
-		std::string str = id.unescape();
+		std::string str = RTLIL::unescape_id(id);
 		for (size_t i = 0; i < str.size(); i++)
 			if (str[i] == '#' || str[i] == '=' || str[i] == '<' || str[i] == '>')
 				str[i] = '?';
@@ -108,7 +109,7 @@ struct BlifDumper
 			return config->undef_type == "-" || config->undef_type == "+" ? config->undef_out.c_str() : "$undef";
 		}
 
-		std::string str = sig.wire->name.unescape();
+		std::string str = sig.wire->name.unescaped();
 		for (size_t i = 0; i < str.size(); i++)
 			if (str[i] == '#' || str[i] == '=' || str[i] == '<' || str[i] == '>')
 				str[i] = '?';
@@ -140,9 +141,10 @@ struct BlifDumper
 	{
 		if (!config->gates_mode)
 			return "subckt";
-		if (design->module(RTLIL::escape_id(cell_type)) == nullptr)
+		TwineRef cell_type_ref = search.find(RTLIL::escape_id(cell_type));
+		if (design->module(cell_type_ref) == nullptr)
 			return "gate";
-		if (design->module(RTLIL::escape_id(cell_type))->get_blackbox_attribute())
+		if (design->module(cell_type_ref)->get_blackbox_attribute())
 			return "gate";
 		return "subckt";
 	}
@@ -150,7 +152,7 @@ struct BlifDumper
 	void dump_params(const char *command, dict<IdString, Const> &params)
 	{
 		for (auto &param : params) {
-			f << stringf("%s %s ", command, param.first.unescape());
+			f << stringf("%s %s ", command, RTLIL::unescape_id(param.first).c_str());
 			if (param.second.flags & RTLIL::CONST_FLAG_STRING) {
 				std::string str = param.second.decode_string();
 				f << stringf("\"");
@@ -170,7 +172,7 @@ struct BlifDumper
 	void dump()
 	{
 		f << stringf("\n");
-		f << stringf(".model %s\n", str(module->name));
+		f << stringf(".model %s\n", design->twines.unescaped_str(module->meta_->name).c_str());
 
 		std::map<int, RTLIL::Wire*> inputs, outputs;
 
@@ -232,148 +234,150 @@ struct BlifDumper
 
 		for (auto cell : module->cells())
 		{
-			if (cell->type == ID($scopeinfo))
+			if (cell->type == TW($scopeinfo))
 				continue;
 
 			if (config->unbuf_types.count(cell->type)) {
 				auto portnames = config->unbuf_types.at(cell->type);
+				TwineRef port_in = search.find(portnames.first.str());
+				TwineRef port_out = search.find(portnames.second.str());
 				f << stringf(".names %s %s\n1 1\n",
-						str(cell->getPort(portnames.first)).c_str(), str(cell->getPort(portnames.second)).c_str());
+						str(cell->getPort(port_in)).c_str(), str(cell->getPort(port_out)).c_str());
 				continue;
 			}
 
-			if (!config->icells_mode && cell->type == ID($_NOT_)) {
+			if (!config->icells_mode && cell->type == TW($_NOT_)) {
 				f << stringf(".names %s %s\n0 1\n",
-						str(cell->getPort(ID::A)).c_str(), str(cell->getPort(ID::Y)).c_str());
+						str(cell->getPort(TW::A)).c_str(), str(cell->getPort(TW::Y)).c_str());
 				goto internal_cell;
 			}
 
-			if (!config->icells_mode && cell->type == ID($_AND_)) {
+			if (!config->icells_mode && cell->type == TW($_AND_)) {
 				f << stringf(".names %s %s %s\n11 1\n",
-						str(cell->getPort(ID::A)).c_str(), str(cell->getPort(ID::B)).c_str(), str(cell->getPort(ID::Y)).c_str());
+						str(cell->getPort(TW::A)).c_str(), str(cell->getPort(TW::B)).c_str(), str(cell->getPort(TW::Y)).c_str());
 				goto internal_cell;
 			}
 
-			if (!config->icells_mode && cell->type == ID($_OR_)) {
+			if (!config->icells_mode && cell->type == TW($_OR_)) {
 				f << stringf(".names %s %s %s\n1- 1\n-1 1\n",
-						str(cell->getPort(ID::A)).c_str(), str(cell->getPort(ID::B)).c_str(), str(cell->getPort(ID::Y)).c_str());
+						str(cell->getPort(TW::A)).c_str(), str(cell->getPort(TW::B)).c_str(), str(cell->getPort(TW::Y)).c_str());
 				goto internal_cell;
 			}
 
-			if (!config->icells_mode && cell->type == ID($_XOR_)) {
+			if (!config->icells_mode && cell->type == TW($_XOR_)) {
 				f << stringf(".names %s %s %s\n10 1\n01 1\n",
-						str(cell->getPort(ID::A)).c_str(), str(cell->getPort(ID::B)).c_str(), str(cell->getPort(ID::Y)).c_str());
+						str(cell->getPort(TW::A)).c_str(), str(cell->getPort(TW::B)).c_str(), str(cell->getPort(TW::Y)).c_str());
 				goto internal_cell;
 			}
 
-			if (!config->icells_mode && cell->type == ID($_NAND_)) {
+			if (!config->icells_mode && cell->type == TW($_NAND_)) {
 				f << stringf(".names %s %s %s\n0- 1\n-0 1\n",
-						str(cell->getPort(ID::A)).c_str(), str(cell->getPort(ID::B)).c_str(), str(cell->getPort(ID::Y)).c_str());
+						str(cell->getPort(TW::A)).c_str(), str(cell->getPort(TW::B)).c_str(), str(cell->getPort(TW::Y)).c_str());
 				goto internal_cell;
 			}
 
-			if (!config->icells_mode && cell->type == ID($_NOR_)) {
+			if (!config->icells_mode && cell->type == TW($_NOR_)) {
 				f << stringf(".names %s %s %s\n00 1\n",
-						str(cell->getPort(ID::A)).c_str(), str(cell->getPort(ID::B)).c_str(), str(cell->getPort(ID::Y)).c_str());
+						str(cell->getPort(TW::A)).c_str(), str(cell->getPort(TW::B)).c_str(), str(cell->getPort(TW::Y)).c_str());
 				goto internal_cell;
 			}
 
-			if (!config->icells_mode && cell->type == ID($_XNOR_)) {
+			if (!config->icells_mode && cell->type == TW($_XNOR_)) {
 				f << stringf(".names %s %s %s\n11 1\n00 1\n",
-						str(cell->getPort(ID::A)).c_str(), str(cell->getPort(ID::B)).c_str(), str(cell->getPort(ID::Y)).c_str());
+						str(cell->getPort(TW::A)).c_str(), str(cell->getPort(TW::B)).c_str(), str(cell->getPort(TW::Y)).c_str());
 				goto internal_cell;
 			}
 
-			if (!config->icells_mode && cell->type == ID($_ANDNOT_)) {
+			if (!config->icells_mode && cell->type == TW($_ANDNOT_)) {
 				f << stringf(".names %s %s %s\n10 1\n",
-						str(cell->getPort(ID::A)).c_str(), str(cell->getPort(ID::B)).c_str(), str(cell->getPort(ID::Y)).c_str());
+						str(cell->getPort(TW::A)).c_str(), str(cell->getPort(TW::B)).c_str(), str(cell->getPort(TW::Y)).c_str());
 				goto internal_cell;
 			}
 
-			if (!config->icells_mode && cell->type == ID($_ORNOT_)) {
+			if (!config->icells_mode && cell->type == TW($_ORNOT_)) {
 				f << stringf(".names %s %s %s\n1- 1\n-0 1\n",
-						str(cell->getPort(ID::A)).c_str(), str(cell->getPort(ID::B)).c_str(), str(cell->getPort(ID::Y)).c_str());
+						str(cell->getPort(TW::A)).c_str(), str(cell->getPort(TW::B)).c_str(), str(cell->getPort(TW::Y)).c_str());
 				goto internal_cell;
 			}
 
-			if (!config->icells_mode && cell->type == ID($_AOI3_)) {
+			if (!config->icells_mode && cell->type == TW($_AOI3_)) {
 				f << stringf(".names %s %s %s %s\n-00 1\n0-0 1\n",
-						str(cell->getPort(ID::A)).c_str(), str(cell->getPort(ID::B)).c_str(), str(cell->getPort(ID::C)).c_str(), str(cell->getPort(ID::Y)).c_str());
+						str(cell->getPort(TW::A)).c_str(), str(cell->getPort(TW::B)).c_str(), str(cell->getPort(TW::C)).c_str(), str(cell->getPort(TW::Y)).c_str());
 				goto internal_cell;
 			}
 
-			if (!config->icells_mode && cell->type == ID($_OAI3_)) {
+			if (!config->icells_mode && cell->type == TW($_OAI3_)) {
 				f << stringf(".names %s %s %s %s\n00- 1\n--0 1\n",
-						str(cell->getPort(ID::A)).c_str(), str(cell->getPort(ID::B)).c_str(), str(cell->getPort(ID::C)).c_str(), str(cell->getPort(ID::Y)).c_str());
+						str(cell->getPort(TW::A)).c_str(), str(cell->getPort(TW::B)).c_str(), str(cell->getPort(TW::C)).c_str(), str(cell->getPort(TW::Y)).c_str());
 				goto internal_cell;
 			}
 
-			if (!config->icells_mode && cell->type == ID($_AOI4_)) {
+			if (!config->icells_mode && cell->type == TW($_AOI4_)) {
 				f << stringf(".names %s %s %s %s %s\n-0-0 1\n-00- 1\n0--0 1\n0-0- 1\n",
-						str(cell->getPort(ID::A)).c_str(), str(cell->getPort(ID::B)).c_str(),
-						str(cell->getPort(ID::C)).c_str(), str(cell->getPort(ID::D)).c_str(), str(cell->getPort(ID::Y)).c_str());
+						str(cell->getPort(TW::A)).c_str(), str(cell->getPort(TW::B)).c_str(),
+						str(cell->getPort(TW::C)).c_str(), str(cell->getPort(TW::D)).c_str(), str(cell->getPort(TW::Y)).c_str());
 				goto internal_cell;
 			}
 
-			if (!config->icells_mode && cell->type == ID($_OAI4_)) {
+			if (!config->icells_mode && cell->type == TW($_OAI4_)) {
 				f << stringf(".names %s %s %s %s %s\n00-- 1\n--00 1\n",
-						str(cell->getPort(ID::A)).c_str(), str(cell->getPort(ID::B)).c_str(),
-						str(cell->getPort(ID::C)).c_str(), str(cell->getPort(ID::D)).c_str(), str(cell->getPort(ID::Y)).c_str());
+						str(cell->getPort(TW::A)).c_str(), str(cell->getPort(TW::B)).c_str(),
+						str(cell->getPort(TW::C)).c_str(), str(cell->getPort(TW::D)).c_str(), str(cell->getPort(TW::Y)).c_str());
 				goto internal_cell;
 			}
 
-			if (!config->icells_mode && cell->type == ID($_MUX_)) {
+			if (!config->icells_mode && cell->type == TW($_MUX_)) {
 				f << stringf(".names %s %s %s %s\n1-0 1\n-11 1\n",
-						str(cell->getPort(ID::A)).c_str(), str(cell->getPort(ID::B)).c_str(),
-						str(cell->getPort(ID::S)).c_str(), str(cell->getPort(ID::Y)).c_str());
+						str(cell->getPort(TW::A)).c_str(), str(cell->getPort(TW::B)).c_str(),
+						str(cell->getPort(TW::S)).c_str(), str(cell->getPort(TW::Y)).c_str());
 				goto internal_cell;
 			}
 
-			if (!config->icells_mode && cell->type == ID($_NMUX_)) {
+			if (!config->icells_mode && cell->type == TW($_NMUX_)) {
 				f << stringf(".names %s %s %s %s\n0-0 1\n-01 1\n",
-						str(cell->getPort(ID::A)).c_str(), str(cell->getPort(ID::B)).c_str(),
-						str(cell->getPort(ID::S)).c_str(), str(cell->getPort(ID::Y)).c_str());
+						str(cell->getPort(TW::A)).c_str(), str(cell->getPort(TW::B)).c_str(),
+						str(cell->getPort(TW::S)).c_str(), str(cell->getPort(TW::Y)).c_str());
 				goto internal_cell;
 			}
 
-			if (!config->icells_mode && cell->type == ID($_FF_)) {
-				f << stringf(".latch %s %s%s\n", str(cell->getPort(ID::D)), str(cell->getPort(ID::Q)),
-						str_init(cell->getPort(ID::Q)).c_str());
+			if (!config->icells_mode && cell->type == TW($_FF_)) {
+				f << stringf(".latch %s %s%s\n", str(cell->getPort(TW::D)), str(cell->getPort(TW::Q)),
+						str_init(cell->getPort(TW::Q)).c_str());
 				goto internal_cell;
 			}
 
-			if (!config->icells_mode && cell->type == ID($_DFF_N_)) {
-				f << stringf(".latch %s %s fe %s%s\n", str(cell->getPort(ID::D)), str(cell->getPort(ID::Q)),
-						str(cell->getPort(ID::C)).c_str(), str_init(cell->getPort(ID::Q)).c_str());
+			if (!config->icells_mode && cell->type == TW($_DFF_N_)) {
+				f << stringf(".latch %s %s fe %s%s\n", str(cell->getPort(TW::D)), str(cell->getPort(TW::Q)),
+						str(cell->getPort(TW::C)).c_str(), str_init(cell->getPort(TW::Q)).c_str());
 				goto internal_cell;
 			}
 
-			if (!config->icells_mode && cell->type == ID($_DFF_P_)) {
-				f << stringf(".latch %s %s re %s%s\n", str(cell->getPort(ID::D)), str(cell->getPort(ID::Q)),
-						str(cell->getPort(ID::C)).c_str(), str_init(cell->getPort(ID::Q)).c_str());
+			if (!config->icells_mode && cell->type == TW($_DFF_P_)) {
+				f << stringf(".latch %s %s re %s%s\n", str(cell->getPort(TW::D)), str(cell->getPort(TW::Q)),
+						str(cell->getPort(TW::C)).c_str(), str_init(cell->getPort(TW::Q)).c_str());
 				goto internal_cell;
 			}
 
-			if (!config->icells_mode && cell->type == ID($_DLATCH_N_)) {
-				f << stringf(".latch %s %s al %s%s\n", str(cell->getPort(ID::D)), str(cell->getPort(ID::Q)),
-						str(cell->getPort(ID::E)).c_str(), str_init(cell->getPort(ID::Q)).c_str());
+			if (!config->icells_mode && cell->type == TW($_DLATCH_N_)) {
+				f << stringf(".latch %s %s al %s%s\n", str(cell->getPort(TW::D)), str(cell->getPort(TW::Q)),
+						str(cell->getPort(TW::E)).c_str(), str_init(cell->getPort(TW::Q)).c_str());
 				goto internal_cell;
 			}
 
-			if (!config->icells_mode && cell->type == ID($_DLATCH_P_)) {
-				f << stringf(".latch %s %s ah %s%s\n", str(cell->getPort(ID::D)), str(cell->getPort(ID::Q)),
-						str(cell->getPort(ID::E)).c_str(), str_init(cell->getPort(ID::Q)).c_str());
+			if (!config->icells_mode && cell->type == TW($_DLATCH_P_)) {
+				f << stringf(".latch %s %s ah %s%s\n", str(cell->getPort(TW::D)), str(cell->getPort(TW::Q)),
+						str(cell->getPort(TW::E)).c_str(), str_init(cell->getPort(TW::Q)).c_str());
 				goto internal_cell;
 			}
 
-			if (!config->icells_mode && cell->type == ID($lut)) {
+			if (!config->icells_mode && cell->type == TW($lut)) {
 				f << stringf(".names");
-				auto &inputs = cell->getPort(ID::A);
+				auto &inputs = cell->getPort(TW::A);
 				auto width = cell->parameters.at(ID::WIDTH).as_int();
 				log_assert(inputs.size() == width);
 				for (int i = width-1; i >= 0; i--)
 					f << stringf(" %s", str(inputs.extract(i, 1)));
-				auto &output = cell->getPort(ID::Y);
+				auto &output = cell->getPort(TW::Y);
 				log_assert(output.size() == 1);
 				f << stringf(" %s", str(output));
 				f << stringf("\n");
@@ -388,9 +392,9 @@ struct BlifDumper
 				goto internal_cell;
 			}
 
-			if (!config->icells_mode && cell->type == ID($sop)) {
+			if (!config->icells_mode && cell->type == TW($sop)) {
 				f << stringf(".names");
-				auto &inputs = cell->getPort(ID::A);
+				auto &inputs = cell->getPort(TW::A);
 				auto width = cell->parameters.at(ID::WIDTH).as_int();
 				auto depth = cell->parameters.at(ID::DEPTH).as_int();
 				vector<State> table = cell->parameters.at(ID::TABLE).to_bits();
@@ -399,7 +403,7 @@ struct BlifDumper
 				log_assert(inputs.size() == width);
 				for (int i = 0; i < width; i++)
 					f << stringf(" %s", str(inputs.extract(i, 1)));
-				auto &output = cell->getPort(ID::Y);
+				auto &output = cell->getPort(TW::Y);
 				log_assert(output.size() == 1);
 				f << stringf(" %s", str(output));
 				f << stringf("\n");
@@ -420,20 +424,20 @@ struct BlifDumper
 			for (auto &conn : cell->connections())
 			{
 				if (conn.second.size() == 1) {
-					f << stringf(" %s=%s", str(conn.first), str(conn.second[0]));
+					f << stringf(" %s=%s", design->twines.unescaped_str(conn.first).c_str(), str(conn.second[0]));
 					continue;
 				}
 
-				Module *m = design->module(cell->type);
+				Module *m = design->module(cell->type_impl);
 				Wire *w = m ? m->wire(conn.first) : nullptr;
 
 				if (w == nullptr) {
 					for (int i = 0; i < GetSize(conn.second); i++)
-						f << stringf(" %s[%d]=%s", str(conn.first), i, str(conn.second[i]));
+						f << stringf(" %s[%d]=%s", design->twines.unescaped_str(conn.first).c_str(), i, str(conn.second[i]));
 				} else {
 					for (int i = 0; i < std::min(GetSize(conn.second), GetSize(w)); i++) {
 						SigBit sig(w, i);
-						f << stringf(" %s[%d]=%s", str(conn.first), sig.wire->upto ?
+						f << stringf(" %s[%d]=%s", design->twines.unescaped_str(conn.first).c_str(), sig.wire->upto ?
 								sig.wire->start_offset+sig.wire->width-sig.offset-1 :
 								sig.wire->start_offset+sig.offset, str(conn.second[i]).c_str());
 					}
@@ -665,7 +669,7 @@ struct BlifBackend : public Backend {
 		if (top_module_name.empty())
 			for (auto module : design->modules())
 				if (module->get_bool_attribute(ID::top))
-					top_module_name = module->name.str();
+					top_module_name = design->twines.str(module->meta_->name);
 
 		*f << stringf("# Generated by %s\n", yosys_maybe_version());
 
@@ -678,11 +682,11 @@ struct BlifBackend : public Backend {
 				continue;
 
 			if (module->processes.size() != 0)
-				log_error("Found unmapped processes in module %s: unmapped processes are not supported in BLIF backend!\n", module->name.unescape());
+				log_error("Found unmapped processes in module %s: unmapped processes are not supported in BLIF backend!\n", design->twines.str(module->meta_->name).c_str());
 			if (module->memories.size() != 0)
-				log_error("Found unmapped memories in module %s: unmapped memories are not supported in BLIF backend!\n", module->name.unescape());
+				log_error("Found unmapped memories in module %s: unmapped memories are not supported in BLIF backend!\n", design->twines.str(module->meta_->name).c_str());
 
-			if (module->name == RTLIL::escape_id(top_module_name)) {
+			if (design->twines.str(module->meta_->name) == top_module_name) {
 				BlifDumper::dump(*f, module, design, config);
 				top_module_name.clear();
 				continue;

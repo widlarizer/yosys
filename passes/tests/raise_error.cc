@@ -1,3 +1,4 @@
+#include "kernel/rtlil.h"
 #include "kernel/yosys.h"
 
 USING_YOSYS_NAMESPACE
@@ -46,7 +47,7 @@ struct RaiseErrorPass : public Pass {
 
 		extra_args(args, argidx, design, true);
 
-		RTLIL::NamedObject *err_obj = nullptr;
+		RTLIL::AttrObject *err_obj = nullptr;
 
 		for (auto mod : design->all_selected_modules()) {
 			if (mod->has_attribute(ID::raise_error)) {
@@ -71,7 +72,7 @@ struct RaiseErrorPass : public Pass {
 		int err_no = 1;
 		string err_msg = "";
 		if (err_obj != nullptr) {
-			log("Raising error from '%s'.\n", err_obj);
+			log("Raising error from '%s'.\n", design->obj_name(err_obj).c_str());
 			err_no = err_obj->attributes[ID::raise_error].as_int();
 			if (err_no > 256) {
 				err_msg = err_obj->get_string_attribute(ID::raise_error);

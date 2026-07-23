@@ -245,7 +245,7 @@ struct SatHelper
 			if (design->selected(module, cell)) {
 				if (satgen.importCell(cell, timestep)) {
 					for (auto &p : cell->connections())
-						if (ct.cell_output(cell->type, p.first))
+						if (ct.cell_output(cell->type_impl, p.first))
 							show_drivers.insert(sigmap(p.second), cell);
 					import_cell_counter++;
 				} else report_missing_model(ignore_unknown_cells, cell);
@@ -267,8 +267,8 @@ struct SatHelper
 			// Check for $anyinit cells that are forced to be defined
 			if (set_init_undef && satgen.def_formal)
 				for (auto cell : module->cells())
-					if (cell->type == ID($anyinit))
-						forced_def.append(sigmap(cell->getPort(ID::Q)));
+					if (cell->type == TW($anyinit))
+						forced_def.append(sigmap(cell->getPort(TW::Q)));
 
 			for (auto wire : module->wires())
 			{
@@ -533,9 +533,9 @@ struct SatHelper
 				} else {
 					for (auto &d : drivers)
 					for (auto &p : d->connections()) {
-						if (d->type == ID($dff) && p.first == ID::CLK)
+						if (d->type == TW($dff) && p.first == TW::CLK)
 							continue;
-						if (d->type.begins_with("$_DFF_") && p.first == ID::C)
+						if (d->type.begins_with("$_DFF_") && p.first == TW::C)
 							continue;
 						queued_signals.add(handled_signals.remove(sigmap(p.second)));
 					}
@@ -696,7 +696,7 @@ struct SatHelper
 		std::string module_fname = "unknown";
 		auto apos = module->attributes.find(ID::src);
 		if(apos != module->attributes.end())
-			module_fname = module->attributes[ID::src].decode_string();
+			module_fname = module->get_src_attribute();
 
 		fprintf(f, "$date\n");
 		fprintf(f, "    %s\n", stime);
@@ -706,13 +706,13 @@ struct SatHelper
 		fprintf(f, "$end\n");
 		fprintf(f, "$comment\n");
 		fprintf(f, "    Generated from SAT problem in module %s (declared at %s)\n",
-			module->name.c_str(), module_fname.c_str());
+			module->design->twines.str(module->meta_->name).c_str(), module_fname.c_str());
 		fprintf(f, "$end\n");
 
 		// VCD has some limits on internal (non-display) identifier names, so make legal ones
 		std::map<std::string, std::string> vcdnames;
 
-		fprintf(f, "$scope module %s $end\n", module->name.c_str());
+		fprintf(f, "$scope module %s $end\n", module->design->twines.str(module->meta_->name).c_str());
 		for (auto &info : modelInfo)
 		{
 			if (vcdnames.find(info.description) != vcdnames.end())
@@ -1408,8 +1408,8 @@ struct SatPass : public Pass {
 		if (show_regs) {
 			pool<Wire*> reg_wires;
 			for (auto cell : module->cells()) {
-				if (cell->type == ID($dff) || cell->type.begins_with("$_DFF_"))
-					for (auto bit : cell->getPort(ID::Q))
+				if (cell->type == TW($dff) || cell->type.begins_with("$_DFF_"))
+					for (auto bit : cell->getPort(TW::Q))
 						if (bit.wire)
 							reg_wires.insert(bit.wire);
 			}

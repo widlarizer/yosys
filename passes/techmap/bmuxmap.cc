@@ -56,45 +56,45 @@ struct BmuxmapPass : public Pass {
 		for (auto module : design->selected_modules())
 		for (auto cell : module->selected_cells())
 		{
-			if (cell->type != ID($bmux))
+			if (cell->type != TW($bmux))
 				continue;
 
-			SigSpec sel = cell->getPort(ID::S);
-			SigSpec data = cell->getPort(ID::A);
-			int width = GetSize(cell->getPort(ID::Y));
-			int s_width = GetSize(cell->getPort(ID::S));
+			SigSpec sel = cell->getPort(TW::S);
+			SigSpec data = cell->getPort(TW::A);
+			int width = GetSize(cell->getPort(TW::Y));
+			int s_width = GetSize(cell->getPort(TW::S));
 
 			if(pmux_mode)
 			{
 				int num_cases = 1 << s_width;
 				SigSpec new_a = SigSpec(State::Sx, width);
-				SigSpec new_s = module->addWire(NEW_ID, num_cases);
-				SigSpec new_data = module->addWire(NEW_ID, width);
+				SigSpec new_s = module->addWire(NEW_TWINE, num_cases);
+				SigSpec new_data = module->addWire(NEW_TWINE, width);
 				for (int val = 0; val < num_cases; val++)
 				{
-					module->addEq(NEW_ID, sel, SigSpec(val, GetSize(sel)), new_s[val]);
+					module->addEq(NEW_TWINE, sel, SigSpec(val, GetSize(sel)), new_s[val]);
 				}
-				RTLIL::Cell *pmux = module->addPmux(NEW_ID, new_a, data, new_s, new_data);
-				pmux->add_strpool_attribute(ID::src, cell->get_strpool_attribute(ID::src));
+				RTLIL::Cell *pmux = module->addPmux(NEW_TWINE, new_a, data, new_s, new_data);
+				module->design->merge_src(pmux, cell);
 				data = new_data;
 			}
 			else
 			{
 				for (int idx = 0; idx < GetSize(sel); idx++) {
-					SigSpec new_data = module->addWire(NEW_ID, GetSize(data)/2);
+					SigSpec new_data = module->addWire(NEW_TWINE, GetSize(data)/2);
 					for (int i = 0; i < GetSize(new_data); i += width) {
-						RTLIL::Cell *mux = module->addMux(NEW_ID,
+						RTLIL::Cell *mux = module->addMux(NEW_TWINE,
 							data.extract(i*2, width),
 							data.extract(i*2+width, width),
 							sel[idx],
 							new_data.extract(i, width));
-						mux->add_strpool_attribute(ID::src, cell->get_strpool_attribute(ID::src));
+						module->design->merge_src(mux, cell);
 					}
 					data = new_data;
 				}
 			}
 
-			module->connect(cell->getPort(ID::Y), data);
+			module->connect(cell->getPort(TW::Y), data);
 			module->remove(cell);
 		}
 	}

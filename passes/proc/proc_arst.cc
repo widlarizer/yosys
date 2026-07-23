@@ -18,6 +18,7 @@
  */
 
 #include "kernel/register.h"
+#include "kernel/rtlil.h"
 #include "kernel/sigtools.h"
 #include "kernel/log.h"
 #include <stdlib.h>
@@ -39,45 +40,45 @@ bool check_signal(RTLIL::Module *mod, RTLIL::SigSpec signal, RTLIL::SigSpec ref,
 
 	for (auto cell : mod->cells())
 	{
-		if (cell->type == ID($reduce_or) && cell->getPort(ID::Y) == signal)
-			return check_signal(mod, cell->getPort(ID::A), ref, polarity);
+		if (cell->type == TW($reduce_or) && cell->getPort(TW::Y) == signal)
+			return check_signal(mod, cell->getPort(TW::A), ref, polarity);
 
-		if (cell->type == ID($reduce_bool) && cell->getPort(ID::Y) == signal)
-			return check_signal(mod, cell->getPort(ID::A), ref, polarity);
+		if (cell->type == TW($reduce_bool) && cell->getPort(TW::Y) == signal)
+			return check_signal(mod, cell->getPort(TW::A), ref, polarity);
 
-		if (cell->type == ID($logic_not) && cell->getPort(ID::Y) == signal) {
+		if (cell->type == TW($logic_not) && cell->getPort(TW::Y) == signal) {
 			polarity = !polarity;
-			return check_signal(mod, cell->getPort(ID::A), ref, polarity);
+			return check_signal(mod, cell->getPort(TW::A), ref, polarity);
 		}
 
-		if (cell->type == ID($not) && cell->getPort(ID::Y) == signal) {
+		if (cell->type == TW($not) && cell->getPort(TW::Y) == signal) {
 			polarity = !polarity;
-			return check_signal(mod, cell->getPort(ID::A), ref, polarity);
+			return check_signal(mod, cell->getPort(TW::A), ref, polarity);
 		}
 
-		if (cell->type.in(ID($eq), ID($eqx)) && cell->getPort(ID::Y) == signal) {
-			if (cell->getPort(ID::A).is_fully_const()) {
-				if (!cell->getPort(ID::A).as_bool())
+		if (cell->type.in(TW($eq), TW($eqx)) && cell->getPort(TW::Y) == signal) {
+			if (cell->getPort(TW::A).is_fully_const()) {
+				if (!cell->getPort(TW::A).as_bool())
 					polarity = !polarity;
-				return check_signal(mod, cell->getPort(ID::B), ref, polarity);
+				return check_signal(mod, cell->getPort(TW::B), ref, polarity);
 			}
-			if (cell->getPort(ID::B).is_fully_const()) {
-				if (!cell->getPort(ID::B).as_bool())
+			if (cell->getPort(TW::B).is_fully_const()) {
+				if (!cell->getPort(TW::B).as_bool())
 					polarity = !polarity;
-				return check_signal(mod, cell->getPort(ID::A), ref, polarity);
+				return check_signal(mod, cell->getPort(TW::A), ref, polarity);
 			}
 		}
 
-		if (cell->type.in(ID($ne), ID($nex)) && cell->getPort(ID::Y) == signal) {
-			if (cell->getPort(ID::A).is_fully_const()) {
-				if (cell->getPort(ID::A).as_bool())
+		if (cell->type.in(TW($ne), TW($nex)) && cell->getPort(TW::Y) == signal) {
+			if (cell->getPort(TW::A).is_fully_const()) {
+				if (cell->getPort(TW::A).as_bool())
 					polarity = !polarity;
-				return check_signal(mod, cell->getPort(ID::B), ref, polarity);
+				return check_signal(mod, cell->getPort(TW::B), ref, polarity);
 			}
-			if (cell->getPort(ID::B).is_fully_const()) {
-				if (cell->getPort(ID::B).as_bool())
+			if (cell->getPort(TW::B).is_fully_const()) {
+				if (cell->getPort(TW::B).as_bool())
 					polarity = !polarity;
-				return check_signal(mod, cell->getPort(ID::A), ref, polarity);
+				return check_signal(mod, cell->getPort(TW::A), ref, polarity);
 			}
 		}
 	}
@@ -89,9 +90,9 @@ void apply_const(RTLIL::Module *mod, const RTLIL::SigSpec rspec, RTLIL::SigSpec 
 {
 	for (auto &action : cs->actions) {
 		if (unknown)
-			rspec.replace(action.first, RTLIL::SigSpec(RTLIL::State::Sm, action.second.size()), &rval);
+			rspec.replace(action.lhs, RTLIL::SigSpec(RTLIL::State::Sm, action.rhs.size()), &rval);
 		else
-			rspec.replace(action.first, action.second, &rval);
+			rspec.replace(action.lhs, action.rhs, &rval);
 	}
 
 	for (auto sw : cs->switches) {
@@ -204,18 +205,18 @@ void proc_arst(RTLIL::Module *mod, RTLIL::Process *proc, SigMap &assign_map)
 			bool polarity = sync->type == RTLIL::SyncType::STp;
 			if (check_signal(mod, root_sig, sync->signal, polarity)) {
 				if (edge_syncs.size() > 1) {
-					log("Found async reset %s in `%s.%s'.\n", log_signal(sync->signal), mod->name, proc->name);
+					log("Found async reset %s in `%s.%s'.\n", log_signal(sync->signal), log_id(mod), log_id(proc));
 					sync->type = sync->type == RTLIL::SyncType::STp ? RTLIL::SyncType::ST1 : RTLIL::SyncType::ST0;
 					arst_syncs.push_back(sync);
 					edge_syncs.erase(it);
 					for (auto &action : sync->actions) {
-						action.second = apply_reset(mod, proc, sync, assign_map, root_sig, polarity, action.second, action.first);
+						action.rhs = apply_reset(mod, proc, sync, assign_map, root_sig, polarity, action.rhs, action.lhs);
 					}
 					for (auto &memwr : sync->mem_write_actions) {
 						RTLIL::SigSpec en = apply_reset(mod, proc, sync, assign_map, root_sig, polarity, memwr.enable, memwr.enable);
 						if (!en.is_fully_zero()) {
 							log_error("Async reset %s causes memory write to %s.\n",
-									log_signal(sync->signal), memwr.memid.unescape());
+									log_signal(sync->signal), log_id(memwr.memid));
 						}
 						apply_reset(mod, proc, sync, assign_map, root_sig, polarity, memwr.address, memwr.address);
 						apply_reset(mod, proc, sync, assign_map, root_sig, polarity, memwr.data, memwr.data);
@@ -223,7 +224,7 @@ void proc_arst(RTLIL::Module *mod, RTLIL::Process *proc, SigMap &assign_map)
 					sync->mem_write_actions.clear();
 					eliminate_const(mod, &proc->root_case, root_sig, polarity);
 				} else {
-					log("Found VHDL-style edge-trigger %s in `%s.%s'.\n", log_signal(sync->signal), mod->name, proc->name);
+					log("Found VHDL-style edge-trigger %s in `%s.%s'.\n", log_signal(sync->signal), log_id(mod), log_id(proc));
 					eliminate_const(mod, &proc->root_case, root_sig, !polarity);
 				}
 				did_something = true;
@@ -288,18 +289,22 @@ struct ProcArstPass : public Pass {
 		extra_args(args, argidx, design);
 		pool<Wire*> delete_initattr_wires;
 
+		TwineSearch search(&design->twines);
+		TwineRef global_arst_ref = global_arst.empty() ? Twine::Null
+				: search.find(global_arst);
+
 		for (auto mod : design->all_selected_modules()) {
 			SigMap assign_map(mod);
 			for (auto proc : mod->selected_processes()) {
 				proc_arst(mod, proc, assign_map);
-				if (global_arst.empty() || mod->wire(global_arst) == nullptr)
+				if (global_arst_ref == Twine::Null || mod->wire(global_arst_ref) == nullptr)
 					continue;
-				std::vector<RTLIL::SigSig> arst_actions;
+				std::vector<RTLIL::SyncAction> arst_actions;
 				for (auto sync : proc->syncs)
 					if (sync->type == RTLIL::SyncType::STp || sync->type == RTLIL::SyncType::STn)
 						for (auto &act : sync->actions) {
 							RTLIL::SigSpec arst_sig, arst_val;
-							for (auto &chunk : act.first.chunks())
+							for (auto &chunk : act.lhs.chunks())
 								if (chunk.wire && chunk.wire->attributes.count(ID::init)) {
 									RTLIL::SigSpec value = chunk.wire->attributes.at(ID::init);
 									value.extend_u0(chunk.wire->width, false);
@@ -309,14 +314,14 @@ struct ProcArstPass : public Pass {
 								}
 							if (arst_sig.size()) {
 								log("Added global reset to process %s: %s <- %s\n",
-										proc->name.c_str(), log_signal(arst_sig), log_signal(arst_val));
-								arst_actions.push_back(RTLIL::SigSig(arst_sig, arst_val));
+										log_id(proc), log_signal(arst_sig), log_signal(arst_val));
+								arst_actions.push_back({arst_sig, arst_val, act.src});
 							}
 						}
 				if (!arst_actions.empty()) {
 					RTLIL::SyncRule *sync = new RTLIL::SyncRule;
 					sync->type = global_arst_neg ? RTLIL::SyncType::ST0 : RTLIL::SyncType::ST1;
-					sync->signal = mod->wire(global_arst);
+					sync->signal = mod->wire(global_arst_ref);
 					sync->actions = arst_actions;
 					proc->syncs.push_back(sync);
 				}

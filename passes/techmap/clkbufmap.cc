@@ -68,7 +68,7 @@ struct ClkbufmapPass : public Pass {
 		if (modules_processed.count(module))
 			return;
 		for (auto cell : module->cells()) {
-			Module *submodule = design->module(cell->type);
+			Module *submodule = design->module(cell->type_impl);
 			if (!submodule)
 				continue;
 			module_queue(design, submodule, modules_sorted, modules_processed);
@@ -114,17 +114,24 @@ struct ClkbufmapPass : public Pass {
 			log_error("Either the -buf option or -inpad option is required.\n");
 
 		// Cell type, port name, bit index.
-		pool<pair<IdString, pair<IdString, int>>> sink_ports;
-		pool<pair<IdString, pair<IdString, int>>> buf_ports;
-		dict<pair<IdString, pair<IdString, int>>, pair<IdString, int>> inv_ports_out;
-		dict<pair<IdString, pair<IdString, int>>, pair<IdString, int>> inv_ports_in;
+		pool<pair<TwineRef, pair<TwineRef, int>>> sink_ports;
+		pool<pair<TwineRef, pair<TwineRef, int>>> buf_ports;
+		dict<pair<TwineRef, pair<TwineRef, int>>, pair<TwineRef, int>> inv_ports_out;
+		dict<pair<TwineRef, pair<TwineRef, int>>, pair<TwineRef, int>> inv_ports_in;
 
 		// If true, use both ther -buf and -inpad cell for input ports that are clocks.
 		bool buffer_inputs = true;
 
-		Module *inpad_mod = design->module(RTLIL::escape_id(inpad_celltype));
+		TwineRef buf_celltype_ref = design->twines.add(std::string{RTLIL::escape_id(buf_celltype)});
+		TwineRef buf_portname_ref = design->twines.add(std::string{RTLIL::escape_id(buf_portname)});
+		TwineRef buf_portname2_ref = design->twines.add(std::string{RTLIL::escape_id(buf_portname2)});
+		TwineRef inpad_celltype_ref = design->twines.add(std::string{RTLIL::escape_id(inpad_celltype)});
+		TwineRef inpad_portname_ref = design->twines.add(std::string{RTLIL::escape_id(inpad_portname)});
+		TwineRef inpad_portname2_ref = design->twines.add(std::string{RTLIL::escape_id(inpad_portname2)});
+
+		Module *inpad_mod = design->module(inpad_celltype_ref);
 		if (inpad_mod) {
-			Wire *buf_wire = inpad_mod->wire(RTLIL::escape_id(buf_portname));
+			Wire *buf_wire = inpad_mod->wire(buf_portname_ref);
 			if (buf_wire && buf_wire->get_bool_attribute(ID::clkbuf_driver))
 				buffer_inputs = false;
 		}
@@ -142,16 +149,16 @@ struct ClkbufmapPass : public Pass {
 					auto wire = module->wire(port);
 					if (wire->get_bool_attribute(ID::clkbuf_driver))
 						for (int i = 0; i < GetSize(wire); i++)
-							buf_ports.insert(make_pair(module->name, make_pair(wire->name, i)));
+							buf_ports.insert(make_pair(module->name.ref(), make_pair(wire->name.ref(), i)));
 					if (wire->get_bool_attribute(ID::clkbuf_sink))
 						for (int i = 0; i < GetSize(wire); i++)
-							sink_ports.insert(make_pair(module->name, make_pair(wire->name, i)));
+							sink_ports.insert(make_pair(module->name.ref(), make_pair(wire->name.ref(), i)));
 					auto it = wire->attributes.find(ID::clkbuf_inv);
 					if (it != wire->attributes.end()) {
-						IdString in_name = RTLIL::escape_id(it->second.decode_string());
+						TwineRef in_name = design->twines.add(std::string{RTLIL::escape_id(it->second.decode_string())});
 						for (int i = 0; i < GetSize(wire); i++) {
-							inv_ports_out[make_pair(module->name, make_pair(wire->name, i))] = make_pair(in_name, i);
-							inv_ports_in[make_pair(module->name, make_pair(in_name, i))] = make_pair(wire->name, i);
+							inv_ports_out[make_pair(module->name.ref(), make_pair(wire->name.ref(), i))] = make_pair(in_name, i);
+							inv_ports_in[make_pair(module->name.ref(), make_pair(in_name, i))] = make_pair(wire->name.ref(), i);
 						}
 					}
 				}
@@ -168,14 +175,14 @@ struct ClkbufmapPass : public Pass {
 			for (auto cell : module->cells())
 			for (auto port : cell->connections())
 			for (int i = 0; i < port.second.size(); i++)
-				if (sink_ports.count(make_pair(cell->type, make_pair(port.first, i))))
+				if (sink_ports.count(make_pair(cell->type_impl, make_pair(port.first, i))))
 					sink_wire_bits.insert(sigmap(port.second[i]));
 
 			// Second, collect ones that already have a clock buffer.
 			for (auto cell : module->cells())
 			for (auto port : cell->connections())
 			for (int i = 0; i < port.second.size(); i++)
-				if (buf_ports.count(make_pair(cell->type, make_pair(port.first, i))))
+				if (buf_ports.count(make_pair(cell->type_impl, make_pair(port.first, i))))
 					buf_wire_bits.insert(sigmap(port.second[i]));
 
 			// Third, propagate tags through inverters.
@@ -185,7 +192,7 @@ struct ClkbufmapPass : public Pass {
 				for (auto cell : module->cells())
 				for (auto port : cell->connections())
 				for (int i = 0; i < port.second.size(); i++) {
-					auto it = inv_ports_out.find(make_pair(cell->type, make_pair(port.first, i)));
+					auto it = inv_ports_out.find(make_pair(cell->type_impl, make_pair(port.first, i)));
 					auto bit = sigmap(port.second[i]);
 					// If output of an inverter is connected to a sink, mark it as buffered,
 					// and request a buffer on the inverter's input instead.
@@ -197,7 +204,7 @@ struct ClkbufmapPass : public Pass {
 					}
 					// If input of an inverter is marked as already-buffered,
 					// mark its output already-buffered as well.
-					auto it2 = inv_ports_in.find(make_pair(cell->type, make_pair(port.first, i)));
+					auto it2 = inv_ports_in.find(make_pair(cell->type_impl, make_pair(port.first, i)));
 					if (it2 != inv_ports_in.end() && buf_wire_bits.count(bit)) {
 						auto other_bit = sigmap(cell->getPort(it2->second.first)[it2->second.second]);
 						if (!buf_wire_bits.count(other_bit)) {
@@ -233,7 +240,7 @@ struct ClkbufmapPass : public Pass {
 					// some buffer higher up in the hierarchy.
 					if (wire->port_output)
 						for (int i = 0; i < GetSize(wire); i++)
-							buf_ports.insert(make_pair(module->name, make_pair(wire->name, i)));
+							buf_ports.insert(make_pair(module->name.ref(), make_pair(wire->name.ref(), i)));
 					continue;
 				}
 
@@ -246,7 +253,7 @@ struct ClkbufmapPass : public Pass {
 					if (buf_wire_bits.count(mapped_wire_bit)) {
 						// Already buffered downstream.  If this is an output, mark it.
 						if (wire->port_output)
-							buf_ports.insert(make_pair(module->name, make_pair(wire->name, i)));
+							buf_ports.insert(make_pair(module->name.ref(), make_pair(wire->name.ref(), i)));
 					} else if (!sink_wire_bits.count(mapped_wire_bit)) {
 						// Nothing to do.
 					} else if (driven_wire_bits.count(wire_bit) || (wire->port_input && module->get_bool_attribute(ID::top))) {
@@ -258,22 +265,22 @@ struct ClkbufmapPass : public Pass {
 						bool is_input = wire->port_input && !inpad_celltype.empty() && module->get_bool_attribute(ID::top);
 						if (!buf_celltype.empty() && (!is_input || buffer_inputs)) {
 							log("Inserting %s on %s.%s[%d].\n", buf_celltype, module, wire, i);
-							cell = module->addCell(NEW_ID, RTLIL::escape_id(buf_celltype));
-							iwire = module->addWire(NEW_ID);
-							cell->setPort(RTLIL::escape_id(buf_portname), mapped_wire_bit);
-							cell->setPort(RTLIL::escape_id(buf_portname2), iwire);
+							cell = module->addCell(NEW_TWINE, buf_celltype_ref);
+							iwire = module->addWire(NEW_TWINE);
+							cell->setPort(buf_portname_ref, mapped_wire_bit);
+							cell->setPort(buf_portname2_ref, iwire);
 						}
 						if (is_input) {
 							log("Inserting %s on %s.%s[%d].\n", inpad_celltype, module, wire, i);
-							RTLIL::Cell *cell2 = module->addCell(NEW_ID, RTLIL::escape_id(inpad_celltype));
+							RTLIL::Cell *cell2 = module->addCell(NEW_TWINE, inpad_celltype_ref);
 							if (iwire) {
-								cell2->setPort(RTLIL::escape_id(inpad_portname), iwire);
+								cell2->setPort(inpad_portname_ref, iwire);
 							} else {
-								cell2->setPort(RTLIL::escape_id(inpad_portname), mapped_wire_bit);
+								cell2->setPort(inpad_portname_ref, mapped_wire_bit);
 								cell = cell2;
 							}
-							iwire = module->addWire(NEW_ID);
-							cell2->setPort(RTLIL::escape_id(inpad_portname2), iwire);
+							iwire = module->addWire(NEW_TWINE);
+							cell2->setPort(inpad_portname2_ref, iwire);
 						}
 						if (iwire)
 							buffered_bits[mapped_wire_bit] = make_pair(cell, iwire);
@@ -285,13 +292,13 @@ struct ClkbufmapPass : public Pass {
 						// A clock input in a submodule -- mark it, let higher level
 						// worry about it.
 						if (wire->port_input)
-							sink_ports.insert(make_pair(module->name, make_pair(wire->name, i)));
+							sink_ports.insert(make_pair(module->name.ref(), make_pair(wire->name.ref(), i)));
 					}
 				}
 				if (!input_bits.empty()) {
 					// This is an input port and some buffers were inserted -- we need
 					// to create a new input wire and transfer attributes.
-					Wire *new_wire = module->addWire(NEW_ID, wire);
+					Wire *new_wire = module->addWire(NEW_TWINE, wire);
 
 					for (int i = 0; i < wire->width; i++) {
 						SigBit wire_bit(wire, i);
@@ -317,7 +324,7 @@ struct ClkbufmapPass : public Pass {
 					SigBit wire_bit(wire, i);
 					SigBit mapped_wire_bit = sigmap(wire_bit);
 					if (buffered_bits.count(mapped_wire_bit))
-						buf_ports.insert(make_pair(module->name, make_pair(wire->name, i)));
+						buf_ports.insert(make_pair(module->name.ref(), make_pair(wire->name.ref(), i)));
 				}
 			}
 

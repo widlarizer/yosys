@@ -25,35 +25,35 @@ PRIVATE_NAMESPACE_BEGIN
 
 int lut2mux(Cell *cell, bool word_mode)
 {
-	SigSpec sig_a = cell->getPort(ID::A);
-	SigSpec sig_y = cell->getPort(ID::Y);
+	SigSpec sig_a = cell->getPort(TW::A);
+	SigSpec sig_y = cell->getPort(TW::Y);
 	Const lut = cell->getParam(ID::LUT);
 	int count = 1;
 
 	if (GetSize(sig_a) == 1)
 	{
 		if (!word_mode)
-			cell->module->addMuxGate(NEW_ID, lut.extract(0)[0], lut.extract(1)[0], sig_a, sig_y);
+			cell->module->addMuxGate(NEW_TWINE, lut.extract(0)[0], lut.extract(1)[0], sig_a, sig_y);
 		else
-		    cell->module->addMux(NEW_ID, lut.extract(0)[0], lut.extract(1)[0], sig_a, sig_y);
+		    cell->module->addMux(NEW_TWINE, lut.extract(0)[0], lut.extract(1)[0], sig_a, sig_y);
 	}
 	else
 	{
 		SigSpec sig_a_hi = sig_a[GetSize(sig_a)-1];
 		SigSpec sig_a_lo = sig_a.extract(0, GetSize(sig_a)-1);
-		SigSpec sig_y1 = cell->module->addWire(NEW_ID);
-		SigSpec sig_y2 = cell->module->addWire(NEW_ID);
+		SigSpec sig_y1 = cell->module->addWire(NEW_TWINE);
+		SigSpec sig_y2 = cell->module->addWire(NEW_TWINE);
 
 		Const lut1 = lut.extract(0, GetSize(lut)/2);
 		Const lut2 = lut.extract(GetSize(lut)/2, GetSize(lut)/2);
 
-		count += lut2mux(cell->module->addLut(NEW_ID, sig_a_lo, sig_y1, lut1), word_mode);
-		count += lut2mux(cell->module->addLut(NEW_ID, sig_a_lo, sig_y2, lut2), word_mode);
+		count += lut2mux(cell->module->addLut(NEW_TWINE, sig_a_lo, sig_y1, lut1), word_mode);
+		count += lut2mux(cell->module->addLut(NEW_TWINE, sig_a_lo, sig_y2, lut2), word_mode);
 
 		if (!word_mode)
-			cell->module->addMuxGate(NEW_ID, sig_y1, sig_y2, sig_a_hi, sig_y);
+			cell->module->addMuxGate(NEW_TWINE, sig_y1, sig_y2, sig_a_hi, sig_y);
 		else
-			cell->module->addMux(NEW_ID, sig_y1, sig_y2, sig_a_hi, sig_y);
+			cell->module->addMux(NEW_TWINE, sig_y1, sig_y2, sig_a_hi, sig_y);
 	}
 
 	cell->module->remove(cell);
@@ -94,10 +94,10 @@ struct Lut2muxPass : public Pass {
 
 		for (auto module : design->selected_modules())
 		for (auto cell : module->selected_cells()) {
-			if (cell->type == ID($lut)) {
+			if (cell->type == TW($lut)) {
 				IdString cell_name = cell->name;
 				int count = lut2mux(cell, word_mode);
-				log("Converted %s.%s to %d MUX cells.\n", module, cell_name.unescape(), count);
+				log("Converted %s.%s to %d MUX cells.\n", module, RTLIL::unescape_id(cell_name).c_str(), count);
 			}
 		}
 	}

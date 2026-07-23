@@ -221,35 +221,35 @@ struct AigerWriter
 
 		for (auto cell : module->cells())
 		{
-			if (cell->type == ID($_NOT_))
+			if (cell->type == TW($_NOT_))
 			{
-				SigBit A = sigmap(cell->getPort(ID::A).as_bit());
-				SigBit Y = sigmap(cell->getPort(ID::Y).as_bit());
+				SigBit A = sigmap(cell->getPort(TW::A).as_bit());
+				SigBit Y = sigmap(cell->getPort(TW::Y).as_bit());
 				unused_bits.erase(A);
 				undriven_bits.erase(Y);
 				not_map[Y] = A;
 				continue;
 			}
 
-			if (cell->type.in(ID($_FF_), ID($_DFF_N_), ID($_DFF_P_)))
+			if (cell->type.in(TW($_FF_), TW($_DFF_N_), TW($_DFF_P_)))
 			{
-				SigBit D = sigmap(cell->getPort(ID::D).as_bit());
-				SigBit Q = sigmap(cell->getPort(ID::Q).as_bit());
+				SigBit D = sigmap(cell->getPort(TW::D).as_bit());
+				SigBit Q = sigmap(cell->getPort(TW::Q).as_bit());
 				unused_bits.erase(D);
 				undriven_bits.erase(Q);
 				ff_map[Q] = D;
 
-				if (cell->type != ID($_FF_)) {
-					auto sig_clk = sigmap(cell->getPort(ID::C).as_bit());
-					ywmap_clocks[sig_clk] |= cell->type == ID($_DFF_N_) ? 2 : 1;
+				if (cell->type != TW($_FF_)) {
+					auto sig_clk = sigmap(cell->getPort(TW::C).as_bit());
+					ywmap_clocks[sig_clk] |= cell->type == TW($_DFF_N_) ? 2 : 1;
 				}
 				continue;
 			}
 
-			if (cell->type == ID($anyinit))
+			if (cell->type == TW($anyinit))
 			{
-				auto sig_d = sigmap(cell->getPort(ID::D));
-				auto sig_q = sigmap(cell->getPort(ID::Q));
+				auto sig_d = sigmap(cell->getPort(TW::D));
+				auto sig_q = sigmap(cell->getPort(TW::Q));
 				for (int i = 0; i < sig_d.size(); i++) {
 					undriven_bits.erase(sig_q[i]);
 					ff_map[sig_q[i]] = sig_d[i];
@@ -257,11 +257,11 @@ struct AigerWriter
 				continue;
 			}
 
-			if (cell->type == ID($_AND_))
+			if (cell->type == TW($_AND_))
 			{
-				SigBit A = sigmap(cell->getPort(ID::A).as_bit());
-				SigBit B = sigmap(cell->getPort(ID::B).as_bit());
-				SigBit Y = sigmap(cell->getPort(ID::Y).as_bit());
+				SigBit A = sigmap(cell->getPort(TW::A).as_bit());
+				SigBit B = sigmap(cell->getPort(TW::B).as_bit());
+				SigBit Y = sigmap(cell->getPort(TW::Y).as_bit());
 				unused_bits.erase(A);
 				unused_bits.erase(B);
 				undriven_bits.erase(Y);
@@ -269,18 +269,18 @@ struct AigerWriter
 				continue;
 			}
 
-			if (cell->type == ID($initstate))
+			if (cell->type == TW($initstate))
 			{
-				SigBit Y = sigmap(cell->getPort(ID::Y).as_bit());
+				SigBit Y = sigmap(cell->getPort(TW::Y).as_bit());
 				undriven_bits.erase(Y);
 				initstate_bits.insert(Y);
 				continue;
 			}
 
-			if (cell->type == ID($assert))
+			if (cell->type == TW($assert))
 			{
-				SigBit A = sigmap(cell->getPort(ID::A).as_bit());
-				SigBit EN = sigmap(cell->getPort(ID::EN).as_bit());
+				SigBit A = sigmap(cell->getPort(TW::A).as_bit());
+				SigBit EN = sigmap(cell->getPort(TW::EN).as_bit());
 				unused_bits.erase(A);
 				unused_bits.erase(EN);
 				asserts.push_back(make_pair(A, EN));
@@ -288,10 +288,10 @@ struct AigerWriter
 				continue;
 			}
 
-			if (cell->type == ID($assume))
+			if (cell->type == TW($assume))
 			{
-				SigBit A = sigmap(cell->getPort(ID::A).as_bit());
-				SigBit EN = sigmap(cell->getPort(ID::EN).as_bit());
+				SigBit A = sigmap(cell->getPort(TW::A).as_bit());
+				SigBit EN = sigmap(cell->getPort(TW::EN).as_bit());
 				unused_bits.erase(A);
 				unused_bits.erase(EN);
 				assumes.push_back(make_pair(A, EN));
@@ -299,45 +299,45 @@ struct AigerWriter
 				continue;
 			}
 
-			if (cell->type == ID($live))
+			if (cell->type == TW($live))
 			{
-				SigBit A = sigmap(cell->getPort(ID::A).as_bit());
-				SigBit EN = sigmap(cell->getPort(ID::EN).as_bit());
+				SigBit A = sigmap(cell->getPort(TW::A).as_bit());
+				SigBit EN = sigmap(cell->getPort(TW::EN).as_bit());
 				unused_bits.erase(A);
 				unused_bits.erase(EN);
 				liveness.push_back(make_pair(A, EN));
 				continue;
 			}
 
-			if (cell->type == ID($fair))
+			if (cell->type == TW($fair))
 			{
-				SigBit A = sigmap(cell->getPort(ID::A).as_bit());
-				SigBit EN = sigmap(cell->getPort(ID::EN).as_bit());
+				SigBit A = sigmap(cell->getPort(TW::A).as_bit());
+				SigBit EN = sigmap(cell->getPort(TW::EN).as_bit());
 				unused_bits.erase(A);
 				unused_bits.erase(EN);
 				fairness.push_back(make_pair(A, EN));
 				continue;
 			}
 
-			if (cell->type == ID($anyconst))
+			if (cell->type == TW($anyconst))
 			{
-				for (auto bit : sigmap(cell->getPort(ID::Y))) {
+				for (auto bit : sigmap(cell->getPort(TW::Y))) {
 					undriven_bits.erase(bit);
 					ff_map[bit] = bit;
 				}
 				continue;
 			}
 
-			if (cell->type == ID($anyseq))
+			if (cell->type == TW($anyseq))
 			{
-				for (auto bit : sigmap(cell->getPort(ID::Y))) {
+				for (auto bit : sigmap(cell->getPort(TW::Y))) {
 					undriven_bits.erase(bit);
 					input_bits.insert(bit);
 				}
 				continue;
 			}
 
-			if (cell->type == ID($scopeinfo))
+			if (cell->type == TW($scopeinfo))
 				continue;
 
 			log_error("Unsupported cell type: %s (%s)\n", cell->type.unescape(), cell);
@@ -773,14 +773,14 @@ struct AigerWriter
 
 		for (auto cell : module->cells())
 		{
-			if (cell->type.in(ID($_FF_), ID($_DFF_N_), ID($_DFF_P_), ID($anyinit), ID($anyconst), ID($anyseq)))
+			if (cell->type.in(TW($_FF_), TW($_DFF_N_), TW($_DFF_P_), TW($anyinit), TW($anyconst), TW($anyseq)))
 			{
 				// Use sig_q to get the FF output name, but sig to lookup aiger bits
-				auto sig_qy = cell->getPort(cell->type.in(ID($anyconst), ID($anyseq)) ? ID::Y : ID::Q);
+				auto sig_qy = cell->getPort(cell->type.in(TW($anyconst), TW($anyseq)) ? TW::Y : TW::Q);
 				SigSpec sig = sigmap(sig_qy);
 
 				if (cell->get_bool_attribute(ID(clk2fflogic)))
-					sig_qy = cell->getPort(ID::D); // For a clk2fflogic $_FF_ the named signal is the D input not the Q output
+					sig_qy = cell->getPort(TW::D); // For a clk2fflogic $_FF_ the named signal is the D input not the Q output
 
 				for (int i = 0; i < GetSize(sig_qy); i++) {
 					if (sig_qy[i].wire == nullptr || sig[i].wire == nullptr)

@@ -22,6 +22,7 @@
 
 #include "kernel/yosys.h"
 #include "kernel/ffinit.h"
+#include "kernel/twine.h"
 
 YOSYS_NAMESPACE_BEGIN
 
@@ -79,7 +80,7 @@ YOSYS_NAMESPACE_BEGIN
 // - empty set [not a cell — will be emitted as a simple direct connection]
 
 struct FfTypeData {
-	FfTypeData(IdString type);
+	FfTypeData(TwineRef type);
 	FfTypeData() {
 		has_clk = false;
 		has_gclk = false;
@@ -169,6 +170,11 @@ struct FfData : FfTypeData {
 	// The FF data width in bits.
 	int width;
 	dict<IdString, Const> attributes;
+	// Stashed src across construction → emit. Refcount-managed so the
+	// source cell's pool slot survives if the cell itself is removed
+	// before emit() runs. Null when the source cell had no src (default
+	// TwineRef() is index 0, a valid constid, so it must be Null here).
+	TwineRef src_twine = Twine::Null;
 
 	FfData(Module *module = nullptr, FfInitVals *initvals = nullptr, IdString name = IdString()) : module(module), initvals(initvals), cell(nullptr), name(name) {
 		width = 0;
@@ -227,6 +233,43 @@ struct FfData : FfTypeData {
 	void flip_bits(const pool<int> &bits);
 
 	void flip_rst_bits(const pool<int> &bits);
+};
+
+struct FfDataSigMapped : public FfData {
+	const SigMapView& sigmap;
+	FfDataSigMapped(const SigMapView& map, Module *module, FfInitVals *initvals = nullptr, IdString name = IdString()) : FfData(module, initvals, name), sigmap(map) {}
+
+	void remap() {
+		sigmap(sig_q);
+		sigmap(sig_d);
+		sigmap(sig_ad);
+		sigmap(sig_clk);
+		sigmap(sig_ce);
+		sigmap(sig_aload);
+		sigmap(sig_arst);
+		sigmap(sig_srst);
+		sigmap(sig_clr);
+		sigmap(sig_set);
+	}
+	FfDataSigMapped(const SigMapView& map, FfInitVals *initvals, Cell *cell_) : FfData(initvals, cell_), sigmap(map) {
+		remap();
+	}
+	FfDataSigMapped(const SigMapView& map, const FfData& base) : FfData(base), sigmap(map) {
+		remap();
+	}
+	FfDataSigMapped(const FfDataSigMapped& other) : FfData(other), sigmap(other.sigmap) {}
+	FfDataSigMapped& operator=(const FfDataSigMapped& other) {
+		FfData::operator=(other);
+		return *this;
+	}
+	Cell* emit() {
+		Cell* cell = FfData::emit();
+		remap();
+		return cell;
+	}
+	FfDataSigMapped slice(const std::vector<int> &bits) {
+		return FfDataSigMapped(sigmap, FfData::slice(bits));
+	}
 };
 
 YOSYS_NAMESPACE_END

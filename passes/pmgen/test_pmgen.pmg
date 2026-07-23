@@ -1,7 +1,7 @@
 pattern reduce
 
-state <IdString> portname
-udata <vector<pair<Cell*, IdString>>> chain longest_chain
+state <TwineRef> portname
+udata <vector<pair<Cell*, TwineRef>>> chain longest_chain
 udata <pool<Cell*>> non_first_cells
 udata <SigSpec> leaves
 
@@ -14,19 +14,19 @@ match first
 	select first->type.in($_AND_, $_OR_, $_XOR_)
 	filter !non_first_cells.count(first)
 generate
-	SigSpec A = module->addWire(NEW_ID);
-	SigSpec B = module->addWire(NEW_ID);
-	SigSpec Y = module->addWire(NEW_ID);
+	SigSpec A = module->addWire(NEW_TWINE);
+	SigSpec B = module->addWire(NEW_TWINE);
+	SigSpec Y = module->addWire(NEW_TWINE);
 	switch (rng(3))
 	{
 	case 0:
-		module->addAndGate(NEW_ID, A, B, Y);
+		module->addAndGate(NEW_TWINE, A, B, Y);
 		break;
 	case 1:
-		module->addOrGate(NEW_ID, A, B, Y);
+		module->addOrGate(NEW_TWINE, A, B, Y);
 		break;
 	case 2:
-		module->addXorGate(NEW_ID, A, B, Y);
+		module->addXorGate(NEW_TWINE, A, B, Y);
 		break;
 	}
 endmatch
@@ -82,11 +82,11 @@ match next
 	index <IdString> next->type === chain.back().first->type
 	index <SigSpec> port(next, \Y) === port(chain.back().first, chain.back().second)
 generate 10
-	SigSpec A = module->addWire(NEW_ID);
-	SigSpec B = module->addWire(NEW_ID);
+	SigSpec A = module->addWire(NEW_TWINE);
+	SigSpec B = module->addWire(NEW_TWINE);
 	SigSpec Y = port(chain.back().first, chain.back().second);
-	Cell *c = module->addAndGate(NEW_ID, A, B, Y);
-	c->type = chain.back().first->type;
+	Cell *c = module->addAndGate(NEW_TWINE, A, B, Y);
+	c->type_impl = chain.back().first->type_impl;
 endmatch
 
 code
@@ -115,16 +115,16 @@ state <int> pmux_slice_eq pmux_slice_ne
 
 match eq
 	select eq->type == $eq
-	choice <IdString> AB {\A, \B}
-	define <IdString> BA AB == \A ? \B : \A
+	choice <TwineRef> AB {\A, \B}
+	define <TwineRef> BA AB == \A ? \B : \A
 	set eq_inA port(eq, \A)
 	set eq_inB port(eq, \B)
 	set eq_ne_signed param(eq, \A_SIGNED).as_bool()
 generate 100 10
-	SigSpec A = module->addWire(NEW_ID, rng(7)+1);
-	SigSpec B = module->addWire(NEW_ID, rng(7)+1);
-	SigSpec Y = module->addWire(NEW_ID);
-	module->addEq(NEW_ID, A, B, Y, rng(2));
+	SigSpec A = module->addWire(NEW_TWINE, rng(7)+1);
+	SigSpec B = module->addWire(NEW_TWINE, rng(7)+1);
+	SigSpec Y = module->addWire(NEW_TWINE);
+	module->addEq(NEW_TWINE, A, B, Y, rng(2));
 endmatch
 
 match pmux
@@ -137,22 +137,22 @@ generate 100 10
 	int numsel = rng(4) + 1;
 	int idx = rng(numsel);
 
-	SigSpec A = module->addWire(NEW_ID, width);
-	SigSpec Y = module->addWire(NEW_ID, width);
+	SigSpec A = module->addWire(NEW_TWINE, width);
+	SigSpec Y = module->addWire(NEW_TWINE, width);
 
 	SigSpec B, S;
 	for (int i = 0; i < numsel; i++) {
-		B.append(module->addWire(NEW_ID, width));
-		S.append(i == idx ? port(eq, \Y) : module->addWire(NEW_ID));
+		B.append(module->addWire(NEW_TWINE, width));
+		S.append(i == idx ? port(eq, \Y) : module->addWire(NEW_TWINE));
 	}
 
-	module->addPmux(NEW_ID, A, B, S, Y);
+	module->addPmux(NEW_TWINE, A, B, S, Y);
 endmatch
 
 match ne
 	select ne->type == $ne
-	choice <IdString> AB {\A, \B}
-	define <IdString> BA (AB == \A ? \B : \A)
+	choice <TwineRef> AB {\A, \B}
+	define <TwineRef> BA (AB == \A ? \B : \A)
 	index <SigSpec> port(ne, AB) === eq_inA
 	index <SigSpec> port(ne, BA) === eq_inB
 	index <int> param(ne, \A_SIGNED).as_bool() === eq_ne_signed
@@ -169,11 +169,11 @@ generate 100 10
 		if (GetSize(Y))
 			Y = Y[rng(GetSize(Y))];
 		else
-			Y = module->addWire(NEW_ID);
+			Y = module->addWire(NEW_TWINE);
 	} else {
-		Y = module->addWire(NEW_ID);
+		Y = module->addWire(NEW_TWINE);
 	}
-	module->addNe(NEW_ID, A, B, Y, rng(2));
+	module->addNe(NEW_TWINE, A, B, Y, rng(2));
 endmatch
 
 match pmux2

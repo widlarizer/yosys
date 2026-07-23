@@ -35,54 +35,54 @@ struct FsmExpand
 	bool full_mode;
 
 	SigMap assign_map;
-	SigSet<RTLIL::Cell*, RTLIL::sort_by_name_id<RTLIL::Cell>> sig2driver, sig2user;
+	SigSet<RTLIL::Cell*, RTLIL::sort_by_name<RTLIL::Cell>> sig2driver, sig2user;
 	CellTypes ct;
 
-	std::set<RTLIL::Cell*, RTLIL::sort_by_name_id<RTLIL::Cell>> merged_set;
-	std::set<RTLIL::Cell*, RTLIL::sort_by_name_id<RTLIL::Cell>> current_set;
-	std::set<RTLIL::Cell*, RTLIL::sort_by_name_id<RTLIL::Cell>> no_candidate_set;
+	std::set<RTLIL::Cell*, RTLIL::sort_by_name<RTLIL::Cell>> merged_set;
+	std::set<RTLIL::Cell*, RTLIL::sort_by_name<RTLIL::Cell>> current_set;
+	std::set<RTLIL::Cell*, RTLIL::sort_by_name<RTLIL::Cell>> no_candidate_set;
 
 	bool already_optimized;
 	int limit_transitions;
 
 	bool is_cell_merge_candidate(RTLIL::Cell *cell)
 	{
-		if (full_mode || cell->type == ID($_MUX_))
+		if (full_mode || cell->type == TW($_MUX_))
 			return true;
 
-		if (cell->type.in(ID($mux), ID($pmux)))
-			if (cell->getPort(ID::A).size() < 2)
+		if (cell->type.in(TW($mux), TW($pmux)))
+			if (cell->getPort(TW::A).size() < 2)
 				return true;
 
 		int in_bits = 0;
 		RTLIL::SigSpec new_signals;
 
-		if (cell->hasPort(ID::A)) {
-			in_bits += GetSize(cell->getPort(ID::A));
-			new_signals.append(assign_map(cell->getPort(ID::A)));
+		if (cell->hasPort(TW::A)) {
+			in_bits += GetSize(cell->getPort(TW::A));
+			new_signals.append(assign_map(cell->getPort(TW::A)));
 		}
 
-		if (cell->hasPort(ID::B)) {
-			in_bits += GetSize(cell->getPort(ID::B));
-			new_signals.append(assign_map(cell->getPort(ID::B)));
+		if (cell->hasPort(TW::B)) {
+			in_bits += GetSize(cell->getPort(TW::B));
+			new_signals.append(assign_map(cell->getPort(TW::B)));
 		}
 
-		if (cell->hasPort(ID::S)) {
-			in_bits += GetSize(cell->getPort(ID::S));
-			new_signals.append(assign_map(cell->getPort(ID::S)));
+		if (cell->hasPort(TW::S)) {
+			in_bits += GetSize(cell->getPort(TW::S));
+			new_signals.append(assign_map(cell->getPort(TW::S)));
 		}
 
 		if (in_bits > 8)
 			return false;
 
-		if (cell->hasPort(ID::Y))
-			new_signals.append(assign_map(cell->getPort(ID::Y)));
+		if (cell->hasPort(TW::Y))
+			new_signals.append(assign_map(cell->getPort(TW::Y)));
 
 		new_signals.sort_and_unify();
 		new_signals.remove_const();
 
-		new_signals.remove(assign_map(fsm_cell->getPort(ID::CTRL_IN)));
-		new_signals.remove(assign_map(fsm_cell->getPort(ID::CTRL_OUT)));
+		new_signals.remove(assign_map(fsm_cell->getPort(TW::CTRL_IN)));
+		new_signals.remove(assign_map(fsm_cell->getPort(TW::CTRL_OUT)));
 
 		if (new_signals.size() > 3)
 			return false;
@@ -94,10 +94,10 @@ struct FsmExpand
 	{
 		std::vector<RTLIL::Cell*> cell_list;
 
-		for (auto c : sig2driver.find(assign_map(fsm_cell->getPort(ID::CTRL_IN))))
+		for (auto c : sig2driver.find(assign_map(fsm_cell->getPort(TW::CTRL_IN))))
 			cell_list.push_back(c);
 
-		for (auto c : sig2user.find(assign_map(fsm_cell->getPort(ID::CTRL_OUT))))
+		for (auto c : sig2user.find(assign_map(fsm_cell->getPort(TW::CTRL_OUT))))
 			cell_list.push_back(c);
 
 		current_set.clear();
@@ -106,7 +106,7 @@ struct FsmExpand
 			if (merged_set.count(c) > 0 || current_set.count(c) > 0 || no_candidate_set.count(c) > 0)
 				continue;
 			for (auto &p : c->connections()) {
-				if (p.first != ID::A && p.first != ID::B && p.first != ID::S && p.first != ID::Y)
+				if (p.first != TW::A && p.first != TW::B && p.first != TW::S && p.first != TW::Y)
 					goto next_cell;
 			}
 			if (!is_cell_merge_candidate(c)) {
@@ -147,7 +147,7 @@ struct FsmExpand
 		RTLIL::SigSpec input_sig, output_sig;
 
 		for (auto &p : cell->connections())
-			if (ct.cell_output(cell->type, p.first))
+			if (ct.cell_output(cell->type_impl, p.first))
 				output_sig.append(assign_map(p.second));
 			else
 				input_sig.append(assign_map(p.second));
@@ -159,12 +159,12 @@ struct FsmExpand
 		for (int i = 0; i < (1 << input_sig.size()); i++) {
 			RTLIL::Const in_val(i, input_sig.size());
 			RTLIL::SigSpec A, B, S;
-			if (cell->hasPort(ID::A))
-				A = assign_map(cell->getPort(ID::A));
-			if (cell->hasPort(ID::B))
-				B = assign_map(cell->getPort(ID::B));
-			if (cell->hasPort(ID::S))
-				S = assign_map(cell->getPort(ID::S));
+			if (cell->hasPort(TW::A))
+				A = assign_map(cell->getPort(TW::A));
+			if (cell->hasPort(TW::B))
+				B = assign_map(cell->getPort(TW::B));
+			if (cell->hasPort(TW::S))
+				S = assign_map(cell->getPort(TW::S));
 			A.replace(input_sig, RTLIL::SigSpec(in_val));
 			B.replace(input_sig, RTLIL::SigSpec(in_val));
 			S.replace(input_sig, RTLIL::SigSpec(in_val));
@@ -178,18 +178,18 @@ struct FsmExpand
 		fsm_data.copy_from_cell(fsm_cell);
 
 		fsm_data.num_inputs += input_sig.size();
-		RTLIL::SigSpec new_ctrl_in = fsm_cell->getPort(ID::CTRL_IN);
+		RTLIL::SigSpec new_ctrl_in = fsm_cell->getPort(TW::CTRL_IN);
 		new_ctrl_in.append(input_sig);
-		fsm_cell->setPort(ID::CTRL_IN, new_ctrl_in);
+		fsm_cell->setPort(TW::CTRL_IN, new_ctrl_in);
 
 		fsm_data.num_outputs += output_sig.size();
-		RTLIL::SigSpec new_ctrl_out = fsm_cell->getPort(ID::CTRL_OUT);
+		RTLIL::SigSpec new_ctrl_out = fsm_cell->getPort(TW::CTRL_OUT);
 		new_ctrl_out.append(output_sig);
-		fsm_cell->setPort(ID::CTRL_OUT, new_ctrl_out);
+		fsm_cell->setPort(TW::CTRL_OUT, new_ctrl_out);
 
 		if (GetSize(input_sig) > 10)
 			log_warning("Cell %s.%s (%s) has %d input bits, merging into FSM %s.%s might be problematic.\n",
-					cell->module, cell, cell->type.unescape(),
+					cell->module, cell, cell->type.unescaped(),
 					GetSize(input_sig), fsm_cell->module, fsm_cell);
 
 		if (GetSize(fsm_data.transition_table) > 10000)
@@ -230,9 +230,9 @@ struct FsmExpand
 
 		for (auto &cell_it : module->cells_) {
 			RTLIL::Cell *c = cell_it.second;
-			if (ct.cell_known(c->type) && design->selected(mod, c))
+			if (ct.cell_known(c->type_impl) && design->selected(mod, c))
 				for (auto &p : c->connections()) {
-					if (ct.cell_output(c->type, p.first))
+					if (ct.cell_output(c->type_impl, p.first))
 						sig2driver.insert(assign_map(p.second), c);
 					else
 						sig2user.insert(assign_map(p.second), c);
@@ -243,7 +243,7 @@ struct FsmExpand
 	void execute()
 	{
 		log("\n");
-		log("Expanding FSM `%s' from module `%s':\n", fsm_cell->name, module->name);
+		log("Expanding FSM `%s' from module `%s':\n", log_id(fsm_cell), log_id(module));
 
 		already_optimized = false;
 		limit_transitions =  16 * fsm_cell->parameters[ID::TRANS_NUM].as_int();
@@ -298,7 +298,7 @@ struct FsmExpandPass : public Pass {
 		for (auto mod : design->selected_modules()) {
 			std::vector<RTLIL::Cell*> fsm_cells;
 			for (auto cell : mod->selected_cells())
-				if (cell->type == ID($fsm))
+				if (cell->type == TW($fsm))
 					fsm_cells.push_back(cell);
 			for (auto c : fsm_cells) {
 				FsmExpand fsm_expand(c, design, mod, full_mode);

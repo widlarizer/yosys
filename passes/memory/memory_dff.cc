@@ -174,10 +174,10 @@ struct MemQueryCache
 		if (GetSize(drivers) != 1)
 			return false;
 		auto driver = *drivers.begin();
-		if (!driver.cell->type.in(ID($mux), ID($pmux)))
+		if (!driver.cell->type.in(TW($mux), TW($pmux)))
 			return false;
-		log_assert(driver.port == ID::Y);
-		SigSpec sig_s = driver.cell->getPort(ID::S);
+		log_assert(driver.port == TW::Y);
+		SigSpec sig_s = driver.cell->getPort(TW::S);
 		int sel_sat = qcsat.importSigBit(sel);
 		if (neg_sel)
 			sel_sat = qcsat.ez->NOT(sel_sat);
@@ -187,14 +187,14 @@ struct MemQueryCache
 			int sbit = qcsat.importSigBit(sig_s[i]);
 			qcsat.prepare();
 			if (!qcsat.ez->solve(port_ren, sel_sat, qcsat.ez->NOT(sbit))) {
-				bit = driver.cell->getPort(ID::B)[i * width + driver.offset];
+				bit = driver.cell->getPort(TW::B)[i * width + driver.offset];
 				return true;
 			}
 			if (qcsat.ez->solve(port_ren, sel_sat, sbit))
 				all_0 = false;
 		}
 		if (all_0) {
-			bit = driver.cell->getPort(ID::A)[driver.offset];
+			bit = driver.cell->getPort(TW::A)[driver.offset];
 			return true;
 		}
 		return false;
@@ -247,16 +247,16 @@ struct MemoryDffWorker
 					continue;
 				auto consumer = *consumers.begin();
 				bool is_b;
-				if (consumer.cell->type == ID($mux)) {
-					if (consumer.port == ID::A) {
+				if (consumer.cell->type == TW($mux)) {
+					if (consumer.port == TW::A) {
 						is_b = false;
-					} else if (consumer.port == ID::B) {
+					} else if (consumer.port == TW::B) {
 						is_b = true;
 					} else {
 						continue;
 					}
-				} else if (consumer.cell->type == ID($pmux)) {
-					if (consumer.port == ID::A) {
+				} else if (consumer.cell->type == TW($pmux)) {
+					if (consumer.port == TW::A) {
 						is_b = false;
 					} else {
 						continue;
@@ -264,7 +264,7 @@ struct MemoryDffWorker
 				} else {
 					continue;
 				}
-				SigSpec y = consumer.cell->getPort(ID::Y);
+				SigSpec y = consumer.cell->getPort(TW::Y);
 				int mux_width = GetSize(y);
 				SigBit ybit = y.extract(consumer.offset);
 				if (prev_cell != consumer.cell || prev_idx+1 != i || prev_is_b != is_b) {
@@ -272,7 +272,7 @@ struct MemoryDffWorker
 					md.base_idx = i;
 					md.size = 0;
 					md.is_b = is_b;
-					md.sig_s = consumer.cell->getPort(ID::S);
+					md.sig_s = consumer.cell->getPort(TW::S);
 					md.sig_other.resize(GetSize(md.sig_s));
 					prev_cell = consumer.cell;
 					prev_is_b = is_b;
@@ -281,7 +281,7 @@ struct MemoryDffWorker
 				auto &md = res.back();
 				md.size++;
 				for (int j = 0; j < GetSize(md.sig_s); j++) {
-					SigBit obit = consumer.cell->getPort(is_b ? ID::A : ID::B).extract(j * mux_width + consumer.offset);
+					SigBit obit = consumer.cell->getPort(is_b ? TW::A : TW::B).extract(j * mux_width + consumer.offset);
 					md.sig_other[j].append(obit);
 				}
 				prev_idx = i;
@@ -334,7 +334,7 @@ struct MemoryDffWorker
 	void handle_rd_port(Mem &mem, QuickConeSat &qcsat, int idx)
 	{
 		auto &port = mem.rd_ports[idx];
-		log("Checking read port `%s'[%d] in module `%s': ", mem.memid, idx, module->name);
+		log("Checking read port `%s'[%d] in module `%s': ", mem.memid, idx, log_id(module));
 
 		std::vector<MuxData> muxdata;
 		SigSpec data = walk_muxes(port.data, muxdata);
@@ -507,11 +507,11 @@ struct MemoryDffWorker
 
 		merger.remove_output_ff(bits);
 		if (ff.has_ce && !ff.pol_ce)
-			ff.sig_ce = module->LogicNot(NEW_ID, ff.sig_ce);
+			ff.sig_ce = module->LogicNot(NEW_TWINE, ff.sig_ce);
 		if (ff.has_arst && !ff.pol_arst)
-			ff.sig_arst = module->LogicNot(NEW_ID, ff.sig_arst);
+			ff.sig_arst = module->LogicNot(NEW_TWINE, ff.sig_arst);
 		if (ff.has_srst && !ff.pol_srst)
-			ff.sig_srst = module->LogicNot(NEW_ID, ff.sig_srst);
+			ff.sig_srst = module->LogicNot(NEW_TWINE, ff.sig_srst);
 		port.clk = ff.sig_clk;
 		port.clk_enable = true;
 		port.clk_polarity = ff.pol_clk;
@@ -554,7 +554,7 @@ struct MemoryDffWorker
 	void handle_rd_port_addr(Mem &mem, int idx)
 	{
 		auto &port = mem.rd_ports[idx];
-		log("Checking read port address `%s'[%d] in module `%s': ", mem.memid, idx, module->name);
+		log("Checking read port address `%s'[%d] in module `%s': ", mem.memid, idx, log_id(module));
 
 		FfData ff;
 		pool<std::pair<Cell *, int>> bits;

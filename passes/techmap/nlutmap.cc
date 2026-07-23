@@ -82,10 +82,10 @@ struct NlutmapWorker
 
 			for (auto cell : module->cells())
 			{
-				if (cell->type != ID($lut) || mapped_cells.count(cell))
+				if (cell->type != TW($lut) || mapped_cells.count(cell))
 					continue;
 
-				if (GetSize(cell->getPort(ID::A)) == lut_size || lut_size == 2)
+				if (GetSize(cell->getPort(TW::A)) == lut_size || lut_size == 2)
 					candidate_ratings[cell] = 0;
 
 				for (auto &conn : cell->connections())
@@ -100,10 +100,10 @@ struct NlutmapWorker
 						cand.second -= bit_lut_count[bit];
 			}
 
-			vector<pair<int, IdString>> rated_candidates;
+			vector<pair<int, TwineRef>> rated_candidates;
 
 			for (auto &cand : candidate_ratings)
-				rated_candidates.push_back(pair<int, IdString>(cand.second, cand.first->name));
+				rated_candidates.push_back({cand.second, cand.first->meta_->name});
 
 			std::sort(rated_candidates.begin(), rated_candidates.end());
 
@@ -119,7 +119,7 @@ struct NlutmapWorker
 
 		if (config.assert_mode) {
 			for (auto cell : module->cells())
-				if (cell->type == ID($lut) && !mapped_cells.count(cell))
+				if (cell->type == TW($lut) && !mapped_cells.count(cell))
 					log_error("Insufficient number of LUTs to map all logic cells!\n");
 		}
 

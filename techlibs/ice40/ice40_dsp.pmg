@@ -4,7 +4,7 @@ state <SigBit> clock
 state <bool> clock_pol cd_signed o_lo
 state <SigSpec> sigA sigB sigCD sigH sigO
 state <Cell*> add mux
-state <IdString> addAB muxAB
+state <TwineRef> addAB muxAB
 
 state <Cell*> ffA ffB ffCD
 state <Cell*> ffFJKG ffH ffO
@@ -66,7 +66,7 @@ code sigA sigB sigH
 			wire_width++;
 		else {
 			if (wire_width) { // add empty wires for bit offset if needed
-				sigH.append(module->addWire(NEW_ID, wire_width));
+				sigH.append(module->addWire(NEW_TWINE, wire_width));
 				wire_width = 0;
 			}
 			sigH.append(O[j]);
@@ -182,7 +182,7 @@ match add
 	if mul->type != \SB_MAC16 || (param(mul, \TOPOUTPUT_SELECT).as_int() == 3 && param(mul, \BOTOUTPUT_SELECT).as_int() == 3)
 
 	select add->type.in($add)
-	choice <IdString> AB {\A, \B}
+	choice <TwineRef> AB {\A, \B}
 	select nusers(port(add, AB)) == 2
 
 	index <SigBit> port(add, AB)[0] === sigH[0]
@@ -214,7 +214,7 @@ endcode
 
 match mux
 	select mux->type == $mux
-	choice <IdString> AB {\A, \B}
+	choice <TwineRef> AB {\A, \B}
 	select nusers(port(mux, AB)) == 2
 	index <SigSpec> port(mux, AB) === sigO
 	set muxAB AB
@@ -337,9 +337,9 @@ code
 	for (auto c : argQ.chunks()) {
 		if (!c.wire)
 			reject;
-		if (c.wire->get_bool_attribute(\keep))
+		if (c.wire->get_bool_attribute(ID(keep)))
 			reject;
-		Const init = c.wire->attributes.at(\init, State::Sx);
+		Const init = c.wire->attributes.at(ID(init), State::Sx);
 		if (!init.is_fully_undef() && !init.is_fully_zero())
 			reject;
 	}
@@ -386,7 +386,7 @@ arg argD argSdff argQ clock clock_pol
 code
 	dff = nullptr;
 	for (auto c : argD.chunks())
-		if (c.wire->get_bool_attribute(\keep))
+		if (c.wire->get_bool_attribute(ID(keep)))
 			reject;
 endcode
 
@@ -419,7 +419,7 @@ code argQ
 		argQ.replace(D, Q);
 
 		for (auto c : argQ.chunks()) {
-			Const init = c.wire->attributes.at(\init, State::Sx);
+			Const init = c.wire->attributes.at(ID(init), State::Sx);
 			if (!init.is_fully_undef() && !init.is_fully_zero())
 				reject;
 		}

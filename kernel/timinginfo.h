@@ -29,17 +29,18 @@ struct TimingInfo
 {
 	struct NameBit
 	{
-		RTLIL::IdString name;
+		TwineRef name;
 		int offset;
 		NameBit() : offset(0) {}
-		NameBit(const RTLIL::IdString name, int offset) : name(name), offset(offset) {}
-		explicit NameBit(const RTLIL::SigBit &b) : name(b.wire->name), offset(b.offset) {}
+		NameBit(TwineRef name, int offset) : name(name), offset(offset) {}
+		explicit NameBit(const RTLIL::SigBit &b) : name(b.wire->meta_->name), offset(b.offset) {}
 		bool operator==(const NameBit& nb) const { return nb.name == name && nb.offset == offset; }
 		bool operator!=(const NameBit& nb) const { return !operator==(nb); }
 		std::optional<SigBit> get_connection(RTLIL::Cell *cell) {
-			if (!cell->hasPort(name))
+			TwineRef port_name = name;
+			if (!cell->hasPort(port_name))
 				return {};
-			auto &port = cell->getPort(name);
+			auto &port = cell->getPort(port_name);
 			if (offset >= port.size())
 				return {};
 			return port[offset];
@@ -70,7 +71,7 @@ struct TimingInfo
 		bool has_inputs;
 	};
 
-	dict<RTLIL::IdString, ModuleTiming> data;
+	dict<TwineRef, ModuleTiming> data;
 
 	TimingInfo()
 	{
@@ -92,17 +93,17 @@ struct TimingInfo
 
 	const ModuleTiming& setup_module(RTLIL::Module *module)
 	{
-		auto r = data.insert(module->name);
+		auto r = data.insert(module->meta_->name);
 		log_assert(r.second);
 		auto &t = r.first->second;
 
 		for (auto cell : module->cells()) {
-			if (cell->type == ID($specify2)) {
-				auto en = cell->getPort(ID::EN);
+			if (cell->type == TW($specify2)) {
+				auto en = cell->getPort(TW::EN);
 				if (en.is_fully_const() && !en.as_bool())
 					continue;
-				auto src = cell->getPort(ID::SRC);
-				auto dst = cell->getPort(ID::DST);
+				auto src = cell->getPort(TW::SRC);
+				auto dst = cell->getPort(TW::DST);
 				for (const auto &c : src.chunks())
 					if (!c.wire || !c.wire->port_input)
 						log_error("Module '%s' contains specify cell '%s' where SRC '%s' is not a module input.\n", module, cell, log_signal(src));
@@ -135,9 +136,9 @@ struct TimingInfo
 					}
 				}
 			}
-			else if (cell->type == ID($specify3)) {
-				auto src = cell->getPort(ID::SRC).as_bit();
-				auto dst = cell->getPort(ID::DST);
+			else if (cell->type == TW($specify3)) {
+				auto src = cell->getPort(TW::SRC).as_bit();
+				auto dst = cell->getPort(TW::DST);
 				if (!src.wire || !src.wire->port_input)
 					log_error("Module '%s' contains specify cell '%s' where SRC '%s' is not a module input.\n", module, cell, log_signal(src));
 				for (const auto &c : dst.chunks())
@@ -159,12 +160,12 @@ struct TimingInfo
 					}
 				}
 			}
-			else if (cell->type == ID($specrule)) {
+			else if (cell->type == TW($specrule)) {
 				IdString type = cell->getParam(ID::TYPE).decode_string();
-				if (type != ID($setup) && type != ID($setuphold))
+				if (type != TW($setup) && type != TW($setuphold))
 					continue;
-				auto src = cell->getPort(ID::SRC);
-				auto dst = cell->getPort(ID::DST).as_bit();
+				auto src = cell->getPort(TW::SRC);
+				auto dst = cell->getPort(TW::DST).as_bit();
 				for (const auto &c : src.chunks())
 					if (!c.wire || !c.wire->port_input)
 						log_error("Module '%s' contains specify cell '%s' where SRC '%s' is not a module input.\n", module, cell, log_signal(src));
@@ -197,10 +198,10 @@ struct TimingInfo
 		return t;
 	}
 
-	decltype(data)::const_iterator find(RTLIL::IdString module_name) const { return data.find(module_name); }
+	decltype(data)::const_iterator find(TwineRef module_name) const { return data.find(module_name); }
 	decltype(data)::const_iterator end() const { return data.end(); }
-	int count(RTLIL::IdString module_name) const { return data.count(module_name); }
-	const ModuleTiming& at(RTLIL::IdString module_name) const { return data.at(module_name); }
+	int count(TwineRef module_name) const { return data.count(module_name); }
+	const ModuleTiming& at(TwineRef module_name) const { return data.at(module_name); }
 };
 
 YOSYS_NAMESPACE_END

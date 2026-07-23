@@ -47,7 +47,7 @@ struct EquivMiterWorker
 		if (cone.count(c))
 			return;
 
-		if (c->type == ID($equiv) && !seed_cells.count(c)) {
+		if (c->type == TW($equiv) && !seed_cells.count(c)) {
 			leaves.insert(c);
 			return;
 		}
@@ -55,9 +55,9 @@ struct EquivMiterWorker
 		cone.insert(c);
 
 		for (auto &conn : c->connections()) {
-			if (!ct.cell_input(c->type, conn.first))
+			if (!ct.cell_input(c->type_impl, conn.first))
 				continue;
-			if (c->type == ID($equiv) && (conn.first == ID::A) != gold_mode)
+			if (c->type == TW($equiv) && (conn.first == TW::A) != gold_mode)
 				continue;
 			for (auto bit : sigmap(conn.second))
 				if (bit_to_driver.count(bit))
@@ -73,7 +73,7 @@ struct EquivMiterWorker
 
 		for (auto c : source_module->cells())
 			for (auto &conn : c->connections())
-				if (ct.cell_output(c->type, conn.first))
+				if (ct.cell_output(c->type_impl, conn.first))
 					for (auto bit : sigmap(conn.second))
 						if (bit.wire)
 							bit_to_driver[bit] = c;
@@ -81,7 +81,7 @@ struct EquivMiterWorker
 		// find seed cells
 
 		for (auto c : source_module->selected_cells())
-			if (c->type == ID($equiv)) {
+			if (c->type == TW($equiv)) {
 				log("Seed $equiv cell: %s\n", c);
 				seed_cells.insert(c);
 			}
@@ -141,10 +141,11 @@ struct EquivMiterWorker
 		// copy wires and cells
 
 		for (auto w :  miter_wires)
-			miter_module->addWire(w->name, w->width);
+			miter_module->addWire(Twine{w->name.str()}, w->width);
 		for (auto c :  miter_cells) {
-			miter_module->addCell(c->name, c);
-			auto mc = miter_module->cell(c->name);
+			if (c->type.in(TW($input_port), TW($output_port), TW($public)))
+				continue;
+			auto mc = miter_module->addCell(Twine{c->name.str()}, c);
 			for (auto &conn : mc->connections())
 				mc->setPort(conn.first, sigmap(conn.second));
 		}
@@ -155,17 +156,20 @@ struct EquivMiterWorker
 
 		struct RewriteSigSpecWorker {
 			RTLIL::Module * mod;
+			TwineSearch *search;
 			void operator()(SigSpec &sig) {
 				vector<SigChunk> chunks = sig.chunks();
 				for (auto &c : chunks)
 					if (c.wire != NULL)
-						c.wire = mod->wires_.at(c.wire->name);
+						c.wire = mod->wire(search->find(c.wire->name.str()));
 				sig = chunks;
 			}
 		};
 
 		RewriteSigSpecWorker rewriteSigSpecWorker;
+		TwineSearch rewrite_search(&miter_module->design->twines);
 		rewriteSigSpecWorker.mod = miter_module;
+		rewriteSigSpecWorker.search = &rewrite_search;
 		miter_module->rewrite_sigspecs(rewriteSigSpecWorker);
 
 		// find undriven or unused wires
@@ -174,11 +178,11 @@ struct EquivMiterWorker
 
 		for (auto c : miter_module->cells())
 		for (auto &conn : c->connections()) {
-			if (ct.cell_input(c->type, conn.first))
+			if (ct.cell_input(c->type_impl, conn.first))
 				for (auto bit : conn.second)
 					if (bit.wire)
 						used_bits.insert(bit);
-			if (ct.cell_output(c->type, conn.first))
+			if (ct.cell_output(c->type_impl, conn.first))
 				for (auto bit : conn.second)
 					if (bit.wire)
 						driven_bits.insert(bit);
@@ -213,38 +217,38 @@ struct EquivMiterWorker
 		vector<Cell*> equiv_cells;
 
 		for (auto c : miter_module->cells())
-			if (c->type == ID($equiv) && c->getPort(ID::A) != c->getPort(ID::B))
+			if (c->type == TW($equiv) && c->getPort(TW::A) != c->getPort(TW::B))
 				equiv_cells.push_back(c);
 
 		for (auto c : equiv_cells)
 		{
 			SigSpec cmp = mode_undef ?
-					miter_module->LogicOr(NEW_ID, miter_module->Eqx(NEW_ID, c->getPort(ID::A), State::Sx),
-							miter_module->Eqx(NEW_ID, c->getPort(ID::A), c->getPort(ID::B))) :
-					miter_module->Eq(NEW_ID, c->getPort(ID::A), c->getPort(ID::B));
+					miter_module->LogicOr(NEW_TWINE, miter_module->Eqx(NEW_TWINE, c->getPort(TW::A), State::Sx),
+							miter_module->Eqx(NEW_TWINE, c->getPort(TW::A), c->getPort(TW::B))) :
+					miter_module->Eq(NEW_TWINE, c->getPort(TW::A), c->getPort(TW::B));
 
 			if (mode_cmp) {
-				string cmp_name = stringf("\\cmp%s", log_signal(c->getPort(ID::Y)));
+				string cmp_name = stringf("\\cmp%s", log_signal(c->getPort(TW::Y)));
 				for (int i = 1; i < GetSize(cmp_name); i++)
 					if (cmp_name[i] == '\\')
 						cmp_name[i] = '_';
 					else if (cmp_name[i] == ' ')
 						cmp_name = cmp_name.substr(0, i) + cmp_name.substr(i+1);
-				auto w = miter_module->addWire(cmp_name);
+				auto w = miter_module->addWire(Twine{cmp_name});
 				w->port_output = true;
 				miter_module->connect(w, cmp);
 			}
 
 			if (mode_assert)
-				miter_module->addAssert(NEW_ID, cmp, State::S1);
+				miter_module->addAssert(NEW_TWINE, cmp, State::S1);
 
-			trigger_signals.append(miter_module->Not(NEW_ID, cmp));
+			trigger_signals.append(miter_module->Not(NEW_TWINE, cmp));
 		}
 
 		if (mode_trigger) {
-			auto w = miter_module->addWire(ID(trigger));
+			auto w = miter_module->addWire(Twine{"trigger"});
 			w->port_output = true;
-			miter_module->addReduceOr(NEW_ID, trigger_signals, w);
+			miter_module->addReduceOr(NEW_TWINE, trigger_signals, w);
 		}
 
 		miter_module->fixup_ports();
@@ -319,8 +323,8 @@ struct EquivMiterPass : public Pass {
 		worker.miter_name = RTLIL::escape_id(args[argidx++]);
 		extra_args(args, argidx, design);
 
-		if (design->module(worker.miter_name))
-			log_cmd_error("Miter module %s already exists.\n", worker.miter_name.unescape());
+		if (design->module(TwineSearch(&design->twines).find(worker.miter_name.str())))
+			log_cmd_error("Miter module %s already exists.\n", log_id(worker.miter_name));
 
 		worker.source_module = nullptr;
 		for (auto m : design->selected_modules()) {
@@ -335,7 +339,7 @@ struct EquivMiterPass : public Pass {
 
 		log_header(design, "Executing EQUIV_MITER pass.\n");
 
-		worker.miter_module = design->addModule(worker.miter_name);
+		worker.miter_module = design->addModule(design->twines.add(Twine{worker.miter_name.str()}));
 		worker.run();
 	}
 } EquivMiterPass;

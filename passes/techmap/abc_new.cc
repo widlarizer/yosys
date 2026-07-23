@@ -27,14 +27,14 @@ PRIVATE_NAMESPACE_BEGIN
 std::vector<Module*> order_modules(Design *design, std::vector<Module *> modules)
 {
 	std::set<Module *> modules_set(modules.begin(), modules.end());
-	using Order = IdString::compare_ptr_by_name<RTLIL::NamedObject>;
+	using Order = IdString::compare_ptr_by_name<RTLIL::Module>;
 	TopoSort<Module*, Order> sort;
 
 	for (auto m : modules) {
 		sort.node(m);
 
 		for (auto cell : m->cells()) {
-			Module *submodule = design->module(cell->type);
+			Module *submodule = design->module(cell->type_impl);
 			if (modules_set.count(submodule))
 				sort.edge(submodule, m);
 		}

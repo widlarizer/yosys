@@ -21,6 +21,7 @@
 #include "kernel/rtlil.h"
 #include "kernel/log.h"
 #include "backends/verilog/verilog_backend.h"
+#include "kernel/twine.h"
 
 USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
@@ -30,15 +31,18 @@ static void rename_in_module(RTLIL::Module *module, std::string from_name, std::
 	from_name = RTLIL::escape_id(from_name);
 	to_name = RTLIL::escape_id(to_name);
 
-	if (module->count_id(to_name))
-		log_cmd_error("There is already an object `%s' in module `%s'.\n", RTLIL::unescape_id(to_name), module->name);
+	TwineSearch search(&module->design->twines);
+	TwineRef to_ref = search.find(to_name);
+	if (module->count_id(to_ref))
+		log_cmd_error("There is already an object `%s' in module `%s'.\n", RTLIL::unescape_id(to_name), log_id(module));
 
-	RTLIL::Wire *wire_to_rename = module->wire(from_name);
-	RTLIL::Cell *cell_to_rename = module->cell(from_name);
+	TwineRef from_ref = search.find(from_name);
+	RTLIL::Wire *wire_to_rename = module->wire(from_ref);
+	RTLIL::Cell *cell_to_rename = module->cell(from_ref);
 
 	if (wire_to_rename != nullptr) {
-		log("Renaming wire %s to %s in module %s.\n", wire_to_rename, RTLIL::unescape_id(to_name), module);
-		module->rename(wire_to_rename, to_name);
+		log("Renaming wire %s to %s in module %s.\n", log_id(wire_to_rename), RTLIL::unescape_id(to_name), log_id(module));
+		module->rename(wire_to_rename, module->design->twines.add(std::string{to_name}));
 		if (wire_to_rename->port_id || flag_output) {
 			if (flag_output)
 				wire_to_rename->port_output = true;
@@ -50,8 +54,8 @@ static void rename_in_module(RTLIL::Module *module, std::string from_name, std::
 	if (cell_to_rename != nullptr) {
 		if (flag_output)
 			log_cmd_error("Called with -output but the specified object is a cell.\n");
-		log("Renaming cell %s to %s in module %s.\n", cell_to_rename, RTLIL::unescape_id(to_name), module);
-		module->rename(cell_to_rename, to_name);
+		log("Renaming cell %s to %s in module %s.\n", log_id(cell_to_rename), RTLIL::unescape_id(to_name), log_id(module));
+		module->rename(cell_to_rename, module->design->twines.add(std::string{to_name}));
 		return;
 	}
 
@@ -105,8 +109,12 @@ static IdString derive_name_from_cell_output_wire(const RTLIL::Cell *cell, strin
 
 	RTLIL::Wire *wire;
 
-	if (move_to_cell && (!(wire = cell->module->wire(name)) || !(wire->port_input || wire->port_output)))
-		return name;
+	if (move_to_cell) {
+		TwineSearch search(&cell->module->design->twines);
+		TwineRef name_ref = search.find(name);
+		if (name_ref == Twine::Null || (!(wire = cell->module->wire(name_ref)) || !(wire->port_input || wire->port_output)))
+			return name;
+	}
 
 	if (suffix.empty()) {
 		suffix = cell->type.str();
@@ -129,73 +137,73 @@ static bool rename_witness(RTLIL::Design *design, dict<RTLIL::Module *, int> &ca
 	bool has_witness_signals = false;
 	for (auto cell : module->cells())
 	{
-		RTLIL::Module *impl = design->module(cell->type);
+		RTLIL::Module *impl = design->module(cell->type_impl);
 		if (impl != nullptr) {
 			bool witness_in_cell = rename_witness(design, cache, impl);
 			has_witness_signals |= witness_in_cell;
 			if (witness_in_cell && !cell->name.isPublic()) {
-				std::string name = cell->name.c_str() + 1;
+				std::string name = cell->name.unescaped();
 				for (auto &c : name)
 					if ((c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && (c < '0' || c > '9') && c != '_')
 						c = '_';
-				auto new_id = module->uniquify("\\_witness_." + name);
+				auto new_id = IdString(module->design->twines.str(module->uniquify(module->design->twines.add(std::string{"\\_witness_." + name}))));
 				cell->set_hdlname_attribute({ "_witness_", strstr(new_id.c_str(), ".") + 1 });
 				renames.emplace_back(cell, new_id);
 			}
 		}
 
-		if (cell->type.in(ID($anyconst), ID($anyseq), ID($anyinit), ID($allconst), ID($allseq))) {
+		if (cell->type.in(TW($anyconst), TW($anyseq), TW($anyinit), TW($allconst), TW($allseq))) {
 			has_witness_signals = true;
 			IdString QY;
 			bool clk2fflogic = false;
-			if (cell->type == ID($anyinit))
+			if (cell->type == TW($anyinit))
 				QY = (clk2fflogic = cell->get_bool_attribute(ID(clk2fflogic))) ? ID::D : ID::Q;
 			else
 				QY = ID::Y;
-			auto sig_out = cell->getPort(QY);
+			auto sig_out = cell->getPort(QY == ID::D ? TW::D : (QY == ID::Q ? TW::Q : TW::Y));
 
 			for (auto chunk : sig_out.chunks()) {
 				if (chunk.is_wire() && !chunk.wire->name.isPublic()) {
-					std::string name = stringf("%s_%s", cell->type.c_str() + 1, cell->name.c_str() + 1);
+					std::string name = stringf("%s_%s", cell->type.unescape(), cell->name.unescape());
 					for (auto &c : name)
 						if ((c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && (c < '0' || c > '9') && c != '_')
 							c = '_';
-					auto new_id = module->uniquify("\\_witness_." + name);
-					auto new_wire = module->addWire(new_id, GetSize(sig_out));
+					auto new_id = IdString(module->design->twines.str(module->uniquify(module->design->twines.add(std::string{"\\_witness_." + name}))));
+					auto new_wire = module->addWire(module->design->twines.add(std::string{new_id.str()}), GetSize(sig_out));
 					new_wire->set_hdlname_attribute({ "_witness_", strstr(new_id.c_str(), ".") + 1 });
 					if (clk2fflogic)
 						module->connect({new_wire, sig_out});
 					else
 						module->connect({sig_out, new_wire});
-					cell->setPort(QY, new_wire);
+					cell->setPort(QY == ID::D ? TW::D : (QY == ID::Q ? TW::Q : TW::Y), new_wire);
 					break;
 				}
 			}
 		}
 
 
-		if (cell->type.in(ID($assert), ID($assume), ID($cover), ID($live), ID($fair), ID($check))) {
+		if (cell->type.in(TW($assert), TW($assume), TW($cover), TW($live), TW($fair), TW($check))) {
 			has_witness_signals = true;
 			if (cell->name.isPublic())
 				continue;
-			std::string name = stringf("%s_%s", cell->type.c_str() + 1, cell->name.c_str() + 1);
+			std::string name = stringf("%s_%s", cell->type.unescape(), cell->name.unescape());
 			for (auto &c : name)
 				if ((c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && (c < '0' || c > '9') && c != '_')
 					c = '_';
-			auto new_id = module->uniquify("\\_witness_." + name);
+			auto new_id = IdString(module->design->twines.str(module->uniquify(module->design->twines.add(std::string{"\\_witness_." + name}))));
 			renames.emplace_back(cell, new_id);
 			cell->set_hdlname_attribute({ "_witness_", strstr(new_id.c_str(), ".") + 1 });
 		}
 	}
 	for (auto rename : renames) {
-		module->rename(rename.first, rename.second);
+		module->rename(rename.first, module->design->twines.add(std::string{rename.second.str()}));
 	}
 
 	cache[module] = has_witness_signals;
 	return has_witness_signals;
 }
 
-static std::string renamed_unescaped(const std::string& str)
+[[maybe_unused]] static std::string renamed_unescaped(const std::string& str)
 {
 	std::string new_str = "";
 
@@ -378,6 +386,7 @@ struct RenamePass : public Pass {
 			break;
 		}
 
+		TwineSearch search(&design->twines);
 		if (flag_src)
 		{
 			extra_args(args, argidx, design);
@@ -397,10 +406,10 @@ struct RenamePass : public Pass {
 						new_cell_names.emplace(cell, derive_name_from_src(cell->get_src_attribute(), counter++));
 
 				for (auto &it : new_wire_names)
-					module->rename(it.first, it.second);
+					module->rename(it.first, module->design->twines.add(std::string{it.second.str()}));
 
 				for (auto &it : new_cell_names)
-					module->rename(it.first, it.second);
+					module->rename(it.first, module->design->twines.add(std::string{it.second.str()}));
 			}
 		}
 		else
@@ -409,28 +418,29 @@ struct RenamePass : public Pass {
 			extra_args(args, argidx, design);
 
 			for (auto module : design->selected_modules()) {
+				TwineSearch search(&module->design->twines);
 				dict<RTLIL::Cell *, IdString> new_cell_names;
 				for (auto cell : module->selected_cells())
 					if (cell->name[0] == '$')
 						new_cell_names[cell] = derive_name_from_cell_output_wire(cell, cell_suffix, flag_move_to_cell);
 				for (auto &[cell, new_name] : new_cell_names) {
 					if (flag_move_to_cell) {
-						RTLIL::Wire *found_wire = module->wire(new_name);
+						TwineRef new_name_ref = search.find(new_name.str());
+						RTLIL::Wire *found_wire = new_name_ref != Twine::Null ? module->wire(new_name_ref) : nullptr;
 						if (found_wire) {
 							std::string wire_suffix = cell_suffix;
 							if (wire_suffix.empty()) {
 								for (auto const &[port, _] : cell->connections()) {
 									if (cell->output(port)) {
-										wire_suffix += stringf("%s.%s", cell->type, port.c_str() + 1);
+										wire_suffix += stringf("%s.%s", cell->type, module->design->twines.str(port).c_str() + 1);
 										break;
 									}
 								}
 							}
-							IdString new_wire_name = found_wire->name.str() + wire_suffix;
-							module->rename(found_wire, new_wire_name);
+							module->rename(found_wire, module->design->twines.add(std::string{found_wire->name.str() + wire_suffix}));
 						}
 					}
-					module->rename(cell, new_name);
+					module->rename(cell, module->design->twines.add(std::string{new_name.str()}));
 				}
 			}
 		}
@@ -448,24 +458,30 @@ struct RenamePass : public Pass {
 				for (auto wire : module->selected_wires())
 					if (wire->name[0] == '$') {
 						RTLIL::IdString buf;
-						do buf = stringf("\\%s%d%s", pattern_prefix, counter++, pattern_suffix);
-						while (module->wire(buf) != nullptr);
+						TwineRef buf_ref;
+						do {
+							buf = stringf("\\%s%d%s", pattern_prefix, counter++, pattern_suffix);
+							buf_ref = search.find(buf.str());
+						} while (buf_ref != Twine::Null && module->wire(buf_ref) != nullptr);
 						new_wire_names[wire] = buf;
 					}
 
 				for (auto cell : module->selected_cells())
 					if (cell->name[0] == '$') {
 						RTLIL::IdString buf;
-						do buf = stringf("\\%s%d%s", pattern_prefix, counter++, pattern_suffix);
-						while (module->cell(buf) != nullptr);
+						TwineRef buf_ref;
+						do {
+							buf = stringf("\\%s%d%s", pattern_prefix, counter++, pattern_suffix);
+							buf_ref = search.find(buf.str());
+						} while (buf_ref != Twine::Null && module->cell(buf_ref) != nullptr);
 						new_cell_names[cell] = buf;
 					}
 
 				for (auto &it : new_wire_names)
-					module->rename(it.first, it.second);
+					module->rename(it.first, module->design->twines.add(std::string{it.second.str()}));
 
 				for (auto &it : new_cell_names)
-					module->rename(it.first, it.second);
+					module->rename(it.first, module->design->twines.add(std::string{it.second.str()}));
 			}
 		}
 		else
@@ -500,10 +516,10 @@ struct RenamePass : public Pass {
 						new_cell_names[cell] = NEW_ID;
 
 				for (auto &it : new_wire_names)
-					module->rename(it.first, it.second);
+					module->rename(it.first, module->design->twines.add(std::string{it.second.str()}));
 
 				for (auto &it : new_cell_names)
-					module->rename(it.first, it.second);
+					module->rename(it.first, module->design->twines.add(std::string{it.second.str()}));
 			}
 		}
 		else
@@ -512,13 +528,13 @@ struct RenamePass : public Pass {
 			if (argidx+1 != args.size())
 				log_cmd_error("Invalid number of arguments!\n");
 
-			IdString new_name = RTLIL::escape_id(args[argidx]);
+			TwineRef new_name = design->twines.add(std::string{RTLIL::escape_id(args[argidx])});
 			RTLIL::Module *module = design->top_module();
 
 			if (module == nullptr)
 				log_cmd_error("No top module found!\n");
 
-			log("Renaming module %s to %s.\n", module, new_name.unescape());
+			log("Renaming module %s to %s.\n", log_id(module), design->twines.unescaped_str(new_name));
 			design->rename(module, new_name);
 		}
 		else
@@ -551,10 +567,10 @@ struct RenamePass : public Pass {
 				}
 
 				for (auto &it : new_wire_names)
-					module->rename(it.first, it.second);
+					module->rename(it.first, module->design->twines.add(std::string{it.second.str()}));
 
 				for (auto &it : new_cell_names)
-					module->rename(it.first, it.second);
+					module->rename(it.first, module->design->twines.add(std::string{it.second.str()}));
 			}
 		}
 		else if (flag_unescape)
@@ -573,7 +589,7 @@ struct RenamePass : public Pass {
 					name = name.substr(1);
 					if (!VERILOG_BACKEND::id_is_verilog_escaped(name))
 						continue;
-					new_wire_names[wire] = module->uniquify("\\" + renamed_unescaped(name));
+					new_wire_names[wire] = IdString(module->design->twines.str(module->uniquify(module->design->twines.add(std::string{"\\" + renamed_unescaped(name)}))));
 					auto new_name = new_wire_names[wire].str().substr(1);
 					if (VERILOG_BACKEND::id_is_verilog_escaped(new_name))
 						log_error("Failed to rename wire %s -> %s\n", name, new_name);
@@ -586,17 +602,17 @@ struct RenamePass : public Pass {
 					name = name.substr(1);
 					if (!VERILOG_BACKEND::id_is_verilog_escaped(name))
 						continue;
-					new_cell_names[cell] = module->uniquify("\\" + renamed_unescaped(name));
+					new_cell_names[cell] = IdString(module->design->twines.str(module->uniquify(module->design->twines.add(std::string{"\\" + renamed_unescaped(name)}))));
 					auto new_name = new_cell_names[cell].str().substr(1);
 					if (VERILOG_BACKEND::id_is_verilog_escaped(new_name))
 						log_error("Failed to rename cell %s -> %s\n", name, new_name);
 				}
 
 				for (auto &it : new_wire_names)
-					module->rename(it.first, it.second);
+					module->rename(it.first, module->design->twines.add(std::string{it.second.str()}));
 
 				for (auto &it : new_cell_names)
-					module->rename(it.first, it.second);
+					module->rename(it.first, module->design->twines.add(std::string{it.second.str()}));
 
 				module->fixup_ports();
 			}
@@ -609,7 +625,7 @@ struct RenamePass : public Pass {
 			std::string from_name = args[argidx++];
 			std::string to_name = args[argidx++];
 
-			if (!design->selected_active_module.empty())
+			if (design->selected_active_module != Twine::Null)
 			{
 				if (design->module(design->selected_active_module) != nullptr)
 					rename_in_module(design->module(design->selected_active_module), from_name, to_name, flag_output);
@@ -620,16 +636,18 @@ struct RenamePass : public Pass {
 					log_cmd_error("Mode -output requires that there is an active module selected.\n");
 
 				RTLIL::Module *module_to_rename = nullptr;
-				for (auto module : design->modules())
-					if (module->name == from_name || module->name.unescape() == from_name) {
+				for (auto module : design->modules()) {
+					std::string module_name_str = module->design->twines.str(module->meta_->name);
+					if (module_name_str == from_name || RTLIL::unescape_id(module_name_str) == from_name) {
 						module_to_rename = module;
 						break;
 					}
+				}
 
 				if (module_to_rename != nullptr) {
 					to_name = RTLIL::escape_id(to_name);
-					log("Renaming module %s to %s.\n", module_to_rename->name, to_name);
-					design->rename(module_to_rename, to_name);
+					log("Renaming module %s to %s.\n", log_id(module_to_rename), to_name);
+					design->rename(module_to_rename, design->twines.add(std::string{to_name}));
 				} else
 					log_cmd_error("Object `%s' not found!\n", from_name);
 			}

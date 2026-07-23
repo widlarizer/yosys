@@ -58,7 +58,7 @@ struct RomWorker
 		SigSpec lhs;
 		dict<SigBit, int> lhs_lookup;
 		for (auto &it: sw->cases[0]->actions) {
-			for (auto bit: it.first) {
+			for (auto bit: it.lhs) {
 				if (!lhs_lookup.count(bit)) {
 					lhs_lookup[bit] = GetSize(lhs);
 					lhs.append(bit);
@@ -87,17 +87,17 @@ struct RomWorker
 			}
 			Const val = Const(State::Sm, GetSize(lhs));
 			for (auto &it: cs->actions) {
-				if (!it.second.is_fully_const()) {
+				if (!it.rhs.is_fully_const()) {
 					log_debug("rejecting switch: rhs not const\n");
 					return;
 				}
-				for (int i = 0; i < GetSize(it.first); i++) {
-					auto it2 = lhs_lookup.find(it.first[i]);
+				for (int i = 0; i < GetSize(it.lhs); i++) {
+					auto it2 = lhs_lookup.find(it.lhs[i]);
 					if (it2 == lhs_lookup.end()) {
 						log_debug("rejecting switch: lhs not uniform\n");
 						return;
 					}
-					val.set(it2->second, it.second[i].data);
+					val.set(it2->second, it.rhs[i].data);
 				}
 			}
 			for (auto bit: val) {
@@ -151,7 +151,7 @@ struct RomWorker
 		}
 
 		// Ok, let's do it.
-		SigSpec rdata = module->addWire(NEW_ID, GetSize(lhs));
+		SigSpec rdata = module->addWire(NEW_TWINE, GetSize(lhs));
 		Mem mem(module, NEW_ID, GetSize(lhs), 0, 1 << abits);
 		mem.attributes = sw->attributes;
 
@@ -184,28 +184,32 @@ struct RomWorker
 
 		mem.emit();
 
-		if (sw->has_attribute(ID::src)) {
-			mem.inits[0].cell->attributes[ID::src] = sw->attributes[ID::src];
-			mem.rd_ports[0].cell->attributes[ID::src] = sw->attributes[ID::src];
+		if (sw->src_id() != Twine::Null && module->design) {
+			mem.inits[0].cell->set_src_id(sw->src_id());
+			mem.rd_ports[0].cell->set_src_id(sw->src_id());
 		}
 
 		for (auto cs: sw->cases)
 			delete cs;
 		sw->cases.clear();
 		sw->signal = sw->signal.extract(0, swsigbits);
+		TwineRef action_src = sw->src_id();
 		if (abits == GetSize(sw->signal)) {
 			sw->signal = SigSpec();
 			RTLIL::CaseRule *cs = new RTLIL::CaseRule;
-			cs->actions.push_back(SigSig(lhs, rdata));
+			cs->module = module;
+			cs->actions.push_back({lhs, rdata, action_src});
 			sw->cases.push_back(cs);
 		} else {
 			sw->signal = sw->signal.extract_end(abits);
 			RTLIL::CaseRule *cs = new RTLIL::CaseRule;
+			cs->module = module;
 			cs->compare.push_back(Const(State::S0, GetSize(sw->signal)));
-			cs->actions.push_back(SigSig(lhs, rdata));
+			cs->actions.push_back({lhs, rdata, action_src});
 			sw->cases.push_back(cs);
 			RTLIL::CaseRule *cs2 = new RTLIL::CaseRule;
-			cs2->actions.push_back(SigSig(lhs, default_val));
+			cs2->module = module;
+			cs2->actions.push_back({lhs, default_val, action_src});
 			sw->cases.push_back(cs2);
 		}
 

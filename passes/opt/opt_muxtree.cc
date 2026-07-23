@@ -113,10 +113,10 @@ struct OptMuxtreeWorker
 		//	.input_sigs
 		//	.const_activated
 		//	.const_deactivated
-		RTLIL::SigSpec sig_a = cell->getPort(ID::A);
-		RTLIL::SigSpec sig_b = cell->getPort(ID::B);
-		RTLIL::SigSpec sig_s = cell->getPort(ID::S);
-		RTLIL::SigSpec sig_y = cell->getPort(ID::Y);
+		RTLIL::SigSpec sig_a = cell->getPort(TW::A);
+		RTLIL::SigSpec sig_b = cell->getPort(TW::B);
+		RTLIL::SigSpec sig_s = cell->getPort(TW::S);
+		RTLIL::SigSpec sig_y = cell->getPort(TW::Y);
 
 		muxinfo_t muxinfo;
 		muxinfo.cell = cell;
@@ -229,13 +229,13 @@ struct OptMuxtreeWorker
 	OptMuxtreeWorker(RTLIL::Design *design, RTLIL::Module *module) :
 			design(design), module(module), assign_map(module), removed_count(0)
 	{
-		log("Running muxtree optimizer on module %s..\n", module->name);
+		log("Running muxtree optimizer on module %s..\n", module->design->twines.str(module->meta_->name).c_str());
 
 		log("  Creating internal representation of mux trees.\n");
 
 		for (auto cell : module->cells())
 		{
-			if (cell->type.in(ID($mux), ID($pmux)))
+			if (cell->type.in(TW($mux), TW($pmux)))
 				track_mux(cell);
 			else
 				see_non_mux_cell(cell);
@@ -290,7 +290,7 @@ struct OptMuxtreeWorker
 					live_ports.push_back(port_idx);
 				} else {
 					log("    dead port %d/%d on %s %s.\n", port_idx+1, GetSize(mi.ports),
-							mi.cell->type.c_str(), mi.cell->name.c_str());
+							mi.cell->type, mi.cell->name);
 					removed_count++;
 				}
 			}
@@ -303,10 +303,10 @@ struct OptMuxtreeWorker
 				continue;
 			}
 
-			RTLIL::SigSpec sig_a = mi.cell->getPort(ID::A);
-			RTLIL::SigSpec sig_b = mi.cell->getPort(ID::B);
-			RTLIL::SigSpec sig_s = mi.cell->getPort(ID::S);
-			RTLIL::SigSpec sig_y = mi.cell->getPort(ID::Y);
+			RTLIL::SigSpec sig_a = mi.cell->getPort(TW::A);
+			RTLIL::SigSpec sig_b = mi.cell->getPort(TW::B);
+			RTLIL::SigSpec sig_s = mi.cell->getPort(TW::S);
+			RTLIL::SigSpec sig_y = mi.cell->getPort(TW::Y);
 
 			RTLIL::SigSpec sig_ports = sig_b;
 			sig_ports.append(sig_a);
@@ -331,11 +331,11 @@ struct OptMuxtreeWorker
 					}
 				}
 
-				mi.cell->setPort(ID::A, new_sig_a);
-				mi.cell->setPort(ID::B, new_sig_b);
-				mi.cell->setPort(ID::S, new_sig_s);
+				mi.cell->setPort(TW::A, new_sig_a);
+				mi.cell->setPort(TW::B, new_sig_b);
+				mi.cell->setPort(TW::S, new_sig_s);
 				if (GetSize(new_sig_s) == 1) {
-					mi.cell->type = ID($mux);
+					mi.cell->type_impl = TW::$mux;
 					mi.cell->parameters.erase(ID::S_WIDTH);
 				} else {
 					mi.cell->parameters[ID::S_WIDTH] = RTLIL::Const(GetSize(new_sig_s));
@@ -468,16 +468,16 @@ struct OptMuxtreeWorker
 		deactivate_port(knowledge, port_idx, muxinfo);
 	}
 
-	void replace_known(knowledge_t &knowledge, muxinfo_t &muxinfo, IdString portname)
+	void replace_known(knowledge_t &knowledge, muxinfo_t &muxinfo, TwineRef portname)
 	{
 		SigSpec sig = muxinfo.cell->getPort(portname);
 		bool did_something = false;
 
 		int width_if_b = 0;
 		idict<int> ctrl_bits;
-		if (portname == ID::B)
-			width_if_b = GetSize(muxinfo.cell->getPort(ID::A));
-		for (int bit : sig2bits(muxinfo.cell->getPort(ID::S), false))
+		if (portname == TW::B)
+			width_if_b = GetSize(muxinfo.cell->getPort(TW::A));
+		for (int bit : sig2bits(muxinfo.cell->getPort(TW::S), false))
 			ctrl_bits(bit);
 
 		int slice_idx = 0, slice_off = 0;
@@ -522,7 +522,7 @@ struct OptMuxtreeWorker
 		}
 
 		if (did_something) {
-			log("      Replacing known input bits on port %s of cell %s: %s -> %s\n", portname.unescape(),
+			log("      Replacing known input bits on port %s of cell %s: %s -> %s\n", design->twines.str(portname).c_str(),
 					muxinfo.cell, log_signal(muxinfo.cell->getPort(portname)), log_signal(sig));
 			muxinfo.cell->setPort(portname, sig);
 		}
@@ -539,8 +539,8 @@ struct OptMuxtreeWorker
 
 		// set input ports to constants if we find known active or inactive signals
 		if (limits.do_replace_known) {
-			replace_known(knowledge, muxinfo, ID::A);
-			replace_known(knowledge, muxinfo, ID::B);
+			replace_known(knowledge, muxinfo, TW::A);
+			replace_known(knowledge, muxinfo, TW::B);
 		}
 
 		// if there is a constant activated port we just use it

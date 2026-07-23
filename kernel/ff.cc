@@ -21,119 +21,133 @@
 
 USING_YOSYS_NAMESPACE
 
+// Cells added to the module since `mark` (a cells_size() watermark taken
+// before the rewrite); used to carry a rewritten cell's source location onto
+// the helper cells that replace it. hashlib dicts iterate newest-first, so
+// the cells added since the watermark are cell_at(0 .. size-mark-1).
+static std::vector<RTLIL::Cell*> cells_added_since(RTLIL::Module *module, int mark)
+{
+	std::vector<RTLIL::Cell*> cells;
+	for (int i = 0, n = module->cells_size() - mark; i < n; i++)
+		cells.push_back(module->cell_at(i));
+	return cells;
+}
+
 // sorry
 template<typename InputType, typename OutputType, typename = std::enable_if_t<std::is_base_of_v<FfTypeData, OutputType>>>
 void manufacture_info(InputType flop, OutputType& info, FfInitVals *initvals) {
 	Cell* cell = nullptr;
-	IdString type;
+	TwineRef type;
 	constexpr bool have_cell = std::is_same_v<InputType, Cell*>;
-	if constexpr (std::is_same_v<InputType, IdString>) {
+	if constexpr (std::is_same_v<InputType, TwineRef>) {
 		type = flop;
 	} else {
 		static_assert(std::is_same_v<InputType, Cell*>);
 		cell = flop;
-		type = flop->type;
+		type = flop->type.ref();
 	}
 	if constexpr (have_cell) {
-		info.sig_q = cell->getPort(ID::Q);
+		info.sig_q = cell->getPort(TW::Q);
 		info.width = GetSize(info.sig_q);
 		info.attributes = cell->attributes;
+		if (cell->src_id() != Twine::Null && cell->module && cell->module->design)
+			info.src_twine = cell->src_id();
 		if (initvals)
 			info.val_init = (*initvals)(info.sig_q);
 	}
 
 
-	std::string type_str = type.str();
+	std::string type_str = TW::str(type);
 
-	if (type.in(ID($anyinit), ID($ff), ID($dff), ID($dffe), ID($dffsr), ID($dffsre), ID($adff), ID($adffe), ID($aldff), ID($aldffe), ID($sdff), ID($sdffe), ID($sdffce), ID($dlatch), ID($adlatch), ID($dlatchsr), ID($sr))) {
-		if (type.in(ID($anyinit), ID($ff))) {
+	if (type.in(TW($anyinit), TW($ff), TW($dff), TW($dffe), TW($dffsr), TW($dffsre), TW($adff), TW($adffe), TW($aldff), TW($aldffe), TW($sdff), TW($sdffe), TW($sdffce), TW($dlatch), TW($adlatch), TW($dlatchsr), TW($sr))) {
+		if (type.in(TW($anyinit), TW($ff))) {
 			info.has_gclk = true;
 			if constexpr (have_cell)
-				info.sig_d = cell->getPort(ID::D);
-			if (type == ID($anyinit)) {
+				info.sig_d = cell->getPort(TW::D);
+			if (type == TW($anyinit)) {
 				info.is_anyinit = true;
 				if constexpr (have_cell)
 					log_assert(info.val_init.is_fully_undef());
 			}
-		} else if (type == ID($sr)) {
+		} else if (type == TW($sr)) {
 			// No data input at all.
-		} else if (type.in(ID($dlatch), ID($adlatch), ID($dlatchsr))) {
+		} else if (type.in(TW($dlatch), TW($adlatch), TW($dlatchsr))) {
 			info.has_aload = true;
 			if constexpr (have_cell) {
-				info.sig_aload = cell->getPort(ID::EN);
+				info.sig_aload = cell->getPort(TW::EN);
 				info.pol_aload = cell->getParam(ID::EN_POLARITY).as_bool();
-				info.sig_ad = cell->getPort(ID::D);
+				info.sig_ad = cell->getPort(TW::D);
 			}
 		} else {
 			info.has_clk = true;
 			if constexpr (have_cell) {
-				info.sig_clk = cell->getPort(ID::CLK);
+				info.sig_clk = cell->getPort(TW::CLK);
 				info.pol_clk = cell->getParam(ID::CLK_POLARITY).as_bool();
-				info.sig_d = cell->getPort(ID::D);
+				info.sig_d = cell->getPort(TW::D);
 			}
 		}
-		if (type.in(ID($dffe), ID($dffsre), ID($adffe), ID($aldffe), ID($sdffe), ID($sdffce))) {
+		if (type.in(TW($dffe), TW($dffsre), TW($adffe), TW($aldffe), TW($sdffe), TW($sdffce))) {
 			info.has_ce = true;
 			if constexpr (have_cell) {
-				info.sig_ce = cell->getPort(ID::EN);
+				info.sig_ce = cell->getPort(TW::EN);
 				info.pol_ce = cell->getParam(ID::EN_POLARITY).as_bool();
 			}
 		}
-		if (type.in(ID($dffsr), ID($dffsre), ID($dlatchsr), ID($sr))) {
+		if (type.in(TW($dffsr), TW($dffsre), TW($dlatchsr), TW($sr))) {
 			info.has_sr = true;
 			if constexpr (have_cell) {
-				info.sig_clr = cell->getPort(ID::CLR);
-				info.sig_set = cell->getPort(ID::SET);
+				info.sig_clr = cell->getPort(TW::CLR);
+				info.sig_set = cell->getPort(TW::SET);
 				info.pol_clr = cell->getParam(ID::CLR_POLARITY).as_bool();
 				info.pol_set = cell->getParam(ID::SET_POLARITY).as_bool();
 			}
 		}
-		if (type.in(ID($aldff), ID($aldffe))) {
+		if (type.in(TW($aldff), TW($aldffe))) {
 			info.has_aload = true;
 			if constexpr (have_cell) {
-				info.sig_aload = cell->getPort(ID::ALOAD);
+				info.sig_aload = cell->getPort(TW::ALOAD);
 				info.pol_aload = cell->getParam(ID::ALOAD_POLARITY).as_bool();
-				info.sig_ad = cell->getPort(ID::AD);
+				info.sig_ad = cell->getPort(TW::AD);
 			}
 		}
-		if (type.in(ID($adff), ID($adffe), ID($adlatch))) {
+		if (type.in(TW($adff), TW($adffe), TW($adlatch))) {
 			info.has_arst = true;
 			if constexpr (have_cell) {
-				info.sig_arst = cell->getPort(ID::ARST);
+				info.sig_arst = cell->getPort(TW::ARST);
 				info.pol_arst = cell->getParam(ID::ARST_POLARITY).as_bool();
 				info.val_arst = cell->getParam(ID::ARST_VALUE);
 			}
 		}
-		if (type.in(ID($sdff), ID($sdffe), ID($sdffce))) {
+		if (type.in(TW($sdff), TW($sdffe), TW($sdffce))) {
 			info.has_srst = true;
 			if constexpr (have_cell) {
-				info.sig_srst = cell->getPort(ID::SRST);
+				info.sig_srst = cell->getPort(TW::SRST);
 				info.pol_srst = cell->getParam(ID::SRST_POLARITY).as_bool();
 				info.val_srst = cell->getParam(ID::SRST_VALUE);
 			}
-			info.ce_over_srst = type == ID($sdffce);
+			info.ce_over_srst = type == TW($sdffce);
 		}
-	} else if (type == ID($_FF_)) {
+	} else if (type == TW($_FF_)) {
 		info.is_fine = true;
 		info.has_gclk = true;
 		if constexpr (have_cell)
-			info.sig_d = cell->getPort(ID::D);
+			info.sig_d = cell->getPort(TW::D);
 	} else if (type_str.substr(0, 5) == "$_SR_") {
 		info.is_fine = true;
 		info.has_sr = true;
 		info.pol_set = type_str[5] == 'P';
 		info.pol_clr = type_str[6] == 'P';
 		if constexpr (have_cell) {
-			info.sig_set = cell->getPort(ID::S);
-			info.sig_clr = cell->getPort(ID::R);
+			info.sig_set = cell->getPort(TW::S);
+			info.sig_clr = cell->getPort(TW::R);
 		}
 	} else if (type_str.substr(0, 6) == "$_DFF_" && type_str.size() == 8) {
 		info.is_fine = true;
 		info.has_clk = true;
 		info.pol_clk = type_str[6] == 'P';
 		if constexpr (have_cell) {
-			info.sig_d = cell->getPort(ID::D);
-			info.sig_clk = cell->getPort(ID::C);
+			info.sig_d = cell->getPort(TW::D);
+			info.sig_clk = cell->getPort(TW::C);
 		}
 	} else if (type_str.substr(0, 7) == "$_DFFE_" && type_str.size() == 10) {
 		info.is_fine = true;
@@ -142,9 +156,9 @@ void manufacture_info(InputType flop, OutputType& info, FfInitVals *initvals) {
 		info.has_ce = true;
 		info.pol_ce = type_str[8] == 'P';
 		if constexpr (have_cell) {
-			info.sig_d = cell->getPort(ID::D);
-			info.sig_clk = cell->getPort(ID::C);
-			info.sig_ce = cell->getPort(ID::E);
+			info.sig_d = cell->getPort(TW::D);
+			info.sig_clk = cell->getPort(TW::C);
+			info.sig_ce = cell->getPort(TW::E);
 		}
 	} else if (type_str.substr(0, 6) == "$_DFF_" && type_str.size() == 10) {
 		info.is_fine = true;
@@ -154,9 +168,9 @@ void manufacture_info(InputType flop, OutputType& info, FfInitVals *initvals) {
 		info.pol_arst = type_str[7] == 'P';
 		info.val_arst = type_str[8] == '1' ? State::S1 : State::S0;
 		if constexpr (have_cell) {
-			info.sig_d = cell->getPort(ID::D);
-			info.sig_clk = cell->getPort(ID::C);
-			info.sig_arst = cell->getPort(ID::R);
+			info.sig_d = cell->getPort(TW::D);
+			info.sig_clk = cell->getPort(TW::C);
+			info.sig_arst = cell->getPort(TW::R);
 		}
 	} else if (type_str.substr(0, 7) == "$_DFFE_" && type_str.size() == 12) {
 		info.is_fine = true;
@@ -168,10 +182,10 @@ void manufacture_info(InputType flop, OutputType& info, FfInitVals *initvals) {
 		info.has_ce = true;
 		info.pol_ce = type_str[10] == 'P';
 		if constexpr (have_cell) {
-			info.sig_d = cell->getPort(ID::D);
-			info.sig_clk = cell->getPort(ID::C);
-			info.sig_arst = cell->getPort(ID::R);
-			info.sig_ce = cell->getPort(ID::E);
+			info.sig_d = cell->getPort(TW::D);
+			info.sig_clk = cell->getPort(TW::C);
+			info.sig_arst = cell->getPort(TW::R);
+			info.sig_ce = cell->getPort(TW::E);
 		}
 	} else if (type_str.substr(0, 8) == "$_ALDFF_" && type_str.size() == 11) {
 		info.is_fine = true;
@@ -180,10 +194,10 @@ void manufacture_info(InputType flop, OutputType& info, FfInitVals *initvals) {
 		info.has_aload = true;
 		info.pol_aload = type_str[9] == 'P';
 		if constexpr (have_cell) {
-			info.sig_d = cell->getPort(ID::D);
-			info.sig_clk = cell->getPort(ID::C);
-			info.sig_aload = cell->getPort(ID::L);
-			info.sig_ad = cell->getPort(ID::AD);
+			info.sig_d = cell->getPort(TW::D);
+			info.sig_clk = cell->getPort(TW::C);
+			info.sig_aload = cell->getPort(TW::L);
+			info.sig_ad = cell->getPort(TW::AD);
 		}
 	} else if (type_str.substr(0, 9) == "$_ALDFFE_" && type_str.size() == 13) {
 		info.is_fine = true;
@@ -194,11 +208,11 @@ void manufacture_info(InputType flop, OutputType& info, FfInitVals *initvals) {
 		info.has_ce = true;
 		info.pol_ce = type_str[11] == 'P';
 		if constexpr (have_cell) {
-			info.sig_d = cell->getPort(ID::D);
-			info.sig_clk = cell->getPort(ID::C);
-			info.sig_aload = cell->getPort(ID::L);
-			info.sig_ad = cell->getPort(ID::AD);
-			info.sig_ce = cell->getPort(ID::E);
+			info.sig_d = cell->getPort(TW::D);
+			info.sig_clk = cell->getPort(TW::C);
+			info.sig_aload = cell->getPort(TW::L);
+			info.sig_ad = cell->getPort(TW::AD);
+			info.sig_ce = cell->getPort(TW::E);
 		}
 	} else if (type_str.substr(0, 8) == "$_DFFSR_" && type_str.size() == 12) {
 		info.is_fine = true;
@@ -208,10 +222,10 @@ void manufacture_info(InputType flop, OutputType& info, FfInitVals *initvals) {
 		info.pol_set = type_str[9] == 'P';
 		info.pol_clr = type_str[10] == 'P';
 		if constexpr (have_cell) {
-			info.sig_d = cell->getPort(ID::D);
-			info.sig_clk = cell->getPort(ID::C);
-			info.sig_set = cell->getPort(ID::S);
-			info.sig_clr = cell->getPort(ID::R);
+			info.sig_d = cell->getPort(TW::D);
+			info.sig_clk = cell->getPort(TW::C);
+			info.sig_set = cell->getPort(TW::S);
+			info.sig_clr = cell->getPort(TW::R);
 		}
 	} else if (type_str.substr(0, 9) == "$_DFFSRE_" && type_str.size() == 14) {
 		info.is_fine = true;
@@ -223,11 +237,11 @@ void manufacture_info(InputType flop, OutputType& info, FfInitVals *initvals) {
 		info.has_ce = true;
 		info.pol_ce = type_str[12] == 'P';
 		if constexpr (have_cell) {
-			info.sig_d = cell->getPort(ID::D);
-			info.sig_clk = cell->getPort(ID::C);
-			info.sig_set = cell->getPort(ID::S);
-			info.sig_clr = cell->getPort(ID::R);
-			info.sig_ce = cell->getPort(ID::E);
+			info.sig_d = cell->getPort(TW::D);
+			info.sig_clk = cell->getPort(TW::C);
+			info.sig_set = cell->getPort(TW::S);
+			info.sig_clr = cell->getPort(TW::R);
+			info.sig_ce = cell->getPort(TW::E);
 		}
 	} else if (type_str.substr(0, 7) == "$_SDFF_" && type_str.size() == 11) {
 		info.is_fine = true;
@@ -237,9 +251,9 @@ void manufacture_info(InputType flop, OutputType& info, FfInitVals *initvals) {
 		info.pol_srst = type_str[8] == 'P';
 		info.val_srst = type_str[9] == '1' ? State::S1 : State::S0;
 		if constexpr (have_cell) {
-			info.sig_d = cell->getPort(ID::D);
-			info.sig_clk = cell->getPort(ID::C);
-			info.sig_srst = cell->getPort(ID::R);
+			info.sig_d = cell->getPort(TW::D);
+			info.sig_clk = cell->getPort(TW::C);
+			info.sig_srst = cell->getPort(TW::R);
 		}
 	} else if (type_str.substr(0, 8) == "$_SDFFE_" && type_str.size() == 13) {
 		info.is_fine = true;
@@ -251,10 +265,10 @@ void manufacture_info(InputType flop, OutputType& info, FfInitVals *initvals) {
 		info.has_ce = true;
 		info.pol_ce = type_str[11] == 'P';
 		if constexpr (have_cell) {
-			info.sig_d = cell->getPort(ID::D);
-			info.sig_clk = cell->getPort(ID::C);
-			info.sig_srst = cell->getPort(ID::R);
-			info.sig_ce = cell->getPort(ID::E);
+			info.sig_d = cell->getPort(TW::D);
+			info.sig_clk = cell->getPort(TW::C);
+			info.sig_srst = cell->getPort(TW::R);
+			info.sig_ce = cell->getPort(TW::E);
 		}
 	} else if (type_str.substr(0, 9) == "$_SDFFCE_" && type_str.size() == 14) {
 		info.is_fine = true;
@@ -267,10 +281,10 @@ void manufacture_info(InputType flop, OutputType& info, FfInitVals *initvals) {
 		info.pol_ce = type_str[12] == 'P';
 		info.ce_over_srst = true;
 		if constexpr (have_cell) {
-			info.sig_d = cell->getPort(ID::D);
-			info.sig_clk = cell->getPort(ID::C);
-			info.sig_srst = cell->getPort(ID::R);
-			info.sig_ce = cell->getPort(ID::E);
+			info.sig_d = cell->getPort(TW::D);
+			info.sig_clk = cell->getPort(TW::C);
+			info.sig_srst = cell->getPort(TW::R);
+			info.sig_ce = cell->getPort(TW::E);
 		}
 	} else if (type_str.substr(0, 9) == "$_DLATCH_" && type_str.size() == 11) {
 		info.is_fine = true;
@@ -278,8 +292,8 @@ void manufacture_info(InputType flop, OutputType& info, FfInitVals *initvals) {
 		info.has_aload = true;
 		info.pol_aload = type_str[9] == 'P';
 		if constexpr (have_cell) {
-			info.sig_ad = cell->getPort(ID::D);
-			info.sig_aload = cell->getPort(ID::E);
+			info.sig_ad = cell->getPort(TW::D);
+			info.sig_aload = cell->getPort(TW::E);
 		}
 	} else if (type_str.substr(0, 9) == "$_DLATCH_" && type_str.size() == 13) {
 		info.is_fine = true;
@@ -290,9 +304,9 @@ void manufacture_info(InputType flop, OutputType& info, FfInitVals *initvals) {
 		info.pol_arst = type_str[10] == 'P';
 		info.val_arst = type_str[11] == '1' ? State::S1 : State::S0;
 		if constexpr (have_cell) {
-			info.sig_ad = cell->getPort(ID::D);
-			info.sig_aload = cell->getPort(ID::E);
-			info.sig_arst = cell->getPort(ID::R);
+			info.sig_ad = cell->getPort(TW::D);
+			info.sig_aload = cell->getPort(TW::E);
+			info.sig_arst = cell->getPort(TW::R);
 		}
 	} else if (type_str.substr(0, 11) == "$_DLATCHSR_" && type_str.size() == 15) {
 		info.is_fine = true;
@@ -303,10 +317,10 @@ void manufacture_info(InputType flop, OutputType& info, FfInitVals *initvals) {
 		info.pol_set = type_str[12] == 'P';
 		info.pol_clr = type_str[13] == 'P';
 		if constexpr (have_cell) {
-			info.sig_ad = cell->getPort(ID::D);
-			info.sig_aload = cell->getPort(ID::E);
-			info.sig_set = cell->getPort(ID::S);
-			info.sig_clr = cell->getPort(ID::R);
+			info.sig_ad = cell->getPort(TW::D);
+			info.sig_aload = cell->getPort(TW::E);
+			info.sig_set = cell->getPort(TW::S);
+			info.sig_clr = cell->getPort(TW::R);
 		}
 	} else {
 		log_assert(0);
@@ -322,7 +336,7 @@ void manufacture_info(InputType flop, OutputType& info, FfInitVals *initvals) {
 		}
 }
 
-FfTypeData::FfTypeData(IdString type) : FfTypeData()
+FfTypeData::FfTypeData(TwineRef type) : FfTypeData()
 {
 	manufacture_info(type, *this, nullptr);
 }
@@ -358,6 +372,7 @@ FfData FfData::slice(const std::vector<int> &bits) {
 	res.pol_clr = pol_clr;
 	res.pol_set = pol_set;
 	res.attributes = attributes;
+	res.src_twine = src_twine;
 	std::optional<Const::Builder> arst_bits;
 	if (has_arst)
 		arst_bits.emplace(bits.size());
@@ -484,62 +499,65 @@ void FfData::aload_to_sr() {
 	log_assert(!has_sr);
 	has_sr = true;
 	has_aload = false;
+	int patch_mark = module->cells_size();
 	if (!is_fine) {
 		pol_clr = false;
 		pol_set = true;
 		if (pol_aload) {
-			sig_clr = module->Mux(NEW_ID, Const(State::S1, width), sig_ad, sig_aload);
-			sig_set = module->Mux(NEW_ID, Const(State::S0, width), sig_ad, sig_aload);
+			sig_clr = module->Mux(NEW_TWINE, Const(State::S1, width), sig_ad, sig_aload);
+			sig_set = module->Mux(NEW_TWINE, Const(State::S0, width), sig_ad, sig_aload);
 		} else {
-			sig_clr = module->Mux(NEW_ID, sig_ad, Const(State::S1, width), sig_aload);
-			sig_set = module->Mux(NEW_ID, sig_ad, Const(State::S0, width), sig_aload);
+			sig_clr = module->Mux(NEW_TWINE, sig_ad, Const(State::S1, width), sig_aload);
+			sig_set = module->Mux(NEW_TWINE, sig_ad, Const(State::S0, width), sig_aload);
 		}
 	} else {
 		pol_clr = pol_aload;
 		pol_set = pol_aload;
 		if (pol_aload) {
-			sig_clr = module->AndnotGate(NEW_ID, sig_aload, sig_ad);
-			sig_set = module->AndGate(NEW_ID, sig_aload, sig_ad);
+			sig_clr = module->AndnotGate(NEW_TWINE, sig_aload, sig_ad);
+			sig_set = module->AndGate(NEW_TWINE, sig_aload, sig_ad);
 		} else {
-			sig_clr = module->OrGate(NEW_ID, sig_aload, sig_ad);
-			sig_set = module->OrnotGate(NEW_ID, sig_aload, sig_ad);
+			sig_clr = module->OrGate(NEW_TWINE, sig_aload, sig_ad);
+			sig_set = module->OrnotGate(NEW_TWINE, sig_aload, sig_ad);
 		}
 	}
+	merge_cell_src(module, {cell}, cells_added_since(module, patch_mark));
 }
 
 void FfData::convert_ce_over_srst(bool val) {
 	if (!has_ce || !has_srst || ce_over_srst == val)
 		return;
+	int patch_mark = module->cells_size();
 	if (val) {
 		// sdffe to sdffce
 		if (!is_fine) {
 			if (pol_ce) {
 				if (pol_srst) {
-					sig_ce = module->Or(NEW_ID, sig_ce, sig_srst);
+					sig_ce = module->Or(NEW_TWINE, sig_ce, sig_srst);
 				} else {
-					SigSpec tmp = module->Not(NEW_ID, sig_srst);
-					sig_ce = module->Or(NEW_ID, sig_ce, tmp);
+					SigSpec tmp = module->Not(NEW_TWINE, sig_srst);
+					sig_ce = module->Or(NEW_TWINE, sig_ce, tmp);
 				}
 			} else {
 				if (pol_srst) {
-					SigSpec tmp = module->Not(NEW_ID, sig_srst);
-					sig_ce = module->And(NEW_ID, sig_ce, tmp);
+					SigSpec tmp = module->Not(NEW_TWINE, sig_srst);
+					sig_ce = module->And(NEW_TWINE, sig_ce, tmp);
 				} else {
-					sig_ce = module->And(NEW_ID, sig_ce, sig_srst);
+					sig_ce = module->And(NEW_TWINE, sig_ce, sig_srst);
 				}
 			}
 		} else {
 			if (pol_ce) {
 				if (pol_srst) {
-					sig_ce = module->OrGate(NEW_ID, sig_ce, sig_srst);
+					sig_ce = module->OrGate(NEW_TWINE, sig_ce, sig_srst);
 				} else {
-					sig_ce = module->OrnotGate(NEW_ID, sig_ce, sig_srst);
+					sig_ce = module->OrnotGate(NEW_TWINE, sig_ce, sig_srst);
 				}
 			} else {
 				if (pol_srst) {
-					sig_ce = module->AndnotGate(NEW_ID, sig_ce, sig_srst);
+					sig_ce = module->AndnotGate(NEW_TWINE, sig_ce, sig_srst);
 				} else {
-					sig_ce = module->AndGate(NEW_ID, sig_ce, sig_srst);
+					sig_ce = module->AndGate(NEW_TWINE, sig_ce, sig_srst);
 				}
 			}
 		}
@@ -548,35 +566,36 @@ void FfData::convert_ce_over_srst(bool val) {
 		if (!is_fine) {
 			if (pol_srst) {
 				if (pol_ce) {
-					sig_srst = cell->module->And(NEW_ID, sig_srst, sig_ce);
+					sig_srst = module->And(NEW_TWINE, sig_srst, sig_ce);
 				} else {
-					SigSpec tmp = module->Not(NEW_ID, sig_ce);
-					sig_srst = cell->module->And(NEW_ID, sig_srst, tmp);
+					SigSpec tmp = module->Not(NEW_TWINE, sig_ce);
+					sig_srst = module->And(NEW_TWINE, sig_srst, tmp);
 				}
 			} else {
 				if (pol_ce) {
-					SigSpec tmp = module->Not(NEW_ID, sig_ce);
-					sig_srst = cell->module->Or(NEW_ID, sig_srst, tmp);
+					SigSpec tmp = module->Not(NEW_TWINE, sig_ce);
+					sig_srst = module->Or(NEW_TWINE, sig_srst, tmp);
 				} else {
-					sig_srst = cell->module->Or(NEW_ID, sig_srst, sig_ce);
+					sig_srst = module->Or(NEW_TWINE, sig_srst, sig_ce);
 				}
 			}
 		} else {
 			if (pol_srst) {
 				if (pol_ce) {
-					sig_srst = cell->module->AndGate(NEW_ID, sig_srst, sig_ce);
+					sig_srst = module->AndGate(NEW_TWINE, sig_srst, sig_ce);
 				} else {
-					sig_srst = cell->module->AndnotGate(NEW_ID, sig_srst, sig_ce);
+					sig_srst = module->AndnotGate(NEW_TWINE, sig_srst, sig_ce);
 				}
 			} else {
 				if (pol_ce) {
-					sig_srst = cell->module->OrnotGate(NEW_ID, sig_srst, sig_ce);
+					sig_srst = module->OrnotGate(NEW_TWINE, sig_srst, sig_ce);
 				} else {
-					sig_srst = cell->module->OrGate(NEW_ID, sig_srst, sig_ce);
+					sig_srst = module->OrGate(NEW_TWINE, sig_srst, sig_ce);
 				}
 			}
 		}
 	}
+	merge_cell_src(module, {cell}, cells_added_since(module, patch_mark));
 	ce_over_srst = val;
 }
 
@@ -587,17 +606,19 @@ void FfData::unmap_ce() {
 	if (has_srst && ce_over_srst)
 		unmap_srst();
 
+	int patch_mark = module->cells_size();
 	if (!is_fine) {
 		if (pol_ce)
-			sig_d = module->Mux(NEW_ID, sig_q, sig_d, sig_ce);
+			sig_d = module->Mux(NEW_TWINE, sig_q, sig_d, sig_ce);
 		else
-			sig_d = module->Mux(NEW_ID, sig_d, sig_q, sig_ce);
+			sig_d = module->Mux(NEW_TWINE, sig_d, sig_q, sig_ce);
 	} else {
 		if (pol_ce)
-			sig_d = module->MuxGate(NEW_ID, sig_q, sig_d, sig_ce);
+			sig_d = module->MuxGate(NEW_TWINE, sig_q, sig_d, sig_ce);
 		else
-			sig_d = module->MuxGate(NEW_ID, sig_d, sig_q, sig_ce);
+			sig_d = module->MuxGate(NEW_TWINE, sig_d, sig_q, sig_ce);
 	}
+	merge_cell_src(module, {cell}, cells_added_since(module, patch_mark));
 	has_ce = false;
 }
 
@@ -607,17 +628,19 @@ void FfData::unmap_srst() {
 	if (has_ce && !ce_over_srst)
 		unmap_ce();
 
+	int patch_mark = module->cells_size();
 	if (!is_fine) {
 		if (pol_srst)
-			sig_d = module->Mux(NEW_ID, sig_d, val_srst, sig_srst);
+			sig_d = module->Mux(NEW_TWINE, sig_d, val_srst, sig_srst);
 		else
-			sig_d = module->Mux(NEW_ID, val_srst, sig_d, sig_srst);
+			sig_d = module->Mux(NEW_TWINE, val_srst, sig_d, sig_srst);
 	} else {
 		if (pol_srst)
-			sig_d = module->MuxGate(NEW_ID, sig_d, val_srst[0], sig_srst);
+			sig_d = module->MuxGate(NEW_TWINE, sig_d, val_srst[0], sig_srst);
 		else
-			sig_d = module->MuxGate(NEW_ID, val_srst[0], sig_d, sig_srst);
+			sig_d = module->MuxGate(NEW_TWINE, val_srst[0], sig_d, sig_srst);
 	}
+	merge_cell_src(module, {cell}, cells_added_since(module, patch_mark));
 	has_srst = false;
 }
 
@@ -635,8 +658,6 @@ Cell *FfData::emit() {
 			return nullptr;
 		}
 	}
-	if (initvals && !is_anyinit)
-		initvals->set_init(sig_q, val_init);
 	if (!is_fine) {
 		if (has_gclk) {
 			log_assert(!has_clk);
@@ -646,51 +667,51 @@ Cell *FfData::emit() {
 			log_assert(!has_srst);
 			log_assert(!has_sr);
 			if (is_anyinit) {
-				cell = module->addAnyinit(name, sig_d, sig_q);
+				cell = module->addAnyinit(Twine{name.str()}, sig_d, sig_q);
 				log_assert(val_init.is_fully_undef());
 			} else {
-				cell = module->addFf(name, sig_d, sig_q);
+				cell = module->addFf(Twine{name.str()}, sig_d, sig_q);
 			}
 		} else if (!has_aload && !has_clk) {
 			log_assert(has_sr);
-			cell = module->addSr(name, sig_set, sig_clr, sig_q, pol_set, pol_clr);
+			cell = module->addSr(Twine{name.str()}, sig_set, sig_clr, sig_q, pol_set, pol_clr);
 		} else if (!has_clk) {
 			log_assert(!has_srst);
 			if (has_sr)
-				cell = module->addDlatchsr(name, sig_aload, sig_set, sig_clr, sig_ad, sig_q, pol_aload, pol_set, pol_clr);
+				cell = module->addDlatchsr(Twine{name.str()}, sig_aload, sig_set, sig_clr, sig_ad, sig_q, pol_aload, pol_set, pol_clr);
 			else if (has_arst)
-				cell = module->addAdlatch(name, sig_aload, sig_arst, sig_ad, sig_q, val_arst, pol_aload, pol_arst);
+				cell = module->addAdlatch(Twine{name.str()}, sig_aload, sig_arst, sig_ad, sig_q, val_arst, pol_aload, pol_arst);
 			else
-				cell = module->addDlatch(name, sig_aload, sig_ad, sig_q, pol_aload);
+				cell = module->addDlatch(Twine{name.str()}, sig_aload, sig_ad, sig_q, pol_aload);
 		} else {
 			if (has_sr) {
 				if (has_ce)
-					cell = module->addDffsre(name, sig_clk, sig_ce, sig_set, sig_clr, sig_d, sig_q, pol_clk, pol_ce, pol_set, pol_clr);
+					cell = module->addDffsre(Twine{name.str()}, sig_clk, sig_ce, sig_set, sig_clr, sig_d, sig_q, pol_clk, pol_ce, pol_set, pol_clr);
 				else
-					cell = module->addDffsr(name, sig_clk, sig_set, sig_clr, sig_d, sig_q, pol_clk, pol_set, pol_clr);
+					cell = module->addDffsr(Twine{name.str()}, sig_clk, sig_set, sig_clr, sig_d, sig_q, pol_clk, pol_set, pol_clr);
 			} else if (has_arst) {
 				if (has_ce)
-					cell = module->addAdffe(name, sig_clk, sig_ce, sig_arst, sig_d, sig_q, val_arst, pol_clk, pol_ce, pol_arst);
+					cell = module->addAdffe(Twine{name.str()}, sig_clk, sig_ce, sig_arst, sig_d, sig_q, val_arst, pol_clk, pol_ce, pol_arst);
 				else
-					cell = module->addAdff(name, sig_clk, sig_arst, sig_d, sig_q, val_arst, pol_clk, pol_arst);
+					cell = module->addAdff(Twine{name.str()}, sig_clk, sig_arst, sig_d, sig_q, val_arst, pol_clk, pol_arst);
 			} else if (has_aload) {
 				if (has_ce)
-					cell = module->addAldffe(name, sig_clk, sig_ce, sig_aload, sig_d, sig_q, sig_ad, pol_clk, pol_ce, pol_aload);
+					cell = module->addAldffe(Twine{name.str()}, sig_clk, sig_ce, sig_aload, sig_d, sig_q, sig_ad, pol_clk, pol_ce, pol_aload);
 				else
-					cell = module->addAldff(name, sig_clk, sig_aload, sig_d, sig_q, sig_ad, pol_clk, pol_aload);
+					cell = module->addAldff(Twine{name.str()}, sig_clk, sig_aload, sig_d, sig_q, sig_ad, pol_clk, pol_aload);
 			} else if (has_srst) {
 				if (has_ce)
 					if (ce_over_srst)
-						cell = module->addSdffce(name, sig_clk, sig_ce, sig_srst, sig_d, sig_q, val_srst, pol_clk, pol_ce, pol_srst);
+						cell = module->addSdffce(Twine{name.str()}, sig_clk, sig_ce, sig_srst, sig_d, sig_q, val_srst, pol_clk, pol_ce, pol_srst);
 					else
-						cell = module->addSdffe(name, sig_clk, sig_ce, sig_srst, sig_d, sig_q, val_srst, pol_clk, pol_ce, pol_srst);
+						cell = module->addSdffe(Twine{name.str()}, sig_clk, sig_ce, sig_srst, sig_d, sig_q, val_srst, pol_clk, pol_ce, pol_srst);
 				else
-					cell = module->addSdff(name, sig_clk, sig_srst, sig_d, sig_q, val_srst, pol_clk, pol_srst);
+					cell = module->addSdff(Twine{name.str()}, sig_clk, sig_srst, sig_d, sig_q, val_srst, pol_clk, pol_srst);
 			} else {
 				if (has_ce)
-					cell = module->addDffe(name, sig_clk, sig_ce, sig_d, sig_q, pol_clk, pol_ce);
+					cell = module->addDffe(Twine{name.str()}, sig_clk, sig_ce, sig_d, sig_q, pol_clk, pol_ce);
 				else
-					cell = module->addDff(name, sig_clk, sig_d, sig_q, pol_clk);
+					cell = module->addDff(Twine{name.str()}, sig_clk, sig_d, sig_q, pol_clk);
 			}
 		}
 	} else {
@@ -702,51 +723,58 @@ Cell *FfData::emit() {
 			log_assert(!has_srst);
 			log_assert(!has_sr);
 			log_assert(!is_anyinit);
-			cell = module->addFfGate(name, sig_d, sig_q);
+			cell = module->addFfGate(Twine{name.str()}, sig_d, sig_q);
 		} else if (!has_aload && !has_clk) {
 			log_assert(has_sr);
-			cell = module->addSrGate(name, sig_set, sig_clr, sig_q, pol_set, pol_clr);
+			cell = module->addSrGate(Twine{name.str()}, sig_set, sig_clr, sig_q, pol_set, pol_clr);
 		} else if (!has_clk) {
 			log_assert(!has_srst);
 			if (has_sr)
-				cell = module->addDlatchsrGate(name, sig_aload, sig_set, sig_clr, sig_ad, sig_q, pol_aload, pol_set, pol_clr);
+				cell = module->addDlatchsrGate(Twine{name.str()}, sig_aload, sig_set, sig_clr, sig_ad, sig_q, pol_aload, pol_set, pol_clr);
 			else if (has_arst)
-				cell = module->addAdlatchGate(name, sig_aload, sig_arst, sig_ad, sig_q, val_arst.as_bool(), pol_aload, pol_arst);
+				cell = module->addAdlatchGate(Twine{name.str()}, sig_aload, sig_arst, sig_ad, sig_q, val_arst.as_bool(), pol_aload, pol_arst);
 			else
-				cell = module->addDlatchGate(name, sig_aload, sig_ad, sig_q, pol_aload);
+				cell = module->addDlatchGate(Twine{name.str()}, sig_aload, sig_ad, sig_q, pol_aload);
 		} else {
 			if (has_sr) {
 				if (has_ce)
-					cell = module->addDffsreGate(name, sig_clk, sig_ce, sig_set, sig_clr, sig_d, sig_q, pol_clk, pol_ce, pol_set, pol_clr);
+					cell = module->addDffsreGate(Twine{name.str()}, sig_clk, sig_ce, sig_set, sig_clr, sig_d, sig_q, pol_clk, pol_ce, pol_set, pol_clr);
 				else
-					cell = module->addDffsrGate(name, sig_clk, sig_set, sig_clr, sig_d, sig_q, pol_clk, pol_set, pol_clr);
+					cell = module->addDffsrGate(Twine{name.str()}, sig_clk, sig_set, sig_clr, sig_d, sig_q, pol_clk, pol_set, pol_clr);
 			} else if (has_arst) {
 				if (has_ce)
-					cell = module->addAdffeGate(name, sig_clk, sig_ce, sig_arst, sig_d, sig_q, val_arst.as_bool(), pol_clk, pol_ce, pol_arst);
+					cell = module->addAdffeGate(Twine{name.str()}, sig_clk, sig_ce, sig_arst, sig_d, sig_q, val_arst.as_bool(), pol_clk, pol_ce, pol_arst);
 				else
-					cell = module->addAdffGate(name, sig_clk, sig_arst, sig_d, sig_q, val_arst.as_bool(), pol_clk, pol_arst);
+					cell = module->addAdffGate(Twine{name.str()}, sig_clk, sig_arst, sig_d, sig_q, val_arst.as_bool(), pol_clk, pol_arst);
 			} else if (has_aload) {
 				if (has_ce)
-					cell = module->addAldffeGate(name, sig_clk, sig_ce, sig_aload, sig_d, sig_q, sig_ad, pol_clk, pol_ce, pol_aload);
+					cell = module->addAldffeGate(Twine{name.str()}, sig_clk, sig_ce, sig_aload, sig_d, sig_q, sig_ad, pol_clk, pol_ce, pol_aload);
 				else
-					cell = module->addAldffGate(name, sig_clk, sig_aload, sig_d, sig_q, sig_ad, pol_clk, pol_aload);
+					cell = module->addAldffGate(Twine{name.str()}, sig_clk, sig_aload, sig_d, sig_q, sig_ad, pol_clk, pol_aload);
 			} else if (has_srst) {
 				if (has_ce)
 					if (ce_over_srst)
-						cell = module->addSdffceGate(name, sig_clk, sig_ce, sig_srst, sig_d, sig_q, val_srst.as_bool(), pol_clk, pol_ce, pol_srst);
+						cell = module->addSdffceGate(Twine{name.str()}, sig_clk, sig_ce, sig_srst, sig_d, sig_q, val_srst.as_bool(), pol_clk, pol_ce, pol_srst);
 					else
-						cell = module->addSdffeGate(name, sig_clk, sig_ce, sig_srst, sig_d, sig_q, val_srst.as_bool(), pol_clk, pol_ce, pol_srst);
+						cell = module->addSdffeGate(Twine{name.str()}, sig_clk, sig_ce, sig_srst, sig_d, sig_q, val_srst.as_bool(), pol_clk, pol_ce, pol_srst);
 				else
-					cell = module->addSdffGate(name, sig_clk, sig_srst, sig_d, sig_q, val_srst.as_bool(), pol_clk, pol_srst);
+					cell = module->addSdffGate(Twine{name.str()}, sig_clk, sig_srst, sig_d, sig_q, val_srst.as_bool(), pol_clk, pol_srst);
 			} else {
 				if (has_ce)
-					cell = module->addDffeGate(name, sig_clk, sig_ce, sig_d, sig_q, pol_clk, pol_ce);
+					cell = module->addDffeGate(Twine{name.str()}, sig_clk, sig_ce, sig_d, sig_q, pol_clk, pol_ce);
 				else
-					cell = module->addDffGate(name, sig_clk, sig_d, sig_q, pol_clk);
+					cell = module->addDffGate(Twine{name.str()}, sig_clk, sig_d, sig_q, pol_clk);
 			}
 		}
 	}
+	// src is carried in info.src_twine (an OwnedTwine retaining the
+	// pool, no flatten. The OwnedTwine still holds its own ref until
+	// FfData is destroyed; set_src_id retains on the cell's behalf.
 	cell->attributes = attributes;
+	if (src_twine != Twine::Null && cell->module && cell->module->design)
+		cell->set_src_id(src_twine);
+	if (initvals && !is_anyinit)
+		initvals->set_init(cell->getPort(TW::Q), val_init);
 	return cell;
 }
 
@@ -789,10 +817,10 @@ void FfData::flip_bits(const pool<int> &bits) {
 
 	flip_rst_bits(bits);
 
-	Wire *new_q = module->addWire(NEW_ID, width);
+	Wire *new_q = module->addWire(NEW_TWINE, width);
 
 	if (has_sr && cell) {
-		log_warning("Flipping D/Q/init and inserting priority fixup to legalize %s.%s [%s].\n", module->name.unescape(), cell->name.unescape(), cell->type.unescape());
+		log_warning("Flipping D/Q/init and inserting priority fixup to legalize %s.%s [%s].\n", module->design->twines.str(module->meta_->name).c_str(), cell->name, cell->type.unescape());
 	}
 
 	if (is_fine) {
@@ -801,15 +829,15 @@ void FfData::flip_bits(const pool<int> &bits) {
 			SigSpec new_sig_clr;
 			if (pol_set) {
 				if (pol_clr) {
-					new_sig_clr = module->AndnotGate(NEW_ID, sig_set, sig_clr);
+					new_sig_clr = module->AndnotGate(NEW_TWINE, sig_set, sig_clr);
 				} else {
-					new_sig_clr = module->AndGate(NEW_ID, sig_set, sig_clr);
+					new_sig_clr = module->AndGate(NEW_TWINE, sig_set, sig_clr);
 				}
 			} else {
 				if (pol_clr) {
-					new_sig_clr = module->OrGate(NEW_ID, sig_set, sig_clr);
+					new_sig_clr = module->OrGate(NEW_TWINE, sig_set, sig_clr);
 				} else {
-					new_sig_clr = module->OrnotGate(NEW_ID, sig_set, sig_clr);
+					new_sig_clr = module->OrnotGate(NEW_TWINE, sig_set, sig_clr);
 				}
 			}
 			pol_set = pol_clr;
@@ -818,10 +846,10 @@ void FfData::flip_bits(const pool<int> &bits) {
 			sig_clr = new_sig_clr;
 		}
 		if (has_clk || has_gclk)
-			sig_d = module->NotGate(NEW_ID, sig_d);
+			sig_d = module->NotGate(NEW_TWINE, sig_d);
 		if (has_aload)
-			sig_ad = module->NotGate(NEW_ID, sig_ad);
-		module->addNotGate(NEW_ID, new_q, sig_q);
+			sig_ad = module->NotGate(NEW_TWINE, sig_ad);
+		module->addNotGate(NEW_TWINE, new_q, sig_q);
 	}
 	else
 	{
@@ -829,17 +857,17 @@ void FfData::flip_bits(const pool<int> &bits) {
 			SigSpec not_clr;
 			if (!pol_clr) {
 				not_clr = sig_clr;
-				sig_clr = module->Not(NEW_ID, sig_clr);
+				sig_clr = module->Not(NEW_TWINE, sig_clr);
 				pol_clr = true;
 			} else {
-				not_clr = module->Not(NEW_ID, sig_clr);
+				not_clr = module->Not(NEW_TWINE, sig_clr);
 			}
 			if (!pol_set) {
-				sig_set = module->Not(NEW_ID, sig_set);
+				sig_set = module->Not(NEW_TWINE, sig_set);
 				pol_set = true;
 			}
 
-			SigSpec masked_set = module->And(NEW_ID, sig_set, not_clr);
+			SigSpec masked_set = module->And(NEW_TWINE, sig_set, not_clr);
 			for (auto bit: bits) {
 				sig_set[bit] = sig_clr[bit];
 				sig_clr[bit] = masked_set[bit];
@@ -851,10 +879,10 @@ void FfData::flip_bits(const pool<int> &bits) {
 			mask.set(bit, State::S1);
 
 		if (has_clk || has_gclk)
-			sig_d = module->Xor(NEW_ID, sig_d, mask);
+			sig_d = module->Xor(NEW_TWINE, sig_d, mask);
 		if (has_aload)
-			sig_ad = module->Xor(NEW_ID, sig_ad, mask);
-		module->addXor(NEW_ID, new_q, mask, sig_q);
+			sig_ad = module->Xor(NEW_TWINE, sig_ad, mask);
+		module->addXor(NEW_TWINE, new_q, mask, sig_q);
 	}
 
 	sig_q = new_q;

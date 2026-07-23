@@ -76,7 +76,12 @@ struct JsonWriter
 
 	string get_name(IdString name)
 	{
-		return get_string(name.unescape());
+		return get_string(RTLIL::unescape_id(name));
+	}
+
+	string get_name(TwineRef name)
+	{
+		return get_string(design->twines.unescaped_str(name));
 	}
 
 	string get_bits(SigSpec sig)
@@ -130,9 +135,14 @@ struct JsonWriter
 		}
 	}
 
-	void write_parameters(const dict<IdString, Const> &parameters, bool for_module=false)
+	void write_parameters(const dict<IdString, Const> &parameters, bool for_module=false, const RTLIL::AttrObject *src_obj=nullptr)
 	{
 		bool first = true;
+		if (src_obj && design && design->obj_src_id(src_obj) != Twine::Null) {
+			f << stringf("\n        %s%s: ", for_module ? "" : "    ", get_name(RTLIL::ID::src));
+			write_parameter_value(RTLIL::Const(design->get_src_attribute(src_obj)));
+			first = false;
+		}
 		for (auto &param : parameters) {
 			f << stringf("%s\n", first ? "" : ",");
 			f << stringf("        %s%s: ", for_module ? "" : "    ", get_name(param.first));
@@ -155,10 +165,10 @@ struct JsonWriter
 			log_error("Module %s contains processes, which are not supported by JSON backend (run `proc` first).\n", module);
 		}
 
-		f << stringf("    %s: {\n", get_name(module->name));
+		f << stringf("    %s: {\n", get_name(module->meta_->name));
 
 		f << stringf("      \"attributes\": {");
-		write_parameters(module->attributes, /*for_module=*/true);
+		write_parameters(module->attributes, /*for_module=*/true, module);
 		f << stringf("\n      },\n");
 
 		if (module->parameter_default_values.size()) {
@@ -193,7 +203,7 @@ struct JsonWriter
 		for (auto c : module->cells()) {
 			if (use_selection && !module->selected(c))
 				continue;
-			if (!scopeinfo_mode && c->type == ID($scopeinfo))
+			if (!scopeinfo_mode && c->type == TW($scopeinfo))
 				continue;
 			f << stringf("%s\n", first ? "" : ",");
 			f << stringf("        %s: {\n", get_name(c->name));
@@ -210,7 +220,7 @@ struct JsonWriter
 			write_parameters(c->parameters);
 			f << stringf("\n          },\n");
 			f << stringf("          \"attributes\": {");
-			write_parameters(c->attributes);
+			write_parameters(c->attributes, false, c);
 			f << stringf("\n          },\n");
 			if (c->known()) {
 				f << stringf("          \"port_directions\": {");
@@ -245,10 +255,10 @@ struct JsonWriter
 				if (use_selection && !module->selected(it.second))
 					continue;
 				f << stringf("%s\n", first ? "" : ",");
-				f << stringf("        %s: {\n", get_name(it.second->name));
-				f << stringf("          \"hide_name\": %s,\n", it.second->name[0] == '$' ? "1" : "0");
+				f << stringf("        %s: {\n", get_name(it.second->meta_->name));
+				f << stringf("          \"hide_name\": %s,\n", design->twines.str(it.second->meta_->name)[0] == '$' ? "1" : "0");
 				f << stringf("          \"attributes\": {");
-				write_parameters(it.second->attributes);
+				write_parameters(it.second->attributes, false, it.second);
 				f << stringf("\n          },\n");
 				f << stringf("          \"width\": %d,\n", it.second->width);
 				f << stringf("          \"start_offset\": %d,\n", it.second->start_offset);
@@ -275,7 +285,7 @@ struct JsonWriter
 			if (w->is_signed)
 				f << stringf("          \"signed\": %d,\n", w->is_signed);
 			f << stringf("          \"attributes\": {");
-			write_parameters(w->attributes);
+			write_parameters(w->attributes, false, w);
 			f << stringf("\n          }\n");
 			f << stringf("        }");
 			first = false;
@@ -316,13 +326,13 @@ struct JsonWriter
 					f << stringf("      /* %3d */ [ ", node_idx);
 					if (node.portbit >= 0)
 						f << stringf("\"%sport\", \"%s\", %d", node.inverter ? "n" : "",
-								node.portname.unescape(), node.portbit);
+								design->twines.str(node.portname), node.portbit);
 					else if (node.left_parent < 0 && node.right_parent < 0)
 						f << stringf("\"%s\"", node.inverter ? "true" : "false");
 					else
 						f << stringf("\"%s\", %d, %d", node.inverter ? "nand" : "and", node.left_parent, node.right_parent);
 					for (auto &op : node.outports)
-						f << stringf(", \"%s\", %d", op.first.unescape(), op.second);
+						f << stringf(", \"%s\", %d", design->twines.str(op.first), op.second);
 					f << stringf(" ]");
 					node_idx++;
 				}

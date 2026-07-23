@@ -101,7 +101,7 @@ struct SccWorker
 			design(design), module(module), sigmap(module)
 	{
 		if (module->processes.size() > 0) {
-			log("Skipping module %s as it contains processes (run 'proc' pass first).\n", module->name);
+			log("Skipping module %s as it contains processes (run 'proc' pass first).\n", log_id(module));
 			return;
 		}
 
@@ -117,7 +117,7 @@ struct SccWorker
 			for (auto mod : design->modules())
 				if (mod->get_blackbox_attribute(false))
 					for (auto cell : mod->cells())
-						if (cell->type == ID($specify2))
+						if (cell->type == TW($specify2))
 						{
 							specifyCells.setup_module(mod);
 							break;
@@ -138,32 +138,32 @@ struct SccWorker
 			if (!design->selected(module, cell))
 				continue;
 
-			if (!allCellTypes && !ct.cell_known(cell->type) && !specifyCells.cell_known(cell->type))
+			if (!allCellTypes && !ct.cell_known(cell->type.ref()) && !specifyCells.cell_known(cell->type.ref()))
 				continue;
 
 			workQueue.insert(cell);
 
 			RTLIL::SigSpec inputSignals, outputSignals;
 
-			if (specifyCells.cell_known(cell->type)) {
+			if (specifyCells.cell_known(cell->type.ref())) {
 				// Use specify rules of the type `(X => Y) = NN` to look for asynchronous paths in boxes.
-				for (auto subcell : design->module(cell->type)->cells())
+				for (auto subcell : design->module(cell->type_impl)->cells())
 				{
-					if (subcell->type != ID($specify2))
+					if (subcell->type != TW($specify2))
 						continue;
 
-					for (auto bit : subcell->getPort(ID::SRC))
+					for (auto bit : subcell->getPort(TW::SRC))
 					{
-						if (!bit.wire || !cell->hasPort(bit.wire->name))
+						if (!bit.wire || !cell->hasPort(bit.wire->meta_->name))
 							continue;
-						inputSignals.append(sigmap(cell->getPort(bit.wire->name)));
+						inputSignals.append(sigmap(cell->getPort(bit.wire->meta_->name)));
 					}
 
-					for (auto bit : subcell->getPort(ID::DST))
+					for (auto bit : subcell->getPort(TW::DST))
 					{
-						if (!bit.wire || !cell->hasPort(bit.wire->name))
+						if (!bit.wire || !cell->hasPort(bit.wire->meta_->name))
 							continue;
-						outputSignals.append(sigmap(cell->getPort(bit.wire->name)));
+						outputSignals.append(sigmap(cell->getPort(bit.wire->meta_->name)));
 					}
 				}
 			} else {
@@ -171,9 +171,9 @@ struct SccWorker
 				{
 					bool isInput = true, isOutput = true;
 
-					if (ct.cell_known(cell->type)) {
-						isInput = ct.cell_input(cell->type, conn.first);
-						isOutput = ct.cell_output(cell->type, conn.first);
+					if (ct.cell_known(cell->type.ref())) {
+						isInput = ct.cell_input(cell->type.ref(), conn.first);
+						isOutput = ct.cell_output(cell->type.ref(), conn.first);
 					}
 
 					RTLIL::SigSpec sig = selectedSignals.extract(sigmap(conn.second));
@@ -221,7 +221,7 @@ struct SccWorker
 			run(cell, 0, maxDepth);
 		}
 
-		log("Found %d SCCs in module %s.\n", int(sccList.size()), module);
+		log("Found %d SCCs in module %s.\n", int(sccList.size()), log_id(module));
 	}
 
 	void select(RTLIL::Selection &sel)
@@ -232,7 +232,7 @@ struct SccWorker
 			RTLIL::SigSpec prevsig, nextsig, sig;
 
 			for (auto cell : cells) {
-				sel.selected_members[module->name].insert(cell->name);
+				sel.selected_members[module->meta_->name].insert(cell->meta_->name);
 				prevsig.append(cellToPrevSig[cell]);
 				nextsig.append(cellToNextSig[cell]);
 			}
@@ -243,7 +243,7 @@ struct SccWorker
 
 			for (auto &chunk : sig.chunks())
 				if (chunk.wire != NULL)
-					sel.selected_members[module->name].insert(chunk.wire->name);
+					sel.selected_members[module->meta_->name].insert(chunk.wire->meta_->name);
 		}
 	}
 };

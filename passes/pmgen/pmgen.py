@@ -361,7 +361,7 @@ with open(outfile, "w") as f:
 
     print("struct {}_pm {{".format(prefix), file=f)
     print("  Module *module;", file=f)
-    print("  SigMap sigmap;", file=f)
+    print("  SigMap *sigmap;", file=f)
     print("  std::function<void()> on_accept;", file=f)
     print("  bool setup_done;", file=f)
     print("  bool generate_mode;", file=f)
@@ -417,13 +417,13 @@ with open(outfile, "w") as f:
 
     for v, n in sorted(ids.items()):
         if n[0] == "\\":
-            print("  IdString {}{{\"\\{}\"}};".format(v, n), file=f)
+            print("  TwineRef {}{{TW::{}}};".format(v, n[1:]), file=f)
         else:
-            print("  IdString {}{{\"{}\"}};".format(v, n), file=f)
+            print("  TwineRef {}{{TW({})}};".format(v, n), file=f)
     print("", file=f)
 
     print("  void add_siguser(const SigSpec &sig, Cell *cell) {", file=f)
-    print("    for (auto bit : sigmap(sig)) {", file=f)
+    print("    for (auto bit : (*sigmap)(sig)) {", file=f)
     print("      if (bit.wire == nullptr) continue;", file=f)
     print("      sigusers[bit].insert(cell);", file=f)
     print("    }", file=f)
@@ -451,14 +451,14 @@ with open(outfile, "w") as f:
 
     current_pattern = None
 
-    print("  SigSpec port(Cell *cell, IdString portname) {", file=f)
+    print("  SigSpec port(Cell *cell, TwineRef portname) {", file=f)
     print("    try {", file=f)
-    print("      return sigmap(cell->getPort(portname));", file=f)
-    print("    } catch(std::out_of_range&) { log_error(\"Accessing non existing port %s\\n\",portname); }", file=f)
+    print("      return (*sigmap)(cell->getPort(portname));", file=f)
+    print("    } catch(std::out_of_range&) { log_error(\"Accessing non existing port %s\\n\", cell->module->design->twines.str(portname).c_str()); }", file=f)
     print("  }", file=f)
     print("", file=f)
-    print("  SigSpec port(Cell *cell, IdString portname, const SigSpec& defval) {", file=f)
-    print("    return sigmap(cell->connections_.at(portname, defval));", file=f)
+    print("  SigSpec port(Cell *cell, TwineRef portname, const SigSpec& defval) {", file=f)
+    print("    return (*sigmap)(cell->connections_.at(portname, defval));", file=f)
     print("  }", file=f)
     print("", file=f)
 
@@ -467,29 +467,39 @@ with open(outfile, "w") as f:
     print("      return cell->getParam(paramname);", file=f)
     print("    } catch(std::out_of_range&) { log_error(\"Accessing non existing parameter %s\\n\",paramname); }", file=f)
     print("  }", file=f)
+    print("  Const param(Cell *cell, TwineRef paramname) {", file=f)
+    print("    return param(cell, IdString(std::string(module->design->twines.str(paramname))));", file=f)
+    print("  }", file=f)
     print("", file=f)
     print("  Const param(Cell *cell, IdString paramname, const Const& defval) {", file=f)
     print("    return cell->parameters.at(paramname, defval);", file=f)
     print("  }", file=f)
+    print("  Const param(Cell *cell, TwineRef paramname, const Const& defval) {", file=f)
+    print("    return param(cell, IdString(std::string(module->design->twines.str(paramname))), defval);", file=f)
+    print("  }", file=f)
     print("", file=f)
 
+    print("  void setparam(Cell *cell, TwineRef param, const Const& val) {", file=f)
+    print("    cell->setParam(IdString(std::string(module->design->twines.str(param))), val);", file=f)
+    print("  }", file=f)
+    print("", file=f)
     print("  int nusers(const SigSpec &sig) {", file=f)
     print("    pool<Cell*> users;", file=f)
-    print("    for (auto bit : sigmap(sig))", file=f)
+    print("    for (auto bit : (*sigmap)(sig))", file=f)
     print("      for (auto user : sigusers[bit])", file=f)
     print("        users.insert(user);", file=f)
     print("    return GetSize(users);", file=f)
     print("  }", file=f)
     print("", file=f)
 
-    print("  {}_pm(Module *module, const vector<Cell*> &cells) :".format(prefix), file=f)
-    print("      module(module), sigmap(module), setup_done(false), generate_mode(false), rngseed(12345678) {", file=f)
+    print("  {}_pm(Module *module, SigMap *map, const vector<Cell*> &cells) :".format(prefix), file=f)
+    print("      module(module), sigmap(map), setup_done(false), generate_mode(false), rngseed(12345678) {", file=f)
     print("    setup(cells);", file=f)
     print("  }", file=f)
     print("", file=f)
 
-    print("  {}_pm(Module *module) :".format(prefix), file=f)
-    print("      module(module), sigmap(module), setup_done(false), generate_mode(false), rngseed(12345678) {", file=f)
+    print("  {}_pm(Module *module, SigMap *map) :".format(prefix), file=f)
+    print("      module(module), sigmap(map), setup_done(false), generate_mode(false), rngseed(12345678) {", file=f)
     print("  }", file=f)
     print("", file=f)
 

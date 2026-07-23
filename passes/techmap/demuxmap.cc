@@ -47,28 +47,28 @@ struct DemuxmapPass : public Pass {
 		for (auto module : design->selected_modules())
 		for (auto cell : module->selected_cells())
 		{
-			if (cell->type != ID($demux))
+			if (cell->type != TW($demux))
 				continue;
 
-			SigSpec sel = cell->getPort(ID::S);
-			SigSpec data = cell->getPort(ID::A);
-			SigSpec out = cell->getPort(ID::Y);
-			int width = GetSize(cell->getPort(ID::A));
+			SigSpec sel = cell->getPort(TW::S);
+			SigSpec data = cell->getPort(TW::A);
+			SigSpec out = cell->getPort(TW::Y);
+			int width = GetSize(cell->getPort(TW::A));
 
 			for (int i = 0; i < 1 << GetSize(sel); i++) {
 				if (width == 1 && data == State::S1) {
-					RTLIL::Cell *eq_cell = module->addEq(NEW_ID, sel, Const(i, GetSize(sel)), out[i]);
-					eq_cell->add_strpool_attribute(ID::src, cell->get_strpool_attribute(ID::src));
+					RTLIL::Cell *eq_cell = module->addEq(NEW_TWINE, sel, Const(i, GetSize(sel)), out[i]);
+					module->design->merge_src(eq_cell, cell);
 				} else {
-					Wire *eq = module->addWire(NEW_ID);
-					RTLIL::Cell *eq_cell = module->addEq(NEW_ID, sel, Const(i, GetSize(sel)), eq);
-					eq_cell->add_strpool_attribute(ID::src, cell->get_strpool_attribute(ID::src));
-					RTLIL::Cell *mux = module->addMux(NEW_ID,
+					Wire *eq = module->addWire(NEW_TWINE);
+					RTLIL::Cell *eq_cell = module->addEq(NEW_TWINE, sel, Const(i, GetSize(sel)), eq);
+					module->design->merge_src(eq_cell, cell);
+					RTLIL::Cell *mux = module->addMux(NEW_TWINE,
 							Const(State::S0, width),
 							data,
 							eq,
 							out.extract(i*width, width));
-					mux->add_strpool_attribute(ID::src, cell->get_strpool_attribute(ID::src));
+					module->design->merge_src(mux, cell);
 				}
 			}
 

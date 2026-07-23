@@ -32,21 +32,21 @@
 USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
-#define BITWISE_OPS ID($buf), ID($not), ID($mux), ID($and), ID($or), ID($xor), ID($xnor), ID($fa), \
-					ID($bwmux)
+#define BITWISE_OPS TW($buf), TW($not), TW($mux), TW($and), TW($or), TW($xor), TW($xnor), TW($fa), \
+					TW($bwmux)
 
-#define REDUCE_OPS ID($reduce_and), ID($reduce_or), ID($reduce_xor), ID($reduce_xnor), ID($reduce_bool)
+#define REDUCE_OPS TW($reduce_and), TW($reduce_or), TW($reduce_xor), TW($reduce_xnor), TW($reduce_bool)
 
-#define LOGIC_OPS ID($logic_and), ID($logic_or), ID($logic_not)
+#define LOGIC_OPS TW($logic_and), TW($logic_or), TW($logic_not)
 
-#define GATE_OPS ID($_BUF_), ID($_NOT_), ID($_AND_), ID($_NAND_), ID($_OR_), ID($_NOR_), \
-				 ID($_XOR_), ID($_XNOR_), ID($_ANDNOT_), ID($_ORNOT_), ID($_MUX_), ID($_NMUX_), \
-				 ID($_AOI3_), ID($_OAI3_), ID($_AOI4_), ID($_OAI4_)
+#define GATE_OPS TW($_BUF_), TW($_NOT_), TW($_AND_), TW($_NAND_), TW($_OR_), TW($_NOR_), \
+				 TW($_XOR_), TW($_XNOR_), TW($_ANDNOT_), TW($_ORNOT_), TW($_MUX_), TW($_NMUX_), \
+				 TW($_AOI3_), TW($_OAI3_), TW($_AOI4_), TW($_OAI4_)
 
-#define CMP_OPS ID($eq), ID($ne), ID($lt), ID($le), ID($ge), ID($gt)
+#define CMP_OPS TW($eq), TW($ne), TW($lt), TW($le), TW($ge), TW($gt)
 
 // TODO
-//#define ARITH_OPS ID($add), ID($sub), ID($neg)
+//#define ARITH_OPS TW($add), TW($sub), TW($neg)
 
 static constexpr auto known_ops = []() constexpr {
 	StaticCellTypes::Categories::Category c{};
@@ -60,7 +60,7 @@ static constexpr auto known_ops = []() constexpr {
 		c.set_id(id);
 	for (auto id : {CMP_OPS})
 		c.set_id(id);
-	for (auto id : {ID($pos), ID($pmux), ID($bmux)})
+	for (auto id : {TW($pos), TW($pmux), TW($bmux)})
 		c.set_id(id);
 	return c;
 }();
@@ -109,10 +109,10 @@ struct Index {
 		int pos = index_wires(info, m);
 
 		for (auto cell : m->cells()) {
-			if (known_ops(cell->type) || cell->type.in(ID($scopeinfo), ID($specify2), ID($specify3), ID($input_port)))
+			if (known_ops(cell->type.ref()) || cell->type.in(TW($scopeinfo), TW($specify2), TW($specify3), TW($input_port)))
 				continue;
 
-			Module *submodule = m->design->module(cell->type);
+			Module *submodule = m->design->module(cell->type_impl);
 
 			if (submodule && flatten &&
 					!submodule->get_bool_attribute(ID::keep_hierarchy) &&
@@ -128,7 +128,7 @@ struct Index {
 					// can't bail at this point. If they are hit by a traversal
 					// (which can only really happen with $tribuf not
 					// $connect), we can still detect this as an error later.
-					if (cell->type == ID($connect) || (cell->type == ID($tribuf) && cell->has_attribute(ID(aiger2_zbuf))))
+					if (cell->type == TW($connect) || (cell->type == TW($tribuf) && cell->has_attribute(ID(aiger2_zbuf))))
 						continue;
 					if (!submodule || submodule->get_blackbox_attribute())
 						log_error("Unsupported cell type: %s (%s in %s)\n",
@@ -278,32 +278,32 @@ struct Index {
 			return lits.front();
 	}
 
-	Lit impl_op(HierCursor &cursor, Cell *cell, IdString oport, int obit)
+	Lit impl_op(HierCursor &cursor, Cell *cell, TwineRef oport, int obit)
 	{
 		if (cell->type.in(REDUCE_OPS, LOGIC_OPS, CMP_OPS) && obit != 0) {
 			return CFALSE;
 		} else if (cell->type.in(CMP_OPS)) {
-			SigSpec aport = cell->getPort(ID::A);
+			SigSpec aport = cell->getPort(TW::A);
 			bool asigned = cell->getParam(ID::A_SIGNED).as_bool();
-			SigSpec bport = cell->getPort(ID::B);
+			SigSpec bport = cell->getPort(TW::B);
 			bool bsigned = cell->getParam(ID::B_SIGNED).as_bool();
 
 			int width = std::max(aport.size(), bport.size()) + 1;
 			aport.extend_u0(width, asigned);
 			bport.extend_u0(width, bsigned);
 
-			if (cell->type.in(ID($eq), ID($ne))) {
+			if (cell->type.in(TW($eq), TW($ne))) {
 				int carry = CTRUE;
 				for (int i = 0; i < width; i++) {
 					Lit a = visit(cursor, aport[i]);
 					Lit b = visit(cursor, bport[i]);
 					carry = AND(carry, XNOR(a, b));
 				}
-				return (cell->type == ID($eq)) ? carry : /* $ne */ NOT(carry);
-			} else if (cell->type.in(ID($lt), ID($le), ID($gt), ID($ge))) {
-				if (cell->type.in(ID($gt), ID($ge)))
+				return (cell->type == TW($eq)) ? carry : /* $ne */ NOT(carry);
+			} else if (cell->type.in(TW($lt), TW($le), TW($gt), TW($ge))) {
+				if (cell->type.in(TW($gt), TW($ge)))
 					std::swap(aport, bport);
-				int carry = cell->type.in(ID($le), ID($ge)) ? CFALSE : CTRUE;
+				int carry = cell->type.in(TW($le), TW($ge)) ? CFALSE : CTRUE;
 				Lit a = Writer::EMPTY_LIT;
 				Lit b = Writer::EMPTY_LIT;
 				// TODO: this might not be the most economic structure; revisit at a later date
@@ -317,30 +317,30 @@ struct Index {
 			} else {
 				log_abort();
 			}
-		} else if (cell->type.in(REDUCE_OPS, ID($logic_not))) {
-			SigSpec inport = cell->getPort(ID::A);
+		} else if (cell->type.in(REDUCE_OPS, TW($logic_not))) {
+			SigSpec inport = cell->getPort(TW::A);
 
 			std::vector<Lit> lits;
 			for (int i = 0; i < inport.size(); i++) {
 				Lit lit = visit(cursor, inport[i]);
-				if (cell->type.in(ID($reduce_and), ID($reduce_xor), ID($reduce_xnor))) {
+				if (cell->type.in(TW($reduce_and), TW($reduce_xor), TW($reduce_xnor))) {
 					lits.push_back(lit);
-				} else if (cell->type.in(ID($reduce_or), ID($reduce_bool), ID($logic_not))) {
+				} else if (cell->type.in(TW($reduce_or), TW($reduce_bool), TW($logic_not))) {
 					lits.push_back(NOT(lit));
 				} else {
 					log_abort();
 				}
 			}
 
-			Lit acc = REDUCE(lits, cell->type.in(ID($reduce_xor), ID($reduce_xnor)));
+			Lit acc = REDUCE(lits, cell->type.in(TW($reduce_xor), TW($reduce_xnor)));
 
-			if (!cell->type.in(ID($reduce_xnor), ID($reduce_or), ID($reduce_bool)))
+			if (!cell->type.in(TW($reduce_xnor), TW($reduce_or), TW($reduce_bool)))
 				return acc;
 			else
 				return NOT(acc);
-		} else if (cell->type.in(ID($logic_and), ID($logic_or))) {
-			SigSpec aport = cell->getPort(ID::A);
-			SigSpec bport = cell->getPort(ID::B);
+		} else if (cell->type.in(TW($logic_and), TW($logic_or))) {
+			SigSpec aport = cell->getPort(TW::A);
+			SigSpec bport = cell->getPort(TW::B);
 
 			log_assert(aport.size() > 0 && bport.size() > 0); // TODO
 
@@ -356,14 +356,14 @@ struct Index {
 				b = OR(b, l);
 			}
 
-			if (cell->type == ID($logic_and))
+			if (cell->type == TW($logic_and))
 				return AND(a, b);
-			else if (cell->type == ID($logic_or))
+			else if (cell->type == TW($logic_or))
 				return OR(a, b);
 			else
 				log_abort();
-		} else if (cell->type.in(BITWISE_OPS, GATE_OPS, ID($pos))) {
-			SigSpec aport = cell->getPort(ID::A);
+		} else if (cell->type.in(BITWISE_OPS, GATE_OPS, TW($pos))) {
+			SigSpec aport = cell->getPort(TW::A);
 			Lit a;
 			if (obit < aport.size()) {
 				a = visit(cursor, aport[obit]);
@@ -374,12 +374,12 @@ struct Index {
 					a = CFALSE;
 			}
 
-			if (cell->type.in(ID($buf), ID($pos), ID($_BUF_))) {
+			if (cell->type.in(TW($buf), TW($pos), TW($_BUF_))) {
 				return a;
-			} else if (cell->type.in(ID($not), ID($_NOT_))) {
+			} else if (cell->type.in(TW($not), TW($_NOT_))) {
 				return NOT(a);
 			} else {
-				SigSpec bport = cell->getPort(ID::B);
+				SigSpec bport = cell->getPort(TW::B);
 				Lit b;
 				if (obit < bport.size()) {
 					b = visit(cursor, bport[obit]);
@@ -390,51 +390,51 @@ struct Index {
 						b = CFALSE;
 				}
 
-				if (cell->type.in(ID($and), ID($_AND_))) {
+				if (cell->type.in(TW($and), TW($_AND_))) {
 					return AND(a, b);
-				} else if (cell->type.in(ID($_NAND_))) {
+				} else if (cell->type.in(TW($_NAND_))) {
 					return NOT(AND(a, b));
-				} else if (cell->type.in(ID($or), ID($_OR_))) {
+				} else if (cell->type.in(TW($or), TW($_OR_))) {
 					return OR(a, b);
-				} else if (cell->type.in(ID($_NOR_))) {
+				} else if (cell->type.in(TW($_NOR_))) {
 					return NOT(OR(a, b));
-				} else if (cell->type.in(ID($xor), ID($_XOR_))) {
+				} else if (cell->type.in(TW($xor), TW($_XOR_))) {
 					return XOR(a, b);
-				} else if (cell->type.in(ID($xnor), ID($_XNOR_))) {
+				} else if (cell->type.in(TW($xnor), TW($_XNOR_))) {
 					return XNOR(a, b);
-				} else if (cell->type.in(ID($_ANDNOT_))) {
+				} else if (cell->type.in(TW($_ANDNOT_))) {
 					return AND(a, NOT(b));
-				} else if (cell->type.in(ID($_ORNOT_))) {
+				} else if (cell->type.in(TW($_ORNOT_))) {
 					return OR(a, NOT(b));
-				} else if (cell->type.in(ID($mux), ID($_MUX_))) {
-					Lit s = visit(cursor, cell->getPort(ID::S));
+				} else if (cell->type.in(TW($mux), TW($_MUX_))) {
+					Lit s = visit(cursor, cell->getPort(TW::S));
 					return MUX(a, b, s);
-				} else if (cell->type.in(ID($bwmux))) {
-					Lit s = visit(cursor, cell->getPort(ID::S)[obit]);
+				} else if (cell->type.in(TW($bwmux))) {
+					Lit s = visit(cursor, cell->getPort(TW::S)[obit]);
 					return MUX(a, b, s);
-				} else if (cell->type.in(ID($_NMUX_))) {
-					Lit s = visit(cursor, cell->getPort(ID::S)[obit]);
+				} else if (cell->type.in(TW($_NMUX_))) {
+					Lit s = visit(cursor, cell->getPort(TW::S)[obit]);
 					return NOT(MUX(a, b, s));
-				} else if (cell->type.in(ID($fa))) {
-					Lit c = visit(cursor, cell->getPort(ID::C)[obit]);
+				} else if (cell->type.in(TW($fa))) {
+					Lit c = visit(cursor, cell->getPort(TW::C)[obit]);
 					Lit ab = XOR(a, b);
-					if (oport == ID::Y) {
+					if (oport == TW::Y) {
 						return XOR(ab, c);
-					} else /* oport == ID::X */ {
+					} else /* oport == TW::X */ {
 						Lit a_and_b = AND(a, b);
 						Lit c_and_ab = AND(c, ab);
 						return OR(a_and_b, c_and_ab);
 					}
-				} else if (cell->type.in(ID($_AOI3_), ID($_OAI3_), ID($_AOI4_), ID($_OAI4_))) {
+				} else if (cell->type.in(TW($_AOI3_), TW($_OAI3_), TW($_AOI4_), TW($_OAI4_))) {
 					Lit c, d;
 
-					c = visit(cursor, cell->getPort(ID::C)[obit]);
-					if (/* 4 input types */ cell->type.in(ID($_AOI4_), ID($_OAI4_)))
-						d = visit(cursor, cell->getPort(ID::D)[obit]);
+					c = visit(cursor, cell->getPort(TW::C)[obit]);
+					if (/* 4 input types */ cell->type.in(TW($_AOI4_), TW($_OAI4_)))
+						d = visit(cursor, cell->getPort(TW::D)[obit]);
 					else
-						d = cell->type == ID($_AOI3_) ? CTRUE : CFALSE;
+						d = cell->type == TW($_AOI3_) ? CTRUE : CFALSE;
 
-					if (/* aoi */ cell->type.in(ID($_AOI3_), ID($_AOI4_))) {
+					if (/* aoi */ cell->type.in(TW($_AOI3_), TW($_AOI4_))) {
 						Lit a_and_b = AND(a, b);
 						Lit c_and_d = AND(c, d);
 						return NOT(OR(a_and_b, c_and_d));
@@ -447,10 +447,10 @@ struct Index {
 					log_abort();
 				}
 			}
-		} else if (cell->type == ID($pmux)) {
-			SigSpec aport = cell->getPort(ID::A);
-			SigSpec bport = cell->getPort(ID::B);
-			SigSpec sport = cell->getPort(ID::S);
+		} else if (cell->type == TW($pmux)) {
+			SigSpec aport = cell->getPort(TW::A);
+			SigSpec bport = cell->getPort(TW::B);
+			SigSpec sport = cell->getPort(TW::S);
 			int width = aport.size();
 
 			Lit a = visit(cursor, aport[obit]);
@@ -468,9 +468,9 @@ struct Index {
 			Lit reduce_bar = NOT(REDUCE(bar));
 
 			return OR(reduce_sels_and_a, reduce_bar);
-		} else if (cell->type == ID($bmux)) {
-			SigSpec aport = cell->getPort(ID::A);
-			SigSpec sport = cell->getPort(ID::S);
+		} else if (cell->type == TW($bmux)) {
+			SigSpec aport = cell->getPort(TW::A);
+			SigSpec sport = cell->getPort(TW::S);
 			int width = cell->getParam(ID::WIDTH).as_int();
 
 			std::vector<Lit> data;
@@ -537,8 +537,8 @@ struct Index {
 			Design *design = index.design;
 			auto &minfo = leaf_minfo(index);
 			if (!minfo.suboffsets.count(cell))
-				log_error("Reached unsupported cell %s (%s in %s)\n", cell->type.unescape(), cell, cell->module);
-			Module *def = design->module(cell->type);
+				log_error("Reached unsupported cell %s (%s in %s)\n", cell->type.unescaped(), cell, cell->module);
+			Module *def = design->module(cell->type_impl);
 			log_assert(def);
 			levels.push_back(Level(index.modules.at(def), cell));
 			instance_offset += minfo.suboffsets.at(cell);
@@ -556,13 +556,14 @@ struct Index {
 		{
 			std::string ret;
 			bool first = true;
+			Design *design = levels[0].first.module ? levels[0].first.module->design : nullptr;
 			for (auto [minfo, cell] : levels) {
 				if (!first)
 					ret += ".";
 				if (!cell)
-					ret += minfo.module->name.unescape();
+					ret += design->twines.str(minfo.module->meta_->name);
 				else
-					ret += cell->name.unescape();
+					ret += design->twines.str(cell->meta_->name);
 				first = false;
 			}
 			return ret;
@@ -627,19 +628,19 @@ struct Index {
 			// an output of a cell
 			Cell *driver = bit.wire->driverCell();
 
-			if (known_ops(driver->type)) {
+			if (known_ops(driver->type.ref())) {
 				ret = impl_op(cursor, driver, bit.wire->driverPort(), bit.offset);
 			} else {
 				Module *def = cursor.enter(*this, driver);
 				{
-					IdString portname = bit.wire->driverPort();
+					TwineRef portname = bit.wire->driverPort();
 					Wire *w = def->wire(portname);
 					if (!w)
 						log_error("Output port %s on instance %s of %s doesn't exist\n",
-								  portname.unescape(), driver, def);
+								  design->twines.str(portname).c_str(), driver, def);
 					if (bit.offset >= w->width)
 						log_error("Bit position %d of output port %s on instance %s of %s is out of range (port has width %d)\n",
-								  bit.offset, portname.unescape(), driver, def, w->width);
+								  bit.offset, design->twines.str(portname).c_str(), driver, def, w->width);
 					ret = visit(cursor, SigBit(w, bit.offset));
 				}
 				cursor.exit(*this);
@@ -652,14 +653,14 @@ struct Index {
 			// step into the upper module
 			Cell *instance = cursor.exit(*this);
 			{
-				IdString portname = bit.wire->name;
+				TwineRef portname = bit.wire->meta_->name;
 				if (!instance->hasPort(portname))
 					log_error("Input port %s on instance %s of %s unconnected\n",
-							  portname.unescape(), instance, instance->type);
+							  design->twines.str(portname).c_str(), instance, instance->type);
 				auto &port = instance->getPort(portname);
 				if (bit.offset >= port.size())
 					log_error("Bit %d of input port %s on instance %s of %s unconnected\n",
-							  bit.offset, portname.unescape(), instance, instance->type.unescape());
+							  bit.offset, design->twines.str(portname).c_str(), instance, instance->type.unescaped());
 				ret = visit(cursor, port[bit.offset]);
 			}
 			cursor.enter(*this, instance);
@@ -844,7 +845,7 @@ struct AigerWriter : Index<AigerWriter, unsigned int, 0, 1> {
 				char buf[32];
 				snprintf(buf, sizeof(buf), "o%d ", i);
 				f->write(buf, strlen(buf));
-				std::string name = bit.wire->name.unescape();
+				std::string name = bit.wire->name.unescaped();
 				f->write(name.data(), name.size());
 				f->put('\n');
 			}
@@ -857,7 +858,7 @@ struct AigerWriter : Index<AigerWriter, unsigned int, 0, 1> {
 				char buf[32];
 				snprintf(buf, sizeof(buf), "i%d ", i);
 				f->write(buf, strlen(buf));
-				std::string name = bit.wire->name.unescape();
+				std::string name = bit.wire->name.unescaped();
 				f->write(name.data(), name.size());
 				f->put('\n');
 			}
@@ -898,14 +899,14 @@ struct XAigerAnalysis : Index<XAigerAnalysis, int, 0, 0> {
 			return false;
 
 		Cell *driver = bit.wire->driverCell();
-		Module *mod = design->module(driver->type);
+		Module *mod = design->module(driver->type.ref());
 		if (!mod || !mod->has_attribute(ID::abc9_box_id))
 			return false;
 
 		int max = 1;
 		for (auto wire : mod->wires()) {
 			if (wire->port_input && !wire->port_output) {
-				SigSpec port = driver->getPort(wire->name);
+				SigSpec port = driver->getPort(wire->meta_->name);
 				for (int i = 0; i < std::min(wire->width, port.size()); i++) {
 					int ilevel = visit(cursor, port[i]);
 					max = std::max(max, ilevel + 1);
@@ -934,7 +935,7 @@ struct XAigerAnalysis : Index<XAigerAnalysis, int, 0, 0> {
 
 		HierCursor cursor;
 		for (auto box : top_minfo->found_blackboxes) {
-			Module *def = design->module(box->type);
+			Module *def = design->module(box->type.ref());
 			if (!(def && def->has_attribute(ID::abc9_box_id)))
 				for (auto &conn : box->connections_)
 					if (box->port_dir(conn.first) != RTLIL::PD_INPUT)
@@ -950,7 +951,7 @@ struct XAigerAnalysis : Index<XAigerAnalysis, int, 0, 0> {
 		}
 
 		for (auto box : top_minfo->found_blackboxes) {
-			Module *def = design->module(box->type);
+			Module *def = design->module(box->type.ref());
 			if (!(def && def->has_attribute(ID::abc9_box_id)))
 				for (auto &conn : box->connections_)
 					if (box->port_dir(conn.first) == RTLIL::PD_INPUT)
@@ -999,7 +1000,7 @@ struct XAigerWriter : AigerWriter {
 				log_assert(cursor.is_top()); // TODO
 				driven_by_opaque_box.insert(bit);
 				map_file << "pi " << pis.size() - 1 << " " << bit.offset
-						<< " " << bit.wire->name.c_str() << "\n";
+						<< " " << design->twines.str(bit.wire->meta_->name).c_str() << "\n";
 			}
 		} else {
 			log_assert(!box_port);
@@ -1034,8 +1035,8 @@ struct XAigerWriter : AigerWriter {
 					if (map_file.is_open()) {
 						log_assert(cursor.is_top());
 						map_file << "pseudopo " << proper_pos_counter << " " << bitp
-							<< " " << box->name.c_str()
-							<< " " << conn.first.c_str() << "\n";
+							<< " " << design->twines.str(box->meta_->name).c_str()
+							<< " " << design->twines.str(conn.first).c_str() << "\n";
 					}
 					proper_pos_counter++;
 					pos.push_back(std::make_pair(bit, cursor));
@@ -1048,7 +1049,7 @@ struct XAigerWriter : AigerWriter {
 			} else if (!is_input && !inputs) {
 				for (auto &bit : conn.second) {
 					if (!bit.wire || (bit.wire->port_input && !bit.wire->port_output))
-						log_error("Bad connection %s/%s ~ %s\n", box, conn.first.unescape(), log_signal(conn.second));
+						log_error("Bad connection %s/%s ~ %s\n", box, design->twines.str(conn.first).c_str(), log_signal(conn.second));
 
 
 					ensure_pi(bit, cursor);
@@ -1089,9 +1090,9 @@ struct XAigerWriter : AigerWriter {
 			for (auto box : minfo.found_blackboxes) {
 				log_debug(" - %s.%s (type %s): ", cursor.path(),
 						  box,
-						  box->type.unescape());
+						  box->type.unescaped());
 
-				Module *box_module = design->module(box->type), *box_derived;
+				Module *box_module = design->module(box->type.ref()), *box_derived;
 
 				if (box_module && !box->parameters.empty()) {
 					// TODO: This is potentially costly even if a cached derivation exists
@@ -1116,7 +1117,7 @@ struct XAigerWriter : AigerWriter {
 		for (auto [cursor, box, def] : opaque_boxes)
 			append_opaque_box_ports(box, cursor, false);
 
-		holes_module = design->addModule(NEW_ID);
+		holes_module = design->addModule(design->twines.add(NEW_TWINE));
 		std::vector<RTLIL::Wire *> holes_pis;
 		int boxes_ci_num = 0, boxes_co_num = 0;
 
@@ -1128,18 +1129,18 @@ struct XAigerWriter : AigerWriter {
 		nonopaque_boxes.clear();
 		for (auto box : boxes_order) {
 			HierCursor cursor;
-			Module *def = design->module(box->type);
+			Module *def = design->module(box->type.ref());
 			nonopaque_boxes.push_back(std::make_tuple(cursor, box, def));
 		}
 
 		for (auto [cursor, box, def] : nonopaque_boxes) {
-			// use `def->name` not `box->type` as we want the derived type
-			Cell *holes_wb = holes_module->addCell(NEW_ID, def->name);
+			// use `def->meta_->name` not `box->type` as we want the derived type
+			Cell *holes_wb = holes_module->addCell(NEW_TWINE, def->meta_->name);
 			int holes_pi_idx = 0;
 
 			if (map_file.is_open()) {
 				log_assert(cursor.is_top());
-				map_file << "box " << box_seq << " " << box->name.c_str() << "\n";
+				map_file << "box " << box_seq << " " << design->twines.str(box->meta_->name).c_str() << "\n";
 			}
 			box_seq++;
 
@@ -1158,7 +1159,7 @@ struct XAigerWriter : AigerWriter {
 						} else {
 							// FIXME: hierarchical path
 							log_warning("connection on port %s[%d] of instance %s (type %s) missing, using 1'bx\n",
-										port_id.unescape(), i, box, box->type.unescape());
+										design->twines.str(port_id).c_str(), i, box, box->type.unescaped());
 							bit = RTLIL::Sx;
 						}
 
@@ -1175,9 +1176,9 @@ struct XAigerWriter : AigerWriter {
 					SigSpec in_conn;
 					for (int i = 0; i < port->width; i++) {
 						while (holes_pi_idx >= (int) holes_pis.size()) {
-							Wire *w = holes_module->addWire(NEW_ID, 1);
+							Wire *w = holes_module->addWire(NEW_TWINE, 1);
 							w->port_input = true;
-							holes_module->ports.push_back(w->name);
+							holes_module->ports.push_back(w->meta_->name);
 							holes_pis.push_back(w);
 						}
 						in_conn.append(holes_pis[holes_pi_idx]);
@@ -1193,7 +1194,7 @@ struct XAigerWriter : AigerWriter {
 						} else {
 							// FIXME: hierarchical path
 							log_warning("connection on port %s[%d] of instance %s (type %s) missing\n",
-										port_id.unescape(), i, box, box->type.unescape());
+										design->twines.str(port_id).c_str(), i, box, box->type.unescaped());
 							pad_pi();
 							continue;
 						}
@@ -1204,13 +1205,13 @@ struct XAigerWriter : AigerWriter {
 					boxes_ci_num += port->width;
 
 					// holes
-					Wire *w = holes_module->addWire(NEW_ID, port->width);
+					Wire *w = holes_module->addWire(NEW_TWINE, port->width);
 					w->port_output = true;
-					holes_module->ports.push_back(w->name);
+					holes_module->ports.push_back(w->meta_->name);
 					holes_wb->setPort(port_id, w);
 				} else {
 					log_error("Ambiguous port direction on %s/%s\n",
-							  box->type.unescape(), port_id.unescape());
+							  box->type.unescaped(), design->twines.str(port_id).c_str());
 				}
 			}
 		}
@@ -1278,7 +1279,7 @@ struct XAigerWriter : AigerWriter {
 					// do emit a proper PO.
 					if (map_file.is_open() && !driven_by_opaque_box.count(SigBit(w, i))) {
 						map_file << "po " << proper_pos_counter << " " << i
-									<< " " << w->name.c_str() << "\n";
+									<< " " << w->name.str().c_str() << "\n";
 					}
 					proper_pos_counter++;
 					pos.push_back(std::make_pair(SigBit(w, i), HierCursor{}));
@@ -1405,7 +1406,7 @@ struct Aiger2Backend : Backend {
 				continue;
 			if (known_ops(cell.type))
 				continue;
-			std::string name = cell.type.unescape();
+			std::string name = TW::str(cell.type);
 			if (col + name.size() + 2 > 72) {
 				log("\n    ");
 				col = 0;
@@ -1427,7 +1428,7 @@ struct Aiger2Backend : Backend {
 				continue;
 			if (known_ops(cell.type))
 				continue;
-			std::string name = cell.type.unescape();
+			std::string name = TW::str(cell.type);
 			if (col + name.size() + 2 > 72) {
 				log("\n    ");
 				col = 0;

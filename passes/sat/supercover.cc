@@ -68,7 +68,7 @@ struct SupercoverPass : public Pass {
 			for (auto wire : module->selected_wires())
 			{
 				bool counted_wire = false;
-				std::string src = wire->get_src_attribute();
+				TwineRef src = wire->src_ref();
 
 				for (auto bit : sigmap(SigSpec(wire)))
 				{
@@ -78,9 +78,9 @@ struct SupercoverPass : public Pass {
 					if (handled_bits.count(bit))
 						continue;
 
-					SigSpec inv = module->Not(NEW_ID, bit);
-					module->addCover(NEW_ID, bit, State::S1, src);
-					module->addCover(NEW_ID, inv, State::S1, src);
+					SigSpec inv = module->Not(NEW_TWINE, bit);
+					module->addCover(NEW_TWINE, bit, State::S1, src);
+					module->addCover(NEW_TWINE, inv, State::S1, src);
 
 					handled_bits.insert(bit);
 					if (!counted_wire) {

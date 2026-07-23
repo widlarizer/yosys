@@ -67,7 +67,7 @@ const char *fn_to_string(Fn fn) {
 	log_error("fn_to_string: unknown Functional::Fn value %d", (int)fn);
 }
 
-vector<IRInput const*> IR::inputs(IdString kind) const {
+vector<IRInput const*> IR::inputs(TwineRef kind) const {
 	vector<IRInput const*> ret;
 	for (const auto &[name, input] : _inputs)
 		if(input.kind == kind)
@@ -75,7 +75,7 @@ vector<IRInput const*> IR::inputs(IdString kind) const {
 	return ret;
 }
 
-vector<IROutput const*> IR::outputs(IdString kind) const {
+vector<IROutput const*> IR::outputs(TwineRef kind) const {
 	vector<IROutput const*> ret;
 	for (const auto &[name, output] : _outputs)
 		if(output.kind == kind)
@@ -83,7 +83,7 @@ vector<IROutput const*> IR::outputs(IdString kind) const {
 	return ret;
 }
 
-vector<IRState const*> IR::states(IdString kind) const {
+vector<IRState const*> IR::states(TwineRef kind) const {
 	vector<IRState const*> ret;
 	for (const auto &[name, state] : _states)
 		if(state.kind == kind)
@@ -120,8 +120,8 @@ struct PrintVisitor : DefaultVisitor<std::string> {
 	std::string zero_extend(Node, Node a, int out_width) override { return "zero_extend(" + np(a) + ", " + std::to_string(out_width) + ")"; }
 	std::string sign_extend(Node, Node a, int out_width) override { return "sign_extend(" + np(a) + ", " + std::to_string(out_width) + ")"; }
 	std::string constant(Node, RTLIL::Const const& value) override { return "constant(" + value.as_string() + ")"; }
-	std::string input(Node, IdString name, IdString kind) override { return "input(" + name.str() + ", " + kind.str() + ")"; }
-	std::string state(Node, IdString name, IdString kind) override { return "state(" + name.str() + ", " + kind.str() + ")"; }
+	std::string input(Node self, TwineRef name, TwineRef kind) override { return "input(" + self.design->twines.unescaped_str(name) + ", " + self.design->twines.unescaped_str(kind) + ")"; }
+	std::string state(Node self, TwineRef name, TwineRef kind) override { return "state(" + self.design->twines.unescaped_str(name) + ", " + self.design->twines.unescaped_str(kind) + ")"; }
 	std::string default_handler(Node self) override {
 		std::string ret = fn_to_string(self.fn());
 		ret += "(";
@@ -136,7 +136,7 @@ struct PrintVisitor : DefaultVisitor<std::string> {
 
 std::string Node::to_string()
 {
-	return to_string([](Node n) { return n.name().unescape(); });
+	return to_string([](Node n) { return n.design->twines.unescaped_str(n.name()); });
 }
 
 std::string Node::to_string(std::function<std::string(Node)> np)
@@ -218,15 +218,15 @@ private:
 			y = factory.mux(y, factory.slice(b, a.width() * i, a.width()), factory.slice(s, i, 1));
 		return y;
 	}
-	dict<IdString, Node> handle_fa(Node a, Node b, Node c) {
+	dict<TwineRef, Node> handle_fa(Node a, Node b, Node c) {
 		Node t1 = factory.bitwise_xor(a, b);
 		Node t2 = factory.bitwise_and(a, b);
 		Node t3 = factory.bitwise_and(c, t1);
 		Node y = factory.bitwise_xor(c, t1);
 		Node x = factory.bitwise_or(t2, t3);
-		return {{ID(X), x}, {ID(Y), y}};
+		return {{TW::X, x}, {TW::Y, y}};
 	}
-	dict<IdString, Node> handle_alu(Node a_in, Node b_in, int y_width, bool is_signed, Node ci, Node bi) {
+	dict<TwineRef, Node> handle_alu(Node a_in, Node b_in, int y_width, bool is_signed, Node ci, Node bi) {
 		Node a = factory.extend(a_in, y_width, is_signed);
 		Node b_uninverted = factory.extend(b_in, y_width, is_signed);
 		Node b = factory.mux(b_uninverted, factory.bitwise_not(b_uninverted), bi);
@@ -240,101 +240,101 @@ private:
 		Node y = factory.slice(y_extra, 0, y_width);
 		Node carries = factory.bitwise_xor(y_extra, factory.bitwise_xor(a_extra, b_extra));
 		Node co = factory.slice(carries, 1, y_width);
-		return {{ID(X), x}, {ID(Y), y}, {ID(CO), co}};
+		return {{TW::X, x}, {TW::Y, y}, {TW::CO, co}};
 	}
 	Node handle_lcu(Node p, Node g, Node ci) {
-		return handle_alu(g, factory.bitwise_or(p, g), g.width(), false, ci, factory.constant(Const(State::S0, 1))).at(ID(CO));
+		return handle_alu(g, factory.bitwise_or(p, g), g.width(), false, ci, factory.constant(Const(State::S0, 1))).at(TW::CO);
 	}
 public:
-	std::variant<dict<IdString, Node>, Node> handle(IdString cellName, IdString cellType, dict<IdString, Const> parameters, dict<IdString, Node> inputs)
+	std::variant<dict<TwineRef, Node>, Node> handle(TwineRef cellName, TwineRef cellType, dict<IdString, Const> parameters, dict<TwineRef, Node> inputs)
 	{
 		int a_width = parameters.at(ID(A_WIDTH), Const(-1)).as_int();
 		int b_width = parameters.at(ID(B_WIDTH), Const(-1)).as_int();
 		int y_width = parameters.at(ID(Y_WIDTH), Const(-1)).as_int();
 		bool a_signed = parameters.at(ID(A_SIGNED), Const(0)).as_bool();
 		bool b_signed = parameters.at(ID(B_SIGNED), Const(0)).as_bool();
-		if(cellType.in(ID($add), ID($sub), ID($and), ID($or), ID($xor), ID($xnor), ID($mul))){
+		if(cellType.in(TW($add), TW($sub), TW($and), TW($or), TW($xor), TW($xnor), TW($mul))){
 			bool is_signed = a_signed && b_signed;
-			Node a = factory.extend(inputs.at(ID(A)), y_width, is_signed);
-			Node b = factory.extend(inputs.at(ID(B)), y_width, is_signed);
-			if(cellType == ID($add))
+			Node a = factory.extend(inputs.at(TW::A), y_width, is_signed);
+			Node b = factory.extend(inputs.at(TW::B), y_width, is_signed);
+			if(cellType == TW($add))
 				return factory.add(a, b);
-			else if(cellType == ID($sub))
+			else if(cellType == TW($sub))
 				return factory.sub(a, b);
-			else if(cellType == ID($mul))
+			else if(cellType == TW($mul))
 				return factory.mul(a, b);
-			else if(cellType == ID($and))
+			else if(cellType == TW($and))
 				return factory.bitwise_and(a, b);
-			else if(cellType == ID($or))
+			else if(cellType == TW($or))
 				return factory.bitwise_or(a, b);
-			else if(cellType == ID($xor))
+			else if(cellType == TW($xor))
 				return factory.bitwise_xor(a, b);
-			else if(cellType == ID($xnor))
+			else if(cellType == TW($xnor))
 				return factory.bitwise_not(factory.bitwise_xor(a, b));
 			else
 				log_abort();
-		}else if(cellType.in(ID($eq), ID($ne), ID($eqx), ID($nex), ID($le), ID($lt), ID($ge), ID($gt))){
+		}else if(cellType.in(TW($eq), TW($ne), TW($eqx), TW($nex), TW($le), TW($lt), TW($ge), TW($gt))){
 			bool is_signed = a_signed && b_signed;
 			int width = max(a_width, b_width);
-			Node a = factory.extend(inputs.at(ID(A)), width, is_signed);
-			Node b = factory.extend(inputs.at(ID(B)), width, is_signed);
-			if(cellType.in(ID($eq), ID($eqx)))
+			Node a = factory.extend(inputs.at(TW::A), width, is_signed);
+			Node b = factory.extend(inputs.at(TW::B), width, is_signed);
+			if(cellType.in(TW($eq), TW($eqx)))
 				return factory.extend(factory.equal(a, b), y_width, false);
-			else if(cellType.in(ID($ne), ID($nex)))
+			else if(cellType.in(TW($ne), TW($nex)))
 				return factory.extend(factory.not_equal(a, b), y_width, false);
-			else if(cellType == ID($lt))
+			else if(cellType == TW($lt))
 				return factory.extend(is_signed ? factory.signed_greater_than(b, a) : factory.unsigned_greater_than(b, a), y_width, false);
-			else if(cellType == ID($le))
+			else if(cellType == TW($le))
 				return factory.extend(is_signed ? factory.signed_greater_equal(b, a) : factory.unsigned_greater_equal(b, a), y_width, false);
-			else if(cellType == ID($gt))
+			else if(cellType == TW($gt))
 				return factory.extend(is_signed ? factory.signed_greater_than(a, b) : factory.unsigned_greater_than(a, b), y_width, false);
-			else if(cellType == ID($ge))
+			else if(cellType == TW($ge))
 				return factory.extend(is_signed ? factory.signed_greater_equal(a, b) : factory.unsigned_greater_equal(a, b), y_width, false);
 			else
 				log_abort();
-		}else if(cellType.in(ID($logic_or), ID($logic_and))){
-			Node a = factory.reduce_or(inputs.at(ID(A)));
-			Node b = factory.reduce_or(inputs.at(ID(B)));
-			Node y = cellType == ID($logic_and) ? factory.bitwise_and(a, b) : factory.bitwise_or(a, b);
+		}else if(cellType.in(TW($logic_or), TW($logic_and))){
+			Node a = factory.reduce_or(inputs.at(TW::A));
+			Node b = factory.reduce_or(inputs.at(TW::B));
+			Node y = cellType == TW($logic_and) ? factory.bitwise_and(a, b) : factory.bitwise_or(a, b);
 			return factory.extend(y, y_width, false);
-		}else if(cellType == ID($not)){
-			Node a = factory.extend(inputs.at(ID(A)), y_width, a_signed);
+		}else if(cellType == TW($not)){
+			Node a = factory.extend(inputs.at(TW::A), y_width, a_signed);
 			return factory.bitwise_not(a);
-		}else if(cellType == ID($pos)){
-			return factory.extend(inputs.at(ID(A)), y_width, a_signed);
-		}else if(cellType == ID($neg)){
-			Node a = factory.extend(inputs.at(ID(A)), y_width, a_signed);
+		}else if(cellType == TW($pos)){
+			return factory.extend(inputs.at(TW::A), y_width, a_signed);
+		}else if(cellType == TW($neg)){
+			Node a = factory.extend(inputs.at(TW::A), y_width, a_signed);
 			return factory.unary_minus(a);
-		}else if(cellType == ID($logic_not)){
-			Node a = factory.reduce_or(inputs.at(ID(A)));
+		}else if(cellType == TW($logic_not)){
+			Node a = factory.reduce_or(inputs.at(TW::A));
 			Node y = factory.bitwise_not(a);
 			return factory.extend(y, y_width, false);
-		}else if(cellType.in(ID($reduce_or), ID($reduce_bool))){
-			Node a = factory.reduce_or(inputs.at(ID(A)));
+		}else if(cellType.in(TW($reduce_or), TW($reduce_bool))){
+			Node a = factory.reduce_or(inputs.at(TW::A));
 			return factory.extend(a, y_width, false);
-		}else if(cellType == ID($reduce_and)){
-			Node a = factory.reduce_and(inputs.at(ID(A)));
+		}else if(cellType == TW($reduce_and)){
+			Node a = factory.reduce_and(inputs.at(TW::A));
 			return factory.extend(a, y_width, false);
-		}else if(cellType.in(ID($reduce_xor), ID($reduce_xnor))){
-			Node a = factory.reduce_xor(inputs.at(ID(A)));
-			Node y = cellType == ID($reduce_xnor) ? factory.bitwise_not(a) : a;
+		}else if(cellType.in(TW($reduce_xor), TW($reduce_xnor))){
+			Node a = factory.reduce_xor(inputs.at(TW::A));
+			Node y = cellType == TW($reduce_xnor) ? factory.bitwise_not(a) : a;
 			return factory.extend(y, y_width, false);
-		}else if(cellType == ID($shl) || cellType == ID($sshl)){
-			Node a = factory.extend(inputs.at(ID(A)), y_width, a_signed);
-			Node b = inputs.at(ID(B));
+		}else if(cellType == TW($shl) || cellType == TW($sshl)){
+			Node a = factory.extend(inputs.at(TW::A), y_width, a_signed);
+			Node b = inputs.at(TW::B);
 			return logical_shift_left(a, b);
-		}else if(cellType == ID($shr) || cellType == ID($sshr)){
+		}else if(cellType == TW($shr) || cellType == TW($sshr)){
 			int width = max(a_width, y_width);
-			Node a = factory.extend(inputs.at(ID(A)), width, a_signed);
-			Node b = inputs.at(ID(B));
-			Node y = a_signed && cellType == ID($sshr) ?
+			Node a = factory.extend(inputs.at(TW::A), width, a_signed);
+			Node b = inputs.at(TW::B);
+			Node y = a_signed && cellType == TW($sshr) ?
 				arithmetic_shift_right(a, b) :
 				logical_shift_right(a, b);
 			return factory.extend(y, y_width, a_signed);
-		}else if(cellType == ID($shiftx) || cellType == ID($shift)){
+		}else if(cellType == TW($shiftx) || cellType == TW($shift)){
 			int width = max(a_width, y_width);
-			Node a = factory.extend(inputs.at(ID(A)), width, cellType == ID($shift) && a_signed);
-			Node b = inputs.at(ID(B));
+			Node a = factory.extend(inputs.at(TW::A), width, cellType == TW($shift) && a_signed);
+			Node b = inputs.at(TW::B);
 			Node shr = logical_shift_right(a, b);
 			if(b_signed) {
 				Node shl = logical_shift_left(a, factory.unary_minus(b));
@@ -343,35 +343,35 @@ public:
 			} else {
 				return factory.extend(shr, y_width, false);
 			}
-		}else if(cellType == ID($mux)){
-			return factory.mux(inputs.at(ID(A)), inputs.at(ID(B)), inputs.at(ID(S)));
-		}else if(cellType == ID($pmux)){
-			return handle_pmux(inputs.at(ID(A)), inputs.at(ID(B)), inputs.at(ID(S)));
-		}else if(cellType == ID($concat)){
-			Node a = inputs.at(ID(A));
-			Node b = inputs.at(ID(B));
+		}else if(cellType == TW($mux)){
+			return factory.mux(inputs.at(TW::A), inputs.at(TW::B), inputs.at(TW::S));
+		}else if(cellType == TW($pmux)){
+			return handle_pmux(inputs.at(TW::A), inputs.at(TW::B), inputs.at(TW::S));
+		}else if(cellType == TW($concat)){
+			Node a = inputs.at(TW::A);
+			Node b = inputs.at(TW::B);
 			return factory.concat(a, b);
-		}else if(cellType == ID($slice)){
+		}else if(cellType == TW($slice)){
 			int offset = parameters.at(ID(OFFSET)).as_int();
-			Node a = inputs.at(ID(A));
+			Node a = inputs.at(TW::A);
 			return factory.slice(a, offset, y_width);
-		}else if(cellType.in(ID($div), ID($mod), ID($divfloor), ID($modfloor))) {
+		}else if(cellType.in(TW($div), TW($mod), TW($divfloor), TW($modfloor))) {
 			int width = max(a_width, b_width);
 			bool is_signed = a_signed && b_signed;
-			Node a = factory.extend(inputs.at(ID(A)), width, is_signed);
-			Node b = factory.extend(inputs.at(ID(B)), width, is_signed);
+			Node a = factory.extend(inputs.at(TW::A), width, is_signed);
+			Node b = factory.extend(inputs.at(TW::B), width, is_signed);
 			if(is_signed) {
-				if(cellType == ID($div)) {
+				if(cellType == TW($div)) {
 					// divide absolute values, then flip the sign if input signs differ
 					// but extend the width first, to handle the case (most negative value) / (-1)
 					Node abs_y = factory.unsigned_div(abs(a), abs(b));
 					Node out_sign = factory.not_equal(sign(a), sign(b));
 					return neg_if(factory.extend(abs_y, y_width, false), out_sign);
-				} else if(cellType == ID($mod)) {
+				} else if(cellType == TW($mod)) {
 					// similar to division but output sign == divisor sign
 					Node abs_y = factory.unsigned_mod(abs(a), abs(b));
 					return neg_if(factory.extend(abs_y, y_width, false), sign(a));
-				} else if(cellType == ID($divfloor)) {
+				} else if(cellType == TW($divfloor)) {
 					// if b is negative, flip both signs so that b is positive
 					Node b_sign = sign(b);
 					Node a1 = neg_if(a, b_sign);
@@ -385,7 +385,7 @@ public:
 					Node y1 = factory.unsigned_div(a2, b1);
 					Node y2 = factory.extend(y1, y_width, false);
 					return factory.mux(y2, factory.bitwise_not(y2), a1_sign);
-				} else if(cellType == ID($modfloor)) {
+				} else if(cellType == TW($modfloor)) {
 					// calculate |a| % |b| and then subtract from |b| if input signs differ and the remainder is non-zero
 					Node abs_b = abs(b);
 					Node abs_y = factory.unsigned_mod(abs(a), abs_b);
@@ -395,72 +395,72 @@ public:
 					Node y = neg_if(y_flipped, sign(b));
 					return factory.extend(y, y_width, true);
 				} else
-					log_error("unhandled cell in CellSimplifier %s\n", cellType);
+					log_error("unhandled cell in CellSimplifier %s\n", factory.ir().design->twines.str(cellType).c_str());
 			} else {
-				if(cellType.in(ID($mod), ID($modfloor)))
+				if(cellType.in(TW($mod), TW($modfloor)))
 					return factory.extend(factory.unsigned_mod(a, b), y_width, false);
 				else
 					return factory.extend(factory.unsigned_div(a, b), y_width, false);
 			}
-		} else if(cellType == ID($pow)) {
-			return handle_pow(inputs.at(ID(A)), inputs.at(ID(B)), y_width, a_signed && b_signed);
-		} else if (cellType == ID($lut)) {
+		} else if(cellType == TW($pow)) {
+			return handle_pow(inputs.at(TW::A), inputs.at(TW::B), y_width, a_signed && b_signed);
+		} else if (cellType == TW($lut)) {
 			int width = parameters.at(ID(WIDTH)).as_int();
 			Const lut_table = parameters.at(ID(LUT));
 			lut_table.extu(1 << width);
-			return handle_bmux(factory.constant(lut_table), inputs.at(ID(A)), 0, 1, width);
-		} else if (cellType == ID($bwmux)) {
-			Node a = inputs.at(ID(A));
-			Node b = inputs.at(ID(B));
-			Node s = inputs.at(ID(S));
+			return handle_bmux(factory.constant(lut_table), inputs.at(TW::A), 0, 1, width);
+		} else if (cellType == TW($bwmux)) {
+			Node a = inputs.at(TW::A);
+			Node b = inputs.at(TW::B);
+			Node s = inputs.at(TW::S);
 			return factory.bitwise_or(
 				factory.bitwise_and(a, factory.bitwise_not(s)),
 				factory.bitwise_and(b, s));
-		} else if (cellType == ID($bweqx)) {
-			Node a = inputs.at(ID(A));
-			Node b = inputs.at(ID(B));
+		} else if (cellType == TW($bweqx)) {
+			Node a = inputs.at(TW::A);
+			Node b = inputs.at(TW::B);
 			return factory.bitwise_not(factory.bitwise_xor(a, b));
-		} else if(cellType == ID($bmux)) {
+		} else if(cellType == TW($bmux)) {
 			int width = parameters.at(ID(WIDTH)).as_int();
 			int s_width = parameters.at(ID(S_WIDTH)).as_int();
-			return handle_bmux(inputs.at(ID(A)), inputs.at(ID(S)), 0, width, s_width);
-		} else if(cellType == ID($demux)) {
+			return handle_bmux(inputs.at(TW::A), inputs.at(TW::S), 0, width, s_width);
+		} else if(cellType == TW($demux)) {
 			int width = parameters.at(ID(WIDTH)).as_int();
 			int s_width = parameters.at(ID(S_WIDTH)).as_int();
 			int y_width = width << s_width;
 			int b_width = ceil_log2(y_width);
-			Node a = factory.extend(inputs.at(ID(A)), y_width, false);
-			Node s = factory.extend(inputs.at(ID(S)), b_width, false);
+			Node a = factory.extend(inputs.at(TW::A), y_width, false);
+			Node s = factory.extend(inputs.at(TW::S), b_width, false);
 			Node b = factory.mul(s, factory.constant(Const(width, b_width)));
 			return factory.logical_shift_left(a, b);
-		} else if(cellType == ID($fa)) {
-			return handle_fa(inputs.at(ID(A)), inputs.at(ID(B)), inputs.at(ID(C)));
-		} else if(cellType == ID($lcu)) {
-			return handle_lcu(inputs.at(ID(P)), inputs.at(ID(G)), inputs.at(ID(CI)));
-		} else if(cellType == ID($alu)) {
-			return handle_alu(inputs.at(ID(A)), inputs.at(ID(B)), y_width, a_signed && b_signed, inputs.at(ID(CI)), inputs.at(ID(BI)));
-		} else if(cellType.in(ID($assert), ID($assume), ID($live), ID($fair), ID($cover))) {
-			Node a = factory.mux(factory.constant(Const(State::S1, 1)), inputs.at(ID(A)), inputs.at(ID(EN)));
+		} else if(cellType == TW($fa)) {
+			return handle_fa(inputs.at(TW::A), inputs.at(TW::B), inputs.at(TW::C));
+		} else if(cellType == TW($lcu)) {
+			return handle_lcu(inputs.at(TW::P), inputs.at(TW::G), inputs.at(TW::CI));
+		} else if(cellType == TW($alu)) {
+			return handle_alu(inputs.at(TW::A), inputs.at(TW::B), y_width, a_signed && b_signed, inputs.at(TW::CI), inputs.at(TW::BI));
+		} else if(cellType.in(TW($assert), TW($assume), TW($live), TW($fair), TW($cover))) {
+			Node a = factory.mux(factory.constant(Const(State::S1, 1)), inputs.at(TW::A), inputs.at(TW::EN));
 			auto &output = factory.add_output(cellName, cellType, Sort(1));
 			output.set_value(a);
 			return {};
-		} else if(cellType.in(ID($anyconst), ID($allconst), ID($anyseq), ID($allseq))) {
+		} else if(cellType.in(TW($anyconst), TW($allconst), TW($anyseq), TW($allseq))) {
 			int width = parameters.at(ID(WIDTH)).as_int();
 			auto &input = factory.add_input(cellName, cellType, Sort(width));
 			return factory.value(input);
-		} else if(cellType == ID($initstate)) {
-			if(factory.ir().has_state(ID($initstate), ID($state)))
-				return factory.value(factory.ir().state(ID($initstate)));
+		} else if(cellType == TW($initstate)) {
+			if(factory.ir().has_state(TW($initstate), TW($state)))
+				return factory.value(factory.ir().state(TW($initstate)));
 			else {
-				auto &state = factory.add_state(ID($initstate), ID($state), Sort(1));
+				auto &state = factory.add_state(TW($initstate), TW($state), Sort(1));
 				state.set_initial_value(RTLIL::Const(State::S1, 1));
 				state.set_next_value(factory.constant(RTLIL::Const(State::S0, 1)));
 				return factory.value(state);
 			}
-		} else if(cellType == ID($check)) {
-			log_error("The design contains a $check cell `%s'. This is not supported by the functional backend. Call `chformal -lower' to avoid this error.\n", cellName);
+		} else if(cellType == TW($check)) {
+			log_error("The design contains a $check cell `%s'. This is not supported by the functional backend. Call `chformal -lower' to avoid this error.\n", factory.ir().design->twines.str(cellName).c_str());
 		} else {
-			log_error("`%s' cells are not supported by the functional backend\n", cellType);
+			log_error("`%s' cells are not supported by the functional backend\n", factory.ir().design->twines.str(cellType).c_str());
 		}
 	}
 };
@@ -468,8 +468,9 @@ public:
 class FunctionalIRConstruction {
 	std::deque<std::variant<DriveSpec, Cell *>> queue;
 	dict<DriveSpec, Node> graph_nodes;
-	dict<std::pair<Cell *, IdString>, Node> cell_outputs;
+	dict<std::pair<Cell *, TwineRef>, Node> cell_outputs;
 	DriverMap driver_map;
+	Design *design;
 	Factory& factory;
 	CellSimplifier simplifier;
 	vector<Mem> memories_vector;
@@ -488,16 +489,16 @@ class FunctionalIRConstruction {
 		}else
 			return it->second;
 	}
-	Node enqueue_cell(Cell *cell, IdString port_name)
+	Node enqueue_cell(Cell *cell, TwineRef port_name)
 	{
 		auto it = cell_outputs.find({cell, port_name});
 		if(it == cell_outputs.end()) {
 			queue.emplace_back(cell);
 			std::optional<Node> rv;
 			for(auto const &[name, sigspec] : cell->connections())
-				if(driver_map.celltypes.cell_output(cell->type, name)) {
+				if(driver_map.celltypes.cell_output(cell->type.ref(), name)) {
 					auto node = factory.create_pending(sigspec.size());
-					factory.suggest_name(node, cell->name.str() + "$" + name.str());
+					factory.suggest_name(node, design->twines.add(cell->name.str() + "$" + design->twines.str(name)));
 					cell_outputs.emplace({cell, name}, node);
 					if(name == port_name)
 						rv = node;
@@ -508,24 +509,25 @@ class FunctionalIRConstruction {
 	}
 public:
 	FunctionalIRConstruction(Module *module, Factory &f)
-		: factory(f)
+		: design(module->design)
+		, factory(f)
 		, simplifier(f)
 		, sig_map(module)
 		, ff_initvals(&sig_map, module)
 	{
 		driver_map.add(module);
 		for (auto cell : module->cells()) {
-			if (cell->type.in(ID($assert), ID($assume), ID($live), ID($fair), ID($cover), ID($check)))
+			if (cell->type.in(TW($assert), TW($assume), TW($live), TW($fair), TW($cover), TW($check)))
 				queue.emplace_back(cell);
 		}
 		// we are relying here on unsorted pools iterating last-in-first-out
 		for (auto riter = module->ports.rbegin(); riter != module->ports.rend(); ++riter) {
 			auto *wire = module->wire(*riter);
 			if (wire && wire->port_input) {
-				factory.add_input(wire->name, ID($input), Sort(wire->width));
+				factory.add_input(wire->name.ref(), TW($input), Sort(wire->width));
 			}
 			if (wire && wire->port_output) {
-				auto &output = factory.add_output(wire->name, ID($output), Sort(wire->width));
+				auto &output = factory.add_output(wire->name.ref(), TW($output), Sort(wire->width));
 				output.set_value(enqueue(DriveChunk(DriveChunkWire(wire, 0, wire->width))));
 			}
 		}
@@ -539,7 +541,7 @@ private:
 	Node concatenate_read_results(Mem *mem, vector<Node> results)
 	{
 		// sanity check: all read ports concatenated should equal to the RD_DATA port
-		const SigSpec &rd_data = mem->cell->connections().at(ID(RD_DATA));
+		const SigSpec &rd_data = mem->cell->connections().at(TW::RD_DATA);
 		int current = 0;
 		for(size_t i = 0; i < mem->rd_ports.size(); i++) {
 			int width = mem->width << mem->rd_ports[i].wide_log2;
@@ -565,14 +567,14 @@ private:
 		// - Since wr port j can only have priority over wr port i if j > i, if we do writes in
 		//   ascending index order the result will obey the priorty relation.
 		vector<Node> read_results;
-		auto &state = factory.add_state(mem->cell->name, ID($state), Sort(ceil_log2(mem->size), mem->width));
+		auto &state = factory.add_state(mem->cell->name.ref(), TW($state), Sort(ceil_log2(mem->size), mem->width));
 		state.set_initial_value(MemContents(mem));
 		Node node = factory.value(state);
 		for (size_t i = 0; i < mem->wr_ports.size(); i++) {
 			const auto &wr = mem->wr_ports[i];
 			if (wr.clk_enable)
 				log_error("Write port %zd of memory %s.%s is clocked. This is not supported by the functional backend. "
-					"Call async2sync or clk2fflogic to avoid this error.\n", i, mem->module, mem->memid.unescape());
+					"Call async2sync or clk2fflogic to avoid this error.\n", i, mem->module, RTLIL::unescape_id(mem->memid).c_str());
 			Node en = enqueue(driver_map(DriveSpec(wr.en)));
 			Node addr = enqueue(driver_map(DriveSpec(wr.addr)));
 			Node new_data = enqueue(driver_map(DriveSpec(wr.data)));
@@ -582,12 +584,12 @@ private:
 		}
 		if (mem->rd_ports.empty())
 			log_error("Memory %s.%s has no read ports. This is not supported by the functional backend. "
-				"Call opt_clean to remove it.", mem->module, mem->memid.unescape());
+				"Call opt_clean to remove it.", mem->module, RTLIL::unescape_id(mem->memid).c_str());
 		for (size_t i = 0; i < mem->rd_ports.size(); i++) {
 			const auto &rd = mem->rd_ports[i];
 			if (rd.clk_enable)
 				log_error("Read port %zd of memory %s.%s is clocked. This is not supported by the functional backend. "
-					"Call memory_nordff to avoid this error.\n", i, mem->module, mem->memid.unescape());
+					"Call memory_nordff to avoid this error.\n", i, mem->module, RTLIL::unescape_id(mem->memid).c_str());
 			Node addr = enqueue(driver_map(DriveSpec(rd.addr)));
 			read_results.push_back(factory.memory_read(node, addr));
 		}
@@ -604,36 +606,37 @@ private:
 					"Call memory_collect to avoid this error.\n", log_const(cell->parameters.at(ID(MEMID))));
 			}
 			Node node = handle_memory(mem);
-			factory.update_pending(cell_outputs.at({cell, ID(RD_DATA)}), node);
+			factory.update_pending(cell_outputs.at({cell, TW::RD_DATA}), node);
 		} else if (cell->is_builtin_ff()) {
 			FfData ff(&ff_initvals, cell);
 			if (!ff.has_gclk)
 				log_error("The design contains a %s flip-flop at %s. This is not supported by the functional backend. "
-					"Call async2sync or clk2fflogic to avoid this error.\n", cell->type.unescape(), cell);
-			auto &state = factory.add_state(ff.name, ID($state), Sort(ff.width));
+					"Call async2sync or clk2fflogic to avoid this error.\n", cell->type.unescaped(), cell);
+			TwineRef ff_name = design->twines.add(ff.name.str());
+			auto &state = factory.add_state(ff_name, TW($state), Sort(ff.width));
 			Node q_value = factory.value(state);
-			factory.suggest_name(q_value, ff.name);
-			factory.update_pending(cell_outputs.at({cell, ID(Q)}), q_value);
+			factory.suggest_name(q_value, ff_name);
+			factory.update_pending(cell_outputs.at({cell, TW::Q}), q_value);
 			state.set_next_value(enqueue(ff.sig_d));
 			state.set_initial_value(ff.val_init);
 		} else {
-			dict<IdString, Node> connections;
-			IdString output_name; // for the single output case
+			dict<TwineRef, Node> connections;
+			TwineRef output_name; // for the single output case
 			int n_outputs = 0;
 			for(auto const &[name, sigspec] : cell->connections()) {
-				if(driver_map.celltypes.cell_input(cell->type, name) && sigspec.size() > 0)
+				if(driver_map.celltypes.cell_input(cell->type.ref(), name) && sigspec.size() > 0)
 					connections.insert({ name, enqueue(DriveChunkPort(cell, {name, sigspec})) });
-				if(driver_map.celltypes.cell_output(cell->type, name)) {
+				if(driver_map.celltypes.cell_output(cell->type.ref(), name)) {
 					output_name = name;
 					n_outputs++;
 				}
 			}
-			std::variant<dict<IdString, Node>, Node> outputs = simplifier.handle(cell->name, cell->type, cell->parameters, connections);
+			std::variant<dict<TwineRef, Node>, Node> outputs = simplifier.handle(cell->name.ref(), cell->type.ref(), cell->parameters, connections);
 			if(auto *nodep = std::get_if<Node>(&outputs); nodep != nullptr) {
 				log_assert(n_outputs == 1);
 				factory.update_pending(cell_outputs.at({cell, output_name}), *nodep);
 			} else {
-				for(auto [name, node] : std::get<dict<IdString, Node>>(outputs))
+				for(auto [name, node] : std::get<dict<TwineRef, Node>>(outputs))
 					factory.update_pending(cell_outputs.at({cell, name}), node);
 			}
 		}
@@ -672,14 +675,14 @@ public:
 					DriveChunkWire wire_chunk = chunk.wire();
 					if (wire_chunk.is_whole()) {
 						if (wire_chunk.wire->port_input) {
-							Node node = factory.value(factory.ir().input(wire_chunk.wire->name));
-							factory.suggest_name(node, wire_chunk.wire->name);
+							Node node = factory.value(factory.ir().input(wire_chunk.wire->name.ref()));
+							factory.suggest_name(node, wire_chunk.wire->name.ref());
 							factory.update_pending(pending, node);
 						} else {
 							DriveSpec driver = driver_map(DriveSpec(wire_chunk));
-							check_undriven(driver, wire_chunk.wire->name.unescape());
+							check_undriven(driver, design->twines.unescaped_str(wire_chunk.wire->name.ref()));
 							Node node = enqueue(driver);
-							factory.suggest_name(node, wire_chunk.wire->name);
+							factory.suggest_name(node, wire_chunk.wire->name.ref());
 							factory.update_pending(pending, node);
 						}
 					} else {
@@ -690,12 +693,13 @@ public:
 				} else if (chunk.is_port()) {
 					DriveChunkPort port_chunk = chunk.port();
 					if (port_chunk.is_whole()) {
-						if (driver_map.celltypes.cell_output(port_chunk.cell->type, port_chunk.port)) {
+						if (driver_map.celltypes.cell_output(port_chunk.cell->type.ref(), port_chunk.port)) {
 							Node node = enqueue_cell(port_chunk.cell, port_chunk.port);
 							factory.update_pending(pending, node);
 						} else {
 							DriveSpec driver = driver_map(DriveSpec(port_chunk));
-							check_undriven(driver, port_chunk.cell->name.unescape() + " port " + port_chunk.port.unescape());
+							auto& twines = port_chunk.cell->module->design->twines;
+							check_undriven(driver, twines.str(port_chunk.cell->meta_->name) + " port " + twines.str(port_chunk.port));
 							factory.update_pending(pending, enqueue(driver));
 						}
 					} else {
@@ -705,7 +709,7 @@ public:
 					}
 				} else if (chunk.is_constant()) {
 					Node node = factory.constant(chunk.constant());
-					factory.suggest_name(node, "$const" + std::to_string(chunk.size()) + "b" + chunk.constant().as_string());
+					factory.suggest_name(node, design->twines.add("$const" + std::to_string(chunk.size()) + "b" + chunk.constant().as_string()));
 					factory.update_pending(pending, node);
 				} else if (chunk.is_multiple()) {
 					log_error("Signal %s has multiple drivers. This is not supported by the functional backend. "
@@ -725,6 +729,7 @@ public:
 
 IR IR::from_module(Module *module) {
 	IR ir;
+    ir.design = module->design;
     auto factory = ir.factory();
     FunctionalIRConstruction ctor(module, factory);
     ctor.process_queue();
@@ -743,8 +748,8 @@ void IR::topological_sort() {
         {
             log_warning("Combinational loop:\n");
             for (int *i = begin; i != end; ++i) {
-				Node node(_graph[*i]);
-                log("- %s = %s\n", node.name().unescape(), node.to_string());
+				Node node(_graph[*i], design);
+                log("- %s = %s\n", design->twines.unescaped_str(node.name()).c_str(), node.to_string().c_str());
 			}
             log("\n");
             scc = true;
@@ -762,8 +767,8 @@ void IR::topological_sort() {
 		"Try `scc -select; simplemap; select -clear` to avoid this error.\n");
 }
 
-static IdString merge_name(IdString a, IdString b) {
-	if(a[0] == '$' && b[0] == '\\')
+static TwineRef merge_name(TwineRef a, TwineRef b) {
+	if(!twine_is_public(a) && twine_is_public(b))
 		return b;
 	else
 		return a;
@@ -782,10 +787,10 @@ void IR::forward_buf() {
             auto target_node = _graph[perm[target_index]];
 			if(node.has_sparse_attr()) {
 				if(target_node.has_sparse_attr()) {
-					IdString id = merge_name(node.sparse_attr(), target_node.sparse_attr());
+					TwineRef id = merge_name(node.sparse_attr(), target_node.sparse_attr());
 					target_node.sparse_attr() = id;
 				} else {
-					IdString id = node.sparse_attr();
+					TwineRef id = node.sparse_attr();
 					target_node.sparse_attr() = id;
 				}
 			}

@@ -59,8 +59,8 @@ struct EquivStatusPass : public Pass {
 			int proven_equiv_cells = 0;
 
 			for (auto cell : module->selected_cells())
-				if (cell->type == ID($equiv)) {
-					if (cell->getPort(ID::A) != cell->getPort(ID::B))
+				if (cell->type == TW($equiv)) {
+					if (cell->getPort(TW::A) != cell->getPort(TW::B))
 						unproven_equiv_cells.push_back(cell);
 					else
 						proven_equiv_cells++;
@@ -77,7 +77,7 @@ struct EquivStatusPass : public Pass {
 				log("  Equivalence successfully proven!\n");
 			} else {
 				for (auto cell : unproven_equiv_cells)
-					log("  Unproven $equiv %s: %s %s\n", cell, log_signal(cell->getPort(ID::A)), log_signal(cell->getPort(ID::B)));
+					log("  Unproven $equiv %s: %s %s\n", cell, log_signal(cell->getPort(TW::A)), log_signal(cell->getPort(TW::B)));
 			}
 
 			unproven_count += GetSize(unproven_equiv_cells);

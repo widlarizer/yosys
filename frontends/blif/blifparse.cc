@@ -84,7 +84,7 @@ failed:
 	return std::pair<RTLIL::IdString, int>(RTLIL::IdString(), 0);
 }
 
-void parse_blif(RTLIL::Design *design, std::istream &f, IdString dff_name, bool run_clean, bool sop_mode, bool wideports)
+void parse_blif(RTLIL::Design *design, std::istream &f, TwineRef dff_name, bool run_clean, bool sop_mode, bool wideports)
 {
 	RTLIL::Module *module = nullptr;
 	RTLIL::Const *lutptr = NULL;
@@ -115,11 +115,12 @@ void parse_blif(RTLIL::Design *design, std::istream &f, IdString dff_name, bool 
 			}
 		}
 
-		IdString wire_id = RTLIL::escape_id(wire_name);
-		Wire *wire = module->wire(wire_id);
+		std::string escaped_name = RTLIL::escape_id(wire_name);
+		TwineRef wire_ref = design->twines.add(std::string{escaped_name});
+		Wire *wire = module->wire(wire_ref);
 
 		if (wire == nullptr)
-			wire = module->addWire(wire_id);
+			wire = module->addWire(wire_ref);
 
 		return wire;
 	};
@@ -127,7 +128,7 @@ void parse_blif(RTLIL::Design *design, std::istream &f, IdString dff_name, bool 
 	dict<RTLIL::IdString, RTLIL::Const> *obj_attributes = nullptr;
 	dict<RTLIL::IdString, RTLIL::Const> *obj_parameters = nullptr;
 
-	dict<RTLIL::IdString, std::pair<int, bool>> wideports_cache;
+	dict<TwineRef, std::pair<int, bool>> wideports_cache;
 
 	size_t buffer_size = 4096;
 	char *buffer = (char*)malloc(buffer_size);
@@ -167,15 +168,17 @@ void parse_blif(RTLIL::Design *design, std::istream &f, IdString dff_name, bool 
 				if (module != nullptr)
 					goto error;
 				module = new RTLIL::Module;
+				module->design = design;
 				lastcell = nullptr;
 				char *name = strtok(NULL, " \t\r\n");
 				if (name == nullptr)
 					goto error;
-				module->name = RTLIL::escape_id(name);
+				std::string escaped_name = RTLIL::escape_id(name);
+				module->meta_->name = design->twines.add(std::string{escaped_name});
 				obj_attributes = &module->attributes;
 				obj_parameters = nullptr;
-				if (design->module(module->name))
-					log_error("Duplicate definition of module %s in line %d!\n", module->name.unescape(), line_count);
+				if (design->module(module->meta_->name))
+					log_error("Duplicate definition of module %s in line %d!\n", escaped_name.c_str(), line_count);
 				design->add(module);
 				continue;
 			}
@@ -197,13 +200,14 @@ void parse_blif(RTLIL::Design *design, std::istream &f, IdString dff_name, bool 
 					int width = wp.second.first;
 					bool isinput = wp.second.second;
 
-					RTLIL::Wire *wire = module->addWire(name, width);
+					RTLIL::Wire *wire = module->addWire(design->twines.add(std::string{design->twines.str(name)}), width);
 					wire->port_input = isinput;
 					wire->port_output = !isinput;
 
 					for (int i = 0; i < width; i++) {
-						RTLIL::IdString other_name = name.str() + stringf("[%d]", i);
-						RTLIL::Wire *other_wire = module->wire(other_name);
+						std::string other_name = design->twines.str(name) + stringf("[%d]", i);
+						TwineRef other_ref = design->twines.find(other_name);
+						RTLIL::Wire *other_wire = module->wire(other_ref);
 						if (other_wire) {
 							other_wire->port_input = false;
 							other_wire->port_output = false;
@@ -224,26 +228,26 @@ void parse_blif(RTLIL::Design *design, std::istream &f, IdString dff_name, bool 
 					vector<Cell*> remove_cells;
 
 					for (auto cell : module->cells())
-						if (cell->type == ID($lut) && cell->getParam(ID::LUT) == buffer_lut) {
-							module->connect(cell->getPort(ID::Y), cell->getPort(ID::A));
+						if (cell->type == TW($lut) && cell->getParam(ID::LUT) == buffer_lut) {
+							module->connect(cell->getPort(TW::Y), cell->getPort(TW::A));
 							remove_cells.push_back(cell);
 						}
 
 					for (auto cell : remove_cells)
 						module->remove(cell);
 
-					Wire *true_wire = module->wire(ID($true));
-					Wire *false_wire = module->wire(ID($false));
-					Wire *undef_wire = module->wire(ID($undef));
+					Wire *true_wire = module->wire(TW::lookup("$true"));
+					Wire *false_wire = module->wire(TW::lookup("$false"));
+					Wire *undef_wire = module->wire(TW::lookup("$undef"));
 
 					if (true_wire != nullptr)
-						module->rename(true_wire, stringf("$true$%d", ++blif_maxnum));
+						module->rename(true_wire, design->twines.add(std::string{stringf("$true$%d", ++blif_maxnum)}));
 
 					if (false_wire != nullptr)
-						module->rename(false_wire, stringf("$false$%d", ++blif_maxnum));
+						module->rename(false_wire, design->twines.add(std::string{stringf("$false$%d", ++blif_maxnum)}));
 
 					if (undef_wire != nullptr)
-						module->rename(undef_wire, stringf("$undef$%d", ++blif_maxnum));
+						module->rename(undef_wire, design->twines.add(std::string{stringf("$undef$%d", ++blif_maxnum)}));
 
 					autoidx.ensure_at_least(blif_maxnum+1);
 					blif_maxnum = 0;
@@ -271,10 +275,11 @@ void parse_blif(RTLIL::Design *design, std::istream &f, IdString dff_name, bool 
 				char *p;
 				while ((p = strtok(NULL, " \t\r\n")) != NULL)
 				{
-					RTLIL::IdString wire_name(stringf("\\%s", p));
-					RTLIL::Wire *wire = module->wire(wire_name);
+					std::string wire_name_str = stringf("\\%s", p);
+					TwineRef wire_ref = design->twines.add(std::string{wire_name_str});
+					RTLIL::Wire *wire = module->wire(wire_ref);
 					if (wire == nullptr)
-						wire = module->addWire(wire_name);
+						wire = module->addWire(wire_ref);
 					if (!strcmp(cmd, ".inputs"))
 						wire->port_input = true;
 					else
@@ -283,8 +288,9 @@ void parse_blif(RTLIL::Design *design, std::istream &f, IdString dff_name, bool 
 					if (wideports) {
 						std::pair<RTLIL::IdString, int> wp = wideports_split(p);
 						if (!wp.first.empty() && wp.second >= 0) {
-							wideports_cache[wp.first].first = std::max(wideports_cache[wp.first].first, wp.second + 1);
-							wideports_cache[wp.first].second = !strcmp(cmd, ".inputs");
+							TwineRef wp_ref = design->twines.add(std::string{wp.first.str()});
+							wideports_cache[wp_ref].first = std::max(wideports_cache[wp_ref].first, wp.second + 1);
+							wideports_cache[wp_ref].second = !strcmp(cmd, ".inputs");
 						}
 					}
 				}
@@ -305,7 +311,7 @@ void parse_blif(RTLIL::Design *design, std::istream &f, IdString dff_name, bool 
 					goto error_with_reason;
 				}
 
-				module->rename(lastcell, RTLIL::escape_id(p));
+				module->rename(lastcell, design->twines.add(std::string{RTLIL::escape_id(p)}));
 				continue;
 			}
 
@@ -363,21 +369,21 @@ void parse_blif(RTLIL::Design *design, std::istream &f, IdString dff_name, bool 
 					goto no_latch_clock;
 
 				if (!strcmp(edge, "re"))
-					cell = module->addDffGate(NEW_ID, blif_wire(clock), blif_wire(d), blif_wire(q));
+					cell = module->addDffGate(NEW_TWINE, blif_wire(clock), blif_wire(d), blif_wire(q));
 				else if (!strcmp(edge, "fe"))
-					cell = module->addDffGate(NEW_ID, blif_wire(clock), blif_wire(d), blif_wire(q), false);
+					cell = module->addDffGate(NEW_TWINE, blif_wire(clock), blif_wire(d), blif_wire(q), false);
 				else if (!strcmp(edge, "ah"))
-					cell = module->addDlatchGate(NEW_ID, blif_wire(clock), blif_wire(d), blif_wire(q));
+					cell = module->addDlatchGate(NEW_TWINE, blif_wire(clock), blif_wire(d), blif_wire(q));
 				else if (!strcmp(edge, "al"))
-					cell = module->addDlatchGate(NEW_ID, blif_wire(clock), blif_wire(d), blif_wire(q), false);
+					cell = module->addDlatchGate(NEW_TWINE, blif_wire(clock), blif_wire(d), blif_wire(q), false);
 				else {
 			no_latch_clock:
-					if (dff_name.empty()) {
-						cell = module->addFfGate(NEW_ID, blif_wire(d), blif_wire(q));
+					if (dff_name == Twine::Null) {
+						cell = module->addFfGate(NEW_TWINE, blif_wire(d), blif_wire(q));
 					} else {
-						cell = module->addCell(NEW_ID, dff_name);
-						cell->setPort(ID::D, blif_wire(d));
-						cell->setPort(ID::Q, blif_wire(q));
+						cell = module->addCell(NEW_TWINE, dff_name);
+						cell->setPort(TW::D, blif_wire(d));
+						cell->setPort(TW::Q, blif_wire(q));
 					}
 				}
 
@@ -394,10 +400,10 @@ void parse_blif(RTLIL::Design *design, std::istream &f, IdString dff_name, bool 
 					goto error;
 
 				IdString celltype = RTLIL::escape_id(p);
-				RTLIL::Cell *cell = module->addCell(NEW_ID, celltype);
-				RTLIL::Module *cell_mod = design->module(celltype);
+				RTLIL::Cell *cell = module->addCell(NEW_TWINE, design->twines.add(std::string{celltype.str()}));
+				RTLIL::Module *cell_mod = design->module(cell->type.ref());
 
-				dict<RTLIL::IdString, dict<int, SigBit>> cell_wideports_cache;
+				dict<TwineRef, dict<int, SigBit>> cell_wideports_cache;
 
 				while ((p = strtok(NULL, " \t\r\n")) != NULL)
 				{
@@ -408,12 +414,18 @@ void parse_blif(RTLIL::Design *design, std::istream &f, IdString dff_name, bool 
 
 					if (wideports) {
 						std::pair<RTLIL::IdString, int> wp = wideports_split(p);
-						if (wp.first.empty())
-							cell->setPort(RTLIL::escape_id(p), *q ? blif_wire(q) : SigSpec());
-						else
-							cell_wideports_cache[wp.first][wp.second] = blif_wire(q);
+						if (wp.first.empty()) {
+							std::string port_name_str = RTLIL::escape_id(p);
+							TwineRef port_ref = design->twines.add(std::string{port_name_str});
+							cell->setPort(port_ref, *q ? blif_wire(q) : SigSpec());
+						} else {
+							TwineRef wp_ref = design->twines.add(std::string{wp.first.str()});
+							cell_wideports_cache[wp_ref][wp.second] = blif_wire(q);
+						}
 					} else {
-						cell->setPort(RTLIL::escape_id(p), *q ? blif_wire(q) : SigSpec());
+						std::string port_name_str = RTLIL::escape_id(p);
+						TwineRef port_ref = design->twines.add(std::string{port_name_str});
+						cell->setPort(port_ref, *q ? blif_wire(q) : SigSpec());
 					}
 				}
 
@@ -441,7 +453,7 @@ void parse_blif(RTLIL::Design *design, std::istream &f, IdString dff_name, bool 
 						if (it.second.count(idx))
 							sig.append(it.second.at(idx));
 						else
-							sig.append(module->addWire(NEW_ID));
+							sig.append(module->addWire(NEW_TWINE));
 					}
 
 					cell->setPort(it.first, sig);
@@ -530,7 +542,7 @@ void parse_blif(RTLIL::Design *design, std::istream &f, IdString dff_name, bool 
 				finished_parsing_constval:
 					if (state == RTLIL::State::Sa)
 						state = RTLIL::State::S0;
-					if (output_sig.as_wire()->name == ID($undef))
+					if (output_sig.as_wire()->name == TW($undef))
 						state = RTLIL::State::Sx;
 					module->connect(RTLIL::SigSig(output_sig, state));
 					goto continue_without_read;
@@ -538,12 +550,12 @@ void parse_blif(RTLIL::Design *design, std::istream &f, IdString dff_name, bool 
 
 				if (sop_mode)
 				{
-					sopcell = module->addCell(NEW_ID, ID($sop));
+					sopcell = module->addCell(NEW_TWINE, TW::$sop);
 					sopcell->parameters[ID::WIDTH] = RTLIL::Const(input_sig.size());
 					sopcell->parameters[ID::DEPTH] = 0;
 					sopcell->parameters[ID::TABLE] = RTLIL::Const();
-					sopcell->setPort(ID::A, input_sig);
-					sopcell->setPort(ID::Y, output_sig);
+					sopcell->setPort(TW::A, input_sig);
+					sopcell->setPort(TW::Y, output_sig);
 					sopmode = -1;
 					lastcell = sopcell;
 				}
@@ -554,11 +566,11 @@ void parse_blif(RTLIL::Design *design, std::istream &f, IdString dff_name, bool 
 				}
 				else
 				{
-					RTLIL::Cell *cell = module->addCell(NEW_ID, ID($lut));
+					RTLIL::Cell *cell = module->addCell(NEW_TWINE, TW::$lut);
 					cell->parameters[ID::WIDTH] = RTLIL::Const(input_sig.size());
 					cell->parameters[ID::LUT] = RTLIL::Const(RTLIL::State::Sx, 1 << input_sig.size());
-					cell->setPort(ID::A, input_sig);
-					cell->setPort(ID::Y, output_sig);
+					cell->setPort(TW::A, input_sig);
+					cell->setPort(TW::Y, output_sig);
 					lutptr = &cell->parameters.at(ID::LUT);
 					lut_default_state = RTLIL::State::Sx;
 					lastcell = cell;
@@ -606,10 +618,10 @@ void parse_blif(RTLIL::Design *design, std::istream &f, IdString dff_name, bool 
 			if (sopmode == -1) {
 				sopmode = (*output == '1');
 				if (!sopmode) {
-					SigSpec outnet = sopcell->getPort(ID::Y);
-					SigSpec tempnet = module->addWire(NEW_ID);
-					module->addNotGate(NEW_ID, tempnet, outnet);
-					sopcell->setPort(ID::Y, tempnet);
+					SigSpec outnet = sopcell->getPort(TW::Y);
+					SigSpec tempnet = module->addWire(NEW_TWINE);
+					module->addNotGate(NEW_TWINE, tempnet, outnet);
+					sopcell->setPort(TW::Y, tempnet);
 				}
 			} else
 				log_assert(sopmode == (*output == '1'));
@@ -686,7 +698,7 @@ struct BlifFrontend : public Frontend {
 		}
 		extra_args(f, filename, args, argidx);
 
-		parse_blif(design, *f, "", true, sop_mode, wideports);
+		parse_blif(design, *f, Twine::Null, true, sop_mode, wideports);
 	}
 } BlifFrontend;
 

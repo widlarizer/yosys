@@ -30,12 +30,22 @@ static void unset_drivers(RTLIL::Design *design, RTLIL::Module *module, SigMap &
 {
 	CellTypes ct(design);
 
-	RTLIL::Wire *dummy_wire = module->addWire(NEW_ID, sig.size());
+	RTLIL::Wire *dummy_wire = module->addWire(NEW_TWINE, sig.size());
 
 	for (auto cell : module->cells())
 	for (auto &port : cell->connections_)
-		if (ct.cell_output(cell->type, port.first))
+		if (ct.cell_output(cell->type.ref(), port.first))
 			sigmap(port.second).replace(sig, dummy_wire, &port.second);
+
+	bool need_fixup = false;
+	for (auto bit : sig.bits()) {
+		if (bit.is_wire() && bit.wire->port_input) {
+			bit.wire->port_input = false;
+			need_fixup = true;
+		}
+	}
+	if (need_fixup)
+		module->fixup_ports();
 
 	for (auto &conn : module->connections_)
 		sigmap(conn.first).replace(sig, dummy_wire, &conn.first);
@@ -66,7 +76,7 @@ struct ConnectPass : public Pass {
 		log("\n");
 		log("\n");
 		log("Per default signal alias names are resolved and all signal names are mapped\n");
-		log("the the signal name of the primary driver. Using the -nomap option deactivates\n");
+		log("to the signal name of the primary driver. Using the -nomap option deactivates\n");
 		log("this behavior.\n");
 		log("\n");
 		log("The connect command operates in one module only. Either only one module must\n");
@@ -76,6 +86,8 @@ struct ConnectPass : public Pass {
 		log("making it.\n");
 		log("\n");
 		log("This command does not operate on module with processes.\n");
+		log("\n");
+		log("Overriding any bits connected to a module input port will remove the input port.\n");
 		log("\n");
 	}
 	void execute(std::vector<std::string> args, RTLIL::Design *design) override
@@ -122,7 +134,7 @@ struct ConnectPass : public Pass {
 		RTLIL::Module *module = nullptr;
 		for (auto mod : design->selected_modules()) {
 			if (module != nullptr)
-				log_cmd_error("Multiple modules selected: %s, %s\n", module->name.unescape(), mod->name.unescape());
+				log_cmd_error("Multiple modules selected: %s, %s\n", module->design->twines.str(module->meta_->name).c_str(), module->design->twines.str(mod->meta_->name).c_str());
 			module = mod;
 		}
 		if (module == nullptr)
@@ -184,17 +196,20 @@ struct ConnectPass : public Pass {
 			if (flag_nounset)
 				log_cmd_error("Can't use -port together with -nounset.\n");
 
-			if (module->cell(RTLIL::escape_id(port_cell)) == nullptr)
+			TwineSearch search(&module->design->twines);
+			RTLIL::Cell *port_cell_obj = module->cell(search.find(RTLIL::escape_id(port_cell)));
+			if (port_cell_obj == nullptr)
 				log_cmd_error("Can't find cell %s.\n", port_cell);
 
 			RTLIL::SigSpec sig;
 			if (!RTLIL::SigSpec::parse_sel(sig, design, module, port_expr))
 				log_cmd_error("Failed to parse port expression `%s'.\n", port_expr);
 
+			TwineRef port_port_ref = search.find(RTLIL::escape_id(port_port));
 			if (!flag_assert) {
-				module->cell(RTLIL::escape_id(port_cell))->setPort(RTLIL::escape_id(port_port), sigmap(sig));
+				port_cell_obj->setPort(port_port_ref, sigmap(sig));
 			} else {
-				SigSpec cur = module->cell(RTLIL::escape_id(port_cell))->getPort(RTLIL::escape_id(port_port));
+				SigSpec cur = port_cell_obj->getPort(port_port_ref);
 				if (sigmap(sig) != sigmap(cur)) {
 					log_cmd_error("Expected connection not present: expected %s, found %s.\n", log_signal(sig), log_signal(cur));
 				}

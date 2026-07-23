@@ -76,9 +76,9 @@ struct HierDirtyFlags
 			dirty(0), module(module), hiername(hiername), parent(parent), prefix(prefix), log_prefix(log_prefix)
 	{
 		for (Cell *cell : module->cells()) {
-			Module *mod = module->design->module(cell->type);
+			Module *mod = module->design->module(cell->type_impl);
 			if (mod) children[cell->name] = new HierDirtyFlags(mod, cell->name, this,
-					prefix + cid(cell->name) + ".", log_prefix + "." + prefix + cell->name.unescape());
+					prefix + cid(cell->name) + ".", log_prefix + "." + prefix + cell->module->design->twines.str(cell->meta_->name));
 		}
 	}
 
@@ -167,7 +167,7 @@ struct SimplecWorker
 
 	vector<string> funct_declarations;
 
-	dict<Module*, dict<SigBit, pool<tuple<Cell*, IdString, int>>>> bit2cell;
+	dict<Module*, dict<SigBit, pool<tuple<Cell*, TwineRef, int>>>> bit2cell;
 	dict<Module*, dict<SigBit, pool<SigBit>>> bit2output;
 	dict<Module*, pool<SigBit>> driven_bits;
 
@@ -284,10 +284,10 @@ struct SimplecWorker
 
 	void create_module_struct(Module *mod)
 	{
-		if (generated_structs.count(mod->name))
+		if (generated_structs.count(design->twines.str(mod->meta_->name)))
 			return;
 
-		generated_structs.insert(mod->name);
+		generated_structs.insert(design->twines.str(mod->meta_->name));
 		sigmaps[mod].set(mod);
 
 		for (Wire *w : mod->wires())
@@ -309,11 +309,11 @@ struct SimplecWorker
 
 				int idx = 0;
 				for (auto bit : sigmaps.at(mod)(conn.second))
-					bit2cell[mod][bit].insert(tuple<Cell*, IdString, int>(c, conn.first, idx++));
+					bit2cell[mod][bit].insert(tuple<Cell*, TwineRef, int>(c, conn.first, idx++));
 			}
 
-			if (design->module(c->type))
-				create_module_struct(design->module(c->type));
+			if (design->module(c->type_impl))
+				create_module_struct(design->module(c->type_impl));
 		}
 
 		TopoSort<IdString> topo;
@@ -336,10 +336,11 @@ struct SimplecWorker
 		topo.analyze_loops = false;
 		topo.sort();
 
+		TwineSearch search(&design->twines);
 		for (int i = 0; i < GetSize(topo.sorted); i++)
-			topoidx[mod->cell(topo.sorted[i])] = i;
+			topoidx[mod->cell(search.find(topo.sorted[i].str()))] = i;
 
-		string ifdef_name = stringf("yosys_simplec_%s_state_t", cid(mod->name));
+		string ifdef_name = stringf("yosys_simplec_%s_state_t", cid(RTLIL::IdString(design->twines.str(mod->meta_->name))));
 
 		for (int i = 0; i < GetSize(ifdef_name); i++)
 			if ('a' <= ifdef_name[i] && ifdef_name[i] <= 'z')
@@ -348,7 +349,7 @@ struct SimplecWorker
 		struct_declarations.push_back("");
 		struct_declarations.push_back(stringf("#ifndef %s", ifdef_name));
 		struct_declarations.push_back(stringf("#define %s", ifdef_name));
-		struct_declarations.push_back(stringf("struct %s_state_t", cid(mod->name)));
+		struct_declarations.push_back(stringf("struct %s_state_t", cid(RTLIL::IdString(design->twines.str(mod->meta_->name)))));
 		struct_declarations.push_back("{");
 
 		struct_declarations.push_back("  // Input Ports");
@@ -369,7 +370,7 @@ struct SimplecWorker
 				struct_declarations.push_back(stringf("  %s %s; // %s", sigtype(w->width), cid(w->name), w));
 
 		for (Cell *c : mod->cells())
-			if (design->module(c->type))
+			if (design->module(c->type_impl))
 				struct_declarations.push_back(stringf("  struct %s_state_t %s; // %s", cid(c->type), cid(c->name), c));
 
 		struct_declarations.push_back(stringf("};"));
@@ -378,82 +379,82 @@ struct SimplecWorker
 
 	void eval_cell(HierDirtyFlags *work, Cell *cell)
 	{
-		if (cell->type.in(ID($_BUF_), ID($_NOT_)))
+		if (cell->type.in(TW($_BUF_), TW($_NOT_)))
 		{
-			SigBit a = sigmaps.at(work->module)(cell->getPort(ID::A));
-			SigBit y = sigmaps.at(work->module)(cell->getPort(ID::Y));
+			SigBit a = sigmaps.at(work->module)(cell->getPort(TW::A));
+			SigBit y = sigmaps.at(work->module)(cell->getPort(TW::Y));
 
 			string a_expr = a.wire ? util_get_bit(work->prefix + cid(a.wire->name), a.wire->width, a.offset) : a.data ? "1" : "0";
 			string expr;
 
-			if (cell->type == ID($_BUF_))  expr = a_expr;
-			if (cell->type == ID($_NOT_))  expr = "!" + a_expr;
+			if (cell->type == TW($_BUF_))  expr = a_expr;
+			if (cell->type == TW($_NOT_))  expr = "!" + a_expr;
 
 			log_assert(y.wire);
 			funct_declarations.push_back(util_set_bit(work->prefix + cid(y.wire->name), y.wire->width, y.offset, expr) +
-					stringf(" // %s (%s)", cell, cell->type.unescape()));
+					stringf(" // %s (%s)", cell, cell->type.unescaped()));
 
 			work->set_dirty(y);
 			return;
 		}
 
-		if (cell->type.in(ID($_AND_), ID($_NAND_), ID($_OR_), ID($_NOR_), ID($_XOR_), ID($_XNOR_), ID($_ANDNOT_), ID($_ORNOT_)))
+		if (cell->type.in(TW($_AND_), TW($_NAND_), TW($_OR_), TW($_NOR_), TW($_XOR_), TW($_XNOR_), TW($_ANDNOT_), TW($_ORNOT_)))
 		{
-			SigBit a = sigmaps.at(work->module)(cell->getPort(ID::A));
-			SigBit b = sigmaps.at(work->module)(cell->getPort(ID::B));
-			SigBit y = sigmaps.at(work->module)(cell->getPort(ID::Y));
+			SigBit a = sigmaps.at(work->module)(cell->getPort(TW::A));
+			SigBit b = sigmaps.at(work->module)(cell->getPort(TW::B));
+			SigBit y = sigmaps.at(work->module)(cell->getPort(TW::Y));
 
 			string a_expr = a.wire ? util_get_bit(work->prefix + cid(a.wire->name), a.wire->width, a.offset) : a.data ? "1" : "0";
 			string b_expr = b.wire ? util_get_bit(work->prefix + cid(b.wire->name), b.wire->width, b.offset) : b.data ? "1" : "0";
 			string expr;
 
-			if (cell->type == ID($_AND_))    expr = stringf("%s & %s",    a_expr, b_expr);
-			if (cell->type == ID($_NAND_))   expr = stringf("!(%s & %s)", a_expr, b_expr);
-			if (cell->type == ID($_OR_))     expr = stringf("%s | %s",    a_expr, b_expr);
-			if (cell->type == ID($_NOR_))    expr = stringf("!(%s | %s)", a_expr, b_expr);
-			if (cell->type == ID($_XOR_))    expr = stringf("%s ^ %s",    a_expr, b_expr);
-			if (cell->type == ID($_XNOR_))   expr = stringf("!(%s ^ %s)", a_expr, b_expr);
-			if (cell->type == ID($_ANDNOT_)) expr = stringf("%s & (!%s)", a_expr, b_expr);
-			if (cell->type == ID($_ORNOT_))  expr = stringf("%s | (!%s)", a_expr, b_expr);
+			if (cell->type == TW($_AND_))    expr = stringf("%s & %s",    a_expr, b_expr);
+			if (cell->type == TW($_NAND_))   expr = stringf("!(%s & %s)", a_expr, b_expr);
+			if (cell->type == TW($_OR_))     expr = stringf("%s | %s",    a_expr, b_expr);
+			if (cell->type == TW($_NOR_))    expr = stringf("!(%s | %s)", a_expr, b_expr);
+			if (cell->type == TW($_XOR_))    expr = stringf("%s ^ %s",    a_expr, b_expr);
+			if (cell->type == TW($_XNOR_))   expr = stringf("!(%s ^ %s)", a_expr, b_expr);
+			if (cell->type == TW($_ANDNOT_)) expr = stringf("%s & (!%s)", a_expr, b_expr);
+			if (cell->type == TW($_ORNOT_))  expr = stringf("%s | (!%s)", a_expr, b_expr);
 
 			log_assert(y.wire);
 			funct_declarations.push_back(util_set_bit(work->prefix + cid(y.wire->name), y.wire->width, y.offset, expr) +
-					stringf(" // %s (%s)", cell, cell->type.unescape()));
+					stringf(" // %s (%s)", cell, cell->type.unescaped()));
 
 			work->set_dirty(y);
 			return;
 		}
 
-		if (cell->type.in(ID($_AOI3_), ID($_OAI3_)))
+		if (cell->type.in(TW($_AOI3_), TW($_OAI3_)))
 		{
-			SigBit a = sigmaps.at(work->module)(cell->getPort(ID::A));
-			SigBit b = sigmaps.at(work->module)(cell->getPort(ID::B));
-			SigBit c = sigmaps.at(work->module)(cell->getPort(ID::C));
-			SigBit y = sigmaps.at(work->module)(cell->getPort(ID::Y));
+			SigBit a = sigmaps.at(work->module)(cell->getPort(TW::A));
+			SigBit b = sigmaps.at(work->module)(cell->getPort(TW::B));
+			SigBit c = sigmaps.at(work->module)(cell->getPort(TW::C));
+			SigBit y = sigmaps.at(work->module)(cell->getPort(TW::Y));
 
 			string a_expr = a.wire ? util_get_bit(work->prefix + cid(a.wire->name), a.wire->width, a.offset) : a.data ? "1" : "0";
 			string b_expr = b.wire ? util_get_bit(work->prefix + cid(b.wire->name), b.wire->width, b.offset) : b.data ? "1" : "0";
 			string c_expr = c.wire ? util_get_bit(work->prefix + cid(c.wire->name), c.wire->width, c.offset) : c.data ? "1" : "0";
 			string expr;
 
-			if (cell->type == ID($_AOI3_)) expr = stringf("!((%s & %s) | %s)", a_expr, b_expr, c_expr);
-			if (cell->type == ID($_OAI3_)) expr = stringf("!((%s | %s) & %s)", a_expr, b_expr, c_expr);
+			if (cell->type == TW($_AOI3_)) expr = stringf("!((%s & %s) | %s)", a_expr, b_expr, c_expr);
+			if (cell->type == TW($_OAI3_)) expr = stringf("!((%s | %s) & %s)", a_expr, b_expr, c_expr);
 
 			log_assert(y.wire);
 			funct_declarations.push_back(util_set_bit(work->prefix + cid(y.wire->name), y.wire->width, y.offset, expr) +
-					stringf(" // %s (%s)", cell, cell->type.unescape()));
+					stringf(" // %s (%s)", cell, cell->type.unescaped()));
 
 			work->set_dirty(y);
 			return;
 		}
 
-		if (cell->type.in(ID($_AOI4_), ID($_OAI4_)))
+		if (cell->type.in(TW($_AOI4_), TW($_OAI4_)))
 		{
-			SigBit a = sigmaps.at(work->module)(cell->getPort(ID::A));
-			SigBit b = sigmaps.at(work->module)(cell->getPort(ID::B));
-			SigBit c = sigmaps.at(work->module)(cell->getPort(ID::C));
-			SigBit d = sigmaps.at(work->module)(cell->getPort(ID::D));
-			SigBit y = sigmaps.at(work->module)(cell->getPort(ID::Y));
+			SigBit a = sigmaps.at(work->module)(cell->getPort(TW::A));
+			SigBit b = sigmaps.at(work->module)(cell->getPort(TW::B));
+			SigBit c = sigmaps.at(work->module)(cell->getPort(TW::C));
+			SigBit d = sigmaps.at(work->module)(cell->getPort(TW::D));
+			SigBit y = sigmaps.at(work->module)(cell->getPort(TW::Y));
 
 			string a_expr = a.wire ? util_get_bit(work->prefix + cid(a.wire->name), a.wire->width, a.offset) : a.data ? "1" : "0";
 			string b_expr = b.wire ? util_get_bit(work->prefix + cid(b.wire->name), b.wire->width, b.offset) : b.data ? "1" : "0";
@@ -461,23 +462,23 @@ struct SimplecWorker
 			string d_expr = d.wire ? util_get_bit(work->prefix + cid(d.wire->name), d.wire->width, d.offset) : d.data ? "1" : "0";
 			string expr;
 
-			if (cell->type == ID($_AOI4_)) expr = stringf("!((%s & %s) | (%s & %s))", a_expr, b_expr, c_expr, d_expr);
-			if (cell->type == ID($_OAI4_)) expr = stringf("!((%s | %s) & (%s | %s))", a_expr, b_expr, c_expr, d_expr);
+			if (cell->type == TW($_AOI4_)) expr = stringf("!((%s & %s) | (%s & %s))", a_expr, b_expr, c_expr, d_expr);
+			if (cell->type == TW($_OAI4_)) expr = stringf("!((%s | %s) & (%s | %s))", a_expr, b_expr, c_expr, d_expr);
 
 			log_assert(y.wire);
 			funct_declarations.push_back(util_set_bit(work->prefix + cid(y.wire->name), y.wire->width, y.offset, expr) +
-					stringf(" // %s (%s)", cell, cell->type.unescape()));
+					stringf(" // %s (%s)", cell, cell->type.unescaped()));
 
 			work->set_dirty(y);
 			return;
 		}
 
-		if (cell->type.in(ID($_MUX_), ID($_NMUX_)))
+		if (cell->type.in(TW($_MUX_), TW($_NMUX_)))
 		{
-			SigBit a = sigmaps.at(work->module)(cell->getPort(ID::A));
-			SigBit b = sigmaps.at(work->module)(cell->getPort(ID::B));
-			SigBit s = sigmaps.at(work->module)(cell->getPort(ID::S));
-			SigBit y = sigmaps.at(work->module)(cell->getPort(ID::Y));
+			SigBit a = sigmaps.at(work->module)(cell->getPort(TW::A));
+			SigBit b = sigmaps.at(work->module)(cell->getPort(TW::B));
+			SigBit s = sigmaps.at(work->module)(cell->getPort(TW::S));
+			SigBit y = sigmaps.at(work->module)(cell->getPort(TW::Y));
 
 			string a_expr = a.wire ? util_get_bit(work->prefix + cid(a.wire->name), a.wire->width, a.offset) : a.data ? "1" : "0";
 			string b_expr = b.wire ? util_get_bit(work->prefix + cid(b.wire->name), b.wire->width, b.offset) : b.data ? "1" : "0";
@@ -485,18 +486,18 @@ struct SimplecWorker
 
 			// casts to bool are a workaround for CBMC bug (https://github.com/diffblue/cbmc/issues/933)
 			string expr = stringf("%s ? %s(bool)%s : %s(bool)%s", s_expr,
-					cell->type == ID($_NMUX_) ? "!" : "", b_expr,
-					cell->type == ID($_NMUX_) ? "!" : "", a_expr);
+					cell->type == TW($_NMUX_) ? "!" : "", b_expr,
+					cell->type == TW($_NMUX_) ? "!" : "", a_expr);
 
 			log_assert(y.wire);
 			funct_declarations.push_back(util_set_bit(work->prefix + cid(y.wire->name), y.wire->width, y.offset, expr) +
-					stringf(" // %s (%s)", cell, cell->type.unescape()));
+					stringf(" // %s (%s)", cell, cell->type.unescaped()));
 
 			work->set_dirty(y);
 			return;
 		}
 
-		log_error("No C model for %s available at the moment (FIXME).\n", cell->type.unescape());
+		log_error("No C model for %s available at the moment (FIXME).\n", cell->type.unescaped());
 	}
 
 	void eval_dirty(HierDirtyFlags *work)
@@ -524,12 +525,14 @@ struct SimplecWorker
 					for (SigBit bit : dirtysig)
 					{
 						if (bit2output[work->module].count(bit) && work->parent)
+						{
+							TwineSearch search(&work->parent->module->design->twines);
 							for (auto outbit : bit2output[work->module][bit])
 							{
 								Module *parent_mod = work->parent->module;
-								Cell *parent_cell = parent_mod->cell(work->hiername);
+								Cell *parent_cell = parent_mod->cell(search.find(work->hiername.str()));
 
-								IdString port_name = outbit.wire->name;
+								TwineRef port_name = outbit.wire->meta_->name;
 								int port_offset = outbit.offset;
 								SigBit parent_bit = sigmaps.at(parent_mod)(parent_cell->getPort(port_name)[port_offset]);
 
@@ -542,6 +545,7 @@ struct SimplecWorker
 									log("      Propagating %s.%s[%d] -> %s.%s[%d].\n", work->log_prefix, bit.wire, bit.offset,
 											work->parent->log_prefix.c_str(), parent_bit.wire, parent_bit.offset);
 							}
+						}
 
 						for (auto &port : bit2cell[work->module][bit])
 						{
@@ -576,10 +580,10 @@ struct SimplecWorker
 						if (cell == nullptr || topoidx.at(cell) < topoidx.at(c))
 							cell = c;
 
-					string hiername = work->log_prefix + "." + cell->name.unescape();
+					string hiername = work->log_prefix + "." + cell->module->design->twines.str(cell->meta_->name);
 
 					if (verbose)
-						log("    Evaluating %s (%s, best of %d).\n", hiername, cell->type.unescape(), GetSize(work->dirty_cells));
+						log("    Evaluating %s (%s, best of %d).\n", hiername, cell->type.unescaped(), GetSize(work->dirty_cells));
 
 					if (activated_cells.count(hiername))
 						reactivated_cells.insert(hiername);
@@ -636,7 +640,7 @@ struct SimplecWorker
 		reactivated_cells.clear();
 
 		funct_declarations.push_back("");
-		funct_declarations.push_back(stringf("static void %s(struct %s_state_t *state)", func_name, cid(work->module->name)));
+		funct_declarations.push_back(stringf("static void %s(struct %s_state_t *state)", func_name, cid(RTLIL::IdString(work->module->design->twines.str(work->module->meta_->name)))));
 		funct_declarations.push_back("{");
 		for (auto &line : preamble)
 			funct_declarations.push_back(line);
@@ -690,7 +694,7 @@ struct SimplecWorker
 	{
 		vector<string> preamble;
 		eval_init(work, preamble);
-		make_func(work, cid(work->module->name) + "_init", preamble);
+		make_func(work, cid(RTLIL::IdString(work->module->design->twines.str(work->module->meta_->name))) + "_init", preamble);
 	}
 
 	void make_eval_func(HierDirtyFlags *work)
@@ -704,7 +708,7 @@ struct SimplecWorker
 					work->set_dirty(bit);
 		}
 
-		make_func(work, cid(work->module->name) + "_eval", preamble);
+		make_func(work, cid(RTLIL::IdString(work->module->design->twines.str(work->module->meta_->name))) + "_eval", preamble);
 	}
 
 	void make_tick_func(HierDirtyFlags* /* work */)
@@ -716,7 +720,7 @@ struct SimplecWorker
 	{
 		create_module_struct(mod);
 
-		HierDirtyFlags work(mod, IdString(), nullptr, "state->", mod->name.unescape());
+		HierDirtyFlags work(mod, IdString(), nullptr, "state->", mod->design->twines.str(mod->meta_->name));
 
 		make_init_func(&work);
 		make_eval_func(&work);

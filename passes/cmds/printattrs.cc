@@ -47,11 +47,18 @@ struct PrintAttrsPass : public Pass {
 
 	static void log_const(RTLIL::IdString s, const RTLIL::Const &x, const unsigned int indent) {
 		if (x.flags & RTLIL::CONST_FLAG_STRING)
-			log("%s(* %s=\"%s\" *)\n", get_indent_str(indent), s.unescape(), x.decode_string());
+			log("%s(* %s=\"%s\" *)\n", get_indent_str(indent), log_id(s), x.decode_string());
 		else if (x.flags == RTLIL::CONST_FLAG_NONE || x.flags == RTLIL::CONST_FLAG_SIGNED)
-			log("%s(* %s=%s *)\n", get_indent_str(indent), s.unescape(), x.as_string());
+			log("%s(* %s=%s *)\n", get_indent_str(indent), log_id(s), x.as_string());
 		else
 			log_assert(x.flags & RTLIL::CONST_FLAG_STRING || x.flags == RTLIL::CONST_FLAG_NONE); //intended to fail
+	}
+
+	static void log_src(const RTLIL::Design *design, const RTLIL::AttrObject *obj, const unsigned int indent) {
+		// meta-vector slot, not in obj->attributes.
+		if (design && design->obj_src_id(obj) != Twine::Null)
+			log("%s(* src=\"%s\" *)\n", get_indent_str(indent),
+					design->get_src_attribute(obj).c_str());
 	}
 
 	void execute(std::vector<std::string> args, RTLIL::Design *design) override
@@ -63,23 +70,26 @@ struct PrintAttrsPass : public Pass {
 		for (auto mod : design->selected_modules())
 		{
 			if (design->selected_whole_module(mod)) {
-				log("%s%s\n", get_indent_str(indent), mod->name.unescape());
+				log("%s%s\n", get_indent_str(indent), log_id(mod));
 				indent += 2;
+				log_src(design, mod, indent);
 				for (auto &it : mod->attributes)
 					log_const(it.first, it.second, indent);
 			}
 
 			for (auto cell : mod->selected_cells()) {
-				log("%s%s\n", get_indent_str(indent), cell->name.unescape());
+				log("%s%s\n", get_indent_str(indent), cell->module->design->twines.str(cell->meta_->name));
 				indent += 2;
+				log_src(design, cell, indent);
 				for (auto &it : cell->attributes)
 					log_const(it.first, it.second, indent);
 				indent -= 2;
 			}
 
 			for (auto wire : mod->selected_wires()) {
-				log("%s%s\n", get_indent_str(indent), wire->name.unescape());
+				log("%s%s\n", get_indent_str(indent), design->twines.unescaped_str(wire->name.ref()));
 				indent += 2;
+				log_src(design, wire, indent);
 				for (auto &it : wire->attributes)
 					log_const(it.first, it.second, indent);
 				indent -= 2;

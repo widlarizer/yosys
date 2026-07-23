@@ -66,31 +66,31 @@ struct Clk2fflogicPass : public Pass {
 	SampledSig sample_control(Module *module, SigSpec sig, bool polarity, bool is_fine) {
 		if (!polarity) {
 			if (is_fine)
-				sig = module->NotGate(NEW_ID, sig);
+				sig = module->NotGate(NEW_TWINE, sig);
 			else
-				sig = module->Not(NEW_ID, sig);
+				sig = module->Not(NEW_TWINE, sig);
 		}
 		std::string sig_str = log_signal(sig);
 		sig_str.erase(std::remove(sig_str.begin(), sig_str.end(), ' '), sig_str.end());
-		Wire *sampled_sig = module->addWire(NEW_ID_SUFFIX(stringf("%s#sampled", sig_str)), GetSize(sig));
+		Wire *sampled_sig = module->addWire(NEW_TWINE_SUFFIX(stringf("%s#sampled", sig_str)), GetSize(sig));
 		sampled_sig->attributes[ID::init] = RTLIL::Const(State::S0, GetSize(sig));
 		if (is_fine)
-			module->addFfGate(NEW_ID, sig, sampled_sig);
+			module->addFfGate(NEW_TWINE, sig, sampled_sig);
 		else
-			module->addFf(NEW_ID, sig, sampled_sig);
+			module->addFf(NEW_TWINE, sig, sampled_sig);
 		return {sampled_sig, sig};
 	}
 	// Active-high trigger signal for an edge-triggered control signal. Initial values is low/non-edge.
 	SigSpec sample_control_edge(Module *module, SigSpec sig, bool polarity, bool is_fine) {
 		std::string sig_str = log_signal(sig);
 		sig_str.erase(std::remove(sig_str.begin(), sig_str.end(), ' '), sig_str.end());
-		Wire *sampled_sig = module->addWire(NEW_ID_SUFFIX(stringf("%s#sampled", sig_str)), GetSize(sig));
+		Wire *sampled_sig = module->addWire(NEW_TWINE_SUFFIX(stringf("%s#sampled", sig_str)), GetSize(sig));
 		sampled_sig->attributes[ID::init] = RTLIL::Const(polarity ? State::S1 : State::S0, GetSize(sig));
 		if (is_fine)
-			module->addFfGate(NEW_ID, sig, sampled_sig);
+			module->addFfGate(NEW_TWINE, sig, sampled_sig);
 		else
-			module->addFf(NEW_ID, sig, sampled_sig);
-		return module->Eqx(NEW_ID, {sampled_sig, sig}, polarity ? SigSpec {State::S0, State::S1} : SigSpec {State::S1, State::S0});
+			module->addFf(NEW_TWINE, sig, sampled_sig);
+		return module->Eqx(NEW_TWINE, {sampled_sig, sig}, polarity ? SigSpec {State::S0, State::S1} : SigSpec {State::S1, State::S0});
 	}
 	// Sampled and current value of a data signal.
 	SampledSig sample_data(Module *module, SigSpec sig, RTLIL::Const init, bool is_fine, bool set_attribute = false) {
@@ -98,14 +98,14 @@ struct Clk2fflogicPass : public Pass {
 		sig_str.erase(std::remove(sig_str.begin(), sig_str.end(), ' '), sig_str.end());
 
 
-		Wire *sampled_sig = module->addWire(NEW_ID_SUFFIX(stringf("%s#sampled", sig_str)), GetSize(sig));
+		Wire *sampled_sig = module->addWire(NEW_TWINE_SUFFIX(stringf("%s#sampled", sig_str)), GetSize(sig));
 		sampled_sig->attributes[ID::init] = init;
 
 		Cell *cell;
 		if (is_fine)
-			cell = module->addFfGate(NEW_ID, sig, sampled_sig);
+			cell = module->addFfGate(NEW_TWINE, sig, sampled_sig);
 		else
-			cell = module->addFf(NEW_ID, sig, sampled_sig);
+			cell = module->addFf(NEW_TWINE, sig, sampled_sig);
 
 		if (set_attribute) {
 			for (auto &chunk : sig.chunks())
@@ -118,17 +118,17 @@ struct Clk2fflogicPass : public Pass {
 	}
 	SigSpec mux(Module *module, SigSpec a, SigSpec b, SigSpec s, bool is_fine) {
 		if (is_fine)
-			return module->MuxGate(NEW_ID, a, b, s);
+			return module->MuxGate(NEW_TWINE, a, b, s);
 		else
-			return module->Mux(NEW_ID, a, b, s);
+			return module->Mux(NEW_TWINE, a, b, s);
 	}
 	SigSpec bitwise_sr(Module *module, SigSpec a, SigSpec s, SigSpec r, bool is_fine) {
 		if (is_fine) {
-			return module->MuxGate(NEW_ID, module->AndGate(NEW_ID, module->OrGate(NEW_ID, a, s), module->NotGate(NEW_ID, r)), RTLIL::State::Sx, module->AndGate(NEW_ID, s, r));
+			return module->MuxGate(NEW_TWINE, module->AndGate(NEW_TWINE, module->OrGate(NEW_TWINE, a, s), module->NotGate(NEW_TWINE, r)), RTLIL::State::Sx, module->AndGate(NEW_TWINE, s, r));
 		} else {
 			std::vector<SigBit> y;
 			for (int i = 0; i < a.size(); i++)
-				y.push_back(module->MuxGate(NEW_ID, module->AndGate(NEW_ID, module->OrGate(NEW_ID, a[i], s[i]), module->NotGate(NEW_ID, r[i])), RTLIL::State::Sx, module->AndGate(NEW_ID, s[i], r[i])));
+				y.push_back(module->MuxGate(NEW_TWINE, module->AndGate(NEW_TWINE, module->OrGate(NEW_TWINE, a[i], s[i]), module->NotGate(NEW_TWINE, r[i])), RTLIL::State::Sx, module->AndGate(NEW_TWINE, s[i], r[i])));
 			return y;
 		}
 	}
@@ -173,7 +173,7 @@ struct Clk2fflogicPass : public Pass {
 					auto &port = mem.rd_ports[i];
 					if (port.clk_enable)
 						log_error("Read port %d of memory %s.%s is clocked. This is not supported by \"clk2fflogic\"! "
-								"Call \"memory\" with -nordff to avoid this error.\n", i, mem.memid.unescape(), module);
+								"Call \"memory\" with -nordff to avoid this error.\n", i, RTLIL::unescape_id(mem.memid), module);
 				}
 
 				for (int i = 0; i < GetSize(mem.wr_ports); i++)
@@ -184,12 +184,12 @@ struct Clk2fflogicPass : public Pass {
 						continue;
 
 					log("Modifying write port %d on memory %s.%s: CLK=%s, A=%s, D=%s\n",
-							i, module, mem.memid.unescape(), log_signal(port.clk),
+							i, module, RTLIL::unescape_id(mem.memid), log_signal(port.clk),
 							log_signal(port.addr), log_signal(port.data));
 
-					Wire *past_clk = module->addWire(NEW_ID_SUFFIX(stringf("%s#%d#past_clk#%s", mem.memid.unescape(), i, log_signal(port.clk))));
+					Wire *past_clk = module->addWire(NEW_TWINE_SUFFIX(stringf("%s#%d#past_clk#%s", RTLIL::unescape_id(mem.memid), i, log_signal(port.clk))));
 					past_clk->attributes[ID::init] = port.clk_polarity ? State::S1 : State::S0;
-					module->addFf(NEW_ID, port.clk, past_clk);
+					module->addFf(NEW_TWINE, port.clk, past_clk);
 
 					SigSpec clock_edge_pattern;
 
@@ -201,19 +201,19 @@ struct Clk2fflogicPass : public Pass {
 						clock_edge_pattern.append(State::S0);
 					}
 
-					SigSpec clock_edge = module->Eqx(NEW_ID, {port.clk, SigSpec(past_clk)}, clock_edge_pattern);
+					SigSpec clock_edge = module->Eqx(NEW_TWINE, {port.clk, SigSpec(past_clk)}, clock_edge_pattern);
 
-					SigSpec en_q = module->addWire(NEW_ID_SUFFIX(stringf("%s#%d#en_q", mem.memid.unescape(), i)), GetSize(port.en));
-					module->addFf(NEW_ID, port.en, en_q);
+					SigSpec en_q = module->addWire(NEW_TWINE_SUFFIX(stringf("%s#%d#en_q", RTLIL::unescape_id(mem.memid), i)), GetSize(port.en));
+					module->addFf(NEW_TWINE, port.en, en_q);
 
-					SigSpec addr_q = module->addWire(NEW_ID_SUFFIX(stringf("%s#%d#addr_q", mem.memid.unescape(), i)), GetSize(port.addr));
-					module->addFf(NEW_ID, port.addr, addr_q);
+					SigSpec addr_q = module->addWire(NEW_TWINE_SUFFIX(stringf("%s#%d#addr_q", RTLIL::unescape_id(mem.memid), i)), GetSize(port.addr));
+					module->addFf(NEW_TWINE, port.addr, addr_q);
 
-					SigSpec data_q = module->addWire(NEW_ID_SUFFIX(stringf("%s#%d#data_q", mem.memid.unescape(), i)), GetSize(port.data));
-					module->addFf(NEW_ID, port.data, data_q);
+					SigSpec data_q = module->addWire(NEW_TWINE_SUFFIX(stringf("%s#%d#data_q", RTLIL::unescape_id(mem.memid), i)), GetSize(port.data));
+					module->addFf(NEW_TWINE, port.data, data_q);
 
 					port.clk = State::S0;
-					port.en = module->Mux(NEW_ID, Const(0, GetSize(en_q)), en_q, clock_edge);
+					port.en = module->Mux(NEW_TWINE, Const(0, GetSize(en_q)), en_q, clock_edge);
 					port.addr = addr_q;
 					port.data = data_q;
 
@@ -228,9 +228,9 @@ struct Clk2fflogicPass : public Pass {
 
 			for (auto cell : vector<Cell*>(module->selected_cells()))
 			{
-				if (cell->type.in(ID($print), ID($check)))
+				if (cell->type.in(TW($print), TW($check)))
 				{
-					if (cell->type == ID($check))
+					if (cell->type == TW($check))
 						have_check_cells = true;
 
 					bool trg_enable = cell->getParam(ID(TRG_ENABLE)).as_bool();
@@ -241,15 +241,15 @@ struct Clk2fflogicPass : public Pass {
 
 					if (trg_width == 0) {
 						if (initstate == State::S0)
-							initstate = module->Initstate(NEW_ID);
+							initstate = module->Initstate(NEW_TWINE);
 
-						SigBit sig_en = cell->getPort(ID::EN);
-						cell->setPort(ID::EN, module->And(NEW_ID, sig_en, initstate));
+						SigBit sig_en = cell->getPort(TW::EN);
+						cell->setPort(TW::EN, module->And(NEW_TWINE, sig_en, initstate));
 					} else {
-						SigBit sig_en = cell->getPort(ID::EN);
-						SigSpec sig_args = cell->getPort(ID::ARGS);
+						SigBit sig_en = cell->getPort(TW::EN);
+						SigSpec sig_args = cell->getPort(TW::ARGS);
 						Const trg_polarity = cell->getParam(ID(TRG_POLARITY));
-						SigSpec sig_trg = cell->getPort(ID::TRG);
+						SigSpec sig_trg = cell->getPort(TW::TRG);
 
 						SigSpec sig_trg_sampled;
 
@@ -258,18 +258,18 @@ struct Clk2fflogicPass : public Pass {
 						SigSpec sig_args_sampled = sample_data(module, sig_args, Const(State::S0, GetSize(sig_args)), false, false).sampled;
 						SigBit sig_en_sampled = sample_data(module, sig_en, State::S0, false, false).sampled;
 
-						SigBit sig_trg_combined = module->ReduceOr(NEW_ID, sig_trg_sampled);
+						SigBit sig_trg_combined = module->ReduceOr(NEW_TWINE, sig_trg_sampled);
 
-						cell->setPort(ID::EN, module->And(NEW_ID, sig_en_sampled, sig_trg_combined));
-						cell->setPort(ID::ARGS, sig_args_sampled);
-						if (cell->type == ID($check)) {
-							SigBit sig_a = cell->getPort(ID::A);
+						cell->setPort(TW::EN, module->And(NEW_TWINE, sig_en_sampled, sig_trg_combined));
+						cell->setPort(TW::ARGS, sig_args_sampled);
+						if (cell->type == TW($check)) {
+							SigBit sig_a = cell->getPort(TW::A);
 							SigBit sig_a_sampled = sample_data(module, sig_a, State::S1, false, false).sampled;
-							cell->setPort(ID::A, sig_a_sampled);
+							cell->setPort(TW::A, sig_a_sampled);
 						}
 					}
 
-					cell->setPort(ID::TRG, SigSpec());
+					cell->setPort(TW::TRG, SigSpec());
 
 					cell->setParam(ID::TRG_ENABLE, false);
 					cell->setParam(ID::TRG_WIDTH, 0);
@@ -291,16 +291,16 @@ struct Clk2fflogicPass : public Pass {
 
 				if (ff.has_clk) {
 					log("Replacing %s.%s (%s): CLK=%s, D=%s, Q=%s\n",
-							module, cell, cell->type.unescape(),
+							module, cell, cell->type.unescaped(),
 							log_signal(ff.sig_clk), log_signal(ff.sig_d), log_signal(ff.sig_q));
 				} else if (ff.has_aload) {
 					log("Replacing %s.%s (%s): EN=%s, D=%s, Q=%s\n",
-							module, cell, cell->type.unescape(),
+							module, cell, cell->type.unescaped(),
 							log_signal(ff.sig_aload), log_signal(ff.sig_ad), log_signal(ff.sig_q));
 				} else {
 					// $sr.
 					log("Replacing %s.%s (%s): SET=%s, CLR=%s, Q=%s\n",
-							module, cell, cell->type.unescape(),
+							module, cell, cell->type.unescaped(),
 							log_signal(ff.sig_set), log_signal(ff.sig_clr), log_signal(ff.sig_q));
 				}
 

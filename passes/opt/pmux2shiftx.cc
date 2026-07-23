@@ -53,21 +53,21 @@ struct OnehotDatabase
 			vector<SigSpec> inputs;
 			SigSpec output;
 
-			if (cell->type.in(ID($adff), ID($adffe), ID($dff), ID($dffe), ID($sdff), ID($sdffe), ID($sdffce), ID($dlatch), ID($adlatch), ID($ff)))
+			if (cell->type.in(TW($adff), TW($adffe), TW($dff), TW($dffe), TW($sdff), TW($sdffe), TW($sdffce), TW($dlatch), TW($adlatch), TW($ff)))
 			{
-				output = cell->getPort(ID::Q);
-				if (cell->type.in(ID($adff), ID($adffe), ID($adlatch)))
+				output = cell->getPort(TW::Q);
+				if (cell->type.in(TW($adff), TW($adffe), TW($adlatch)))
 					inputs.push_back(cell->getParam(ID::ARST_VALUE));
-				if (cell->type.in(ID($sdff), ID($sdffe), ID($sdffce)))
+				if (cell->type.in(TW($sdff), TW($sdffe), TW($sdffce)))
 					inputs.push_back(cell->getParam(ID::SRST_VALUE));
-				inputs.push_back(cell->getPort(ID::D));
+				inputs.push_back(cell->getPort(TW::D));
 			}
 
-			if (cell->type.in(ID($mux), ID($pmux)))
+			if (cell->type.in(TW($mux), TW($pmux)))
 			{
-				output = cell->getPort(ID::Y);
-				inputs.push_back(cell->getPort(ID::A));
-				SigSpec B = cell->getPort(ID::B);
+				output = cell->getPort(TW::Y);
+				inputs.push_back(cell->getPort(TW::A));
+				SigSpec B = cell->getPort(TW::B);
 				for (int i = 0; i < GetSize(B); i += GetSize(output))
 					inputs.push_back(B.extract(i, GetSize(output)));
 			}
@@ -284,12 +284,12 @@ struct Pmux2ShiftxPass : public Pass {
 
 			for (auto cell : module->cells())
 			{
-				if (cell->type == ID($eq))
+				if (cell->type == TW($eq))
 				{
 					dict<SigBit, State> bits;
 
-					SigSpec A = sigmap(cell->getPort(ID::A));
-					SigSpec B = sigmap(cell->getPort(ID::B));
+					SigSpec A = sigmap(cell->getPort(TW::A));
+					SigSpec B = sigmap(cell->getPort(TW::B));
 
 					int a_width = cell->getParam(ID::A_WIDTH).as_int();
 					int b_width = cell->getParam(ID::B_WIDTH).as_int();
@@ -328,15 +328,15 @@ struct Pmux2ShiftxPass : public Pass {
 					}
 					entry.second = entry_bits_builder.build();
 
-					eqdb[sigmap(cell->getPort(ID::Y)[0])] = entry;
+					eqdb[sigmap(cell->getPort(TW::Y)[0])] = entry;
 					goto next_cell;
 				}
 
-				if (cell->type == ID($logic_not))
+				if (cell->type == TW($logic_not))
 				{
 					dict<SigBit, State> bits;
 
-					SigSpec A = sigmap(cell->getPort(ID::A));
+					SigSpec A = sigmap(cell->getPort(TW::A));
 
 					for (int i = 0; i < GetSize(A); i++)
 						bits[A[i]] = State::S0;
@@ -350,7 +350,7 @@ struct Pmux2ShiftxPass : public Pass {
 					}
 					entry.second = entry_bits_builder.build();
 
-					eqdb[sigmap(cell->getPort(ID::Y)[0])] = entry;
+					eqdb[sigmap(cell->getPort(TW::Y)[0])] = entry;
 					goto next_cell;
 				}
 		next_cell:;
@@ -358,10 +358,10 @@ struct Pmux2ShiftxPass : public Pass {
 
 			for (auto cell : module->selected_cells())
 			{
-				if (cell->type != ID($pmux))
+				if (cell->type != TW($pmux))
 					continue;
 
-				string src = cell->get_src_attribute();
+				TwineRef src = cell->src_id();
 				int width = cell->getParam(ID::WIDTH).as_int();
 				int width_bits = ceil_log2(width);
 				int extwidth = width;
@@ -371,9 +371,9 @@ struct Pmux2ShiftxPass : public Pass {
 
 				dict<SigSpec, pool<int>> seldb;
 
-				SigSpec A = cell->getPort(ID::A);
-				SigSpec B = cell->getPort(ID::B);
-				SigSpec S = sigmap(cell->getPort(ID::S));
+				SigSpec A = cell->getPort(TW::A);
+				SigSpec B = cell->getPort(TW::B);
+				SigSpec S = sigmap(cell->getPort(TW::S));
 				for (int i = 0; i < GetSize(S); i++)
 				{
 					if (!eqdb.count(S[i]))
@@ -394,8 +394,8 @@ struct Pmux2ShiftxPass : public Pass {
 					log("  data width: %d (next power-of-2 = %d, log2 = %d)\n", width, extwidth, width_bits);
 				}
 
-				SigSpec updated_S = cell->getPort(ID::S);
-				SigSpec updated_B = cell->getPort(ID::B);
+				SigSpec updated_S = cell->getPort(TW::S);
+				SigSpec updated_B = cell->getPort(TW::B);
 
 				while (!seldb.empty())
 				{
@@ -680,9 +680,9 @@ struct Pmux2ShiftxPass : public Pass {
 					// creat cmp signal
 					SigSpec cmp = perm_sig;
 					if (perm_xormask.as_bool())
-						cmp = module->Xor(NEW_ID, cmp, perm_xormask, false, src);
+						cmp = module->Xor(NEW_TWINE, cmp, perm_xormask, false, src);
 					if (offset.as_bool())
-						cmp = module->Sub(NEW_ID, cmp, offset, false, src);
+						cmp = module->Sub(NEW_TWINE, cmp, offset, false, src);
 
 					// create enable signal
 					SigBit en = State::S1;
@@ -690,8 +690,8 @@ struct Pmux2ShiftxPass : public Pass {
 						Const enable_mask(State::S0, max_choice+1);
 						for (auto &it : perm_choices)
 							enable_mask.set(it.first.as_int(), State::S1);
-						en = module->addWire(NEW_ID);
-						module->addShift(NEW_ID, enable_mask, cmp, en, false, src);
+						en = module->addWire(NEW_TWINE);
+						module->addShift(NEW_TWINE, enable_mask, cmp, en, false, src);
 					}
 
 					// create data signal
@@ -710,8 +710,8 @@ struct Pmux2ShiftxPass : public Pass {
 
 					// create shiftx cell
 					SigSpec shifted_cmp = {cmp, SigSpec(State::S0, width_bits)};
-					SigSpec outsig = module->addWire(NEW_ID, width);
-					Cell *c = module->addShiftx(NEW_ID, data, shifted_cmp, outsig, false, src);
+					SigSpec outsig = module->addWire(NEW_TWINE, width);
+					Cell *c = module->addShiftx(NEW_TWINE, data, shifted_cmp, outsig, false, src);
 					updated_S.append(en);
 					updated_B.append(outsig);
 					log("    created $shiftx cell %s.\n", c);
@@ -721,8 +721,8 @@ struct Pmux2ShiftxPass : public Pass {
 				}
 
 				// update $pmux cell
-				cell->setPort(ID::S, updated_S);
-				cell->setPort(ID::B, updated_B);
+				cell->setPort(TW::S, updated_S);
+				cell->setPort(TW::B, updated_B);
 				cell->setParam(ID::S_WIDTH, GetSize(updated_S));
 			}
 		}
@@ -773,11 +773,11 @@ struct OnehotPass : public Pass {
 
 			for (auto cell : module->selected_cells())
 			{
-				if (cell->type != ID($eq))
+				if (cell->type != TW($eq))
 					continue;
 
-				SigSpec A = sigmap(cell->getPort(ID::A));
-				SigSpec B = sigmap(cell->getPort(ID::B));
+				SigSpec A = sigmap(cell->getPort(TW::A));
+				SigSpec B = sigmap(cell->getPort(TW::B));
 
 				int a_width = cell->getParam(ID::A_WIDTH).as_int();
 				int b_width = cell->getParam(ID::B_WIDTH).as_int();
@@ -824,7 +824,8 @@ struct OnehotPass : public Pass {
 					continue;
 				}
 
-				SigSpec Y = cell->getPort(ID::Y);
+				SigSpec Y = cell->getPort(TW::Y);
+				SigSpec replacement;
 
 				if (not_onehot)
 				{
@@ -832,7 +833,7 @@ struct OnehotPass : public Pass {
 						log("  replacing with constant 0 driver.\n");
 					else
 						log("Replacing one-hot $eq(%s, %s) cell %s/%s with constant 0 driver.\n", log_signal(A), log_signal(B), module, cell);
-					module->connect(Y, SigSpec(1, GetSize(Y)));
+					replacement = SigSpec(1, GetSize(Y));
 				}
 				else
 				{
@@ -842,9 +843,15 @@ struct OnehotPass : public Pass {
 					else
 						log("Replacing one-hot $eq(%s, %s) cell %s/%s with signal %s.\n",log_signal(A), log_signal(B), module, cell, log_signal(sig));
 					sig.extend_u0(GetSize(Y));
-					module->connect(Y, sig);
+					replacement = sig;
 				}
 
+				// The replacement is an existing signal, so there is no new
+				// cell to carry the removed cell's src onto.
+				SigSpec old_y = cell->getPort(TW::Y);
+				cell->unsetPort(TW::Y);
+				sigmap.add(old_y, replacement);
+				module->connect(old_y, replacement);
 				module->remove(cell);
 			}
 		}

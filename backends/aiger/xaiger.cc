@@ -188,21 +188,21 @@ struct XAigerWriter
 
 		for (auto cell : module->cells()) {
 			if (!cell->has_keep_attr()) {
-				if (cell->type == ID($_NOT_))
+				if (cell->type == TW($_NOT_))
 				{
-					SigBit A = sigmap(cell->getPort(ID::A).as_bit());
-					SigBit Y = sigmap(cell->getPort(ID::Y).as_bit());
+					SigBit A = sigmap(cell->getPort(TW::A).as_bit());
+					SigBit Y = sigmap(cell->getPort(TW::Y).as_bit());
 					unused_bits.erase(A);
 					undriven_bits.erase(Y);
 					not_map[Y] = A;
 					continue;
 				}
 
-				if (cell->type == ID($_AND_))
+				if (cell->type == TW($_AND_))
 				{
-					SigBit A = sigmap(cell->getPort(ID::A).as_bit());
-					SigBit B = sigmap(cell->getPort(ID::B).as_bit());
-					SigBit Y = sigmap(cell->getPort(ID::Y).as_bit());
+					SigBit A = sigmap(cell->getPort(TW::A).as_bit());
+					SigBit B = sigmap(cell->getPort(TW::B).as_bit());
+					SigBit Y = sigmap(cell->getPort(TW::Y).as_bit());
 					unused_bits.erase(A);
 					unused_bits.erase(B);
 					undriven_bits.erase(Y);
@@ -210,10 +210,10 @@ struct XAigerWriter
 					continue;
 				}
 
-				if (dff_mode && cell->type.in(ID($_DFF_N_), ID($_DFF_P_)) && !cell->get_bool_attribute(ID::abc9_keep))
+				if (dff_mode && cell->type.in(TW($_DFF_N_), TW($_DFF_P_)) && !cell->get_bool_attribute(ID::abc9_keep))
 				{
-					SigBit D = sigmap(cell->getPort(ID::D).as_bit());
-					SigBit Q = sigmap(cell->getPort(ID::Q).as_bit());
+					SigBit D = sigmap(cell->getPort(TW::D).as_bit());
+					SigBit Q = sigmap(cell->getPort(TW::Q).as_bit());
 					unused_bits.erase(D);
 					undriven_bits.erase(Q);
 					alias_map[Q] = D;
@@ -221,11 +221,11 @@ struct XAigerWriter
 					continue;
 				}
 
-				if (cell->type.in(ID($specify2), ID($specify3), ID($specrule)))
+				if (cell->type.in(TW($specify2), TW($specify3), TW($specrule)))
 					continue;
 			}
 
-			RTLIL::Module* inst_module = design->module(cell->type);
+			RTLIL::Module* inst_module = design->module(cell->type_impl);
 			if (inst_module && inst_module->get_blackbox_attribute()) {
 				bool abc9_flop = false;
 
@@ -245,14 +245,16 @@ struct XAigerWriter
 						continue;
 				}
 
-				if (!timing.count(inst_module->name))
+				auto inst_name_id = inst_module->meta_->name;
+				if (!timing.count(inst_name_id))
 					timing.setup_module(inst_module);
 
-				for (auto &i : timing.at(inst_module->name).arrival) {
-					if (!cell->hasPort(i.first.name))
+				for (auto &i : timing.at(inst_name_id).arrival) {
+					auto port_name_ref = i.first.name;
+					if (!cell->hasPort(port_name_ref))
 						continue;
 
-					auto port_wire = inst_module->wire(i.first.name);
+					auto port_wire = inst_module->wire(port_name_ref);
 					log_assert(port_wire->port_output);
 
 					auto d = i.second.first;
@@ -260,15 +262,15 @@ struct XAigerWriter
 						continue;
 					auto offset = i.first.offset;
 
-					auto rhs = cell->getPort(i.first.name);
+					auto rhs = cell->getPort(port_name_ref);
 					if (offset >= rhs.size())
 						continue;
 
 #ifndef NDEBUG
 					if (ys_debug(1)) {
-						static pool<std::pair<IdString,TimingInfo::NameBit>> seen;
-						if (seen.emplace(inst_module->name, i.first).second) log("%s.%s[%d] abc9_arrival = %d\n",
-								cell->type.unescape(), i.first.name.unescape(), offset, d);
+						static pool<std::pair<TwineRef,TimingInfo::NameBit>> seen;
+						if (seen.emplace(inst_name_id, i.first).second) log("%s.%s[%d] abc9_arrival = %d\n",
+								cell->type.unescape(), design->twines.unescaped_str(i.first.name), offset, d);
 					}
 #endif
 					arrival_times[rhs[offset]] = d;
@@ -285,7 +287,7 @@ struct XAigerWriter
 				auto is_input = (port_wire && port_wire->port_input) || !cell_known || cell->input(c.first);
 				auto is_output = (port_wire && port_wire->port_output) || !cell_known || cell->output(c.first);
 				if (!is_input && !is_output)
-					log_error("Connection '%s' on cell '%s' (type '%s') not recognised!\n", c.first.unescape(), cell, cell->type.unescape());
+					log_error("Connection '%s' on cell '%s' (type '%s') not recognised!\n", RTLIL::IdString(design->twines.str(c.first)).unescape(), cell, cell->type.unescape());
 
 				if (is_input)
 					for (auto b : c.second) {
@@ -303,14 +305,14 @@ struct XAigerWriter
 					}
 			}
 
-			//log_warning("Unsupported cell type: %s (%s)\n", cell->type.unescape(), cell);
+			//log_warning("Unsupported cell type: %s (%s)\n", cell->type.unescaped(), cell);
 		}
 
-		dict<IdString, std::vector<IdString>> box_ports;
+		dict<IdString, std::vector<TwineRef>> box_ports;
 		for (auto cell : box_list) {
 			log_assert(cell);
 
-			RTLIL::Module* box_module = design->module(cell->type);
+			RTLIL::Module* box_module = design->module(cell->type_impl);
 			log_assert(box_module);
 			log_assert(box_module->has_attribute(ID::abc9_box_id));
 
@@ -318,18 +320,18 @@ struct XAigerWriter
 			if (r.second) {
 				// Make carry in the last PI, and carry out the last PO
 				//   since ABC requires it this way
-				IdString carry_in, carry_out;
+				TwineRef carry_in = Twine::Null, carry_out = Twine::Null;
 				for (const auto &port_name : box_module->ports) {
 					auto w = box_module->wire(port_name);
 					log_assert(w);
 					if (w->get_bool_attribute(ID::abc9_carry)) {
 						if (w->port_input) {
-							if (carry_in != IdString())
+							if (carry_in != Twine::Null)
 								log_error("Module '%s' contains more than one 'abc9_carry' input port.\n", box_module);
 							carry_in = port_name;
 						}
 						if (w->port_output) {
-							if (carry_out != IdString())
+							if (carry_out != Twine::Null)
 								log_error("Module '%s' contains more than one 'abc9_carry' output port.\n", box_module);
 							carry_out = port_name;
 						}
@@ -338,11 +340,11 @@ struct XAigerWriter
 						r.first->second.push_back(port_name);
 				}
 
-				if (carry_in != IdString() && carry_out == IdString())
+				if (carry_in != Twine::Null && carry_out == Twine::Null)
 					log_error("Module '%s' contains an 'abc9_carry' input port but no output port.\n", box_module);
-				if (carry_in == IdString() && carry_out != IdString())
+				if (carry_in == Twine::Null && carry_out != Twine::Null)
 					log_error("Module '%s' contains an 'abc9_carry' output port but no input port.\n", box_module);
-				if (carry_in != IdString()) {
+				if (carry_in != Twine::Null) {
 					r.first->second.push_back(carry_in);
 					r.first->second.push_back(carry_out);
 				}
@@ -410,7 +412,7 @@ struct XAigerWriter
 		}
 
 		for (auto cell : ff_list) {
-			const SigBit &q = sigmap(cell->getPort(ID::Q));
+			const SigBit &q = sigmap(cell->getPort(TW::Q));
 			aig_m++, aig_i++;
 			log_assert(!aig_map.count(q));
 			aig_map[q] = 2*aig_m;
@@ -458,7 +460,7 @@ struct XAigerWriter
 		}
 
 		for (auto cell : ff_list) {
-			const SigBit &d = sigmap(cell->getPort(ID::D));
+			const SigBit &d = sigmap(cell->getPort(TW::D));
 			aig_o++;
 			aig_outputs.push_back(aig_map.at(d));
 		}
@@ -567,7 +569,7 @@ struct XAigerWriter
 				auto r = cell_cache.insert(cell->type);
 				auto &v = r.first->second;
 				if (r.second) {
-					RTLIL::Module* box_module = design->module(cell->type);
+					RTLIL::Module* box_module = design->module(cell->type_impl);
 					log_assert(box_module);
 
 					int box_inputs = 0, box_outputs = 0;
@@ -602,10 +604,10 @@ struct XAigerWriter
 
 			dict<SigSpec, int> clk_to_mergeability;
 			for (const auto cell : ff_list) {
-				const SigBit &d = sigmap(cell->getPort(ID::D));
-				const SigBit &q = sigmap(cell->getPort(ID::Q));
+				const SigBit &d = sigmap(cell->getPort(TW::D));
+				const SigBit &q = sigmap(cell->getPort(TW::Q));
 
-				SigSpec clk_and_pol{sigmap(cell->getPort(ID::C)), cell->type[6] == 'P' ? State::S1 : State::S0};
+				SigSpec clk_and_pol{sigmap(cell->getPort(TW::C)), cell->type[6] == 'P' ? State::S1 : State::S0};
 				auto r = clk_to_mergeability.insert(std::make_pair(clk_and_pol, clk_to_mergeability.size()+1));
 				int mergeability = r.first->second;
 				log_assert(mergeability > 0);
@@ -643,7 +645,8 @@ struct XAigerWriter
 				holes_design = it->second;
 			else
 				holes_design = nullptr;
-			RTLIL::Module *holes_module = holes_design ? holes_design->module(module->name) : nullptr;
+			RTLIL::Module *holes_module = holes_design ?
+					holes_design->module(holes_design->twines.add(std::string{module->name.str()})) : nullptr;
 			if (holes_module) {
 				std::stringstream a_buffer;
 				XAigerWriter writer(holes_module, false /* dff_mode */);
@@ -709,7 +712,7 @@ struct XAigerWriter
 
 		int box_count = 0;
 		for (auto cell : box_list)
-			f << stringf("box %d %d %s\n", box_count++, 0, cell->name.unescape());
+			f << stringf("box %d %d %s\n", box_count++, 0, cell->module->design->twines.str(cell->meta_->name));
 
 		output_lines.sort();
 		for (auto &it : output_lines)

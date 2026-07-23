@@ -75,10 +75,10 @@ struct OptMemFeedbackWorker
 		RTLIL::Cell *cell = sig_to_mux.at(sig).first;
 		int bit_idx = sig_to_mux.at(sig).second;
 
-		std::vector<RTLIL::SigBit> sig_a = sigmap(cell->getPort(ID::A));
-		std::vector<RTLIL::SigBit> sig_b = sigmap(cell->getPort(ID::B));
-		std::vector<RTLIL::SigBit> sig_s = sigmap(cell->getPort(ID::S));
-		std::vector<RTLIL::SigBit> sig_y = sigmap(cell->getPort(ID::Y));
+		std::vector<RTLIL::SigBit> sig_a = sigmap(cell->getPort(TW::A));
+		std::vector<RTLIL::SigBit> sig_b = sigmap(cell->getPort(TW::B));
+		std::vector<RTLIL::SigBit> sig_s = sigmap(cell->getPort(TW::S));
+		std::vector<RTLIL::SigBit> sig_y = sigmap(cell->getPort(TW::Y));
 		log_assert(sig_y.at(bit_idx) == sig);
 
 		for (int i = 0; i < GetSize(sig_s); i++)
@@ -120,7 +120,7 @@ struct OptMemFeedbackWorker
 				sig1.append(it.first);
 				sig2.append(it.second ? RTLIL::State::S1 : RTLIL::State::S0);
 			}
-			terms.append(module->Ne(NEW_ID, sig1, sig2));
+			terms.append(module->Ne(NEW_TWINE, sig1, sig2));
 		}
 
 		if (olden != State::S1)
@@ -130,7 +130,7 @@ struct OptMemFeedbackWorker
 			terms = State::S1;
 
 		if (GetSize(terms) > 1)
-			terms = module->ReduceAnd(NEW_ID, terms);
+			terms = module->ReduceAnd(NEW_TWINE, terms);
 
 		return conditions_logic_cache[key] = terms;
 	}
@@ -163,7 +163,7 @@ struct OptMemFeedbackWorker
 		{
 			auto &port = mem.wr_ports[i];
 
-			log("  Analyzing %s.%s write port %d.\n", module, mem.memid.unescape(), i);
+			log("  Analyzing %s.%s write port %d.\n", module, log_id(mem.memid), i);
 
 			for (int sub = 0; sub < (1 << port.wide_log2); sub++)
 			{
@@ -232,7 +232,7 @@ struct OptMemFeedbackWorker
 
 		// Okay, let's do it.
 
-		log("Populating enable bits on write ports of memory %s.%s with async read feedback:\n", module, mem.memid.unescape());
+		log("Populating enable bits on write ports of memory %s.%s with async read feedback:\n", module, log_id(mem.memid));
 
 		// If a write port has a feedback path that we're about to bypass,
 		// but also has priority over some other write port, the feedback
@@ -293,20 +293,20 @@ struct OptMemFeedbackWorker
 
 		for (auto cell : module->cells())
 		{
-			if (cell->type == ID($mux))
+			if (cell->type == TW($mux))
 			{
-				RTLIL::SigSpec sig_a = sigmap_xmux(cell->getPort(ID::A));
-				RTLIL::SigSpec sig_b = sigmap_xmux(cell->getPort(ID::B));
+				RTLIL::SigSpec sig_a = sigmap_xmux(cell->getPort(TW::A));
+				RTLIL::SigSpec sig_b = sigmap_xmux(cell->getPort(TW::B));
 
 				if (sig_a.is_fully_undef())
-					sigmap_xmux.add(cell->getPort(ID::Y), sig_b);
+					sigmap_xmux.add(cell->getPort(TW::Y), sig_b);
 				else if (sig_b.is_fully_undef())
-					sigmap_xmux.add(cell->getPort(ID::Y), sig_a);
+					sigmap_xmux.add(cell->getPort(TW::Y), sig_a);
 			}
 
-			if (cell->type.in(ID($mux), ID($pmux)))
+			if (cell->type.in(TW($mux), TW($pmux)))
 			{
-				std::vector<RTLIL::SigBit> sig_y = sigmap(cell->getPort(ID::Y));
+				std::vector<RTLIL::SigBit> sig_y = sigmap(cell->getPort(TW::Y));
 				for (int i = 0; i < int(sig_y.size()); i++)
 					sig_to_mux[sig_y[i]] = std::pair<RTLIL::Cell*, int>(cell, i);
 			}

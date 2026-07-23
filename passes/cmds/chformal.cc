@@ -24,42 +24,42 @@
 USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
-static RTLIL::IdString formal_flavor(RTLIL::Cell *cell)
+static TwineRef formal_flavor(RTLIL::Cell *cell)
 {
-	if (cell->type != ID($check))
-		return cell->type;
+	if (cell->type != TW($check))
+		return cell->type_impl;
 
 	std::string flavor_param = cell->getParam(ID(FLAVOR)).decode_string();
 	if (flavor_param == "assert")
-		return ID($assert);
+		return TW($assert);
 	else if (flavor_param == "assume")
-		return ID($assume);
+		return TW($assume);
 	else if (flavor_param == "cover")
-		return ID($cover);
+		return TW($cover);
 	else if (flavor_param == "live")
-		return ID($live);
+		return TW($live);
 	else if (flavor_param == "fair")
-		return ID($fair);
+		return TW($fair);
 	else
 		log_abort();
 }
 
-static void set_formal_flavor(RTLIL::Cell *cell, RTLIL::IdString flavor)
+static void set_formal_flavor(RTLIL::Cell *cell, TwineRef flavor)
 {
-	if (cell->type != ID($check)) {
-		cell->type = flavor;
+	if (cell->type != TW($check)) {
+		cell->type_impl = flavor;
 		return;
 	}
 
-	if (flavor == ID($assert))
+	if (flavor == TW($assert))
 		cell->setParam(ID(FLAVOR), std::string("assert"));
-	else if (flavor == ID($assume))
+	else if (flavor == TW($assume))
 		cell->setParam(ID(FLAVOR), std::string("assume"));
-	else if (flavor == ID($cover))
+	else if (flavor == TW($cover))
 		cell->setParam(ID(FLAVOR), std::string("cover"));
-	else if (flavor == ID($live))
+	else if (flavor == TW($live))
 		cell->setParam(ID(FLAVOR), std::string("live"));
-	else if (flavor == ID($fair))
+	else if (flavor == TW($fair))
 		cell->setParam(ID(FLAVOR), std::string("fair"));
 	else
 		log_abort();
@@ -67,7 +67,7 @@ static void set_formal_flavor(RTLIL::Cell *cell, RTLIL::IdString flavor)
 
 static bool is_triggered_check_cell(RTLIL::Cell * cell)
 {
-	return cell->type == ID($check) && cell->getParam(ID(TRG_ENABLE)).as_bool();
+	return cell->type == TW($check) && cell->getParam(ID(TRG_ENABLE)).as_bool();
 }
 
 struct ChformalPass : public Pass {
@@ -136,7 +136,7 @@ struct ChformalPass : public Pass {
 		bool live2fair = false;
 		bool fair2live = false;
 
-		pool<IdString> constr_types;
+		pool<TwineRef> constr_types;
 		char mode = 0;
 		int mode_arg = 0;
 
@@ -144,23 +144,23 @@ struct ChformalPass : public Pass {
 		for (argidx = 1; argidx < args.size(); argidx++)
 		{
 			if (args[argidx] == "-assert") {
-				constr_types.insert(ID($assert));
+				constr_types.insert(TW($assert));
 				continue;
 			}
 			if (args[argidx] == "-assume") {
-				constr_types.insert(ID($assume));
+				constr_types.insert(TW($assume));
 				continue;
 			}
 			if (args[argidx] == "-live") {
-				constr_types.insert(ID($live));
+				constr_types.insert(TW($live));
 				continue;
 			}
 			if (args[argidx] == "-fair") {
-				constr_types.insert(ID($fair));
+				constr_types.insert(TW($fair));
 				continue;
 			}
 			if (args[argidx] == "-cover") {
-				constr_types.insert(ID($cover));
+				constr_types.insert(TW($cover));
 				continue;
 			}
 			if (mode == 0 && args[argidx] == "-remove") {
@@ -219,11 +219,11 @@ struct ChformalPass : public Pass {
 		extra_args(args, argidx, design);
 
 		if (constr_types.empty()) {
-			constr_types.insert(ID($assert));
-			constr_types.insert(ID($assume));
-			constr_types.insert(ID($live));
-			constr_types.insert(ID($fair));
-			constr_types.insert(ID($cover));
+			constr_types.insert(TW($assert));
+			constr_types.insert(TW($assume));
+			constr_types.insert(TW($live));
+			constr_types.insert(TW($fair));
+			constr_types.insert(TW($cover));
 		}
 
 		if (assert2assume && assert2cover) {
@@ -271,16 +271,16 @@ struct ChformalPass : public Pass {
 
 				for (auto cell : module->selected_cells())
 				{
-					if (cell->type == ID($ff)) {
-						SigSpec D = sigmap(cell->getPort(ID::D));
-						SigSpec Q = sigmap(cell->getPort(ID::Q));
+					if (cell->type == TW($ff)) {
+						SigSpec D = sigmap(cell->getPort(TW::D));
+						SigSpec Q = sigmap(cell->getPort(TW::Q));
 						for (int i = 0; i < GetSize(D); i++)
 							ffmap[Q[i]] = make_pair(D[i], make_pair(State::Sm, false));
 					}
-					if (cell->type == ID($dff)) {
-						SigSpec D = sigmap(cell->getPort(ID::D));
-						SigSpec Q = sigmap(cell->getPort(ID::Q));
-						SigSpec C = sigmap(cell->getPort(ID::CLK));
+					if (cell->type == TW($dff)) {
+						SigSpec D = sigmap(cell->getPort(TW::D));
+						SigSpec Q = sigmap(cell->getPort(TW::Q));
+						SigSpec C = sigmap(cell->getPort(TW::CLK));
 						bool clockpol = cell->getParam(ID::CLK_POLARITY).as_bool();
 						for (int i = 0; i < GetSize(D); i++)
 							ffmap[Q[i]] = make_pair(D[i], make_pair(C, clockpol));
@@ -292,25 +292,25 @@ struct ChformalPass : public Pass {
 					if (is_triggered_check_cell(cell)) {
 						if (cell->getParam(ID::TRG_WIDTH).as_int() != 1)
 							continue;
-						cell->setPort(ID::TRG, SigSpec());
+						cell->setPort(TW::TRG, SigSpec());
 						cell->setParam(ID::TRG_ENABLE, false);
 						cell->setParam(ID::TRG_WIDTH, 0);
 						cell->setParam(ID::TRG_POLARITY, false);
 					}
 
-					IdString flavor = formal_flavor(cell);
+					TwineRef flavor = formal_flavor(cell);
 
 					while (true)
 					{
-						SigSpec A = sigmap(cell->getPort(ID::A));
-						SigSpec EN = sigmap(cell->getPort(ID::EN));
+						SigSpec A = sigmap(cell->getPort(TW::A));
+						SigSpec EN = sigmap(cell->getPort(TW::EN));
 
 						if (ffmap.count(A) == 0 || ffmap.count(EN) == 0)
 							break;
 
 						if (!init_zero.count(EN)) {
-							if (flavor == ID($cover)) break;
-							if (flavor.in(ID($assert), ID($assume)) && !init_one.count(A)) break;
+							if (flavor == TW($cover)) break;
+							if (flavor.in(TW($assert), TW($assume)) && !init_one.count(A)) break;
 						}
 
 						const auto &A_map = ffmap.at(A);
@@ -319,8 +319,8 @@ struct ChformalPass : public Pass {
 						if (A_map.second != EN_map.second)
 							break;
 
-						cell->setPort(ID::A, A_map.first);
-						cell->setPort(ID::EN, EN_map.first);
+						cell->setPort(TW::A, A_map.first);
+						cell->setPort(TW::EN, EN_map.first);
 					}
 				}
 			}
@@ -334,18 +334,18 @@ struct ChformalPass : public Pass {
 
 					for (int i = 0; i < mode_arg; i++)
 					{
-						SigSpec orig_a = cell->getPort(ID::A);
-						SigSpec orig_en = cell->getPort(ID::EN);
+						SigSpec orig_a = cell->getPort(TW::A);
+						SigSpec orig_en = cell->getPort(TW::EN);
 
-						Wire *new_a = module->addWire(NEW_ID);
-						Wire *new_en = module->addWire(NEW_ID);
+						Wire *new_a = module->addWire(NEW_TWINE);
+						Wire *new_en = module->addWire(NEW_TWINE);
 						new_en->attributes[ID::init] = State::S0;
 
-						module->addFf(NEW_ID, orig_a, new_a);
-						module->addFf(NEW_ID, orig_en, new_en);
+						module->addFf(NEW_TWINE, orig_a, new_a);
+						module->addFf(NEW_TWINE, orig_en, new_en);
 
-						cell->setPort(ID::A, new_a);
-						cell->setPort(ID::EN, new_en);
+						cell->setPort(TW::A, new_a);
+						cell->setPort(TW::EN, new_en);
 					}
 				}
 			}
@@ -355,34 +355,36 @@ struct ChformalPass : public Pass {
 				SigSpec en = State::S1;
 
 				for (int i = 0; i < mode_arg; i++) {
-					Wire *w = module->addWire(NEW_ID);
+					Wire *w = module->addWire(NEW_TWINE);
 					w->attributes[ID::init] = State::S0;
-					module->addFf(NEW_ID, en, w);
+					module->addFf(NEW_TWINE, en, w);
 					en = w;
 				}
 
 				for (auto cell : constr_cells)
-					cell->setPort(ID::EN, module->LogicAnd(NEW_ID, en, cell->getPort(ID::EN)));
+					cell->setPort(TW::EN, module->LogicAnd(NEW_TWINE, en, cell->getPort(TW::EN)));
 			}
 			else
 			if (mode =='p')
 			{
 				for (auto cell : constr_cells)
 				{
-					if (cell->type == ID($check)) {
-						Cell *cover = module->addCell(NEW_ID_SUFFIX("coverenable"), ID($check));
+					if (cell->type == TW($check)) {
+						Cell *cover = module->addCell(NEW_TWINE_SUFFIX("coverenable"), TW::$check);
 						cover->attributes = cell->attributes;
+						if (cell->src_id() != Twine::Null && module->design)
+							cover->set_src_id(cell->src_id());
 						cover->parameters = cell->parameters;
 						cover->setParam(ID(FLAVOR), Const("cover"));
 
 						for (auto const &conn : cell->connections())
-							if (!conn.first.in(ID::A, ID::EN))
+							if (conn.first != TW::A && conn.first != TW::EN)
 								cover->setPort(conn.first, conn.second);
-						cover->setPort(ID::A, cell->getPort(ID::EN));
-						cover->setPort(ID::EN, State::S1);
+						cover->setPort(TW::A, cell->getPort(TW::EN));
+						cover->setPort(TW::EN, State::S1);
 					} else {
-						module->addCover(NEW_ID_SUFFIX("coverenable"),
-							cell->getPort(ID::EN), State::S1, cell->get_src_attribute());
+						module->addCover(NEW_TWINE_SUFFIX("coverenable"),
+							cell->getPort(TW::EN), State::S1, module->design->twines.add(Twine{cell->get_src_attribute()}));
 					}
 				}
 			}
@@ -390,53 +392,55 @@ struct ChformalPass : public Pass {
 			if (mode == 'c')
 			{
 				for (auto cell : constr_cells) {
-					IdString flavor = formal_flavor(cell);
-					if (assert2assume && flavor == ID($assert))
-						set_formal_flavor(cell, ID($assume));
-					if (assert2cover && flavor == ID($assert))
-						set_formal_flavor(cell, ID($cover));
-					else if (assume2assert && flavor == ID($assume))
-						set_formal_flavor(cell, ID($assert));
-					else if (live2fair && flavor == ID($live))
-						set_formal_flavor(cell, ID($fair));
-					else if (fair2live && flavor == ID($fair))
-						set_formal_flavor(cell, ID($live));
+					TwineRef flavor = formal_flavor(cell);
+					if (assert2assume && flavor == TW($assert))
+						set_formal_flavor(cell, TW($assume));
+					if (assert2cover && flavor == TW($assert))
+						set_formal_flavor(cell, TW($cover));
+					else if (assume2assert && flavor == TW($assume))
+						set_formal_flavor(cell, TW($assert));
+					else if (live2fair && flavor == TW($live))
+						set_formal_flavor(cell, TW($fair));
+					else if (fair2live && flavor == TW($fair))
+						set_formal_flavor(cell, TW($live));
 				}
 			}
 			else
 			if (mode == 'l')
 			{
 				for (auto cell : constr_cells) {
-					if (cell->type != ID($check))
+					if (cell->type != TW($check))
 						continue;
 
 					if (is_triggered_check_cell(cell))
 						log_error("Cannot lower edge triggered $check cell %s, run async2sync or clk2fflogic first.\n", cell);
 
 
-					Cell *plain_cell = module->addCell(NEW_ID, formal_flavor(cell));
+					Cell *plain_cell = module->addCell(NEW_TWINE, formal_flavor(cell));
 
 					plain_cell->attributes = cell->attributes;
+					if (cell->src_id() != Twine::Null && module->design)
+						plain_cell->set_src_id(cell->src_id());
 
-					SigBit sig_a = cell->getPort(ID::A);
-					SigBit sig_en = cell->getPort(ID::EN);
+					SigBit sig_a = cell->getPort(TW::A);
+					SigBit sig_en = cell->getPort(TW::EN);
 
-					plain_cell->setPort(ID::A, sig_a);
-					plain_cell->setPort(ID::EN, sig_en);
+					plain_cell->setPort(TW::A, sig_a);
+					plain_cell->setPort(TW::EN, sig_en);
 
-					if (plain_cell->type.in(ID($assert), ID($assume)))
-						sig_a = module->Not(NEW_ID, sig_a);
+					if (plain_cell->type.in(TW($assert), TW($assume)))
+						sig_a = module->Not(NEW_TWINE, sig_a);
 
-					SigBit combined_en = module->And(NEW_ID, sig_a, sig_en);
+					SigBit combined_en = module->And(NEW_TWINE, sig_a, sig_en);
 
 					module->swap_names(cell, plain_cell);
 
-					if (cell->getPort(ID::ARGS).empty()) {
+					if (cell->getPort(TW::ARGS).empty()) {
 						module->remove(cell);
 					} else {
-						cell->type = ID($print);
-						cell->setPort(ID::EN, combined_en);
-						cell->unsetPort(ID::A);
+						cell->type_impl = TW::$print;
+						cell->setPort(TW::EN, combined_en);
+						cell->unsetPort(TW::A);
 						cell->unsetParam(ID(FLAVOR));
 					}
 				}

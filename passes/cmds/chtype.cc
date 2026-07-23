@@ -34,10 +34,13 @@ static void publish_design(RTLIL::Design* design) {
 	auto saved_modules = design->modules_;
 	design->modules_.clear();
 	for (auto& [name, mod] : saved_modules) {
-		publish(mod->name);
-		design->modules_[mod->name] = mod;
+		RTLIL::IdString new_name = RTLIL::IdString(design->twines.str(mod->meta_->name));
+		publish(new_name);
+		design->modules_[mod->meta_->name] = mod;
 		for (auto* cell : mod->cells()) {
-			publish(cell->type);
+			IdString ct = cell->type;
+			if (ct.begins_with("$"))
+				cell->type_impl = cell->module->design->twines.add(std::string{"\\" + ct.str()});
 		}
 	}
 }
@@ -99,12 +102,12 @@ struct ChtypePass : public Pass {
 			for (auto cell : module->selected_cells())
 			{
 				if (map_types.count(cell->type)) {
-					cell->type = map_types.at(cell->type);
+					cell->type_impl = cell->module->design->twines.add(std::string{map_types.at(cell->type).str()});
 					continue;
 				}
 
 				if (set_type != IdString()) {
-					cell->type = set_type;
+					cell->type_impl = cell->module->design->twines.add(std::string{set_type.str()});
 					continue;
 				}
 			}

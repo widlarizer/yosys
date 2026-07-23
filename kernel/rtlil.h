@@ -22,7 +22,9 @@
 
 #include "kernel/yosys_common.h"
 #include "kernel/yosys.h"
+#include "kernel/twine.h"
 
+#include <deque>
 #include <string_view>
 #include <unordered_map>
 
@@ -92,6 +94,8 @@ namespace RTLIL
 		STATIC_ID_END,
 	};
 
+
+
 	enum PortDir : unsigned char  {
 		PD_UNKNOWN = 0,
 		PD_INPUT = 1,
@@ -120,14 +124,29 @@ namespace RTLIL
 	struct CaseRule;
 	struct SwitchRule;
 	struct MemWriteAction;
+	struct SyncAction;
 	struct SyncRule;
 	struct Process;
 	struct Binding;
 	struct IdString;
 	struct OwningIdString;
+	struct StaticIdString;
+	struct ObjMeta;
+	template<typename Derived> struct NameMasqBase;
+	struct ModuleNameMasq;
+	struct WireNameMasq;
+	struct CellNameMasq;
+	struct CellTypeMasq;
 
 	typedef std::pair<SigSpec, SigSpec> SigSig;
 };
+
+struct SigMap;
+
+
+// TODO clean up?
+extern int64_t twine_gc_ns;
+extern int twine_gc_count;
 
 struct RTLIL::IdString
 {
@@ -529,18 +548,22 @@ struct RTLIL::IdString
 
 	template<typename T> struct compare_ptr_by_name {
 		bool operator()(const T *a, const T *b) const {
-			return (a == nullptr || b == nullptr) ? (a < b) : (a->name < b->name);
+			return (a == nullptr || b == nullptr) ? (a < b) : (a->name.ref() < b->name.ref());
 		}
 	};
 
 	// often one needs to check if a given IdString is part of a list (for example a list
 	// of cell types). the following functions helps with that.
+	// Constrained to 2+ args so a single argument always resolves to a concrete
+	// overload below; otherwise a single argument matching none of them (e.g. a
+	// TwineRef) would re-match this template and recurse infinitely.
 	template<typename... Args>
-	bool in(const Args &... args) const {
+	bool in(const Args &... args) const requires (sizeof...(Args) != 1) {
 		return (... || in(args));
 	}
 
 	bool in(IdString rhs) const { return *this == rhs; }
+	inline bool in(TwineRef rhs) const;
 	bool in(const char *rhs) const { return *this == rhs; }
 	bool in(const std::string &rhs) const { return *this == rhs; }
 	inline bool in(const pool<IdString> &rhs) const;
@@ -564,7 +587,23 @@ public:
 		if (global_id_index_.empty())
 			prepopulate();
 	}
+
+	// Thread-safe read-only pool lookup for use while Multithreading::active().
+	// global_id_index_ is stable (no writes) during parallel passes, so
+	// concurrent find() calls are safe. Returns empty IdString if not found.
+	static IdString lookup_threadsafe(std::string_view p) {
+		auto it = global_id_index_.find(p);
+		return from_index(it != global_id_index_.end() ? it->second : 0);
+	}
 };
+
+inline bool operator==(TwineRef a, RTLIL::IdString b) {
+	size_t bi = (size_t)(unsigned)b.index_;
+	return bi != 0 && a.untag().value + 1 == bi;
+}
+inline bool operator==(RTLIL::IdString a, TwineRef b) { return b == a; }
+
+inline bool RTLIL::IdString::in(TwineRef rhs) const { return *this == rhs; }
 
 struct RTLIL::OwningIdString : public RTLIL::IdString {
 	inline OwningIdString() { }
@@ -715,7 +754,7 @@ constexpr int lookup_well_known_id(std::string_view name)
 	return -1;
 }
 
-// Create a statically allocated IdString object, using for example ID::A or ID($add).
+// Create a statically allocated IdString object, using for example ID::A or TW($add).
 //
 // Recipe for Converting old code that is using conversion of strings like ID::A and
 // "$add" for creating IdStrings: Run below SED command on the .cc file and then use for
@@ -752,7 +791,7 @@ namespace RTLIL {
 	extern dict<std::string, std::string> constpad;
 
 	[[deprecated("use StaticCellTypes::categories.is_ff() instead")]]
-	const pool<IdString> &builtin_ff_cell_types();
+	const pool<TwineRef> &builtin_ff_cell_types();
 
 	static inline std::string escape_id(const std::string &str) {
 		if (str.size() > 0 && str[0] != '\\' && str[0] != '$')
@@ -780,7 +819,7 @@ namespace RTLIL {
 		return log_id(str);
 	}
 
-	template <typename T> struct sort_by_name_id {
+	template <typename T> struct sort_by_name {
 		bool operator()(T *a, T *b) const {
 			return a->name < b->name;
 		}
@@ -795,6 +834,18 @@ namespace RTLIL {
 	struct sort_by_id_str {
 		bool operator()(RTLIL::IdString a, RTLIL::IdString b) const {
 			return a.lt_by_name(b);
+		}
+	};
+	struct sort_by_twine_str_expensive {
+		const TwinePool& pool;
+		explicit sort_by_twine_str_expensive(const TwinePool& pool)
+			: pool(pool) {}
+		bool operator()(TwineRef a, TwineRef b) const {
+			bool a_public = a.is_public();
+			bool b_public = b.is_public();
+			std::string a_str = pool.str(a);
+			std::string b_str = pool.str(b);
+			return std::tie(a_str, a_public) < std::tie(b_str, b_public);
 		}
 	};
 
@@ -871,15 +922,15 @@ namespace RTLIL {
 	// This iterator-range-pair is used for Design::modules(), Module::wires() and Module::cells().
 	// It maintains a reference counter that is used to make sure that the container is not modified while being iterated over.
 
-	template<typename T>
+	template<typename T, typename Key = RTLIL::IdString>
 	struct ObjIterator {
 		using iterator_category = std::forward_iterator_tag;
 		using value_type = T;
 		using difference_type = ptrdiff_t;
 		using pointer = T*;
 		using reference = T&;
-		typename dict<RTLIL::IdString, T>::iterator it;
-		dict<RTLIL::IdString, T> *list_p;
+		typename dict<Key, T>::iterator it;
+		dict<Key, T> *list_p;
 		int *refcount_p;
 
 		ObjIterator() : list_p(nullptr), refcount_p(nullptr) {
@@ -895,7 +946,7 @@ namespace RTLIL {
 			}
 		}
 
-		ObjIterator(const RTLIL::ObjIterator<T> &other) {
+		ObjIterator(const RTLIL::ObjIterator<T, Key> &other) {
 			it = other.it;
 			list_p = other.list_p;
 			refcount_p = other.refcount_p;
@@ -903,7 +954,7 @@ namespace RTLIL {
 				(*refcount_p)++;
 		}
 
-		ObjIterator &operator=(const RTLIL::ObjIterator<T> &other) {
+		ObjIterator &operator=(const RTLIL::ObjIterator<T, Key> &other) {
 			if (refcount_p)
 				(*refcount_p)--;
 			it = other.it;
@@ -924,18 +975,18 @@ namespace RTLIL {
 			return it->second;
 		}
 
-		inline bool operator!=(const RTLIL::ObjIterator<T> &other) const {
+		inline bool operator!=(const RTLIL::ObjIterator<T, Key> &other) const {
 			if (list_p == nullptr || other.list_p == nullptr)
 				return list_p != other.list_p;
 			return it != other.it;
 		}
 
 
-		inline bool operator==(const RTLIL::ObjIterator<T> &other) const {
+		inline bool operator==(const RTLIL::ObjIterator<T, Key> &other) const {
 			return !(*this != other);
 		}
 
-		inline ObjIterator<T>& operator++() {
+		inline ObjIterator<T, Key>& operator++() {
 			log_assert(list_p != nullptr);
 			if (++it == list_p->end()) {
 				(*refcount_p)--;
@@ -945,7 +996,7 @@ namespace RTLIL {
 			return *this;
 		}
 
-		inline ObjIterator<T>& operator+=(int amt) {
+		inline ObjIterator<T, Key>& operator+=(int amt) {
 			log_assert(list_p != nullptr);
 			it += amt;
 			if (it == list_p->end()) {
@@ -956,9 +1007,9 @@ namespace RTLIL {
 			return *this;
 		}
 
-		inline ObjIterator<T> operator+(int amt) {
+		inline ObjIterator<T, Key> operator+(int amt) {
 			log_assert(list_p != nullptr);
-			ObjIterator<T> new_obj(*this);
+			ObjIterator<T, Key> new_obj(*this);
 			new_obj.it += amt;
 			if (new_obj.it == list_p->end()) {
 				(*(new_obj.refcount_p))--;
@@ -968,22 +1019,22 @@ namespace RTLIL {
 			return new_obj;
 		}
 
-		inline const ObjIterator<T> operator++(int) {
-			ObjIterator<T> result(*this);
+		inline const ObjIterator<T, Key> operator++(int) {
+			ObjIterator<T, Key> result(*this);
 			++(*this);
 			return result;
 		}
 	};
 
-	template<typename T>
+	template<typename T, typename Key = RTLIL::IdString>
 	struct ObjRange
 	{
-		dict<RTLIL::IdString, T> *list_p;
+		dict<Key, T> *list_p;
 		int *refcount_p;
 
 		ObjRange(decltype(list_p) list_p, int *refcount_p) : list_p(list_p), refcount_p(refcount_p) { }
-		RTLIL::ObjIterator<T> begin() { return RTLIL::ObjIterator<T>(list_p, refcount_p); }
-		RTLIL::ObjIterator<T> end() { return RTLIL::ObjIterator<T>(); }
+		RTLIL::ObjIterator<T, Key> begin() { return RTLIL::ObjIterator<T, Key>(list_p, refcount_p); }
+		RTLIL::ObjIterator<T, Key> end() { return RTLIL::ObjIterator<T, Key>(); }
 
 		size_t size() const {
 			return list_p->size();
@@ -1258,9 +1309,21 @@ public:
 	[[nodiscard]] Hasher hash_into(Hasher h) const;
 };
 
+struct RTLIL::ObjMeta
+{
+	TwineRef src = Twine::Null;
+	// RTLIL::IdString name;      // used by Module names
+	TwineRef name = Twine::Null;  // used by Wire/Cell names (per-Design twines)
+};
+
 struct RTLIL::AttrObject
 {
 	dict<RTLIL::IdString, RTLIL::Const> attributes;
+
+	// Pointer to a per-object metadata record in some pool (typically
+	// the owning Design's). Nullable: cleared until first non-null write
+	// of any field (src or name) and reset to null when all fields empty.
+	RTLIL::ObjMeta *meta_ = nullptr;
 
 	bool has_attribute(RTLIL::IdString id) const;
 
@@ -1275,15 +1338,13 @@ struct RTLIL::AttrObject
 	void set_string_attribute(RTLIL::IdString  id, string value);
 	string get_string_attribute(RTLIL::IdString id) const;
 
-	void set_strpool_attribute(RTLIL::IdString  id, const pool<string> &data);
-	void add_strpool_attribute(RTLIL::IdString  id, const pool<string> &data);
-	pool<string> get_strpool_attribute(RTLIL::IdString id) const;
-
-	void set_src_attribute(const std::string &src) {
-		set_string_attribute(ID::src, src);
-	}
-	std::string get_src_attribute() const {
-		return get_string_attribute(ID::src);
+	// static std::string strpool_attribute_to_str(const pool<string> &data);
+	// void set_strpool_attribute(IdString id, const pool<string> &data);
+	// void add_strpool_attribute(IdString id, const pool<string> &data);
+	// pool<string> get_strpool_attribute(RTLIL::IdString id) const;
+	void transfer_attribute(const AttrObject* from, const IdString& attr) {
+		if (from->has_attribute(attr))
+			attributes[attr] = from->attributes.at(attr);
 	}
 
 	void set_hdlname_attribute(const vector<string> &hierarchy);
@@ -1297,6 +1358,131 @@ struct RTLIL::NamedObject : public RTLIL::AttrObject
 {
 	RTLIL::IdString name;
 };
+
+// CRTP base shared by WireNameMasq, CellNameMasq, and ModuleNameMasq.
+// Derived must define ref(), escaped(), and unescaped(); everything else
+// is derived from those three via operator IdString().
+namespace RTLIL {
+template<typename Derived>
+struct NameMasqBase {
+	operator RTLIL::IdString() const {
+		std::string s = self().escaped();
+		if (s.empty()) return RTLIL::IdString{};
+		return RTLIL::IdString(s);
+	}
+	operator std::string() const {
+		return self().escaped();
+	}
+	bool isPublic() const { return twine_is_public(self().ref()); }
+	bool empty() const { return self().ref() == Twine::Null; }
+	std::string str() const { return self().escaped(); }
+	std::string unescape() const { return self().unescaped(); }
+	bool begins_with(const char *s) const { return str().starts_with(s); }
+	bool ends_with(const char *s) const { return str().ends_with(s); }
+	template <typename... Ts> bool in(Ts &&...args) const {
+		return self().ref().in(std::forward<Ts>(args)...);
+	}
+	std::string substr(size_t pos = 0, size_t len = std::string::npos) const {
+		return self().escaped().substr(pos, len);
+	}
+	size_t size() const { return self().escaped().size(); }
+	bool contains(const char *p) const { return self().escaped().find(p) != std::string::npos; }
+	char operator[](int n) const { return self().escaped()[n]; }
+	bool lt_by_name(RTLIL::IdString rhs) const { return self().escaped() < rhs.str(); }
+	bool lt_by_name(const Derived &rhs) const { return self().escaped() < rhs.escaped(); }
+	bool operator==(RTLIL::IdString rhs) const { return self().escaped() == rhs.str(); }
+	bool operator!=(RTLIL::IdString rhs) const { return self().escaped() != rhs.str(); }
+	bool operator<(RTLIL::IdString rhs) const { return self().escaped() < rhs.str(); }
+	bool operator==(const std::string &rhs) const { return self().escaped() == rhs; }
+	bool operator!=(const std::string &rhs) const { return self().escaped() != rhs; }
+	bool operator==(const Derived &rhs) const { return self().ref() == rhs.ref(); }
+	bool operator!=(const Derived &rhs) const { return self().ref() != rhs.ref(); }
+	bool operator<(const Derived &rhs) const { return self().escaped() < rhs.escaped(); }
+	[[nodiscard]] Hasher hash_into(Hasher h) const { return self().ref().hash_into(h); }
+private:
+	const Derived &self() const { return *static_cast<const Derived *>(this); }
+};
+} // namespace RTLIL
+template<typename Derived>
+inline bool operator==(RTLIL::IdString lhs, const RTLIL::NameMasqBase<Derived> &rhs) {
+	return lhs.str() == static_cast<const Derived &>(rhs).escaped();
+}
+template<typename Derived>
+inline bool operator!=(RTLIL::IdString lhs, const RTLIL::NameMasqBase<Derived> &rhs) {
+	return lhs.str() != static_cast<const Derived &>(rhs).escaped();
+}
+
+// Read-only masquerade for Wire::name. Reads materialise the TwineRef in
+// the owning Design's twines pool into a temporary IdString. Writes are
+// Defined before Wire so it can be used as a [[no_unique_address]] member.
+struct RTLIL::WireNameMasq : RTLIL::NameMasqBase<RTLIL::WireNameMasq> {
+	WireNameMasq() = default;
+	WireNameMasq(const WireNameMasq &) = delete;
+	WireNameMasq(WireNameMasq &&) = delete;
+	WireNameMasq &operator=(const WireNameMasq &) = delete;
+	WireNameMasq &operator=(WireNameMasq &&) = delete;
+	// Tagged name handle (Twine::Null when unnamed).
+	TwineRef ref() const;
+	// Escaped form ('\'-prefixed when public) / bare content.
+	std::string escaped() const;
+	std::string unescaped() const;
+};
+
+// Read-only masquerade for Cell::name. Same contract as WireNameMasq.
+struct RTLIL::CellNameMasq : RTLIL::NameMasqBase<RTLIL::CellNameMasq> {
+	CellNameMasq() = default;
+	CellNameMasq(const CellNameMasq &) = delete;
+	CellNameMasq(CellNameMasq &&) = delete;
+	CellNameMasq &operator=(const CellNameMasq &) = delete;
+	CellNameMasq &operator=(CellNameMasq &&) = delete;
+	TwineRef ref() const;
+	std::string escaped() const;
+	std::string unescaped() const;
+};
+
+// Read-only masquerade for Cell::type. Backed by Cell::type_impl.
+// Write the type via cell->type_impl directly.
+struct RTLIL::CellTypeMasq {
+	CellTypeMasq() = default;
+	CellTypeMasq(const CellTypeMasq &) = delete;
+	CellTypeMasq(CellTypeMasq &&) = delete;
+	CellTypeMasq &operator=(const CellTypeMasq &) = delete;
+	CellTypeMasq &operator=(CellTypeMasq &&) = delete;
+	operator RTLIL::IdString() const;
+	explicit operator TwineRef() const { return ref(); }
+	TwineRef ref() const;
+	std::string escaped() const;
+	std::string unescaped() const;
+	bool isPublic() const { return twine_is_public(ref()); }
+	bool empty() const { return ref() == Twine::Null; }
+	std::string str() const { return escaped(); } // TODO deprecate
+	std::string unescape() const { return unescaped(); }
+	bool begins_with(const char *s) const { return str().starts_with(s); }
+	bool ends_with(const char *s) const { return str().ends_with(s); }
+	template <typename... Ts> bool in(Ts &&...args) const {
+		return ref().in(std::forward<Ts>(args)...);
+	}
+	std::string substr(size_t pos = 0, size_t len = std::string::npos) const {
+		return escaped().substr(pos, len);
+	}
+	size_t size() const { return str().size(); }
+	bool contains(const char *p) const { return escaped().find(p) != std::string::npos; }
+	char operator[](int n) const { return str()[n]; }
+	bool operator==(RTLIL::IdString rhs) const { return escaped() == rhs.str(); }
+	bool operator!=(RTLIL::IdString rhs) const { return escaped() != rhs.str(); }
+	bool operator<(RTLIL::IdString rhs) const { return escaped() < rhs.str(); }
+	bool operator==(TwineRef rhs) const { return ref() == rhs; }
+	bool operator!=(TwineRef rhs) const { return ref() != rhs; }
+	bool operator==(const std::string &rhs) const { return escaped() == rhs; }
+	bool operator!=(const std::string &rhs) const { return escaped() != rhs; }
+	bool operator==(const CellTypeMasq &rhs) const { return ref() == rhs.ref(); }
+	bool operator!=(const CellTypeMasq &rhs) const { return ref() != rhs.ref(); }
+	[[nodiscard]] Hasher hash_into(Hasher h) const { return RTLIL::IdString(*this).hash_into(h); }
+};
+inline bool operator==(RTLIL::IdString lhs, const RTLIL::CellTypeMasq &rhs) { return lhs.str() == rhs.escaped(); }
+inline bool operator!=(RTLIL::IdString lhs, const RTLIL::CellTypeMasq &rhs) { return lhs.str() != rhs.escaped(); }
+inline bool operator==(TwineRef lhs, const RTLIL::CellTypeMasq &rhs) { return lhs == rhs.ref(); }
+inline bool operator!=(TwineRef lhs, const RTLIL::CellTypeMasq &rhs) { return lhs != rhs.ref(); }
 
 struct RTLIL::SigChunk
 {
@@ -1782,8 +1968,8 @@ struct RTLIL::Selection
 	bool complete_selection;
 	// selection covers full design, not including boxed modules
 	bool full_selection;
-	pool<RTLIL::IdString> selected_modules;
-	dict<RTLIL::IdString, pool<RTLIL::IdString>> selected_members;
+	pool<TwineRef> selected_modules;
+	dict<TwineRef, pool<TwineRef>> selected_members;
 	RTLIL::Design *current_design;
 
 	// create a new selection
@@ -1799,18 +1985,18 @@ struct RTLIL::Selection
 
 	// checks if the given module exists in the current design and is a
 	// boxed module, warning the user if the current design is not set
-	bool boxed_module(RTLIL::IdString mod_name) const;
+	bool boxed_module(TwineRef mod_name) const;
 
 	// checks if the given module is included in this selection
-	bool selected_module(RTLIL::IdString mod_name) const;
+	bool selected_module(TwineRef mod_name) const;
 
 	// checks if the given module is wholly included in this selection,
 	// i.e. not partially selected
-	bool selected_whole_module(RTLIL::IdString mod_name) const;
+	bool selected_whole_module(TwineRef mod_name) const;
 
 	// checks if the given member from the given module is included in this
 	// selection
-	bool selected_member(RTLIL::IdString mod_name, RTLIL::IdString memb_name) const;
+	bool selected_member(TwineRef mod_name, TwineRef memb_name) const;
 
 	// optimizes this selection for the given design by:
 	// - removing non-existent modules and members, any boxed modules and
@@ -1831,9 +2017,10 @@ struct RTLIL::Selection
 
 	// add whole module to this selection
 	template<typename T1> void select(T1 *module) {
-		if (!selects_all() && selected_modules.count(module->name) == 0) {
-			selected_modules.insert(module->name);
-			selected_members.erase(module->name);
+		if (!selects_all() && selected_modules.count(module->meta_->name) == 0) {
+			TwineRef name = module->meta_->name;
+			selected_modules.insert(name);
+			selected_members.erase(name);
 			if (module->get_blackbox_attribute())
 				selects_boxes = true;
 		}
@@ -1841,8 +2028,8 @@ struct RTLIL::Selection
 
 	// add member of module to this selection
 	template<typename T1, typename T2> void select(T1 *module, T2 *member) {
-		if (!selects_all() && selected_modules.count(module->name) == 0) {
-			selected_members[module->name].insert(member->name);
+		if (!selects_all() && selected_modules.count(module->meta_->name) == 0) {
+			selected_members[module->meta_->name].insert(member->meta_->name);
 			if (module->get_blackbox_attribute())
 				selects_boxes = true;
 		}
@@ -1880,7 +2067,7 @@ struct RTLIL::Monitor
 	virtual ~Monitor() { }
 	virtual void notify_module_add(RTLIL::Module*) { }
 	virtual void notify_module_del(RTLIL::Module*) { }
-	virtual void notify_connect(RTLIL::Cell*, RTLIL::IdString, const RTLIL::SigSpec&, const RTLIL::SigSpec&) { }
+	virtual void notify_connect(RTLIL::Cell*, TwineRef, const RTLIL::SigSpec&, const RTLIL::SigSpec&) { }
 	virtual void notify_connect(RTLIL::Module*, const RTLIL::SigSig&) { }
 	virtual void notify_connect(RTLIL::Module*, const std::vector<RTLIL::SigSig>&) { }
 	virtual void notify_blackout(RTLIL::Module*) { }
@@ -1901,34 +2088,103 @@ struct RTLIL::Design
 	void bufNormalize(bool enable=true);
 
 	int refcount_modules_;
-	dict<RTLIL::IdString, RTLIL::Module*> modules_;
+	dict<TwineRef, RTLIL::Module*> modules_;
 	std::vector<RTLIL::Binding*> bindings_;
+
+	TwinePool twines;
+
+	// Per-Design ObjMeta pool: stable storage (deque) + LIFO freelist of
+	// returned slots. AttrObject::meta_ points into obj_meta_storage_.
+	std::deque<RTLIL::ObjMeta> obj_meta_storage_;
+	std::vector<RTLIL::ObjMeta*> obj_meta_free_;
+
+	RTLIL::ObjMeta *alloc_obj_meta();
+	void free_obj_meta(RTLIL::ObjMeta *m);
+
+	TwineRef obj_src_id(const RTLIL::AttrObject *obj) const {
+		return (obj->meta_ ? obj->meta_->src : Twine::Null);
+	}
+	void obj_set_src_id(RTLIL::AttrObject *obj, TwineRef id);
+	void obj_release_src(RTLIL::AttrObject *obj);
+
+	std::string obj_name(const RTLIL::AttrObject *obj) const {
+		return (obj->meta_ ? twines.flat_string(obj->meta_->name) : std::string());
+	}
+	// void obj_set_name(RTLIL::AttrObject *obj, RTLIL::IdString name);
+	// void obj_release_name(RTLIL::AttrObject *obj);
+
+	// Wire/Cell names: stored as TwineRef in twines.
+	// TwineRef obj_name(const RTLIL::AttrObject *obj) const {
+	// 	return (obj->meta_ ? obj->meta_->name : Twine::Null);
+	// }
+	// void obj_set_name(RTLIL::AttrObject *obj, TwineRef id);
+	// void obj_release_name(RTLIL::AttrObject *obj);
+
+	// Replacements for the methods that used to live on AttrObject and
+	// took an explicit TwinePool*. Same semantics; the pool resolves
+	// to this->twines internally.
+	void set_src_attribute(RTLIL::AttrObject *obj, TwineRef src);
+	std::string get_src_attribute(const RTLIL::AttrObject *obj) const;
+	void adopt_src_from(RTLIL::AttrObject *obj, const RTLIL::AttrObject *source);
+	void adopt_src_from(RTLIL::AttrObject *obj, const RTLIL::AttrObject *source,
+			const TwinePool *src_pool);
+	void absorb_attrs(RTLIL::AttrObject *obj, dict<RTLIL::IdString, RTLIL::Const> &&buf);
+
+	// Merge `source`'s src attribute into `target`'s src attribute via the
+	// twine pool. After the call `target` carries the combined "@N" ref.
+	// Handles every case: source has a "@N" ref → reuse that Id; source
+	// has a legacy pipe-joined literal → split and intern each leaf;
+	// target had pre-existing src → its leaves are folded in too. Use
+	// this instead of `target->add_strpool_attribute(ID::src, source->get_strpool_attribute(ID::src))`,
+	// which round-trips through a flat string and corrupts "@N" refs.
+	void merge_src(RTLIL::AttrObject *target, const RTLIL::AttrObject *source);
+
+	// Same as merge_src but consumes a raw set of leaf strings (each of
+	// which may itself be either a "@N" ref or a literal path).
+	void merge_src(RTLIL::AttrObject *target, const pool<std::string> &leaves);
+
+	// Returns the resolved leaf-string set backing obj's src attribute.
+	// "@N" refs are expanded through the pool; legacy pipe-joined
+	// literals are split. Use this instead of get_strpool_attribute(ID::src)
+	// when you actually need to iterate the path:line.col entries.
+	pool<std::string> src_leaves(const RTLIL::AttrObject *obj) const;
+
+	// Walk the design, collect the set of "@N" ids actually referenced by
+	// any AttrObject's src, then compact twines to contain only those
+	// nodes plus their transitive leaf children, and rewrite every cell
+	// src attribute through the resulting old-id -> new-id remap.
+	// Intermediate concats produced by successive merges become unreferenced
+	// once a fresh concat takes their place on the surviving cell, so this
+	// is what reaps them. Returns the number of nodes freed.
+	size_t gc_twines();
 
 	std::vector<std::unique_ptr<AST::AstNode>> verilog_packages, verilog_globals;
 	std::unique_ptr<define_map_t> verilog_defines;
 
 	std::vector<RTLIL::Selection> selection_stack;
 	dict<RTLIL::IdString, RTLIL::Selection> selection_vars;
-	std::string selected_active_module;
+	TwineRef selected_active_module;
 
 	Design();
 	~Design();
 
-	RTLIL::ObjRange<RTLIL::Module*> modules();
-	RTLIL::Module *module(RTLIL::IdString name);
-	const RTLIL::Module *module(RTLIL::IdString name) const;
+	RTLIL::ObjRange<RTLIL::Module*, TwineRef> modules();
+	// RTLIL::Module *module(IdString name);
+	// const RTLIL::Module *module(IdString name) const;
+	RTLIL::Module *module(TwineRef name);
+	const RTLIL::Module *module(TwineRef name) const;
 	RTLIL::Module *top_module() const;
 
-	bool has(RTLIL::IdString id) const {
+	bool has(TwineRef id) const {
 		return modules_.count(id) != 0;
 	}
 
 	void add(RTLIL::Module *module);
 	void add(RTLIL::Binding *binding);
 
-	RTLIL::Module *addModule(RTLIL::IdString name);
+	RTLIL::Module *addModule(TwineRef name);
 	void remove(RTLIL::Module *module);
-	void rename(RTLIL::Module *module, RTLIL::IdString new_name);
+	void rename(RTLIL::Module *module, TwineRef new_name);
 
 	void scratchpad_unset(const std::string &varname);
 
@@ -1945,16 +2201,22 @@ struct RTLIL::Design
 	void check();
 	void optimize();
 
+	// Wholesale-copy this design into `dst`. `dst` must be empty (no
+	// modules). Copies twines verbatim and clones each module
+	// copy_from pool rebuild and yields byte-identical RTLIL output
+	// across design -push/-pop, -save/-load, etc.
+	void clone_into(RTLIL::Design *dst) const;
+
 	// checks if the given module is included in the current selection
-	bool selected_module(RTLIL::IdString mod_name) const;
+	bool selected_module(TwineRef mod_name) const;
 
 	// checks if the given module is wholly included in the current
 	// selection, i.e. not partially selected
-	bool selected_whole_module(RTLIL::IdString mod_name) const;
+	bool selected_whole_module(TwineRef mod_name) const;
 
 	// checks if the given member from the given module is included in the
 	// current selection
-	bool selected_member(RTLIL::IdString mod_name, RTLIL::IdString memb_name) const;
+	bool selected_member(TwineRef mod_name, TwineRef memb_name) const;
 
 	// checks if the given module is included in the current selection
 	bool selected_module(RTLIL::Module *mod) const;
@@ -1999,7 +2261,7 @@ struct RTLIL::Design
 
 	// is the given member of the given module in the current selection
 	template<typename T1, typename T2> bool selected(T1 *module, T2 *member) const {
-		return selected_member(module->name, member->name);
+		return selected_member(module->meta_->name, member->meta_->name);
 	}
 
 	// add whole module to the current selection
@@ -2057,407 +2319,56 @@ struct RTLIL::Design
 	std::string to_rtlil_str(bool only_selected = true) const;
 };
 
-struct RTLIL::Module : public RTLIL::NamedObject
-{
-	Hasher::hash_t hashidx_;
-	[[nodiscard]] Hasher hash_into(Hasher h) const { h.eat(hashidx_); return h; }
-
-protected:
-	void add(RTLIL::Wire *wire);
-	void add(RTLIL::Cell *cell);
-	void add(RTLIL::Process *process);
-
-public:
-	RTLIL::Design *design;
-	pool<RTLIL::Monitor*> monitors;
-
-	int refcount_wires_;
-	int refcount_cells_;
-
-	dict<RTLIL::IdString, RTLIL::Wire*> wires_;
-	dict<RTLIL::IdString, RTLIL::Cell*> cells_;
-
-	std::vector<RTLIL::SigSig>   connections_;
-	std::vector<RTLIL::Binding*> bindings_;
-
-	idict<RTLIL::IdString> avail_parameters;
-	dict<RTLIL::IdString, RTLIL::Const> parameter_default_values;
-	dict<RTLIL::IdString, RTLIL::Memory*> memories;
-	dict<RTLIL::IdString, RTLIL::Process*> processes;
-
-	Module();
-	virtual ~Module();
-	virtual RTLIL::IdString derive(RTLIL::Design *design, const dict<RTLIL::IdString, RTLIL::Const> &parameters, bool mayfail = false);
-	virtual RTLIL::IdString derive(RTLIL::Design *design, const dict<RTLIL::IdString, RTLIL::Const> &parameters, const dict<RTLIL::IdString, RTLIL::Module*> &interfaces, const dict<RTLIL::IdString, RTLIL::IdString> &modports, bool mayfail = false);
-	virtual size_t count_id(RTLIL::IdString id);
-	virtual void expand_interfaces(RTLIL::Design *design, const dict<RTLIL::IdString, RTLIL::Module *> &local_interfaces);
-	virtual bool reprocess_if_necessary(RTLIL::Design *design);
-
-	virtual void sort();
-	virtual void check();
-	virtual void optimize();
-	virtual void makeblackbox();
-
-	bool get_blackbox_attribute(bool ignore_wb=false) const {
-		return get_bool_attribute(ID::blackbox) || (!ignore_wb && get_bool_attribute(ID::whitebox));
-	}
-
-	void connect(const RTLIL::SigSig &conn);
-	void connect(const RTLIL::SigSpec &lhs, const RTLIL::SigSpec &rhs);
-	void new_connections(const std::vector<RTLIL::SigSig> &new_conn);
-	const std::vector<RTLIL::SigSig> &connections() const;
-
-	std::vector<RTLIL::IdString> ports;
-	void fixup_ports();
-
-	pool<RTLIL::Cell *> buf_norm_cell_queue;
-	pool<pair<RTLIL::Cell *, RTLIL::IdString>> buf_norm_cell_port_queue;
-	pool<RTLIL::Wire *> buf_norm_wire_queue;
-	pool<RTLIL::Cell *> pending_deleted_cells;
-	dict<RTLIL::Wire *, pool<RTLIL::Cell *>> buf_norm_connect_index;
-	void bufNormalize();
-
-	template<typename T> void rewrite_sigspecs(T &functor);
-	template<typename T> void rewrite_sigspecs2(T &functor);
-	void cloneInto(RTLIL::Module *new_mod) const;
-	virtual RTLIL::Module *clone() const;
-
-	bool has_memories() const;
-	bool has_processes() const;
-
-	bool has_memories_warn() const;
-	bool has_processes_warn() const;
-
-	bool is_selected() const;
-	bool is_selected_whole() const;
-
-	std::vector<RTLIL::Wire*> selected_wires() const;
-	std::vector<RTLIL::Cell*> selected_cells() const;
-	std::vector<RTLIL::Memory*> selected_memories() const;
-	std::vector<RTLIL::Process*> selected_processes() const;
-	std::vector<RTLIL::NamedObject*> selected_members() const;
-
-	template<typename T> bool selected(T *member) const {
-		return design->selected_member(name, member->name);
-	}
-
-	RTLIL::Wire* wire(RTLIL::IdString id) {
-		auto it = wires_.find(id);
-		return it == wires_.end() ? nullptr : it->second;
-	}
-	RTLIL::Cell* cell(RTLIL::IdString id) {
-		auto it = cells_.find(id);
-		return it == cells_.end() ? nullptr : it->second;
-	}
-
-	const RTLIL::Wire* wire(RTLIL::IdString id) const{
-		auto it = wires_.find(id);
-		return it == wires_.end() ? nullptr : it->second;
-	}
-	const RTLIL::Cell* cell(RTLIL::IdString id) const {
-		auto it = cells_.find(id);
-		return it == cells_.end() ? nullptr : it->second;
-	}
-
-	RTLIL::ObjRange<RTLIL::Wire*> wires() { return RTLIL::ObjRange<RTLIL::Wire*>(&wires_, &refcount_wires_); }
-	int wires_size() const { return wires_.size(); }
-	RTLIL::Wire* wire_at(int index) const { return wires_.element(index)->second; }
-	RTLIL::ObjRange<RTLIL::Cell*> cells() { return RTLIL::ObjRange<RTLIL::Cell*>(&cells_, &refcount_cells_); }
-	int cells_size() const { return cells_.size(); }
-	RTLIL::Cell* cell_at(int index) const { return cells_.element(index)->second; }
-
-	void add(RTLIL::Binding *binding);
-
-	// Removing wires is expensive. If you have to remove wires, remove them all at once.
-	void remove(const pool<RTLIL::Wire*> &wires);
-	void remove(RTLIL::Cell *cell);
-	void remove(RTLIL::Memory *memory);
-	void remove(RTLIL::Process *process);
-
-	void rename(RTLIL::Wire *wire, RTLIL::IdString new_name);
-	void rename(RTLIL::Cell *cell, RTLIL::IdString new_name);
-	void rename(RTLIL::IdString old_name, RTLIL::IdString new_name);
-
-	void swap_names(RTLIL::Wire *w1, RTLIL::Wire *w2);
-	void swap_names(RTLIL::Cell *c1, RTLIL::Cell *c2);
-
-	RTLIL::IdString uniquify(RTLIL::IdString name);
-	RTLIL::IdString uniquify(RTLIL::IdString name, int &index);
-
-	RTLIL::Wire *addWire(RTLIL::IdString name, int width = 1);
-	RTLIL::Wire *addWire(RTLIL::IdString name, const RTLIL::Wire *other);
-
-	RTLIL::Cell *addCell(RTLIL::IdString name, RTLIL::IdString type);
-	RTLIL::Cell *addCell(RTLIL::IdString name, const RTLIL::Cell *other);
-
-	RTLIL::Memory *addMemory(RTLIL::IdString name);
-	RTLIL::Memory *addMemory(RTLIL::IdString name, const RTLIL::Memory *other);
-
-	RTLIL::Process *addProcess(RTLIL::IdString name);
-	RTLIL::Process *addProcess(RTLIL::IdString name, const RTLIL::Process *other);
-
-	// The add* methods create a cell and return the created cell. All signals must exist in advance.
-
-	RTLIL::Cell* addNot (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-	RTLIL::Cell* addPos (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-	RTLIL::Cell* addBuf (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-	RTLIL::Cell* addNeg (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-
-	RTLIL::Cell* addAnd  (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-	RTLIL::Cell* addOr   (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-	RTLIL::Cell* addXor  (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-	RTLIL::Cell* addXnor (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-
-	RTLIL::Cell* addReduceAnd  (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-	RTLIL::Cell* addReduceOr   (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-	RTLIL::Cell* addReduceXor  (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-	RTLIL::Cell* addReduceXnor (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-	RTLIL::Cell* addReduceBool (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-
-	RTLIL::Cell* addShl    (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-	RTLIL::Cell* addShr    (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-	RTLIL::Cell* addSshl   (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-	RTLIL::Cell* addSshr   (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-	RTLIL::Cell* addShift  (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-	RTLIL::Cell* addShiftx (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-
-	RTLIL::Cell* addLt  (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-	RTLIL::Cell* addLe  (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-	RTLIL::Cell* addEq  (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-	RTLIL::Cell* addNe  (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-	RTLIL::Cell* addEqx (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-	RTLIL::Cell* addNex (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-	RTLIL::Cell* addGe  (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-	RTLIL::Cell* addGt  (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-
-	RTLIL::Cell* addAdd (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-	RTLIL::Cell* addSub (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-	RTLIL::Cell* addMul (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-	// truncating division
-	RTLIL::Cell* addDiv (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-	// truncating modulo
-	RTLIL::Cell* addMod (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-	RTLIL::Cell* addDivFloor (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-	RTLIL::Cell* addModFloor (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-	RTLIL::Cell* addPow (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool a_signed = false, bool b_signed = false, const std::string &src = "");
-
-	RTLIL::Cell* addFa (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_c, const RTLIL::SigSpec &sig_x, const RTLIL::SigSpec &sig_y, const std::string &src = "");
-
-	RTLIL::Cell* addLogicNot (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-	RTLIL::Cell* addLogicAnd (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-	RTLIL::Cell* addLogicOr  (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, const std::string &src = "");
-
-	RTLIL::Cell* addMux  (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_y, const std::string &src = "");
-	RTLIL::Cell* addPmux (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_y, const std::string &src = "");
-	RTLIL::Cell* addBmux (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_y, const std::string &src = "");
-	RTLIL::Cell* addDemux (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_y, const std::string &src = "");
-
-	RTLIL::Cell* addBweqx  (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, const std::string &src = "");
-	RTLIL::Cell* addBwmux  (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_y, const std::string &src = "");
-
-	RTLIL::Cell* addSlice  (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, RTLIL::Const offset, const std::string &src = "");
-	RTLIL::Cell* addConcat (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, const std::string &src = "");
-	RTLIL::Cell* addLut    (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, RTLIL::Const lut, const std::string &src = "");
-	RTLIL::Cell* addTribuf (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_y, const std::string &src = "");
-	RTLIL::Cell* addAssert (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, const std::string &src = "");
-	RTLIL::Cell* addAssume (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, const std::string &src = "");
-	RTLIL::Cell* addLive   (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, const std::string &src = "");
-	RTLIL::Cell* addFair   (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, const std::string &src = "");
-	RTLIL::Cell* addCover  (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, const std::string &src = "");
-	RTLIL::Cell* addEquiv  (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, const std::string &src = "");
-
-	RTLIL::Cell* addSr    (RTLIL::IdString name, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr, const RTLIL::SigSpec &sig_q, bool set_polarity = true, bool clr_polarity = true, const std::string &src = "");
-	RTLIL::Cell* addFf    (RTLIL::IdString name, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, const std::string &src = "");
-	RTLIL::Cell* addDff   (RTLIL::IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_d,   const RTLIL::SigSpec &sig_q, bool clk_polarity = true, const std::string &src = "");
-	RTLIL::Cell* addDffe  (RTLIL::IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en,  const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool en_polarity = true, const std::string &src = "");
-	RTLIL::Cell* addDffsr (RTLIL::IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr, RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool set_polarity = true, bool clr_polarity = true, const std::string &src = "");
-	RTLIL::Cell* addDffsre (RTLIL::IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr, RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool en_polarity = true, bool set_polarity = true, bool clr_polarity = true, const std::string &src = "");
-	RTLIL::Cell* addAdff (RTLIL::IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_arst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const arst_value, bool clk_polarity = true, bool arst_polarity = true, const std::string &src = "");
-	RTLIL::Cell* addAdffe (RTLIL::IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_arst,  const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const arst_value, bool clk_polarity = true, bool en_polarity = true, bool arst_polarity = true, const std::string &src = "");
-	RTLIL::Cell* addAldff (RTLIL::IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_aload, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, const RTLIL::SigSpec &sig_ad, bool clk_polarity = true, bool aload_polarity = true, const std::string &src = "");
-	RTLIL::Cell* addAldffe (RTLIL::IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_aload,  const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, const RTLIL::SigSpec &sig_ad, bool clk_polarity = true, bool en_polarity = true, bool aload_polarity = true, const std::string &src = "");
-	RTLIL::Cell* addSdff (RTLIL::IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_srst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const srst_value, bool clk_polarity = true, bool srst_polarity = true, const std::string &src = "");
-	RTLIL::Cell* addSdffe (RTLIL::IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_srst,  const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const srst_value, bool clk_polarity = true, bool en_polarity = true, bool srst_polarity = true, const std::string &src = "");
-	RTLIL::Cell* addSdffce (RTLIL::IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_srst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const srst_value, bool clk_polarity = true, bool en_polarity = true, bool srst_polarity = true, const std::string &src = "");
-	RTLIL::Cell* addDlatch (RTLIL::IdString name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool en_polarity = true, const std::string &src = "");
-	RTLIL::Cell* addAdlatch (RTLIL::IdString name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_arst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const arst_value, bool en_polarity = true, bool arst_polarity = true, const std::string &src = "");
-	RTLIL::Cell* addDlatchsr (RTLIL::IdString name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr, RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool en_polarity = true, bool set_polarity = true, bool clr_polarity = true, const std::string &src = "");
-
-	RTLIL::Cell* addBufGate    (RTLIL::IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_y, const std::string &src = "");
-	RTLIL::Cell* addNotGate    (RTLIL::IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_y, const std::string &src = "");
-	RTLIL::Cell* addAndGate    (RTLIL::IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, const std::string &src = "");
-	RTLIL::Cell* addNandGate   (RTLIL::IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, const std::string &src = "");
-	RTLIL::Cell* addOrGate     (RTLIL::IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, const std::string &src = "");
-	RTLIL::Cell* addNorGate    (RTLIL::IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, const std::string &src = "");
-	RTLIL::Cell* addXorGate    (RTLIL::IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, const std::string &src = "");
-	RTLIL::Cell* addXnorGate   (RTLIL::IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, const std::string &src = "");
-	RTLIL::Cell* addAndnotGate (RTLIL::IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, const std::string &src = "");
-	RTLIL::Cell* addOrnotGate  (RTLIL::IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, const std::string &src = "");
-	RTLIL::Cell* addMuxGate    (RTLIL::IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_s, const RTLIL::SigBit &sig_y, const std::string &src = "");
-	RTLIL::Cell* addNmuxGate   (RTLIL::IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_s, const RTLIL::SigBit &sig_y, const std::string &src = "");
-	RTLIL::Cell* addAoi3Gate   (RTLIL::IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, const RTLIL::SigBit &sig_y, const std::string &src = "");
-	RTLIL::Cell* addOai3Gate   (RTLIL::IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, const RTLIL::SigBit &sig_y, const std::string &src = "");
-	RTLIL::Cell* addAoi4Gate   (RTLIL::IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, const RTLIL::SigBit &sig_d, const RTLIL::SigBit &sig_y, const std::string &src = "");
-	RTLIL::Cell* addOai4Gate   (RTLIL::IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, const RTLIL::SigBit &sig_d, const RTLIL::SigBit &sig_y, const std::string &src = "");
-
-	RTLIL::Cell* addSrGate     (RTLIL::IdString name, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr,
-			const RTLIL::SigSpec &sig_q, bool set_polarity = true, bool clr_polarity = true, const std::string &src = "");
-	RTLIL::Cell* addFfGate     (RTLIL::IdString name, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, const std::string &src = "");
-	RTLIL::Cell* addDffGate    (RTLIL::IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, const std::string &src = "");
-	RTLIL::Cell* addDffeGate   (RTLIL::IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool en_polarity = true, const std::string &src = "");
-	RTLIL::Cell* addDffsrGate  (RTLIL::IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr,
-			RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool set_polarity = true, bool clr_polarity = true, const std::string &src = "");
-	RTLIL::Cell* addDffsreGate (RTLIL::IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr,
-			RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool en_polarity = true, bool set_polarity = true, bool clr_polarity = true, const std::string &src = "");
-	RTLIL::Cell* addAdffGate   (RTLIL::IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_arst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
-			bool arst_value = false, bool clk_polarity = true, bool arst_polarity = true, const std::string &src = "");
-	RTLIL::Cell* addAdffeGate  (RTLIL::IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_arst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
-			bool arst_value = false, bool clk_polarity = true, bool en_polarity = true, bool arst_polarity = true, const std::string &src = "");
-	RTLIL::Cell* addAldffGate   (RTLIL::IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_aload, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
-			const RTLIL::SigSpec &sig_ad, bool clk_polarity = true, bool aload_polarity = true, const std::string &src = "");
-	RTLIL::Cell* addAldffeGate  (RTLIL::IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_aload, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
-			const RTLIL::SigSpec &sig_ad, bool clk_polarity = true, bool en_polarity = true, bool aload_polarity = true, const std::string &src = "");
-	RTLIL::Cell* addSdffGate   (RTLIL::IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_srst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
-			bool srst_value = false, bool clk_polarity = true, bool srst_polarity = true, const std::string &src = "");
-	RTLIL::Cell* addSdffeGate  (RTLIL::IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_srst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
-			bool srst_value = false, bool clk_polarity = true, bool en_polarity = true, bool srst_polarity = true, const std::string &src = "");
-	RTLIL::Cell* addSdffceGate (RTLIL::IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_srst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
-			bool srst_value = false, bool clk_polarity = true, bool en_polarity = true, bool srst_polarity = true, const std::string &src = "");
-	RTLIL::Cell* addDlatchGate (RTLIL::IdString name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool en_polarity = true, const std::string &src = "");
-	RTLIL::Cell* addAdlatchGate(RTLIL::IdString name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_arst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
-			bool arst_value = false, bool en_polarity = true, bool arst_polarity = true, const std::string &src = "");
-	RTLIL::Cell* addDlatchsrGate  (RTLIL::IdString name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr,
-			RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool en_polarity = true, bool set_polarity = true, bool clr_polarity = true, const std::string &src = "");
-
-	RTLIL::Cell* addAnyinit(RTLIL::IdString name, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, const std::string &src = "");
-
-	// The methods without the add* prefix create a cell and an output signal. They return the newly created output signal.
-
-	RTLIL::SigSpec Not (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, bool is_signed = false, const std::string &src = "");
-	RTLIL::SigSpec Pos (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, bool is_signed = false, const std::string &src = "");
-	RTLIL::SigSpec Buf (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, bool is_signed = false, const std::string &src = "");
-	RTLIL::SigSpec Neg (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, bool is_signed = false, const std::string &src = "");
-
-	RTLIL::SigSpec And  (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, const std::string &src = "");
-	RTLIL::SigSpec Or   (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, const std::string &src = "");
-	RTLIL::SigSpec Xor  (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, const std::string &src = "");
-	RTLIL::SigSpec Xnor (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, const std::string &src = "");
-
-	RTLIL::SigSpec ReduceAnd  (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, bool is_signed = false, const std::string &src = "");
-	RTLIL::SigSpec ReduceOr   (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, bool is_signed = false, const std::string &src = "");
-	RTLIL::SigSpec ReduceXor  (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, bool is_signed = false, const std::string &src = "");
-	RTLIL::SigSpec ReduceXnor (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, bool is_signed = false, const std::string &src = "");
-	RTLIL::SigSpec ReduceBool (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, bool is_signed = false, const std::string &src = "");
-
-	RTLIL::SigSpec Shl    (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, const std::string &src = "");
-	RTLIL::SigSpec Shr    (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, const std::string &src = "");
-	RTLIL::SigSpec Sshl   (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, const std::string &src = "");
-	RTLIL::SigSpec Sshr   (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, const std::string &src = "");
-	RTLIL::SigSpec Shift  (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, const std::string &src = "");
-	RTLIL::SigSpec Shiftx (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, const std::string &src = "");
-
-	RTLIL::SigSpec Lt  (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, const std::string &src = "");
-	RTLIL::SigSpec Le  (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, const std::string &src = "");
-	RTLIL::SigSpec Eq  (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, const std::string &src = "");
-	RTLIL::SigSpec Ne  (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, const std::string &src = "");
-	RTLIL::SigSpec Eqx (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, const std::string &src = "");
-	RTLIL::SigSpec Nex (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, const std::string &src = "");
-	RTLIL::SigSpec Ge  (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, const std::string &src = "");
-	RTLIL::SigSpec Gt  (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, const std::string &src = "");
-
-	RTLIL::SigSpec Add (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, const std::string &src = "");
-	RTLIL::SigSpec Sub (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, const std::string &src = "");
-	RTLIL::SigSpec Mul (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, const std::string &src = "");
-	// truncating division
-	RTLIL::SigSpec Div (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, const std::string &src = "");
-	// truncating modulo
-	RTLIL::SigSpec Mod (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, const std::string &src = "");
-	RTLIL::SigSpec DivFloor (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, const std::string &src = "");
-	RTLIL::SigSpec ModFloor (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, const std::string &src = "");
-	RTLIL::SigSpec Pow (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool a_signed = false, bool b_signed = false, const std::string &src = "");
-
-	RTLIL::SigSpec LogicNot (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, bool is_signed = false, const std::string &src = "");
-	RTLIL::SigSpec LogicAnd (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, const std::string &src = "");
-	RTLIL::SigSpec LogicOr  (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, const std::string &src = "");
-
-	RTLIL::SigSpec Mux      (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_s, const std::string &src = "");
-	RTLIL::SigSpec Pmux     (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_s, const std::string &src = "");
-	RTLIL::SigSpec Bmux     (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const std::string &src = "");
-	RTLIL::SigSpec Demux     (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const std::string &src = "");
-
-	RTLIL::SigSpec Bweqx      (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const std::string &src = "");
-	RTLIL::SigSpec Bwmux      (RTLIL::IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_s, const std::string &src = "");
-
-	RTLIL::SigBit BufGate    (RTLIL::IdString name, const RTLIL::SigBit &sig_a, const std::string &src = "");
-	RTLIL::SigBit NotGate    (RTLIL::IdString name, const RTLIL::SigBit &sig_a, const std::string &src = "");
-	RTLIL::SigBit AndGate    (RTLIL::IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const std::string &src = "");
-	RTLIL::SigBit NandGate   (RTLIL::IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const std::string &src = "");
-	RTLIL::SigBit OrGate     (RTLIL::IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const std::string &src = "");
-	RTLIL::SigBit NorGate    (RTLIL::IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const std::string &src = "");
-	RTLIL::SigBit XorGate    (RTLIL::IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const std::string &src = "");
-	RTLIL::SigBit XnorGate   (RTLIL::IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const std::string &src = "");
-	RTLIL::SigBit AndnotGate (RTLIL::IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const std::string &src = "");
-	RTLIL::SigBit OrnotGate  (RTLIL::IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const std::string &src = "");
-	RTLIL::SigBit MuxGate    (RTLIL::IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_s, const std::string &src = "");
-	RTLIL::SigBit NmuxGate   (RTLIL::IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_s, const std::string &src = "");
-	RTLIL::SigBit Aoi3Gate   (RTLIL::IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, const std::string &src = "");
-	RTLIL::SigBit Oai3Gate   (RTLIL::IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, const std::string &src = "");
-	RTLIL::SigBit Aoi4Gate   (RTLIL::IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, const RTLIL::SigBit &sig_d, const std::string &src = "");
-	RTLIL::SigBit Oai4Gate   (RTLIL::IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, const RTLIL::SigBit &sig_d, const std::string &src = "");
-
-	RTLIL::SigSpec Anyconst  (RTLIL::IdString name, int width = 1, const std::string &src = "");
-	RTLIL::SigSpec Anyseq    (RTLIL::IdString name, int width = 1, const std::string &src = "");
-	RTLIL::SigSpec Allconst  (RTLIL::IdString name, int width = 1, const std::string &src = "");
-	RTLIL::SigSpec Allseq    (RTLIL::IdString name, int width = 1, const std::string &src = "");
-	RTLIL::SigSpec Initstate (RTLIL::IdString name, const std::string &src = "");
-
-	RTLIL::SigSpec SetTag          (RTLIL::IdString name, const std::string &tag, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_c, const std::string &src = "");
-	RTLIL::Cell*   addSetTag       (RTLIL::IdString name, const std::string &tag, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_c, const RTLIL::SigSpec &sig_y, const std::string &src = "");
-	RTLIL::SigSpec GetTag          (RTLIL::IdString name, const std::string &tag, const RTLIL::SigSpec &sig_a, const std::string &src = "");
-	RTLIL::Cell*   addOverwriteTag (RTLIL::IdString name, const std::string &tag, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_c, const std::string &src = "");
-	RTLIL::SigSpec OriginalTag     (RTLIL::IdString name, const std::string &tag, const RTLIL::SigSpec &sig_a, const std::string &src = "");
-	RTLIL::SigSpec FutureFF        (RTLIL::IdString name, const RTLIL::SigSpec &sig_e, const std::string &src = "");
-
-	std::string to_rtlil_str() const;
-#ifdef YOSYS_ENABLE_PYTHON
-	static std::map<unsigned int, RTLIL::Module*> *get_all_modules(void);
-#endif
-};
-
 namespace RTLIL_BACKEND {
-void dump_wire(std::ostream &f, std::string indent, const RTLIL::Wire *wire);
+void dump_wire(std::ostream &f, std::string indent, const RTLIL::Wire *wire, const RTLIL::Design *design, bool resolve_src);
 }
 
-struct RTLIL::Wire : public RTLIL::NamedObject
+struct RTLIL::Wire : public RTLIL::AttrObject
 {
-	Hasher::hash_t hashidx_;
-	[[nodiscard]] Hasher hash_into(Hasher h) const { h.eat(hashidx_); return h; }
-
-protected:
-	// use module->addWire() and module->remove() to create or destroy wires
-	friend struct RTLIL::Module;
-	Wire();
-	~Wire();
-
+private:
+	struct ConstructToken { explicit ConstructToken() = default; };
 	friend struct RTLIL::Design;
 	friend struct RTLIL::Cell;
-	friend void RTLIL_BACKEND::dump_wire(std::ostream &f, std::string indent, const RTLIL::Wire *wire);
-	RTLIL::Cell *driverCell_ = nullptr;
-	RTLIL::IdString driverPort_;
-
+	friend struct RTLIL::Module;
 public:
+	// Shadows NamedObject::name. Reads materialise via twines; writes
+	[[no_unique_address]] RTLIL::WireNameMasq name;
+
+	Hasher::hash_t hashidx_;
+	[[nodiscard]] Hasher hash_into(Hasher h) const { h.eat(hashidx_); return h; }
+	// use module->addWire() and module->remove() to create or destroy wires
+	Wire(ConstructToken);
+	~Wire();
+
+	friend void RTLIL_BACKEND::dump_wire(std::ostream &f, std::string indent, const RTLIL::Wire *wire, const RTLIL::Design *design, bool resolve_src);
+	RTLIL::Cell *driverCell_ = nullptr;
+	TwineRef driverPort_ = Twine::Null;
+
 	// do not simply copy wires
-	Wire(RTLIL::Wire &other) = delete;
+	Wire(ConstructToken, RTLIL::Wire &other);
 	void operator=(RTLIL::Wire &other) = delete;
 
 	RTLIL::Module *module;
 	int width, start_offset, port_id;
 	bool port_input, port_output, upto, is_signed;
 
+	// Context-aware src helpers. Resolve Design via module->design and
+	// route to the per-Design meta vector; assert the wire is attached.
+	TwineRef src_id() const;
+	TwineRef src_ref() const { return src_id(); }
+	void set_src_id(TwineRef id);
+	void set_src_attribute(TwineRef src);
+	std::string get_src_attribute() const;
+	// Transfer src from `source` verbatim (same pool). Asserts attached
+	// to a design.
+	void adopt_src_from(const RTLIL::AttrObject *source);
+	void transfer_src_attribute(const RTLIL::AttrObject *source) { adopt_src_from(source); }
+	void absorb_attrs(dict<RTLIL::IdString, RTLIL::Const> &&buf);
+
 	bool known_driver() const { return driverCell_ != nullptr; }
 
 	RTLIL::Cell *driverCell() const    { log_assert(driverCell_); return driverCell_; };
-	RTLIL::IdString driverPort() const { log_assert(driverCell_); return driverPort_; };
+	TwineRef driverPort() const { log_assert(driverCell_); return driverPort_; };
 
 	int from_hdl_index(int hdl_index) {
 		int zero_index = hdl_index - start_offset;
@@ -2473,6 +2384,7 @@ public:
 	}
 
 	std::string to_rtlil_str() const;
+
 #ifdef YOSYS_ENABLE_PYTHON
 	static std::map<unsigned int, RTLIL::Wire*> *get_all_wires(void);
 #endif
@@ -2482,55 +2394,92 @@ inline int GetSize(RTLIL::Wire *wire) {
 	return wire->width;
 }
 
-struct RTLIL::Memory : public RTLIL::NamedObject
+struct RTLIL::Memory : public RTLIL::AttrObject
 {
 	Hasher::hash_t hashidx_;
 	[[nodiscard]] Hasher hash_into(Hasher h) const { h.eat(hashidx_); return h; }
 
 	Memory();
+	~Memory();
+
+	// Wire::module. Set by Module::addMemory / the frontends that
+	// construct Memory free-standing before attaching to a module.
+	// Lets Memory's src access resolve uniformly via module->design.
+	RTLIL::Module *module = nullptr;
+
+	// Context-aware src helpers. Resolve Design via module->design and
+	// route to the per-Design meta vector; assert the memory is attached.
+	TwineRef src_id() const;
+	TwineRef src_ref() const { return src_id(); }
+	void set_src_id(TwineRef id);
+	void set_src_attribute(TwineRef src);
+	std::string get_src_attribute() const;
+	void adopt_src_from(const RTLIL::AttrObject *source);
+	void absorb_attrs(dict<RTLIL::IdString, RTLIL::Const> &&buf);
 
 	int width, start_offset, size;
-
-	std::string to_rtlil_str() const;
 #ifdef YOSYS_ENABLE_PYTHON
-	~Memory();
 	static std::map<unsigned int, RTLIL::Memory*> *get_all_memorys(void);
 #endif
+
+	std::string to_rtlil_str() const;
 };
 
-struct RTLIL::Cell : public RTLIL::NamedObject
+struct RTLIL::Cell : public RTLIL::AttrObject
 {
+private:
+	struct ConstructToken { explicit ConstructToken() = default; };
+	friend struct RTLIL::Module;
+
+	// Push existing port connections into the bufnorm index after module assignment.
+	// Assumes signals are already in normalized form.
+	void initIndex();
+
+	bool bufnorm_handle_setPort(TwineRef portname, RTLIL::SigSpec &signal, dict<TwineRef, RTLIL::SigSpec>::iterator conn_it);
+public:
+	// Shadows NamedObject::name. Reads materialise via twines; writes
+	[[no_unique_address]] RTLIL::CellNameMasq name;
+
 	Hasher::hash_t hashidx_;
 	[[nodiscard]] Hasher hash_into(Hasher h) const { h.eat(hashidx_); return h; }
 
-protected:
 	// use module->addCell() and module->remove() to create or destroy cells
-	friend struct RTLIL::Module;
-	Cell();
+	Cell(ConstructToken);
 	~Cell();
 
-public:
 	// do not simply copy cells
-	Cell(RTLIL::Cell &other) = delete;
+	Cell(ConstructToken, RTLIL::Cell &other);
 	void operator=(RTLIL::Cell &other) = delete;
 
 	RTLIL::Module *module;
-	RTLIL::IdString type;
-	dict<RTLIL::IdString, RTLIL::SigSpec> connections_;
+	TwineRef type_impl;
+	[[no_unique_address]] RTLIL::CellTypeMasq type;
+	dict<TwineRef, RTLIL::SigSpec> connections_;
 	dict<RTLIL::IdString, RTLIL::Const> parameters;
 
+	// Context-aware src helpers. Resolve Design via module->design and
+	// route to the per-Design meta vector; assert the cell is attached.
+	TwineRef src_id() const;
+	TwineRef src_ref() const { return src_id(); }
+	void set_src_id(TwineRef id);
+	void set_src_attribute(TwineRef src);
+	std::string get_src_attribute() const;
+	void adopt_src_from(const RTLIL::AttrObject *source);
+	void transfer_src_attribute(const RTLIL::AttrObject *source) { adopt_src_from(source); }
+	void absorb_attrs(dict<RTLIL::IdString, RTLIL::Const> &&buf);
+
 	// access cell ports
-	bool hasPort(RTLIL::IdString portname) const;
-	void unsetPort(RTLIL::IdString portname);
-	void setPort(RTLIL::IdString portname, RTLIL::SigSpec signal);
-	const RTLIL::SigSpec &getPort(RTLIL::IdString portname) const;
-	const dict<RTLIL::IdString, RTLIL::SigSpec> &connections() const;
+	bool hasPort(TwineRef portname) const;
+	void unsetPort(TwineRef portname);
+	void setPort(TwineRef portname, RTLIL::SigSpec signal);
+	const RTLIL::SigSpec &getPort(TwineRef portname) const;
+	const dict<TwineRef, RTLIL::SigSpec> &connections() const;
 
 	// information about cell ports
 	bool known() const;
-	bool input(RTLIL::IdString portname) const;
-	bool output(RTLIL::IdString portname) const;
-	PortDir port_dir(RTLIL::IdString portname) const;
+	bool input(TwineRef portname) const;
+	bool output(TwineRef portname) const;
+	PortDir port_dir(TwineRef portname) const;
 
 	// access cell parameters
 	bool hasParam(RTLIL::IdString paramname) const;
@@ -2542,15 +2491,10 @@ public:
 	void check();
 	void fixup_parameters(bool set_a_signed = false, bool set_b_signed = false);
 
-	bool has_keep_attr() const {
-		return get_bool_attribute(ID::keep) || (module && module->design && module->design->module(type) &&
-				module->design->module(type)->get_bool_attribute(ID::keep));
-	}
+	bool has_keep_attr() const;
 
 	template<typename T> void rewrite_sigspecs(T &functor);
 	template<typename T> void rewrite_sigspecs2(T &functor);
-
-	std::string to_rtlil_str() const;
 
 #ifdef YOSYS_ENABLE_PYTHON
 	static std::map<unsigned int, RTLIL::Cell*> *get_all_cells(void);
@@ -2559,17 +2503,42 @@ public:
 	bool has_memid() const;
 	bool is_mem_cell() const;
 	bool is_builtin_ff() const;
+
+	std::string to_rtlil_str() const;
 };
 
 struct RTLIL::CaseRule : public RTLIL::AttrObject
 {
+	// Back-pointer to the owning module. Set by the frontend / kernel
+	// attach path before any src access; the per-Design src meta vector
+	// is resolved as `module->design`. Frontends that construct an
+	// inner-process tree must call setModuleRecursive() on the root before
+	// the tree is consumed (e.g. before set_src_attribute is invoked on
+	// any nested CaseRule/SwitchRule/MemWriteAction).
+	RTLIL::Module *module = nullptr;
+
 	std::vector<RTLIL::SigSpec> compare;
-	std::vector<RTLIL::SigSig> actions;
+	std::vector<RTLIL::SyncAction> actions;
 	std::vector<RTLIL::SwitchRule*> switches;
+	TwineRef compare_src = Twine::Null;
 
 	~CaseRule();
 
 	bool empty() const;
+
+	// Walk the whole CaseRule subtree (this case, every switch, every
+	// nested case, every MemWriteAction inside this process's sync rules
+	// each. Idempotent.
+	void setModuleRecursive(RTLIL::Module *m);
+
+	// Context-aware src helpers via module->design.
+	TwineRef src_id() const;
+	TwineRef src_ref() const { return src_id(); }
+	void set_src_id(TwineRef id);
+	void set_src_attribute(TwineRef src);
+	std::string get_src_attribute() const;
+	void adopt_src_from(const RTLIL::AttrObject *source);
+	void absorb_attrs(dict<RTLIL::IdString, RTLIL::Const> &&buf);
 
 	template<typename T> void rewrite_sigspecs(T &functor);
 	template<typename T> void rewrite_sigspecs2(T &functor);
@@ -2578,12 +2547,27 @@ struct RTLIL::CaseRule : public RTLIL::AttrObject
 
 struct RTLIL::SwitchRule : public RTLIL::AttrObject
 {
+	// Back-pointer to the owning module; see CaseRule::module.
+	RTLIL::Module *module = nullptr;
+
 	RTLIL::SigSpec signal;
+	TwineRef signal_src = Twine::Null;
 	std::vector<RTLIL::CaseRule*> cases;
 
 	~SwitchRule();
 
 	bool empty() const;
+
+	void setModuleRecursive(RTLIL::Module *m);
+
+	// Context-aware src helpers via module->design.
+	TwineRef src_id() const;
+	TwineRef src_ref() const { return src_id(); }
+	void set_src_id(TwineRef id);
+	void set_src_attribute(TwineRef src);
+	std::string get_src_attribute() const;
+	void adopt_src_from(const RTLIL::AttrObject *source);
+	void absorb_attrs(dict<RTLIL::IdString, RTLIL::Const> &&buf);
 
 	template<typename T> void rewrite_sigspecs(T &functor);
 	template<typename T> void rewrite_sigspecs2(T &functor);
@@ -2592,18 +2576,37 @@ struct RTLIL::SwitchRule : public RTLIL::AttrObject
 
 struct RTLIL::MemWriteAction : RTLIL::AttrObject
 {
+	// Back-pointer to the owning module; see CaseRule::module.
+	RTLIL::Module *module = nullptr;
+
 	RTLIL::IdString memid;
 	RTLIL::SigSpec address;
 	RTLIL::SigSpec data;
 	RTLIL::SigSpec enable;
 	RTLIL::Const priority_mask;
+
+	// Context-aware src helpers via module->design.
+	TwineRef src_id() const;
+	TwineRef src_ref() const { return src_id(); }
+	void set_src_id(TwineRef id);
+	void set_src_attribute(TwineRef src);
+	std::string get_src_attribute() const;
+	void adopt_src_from(const RTLIL::AttrObject *source);
+	void absorb_attrs(dict<RTLIL::IdString, RTLIL::Const> &&buf);
+};
+
+struct RTLIL::SyncAction
+{
+	RTLIL::SigSpec lhs;
+	RTLIL::SigSpec rhs;
+	TwineRef src = Twine::Null;
 };
 
 struct RTLIL::SyncRule
 {
 	RTLIL::SyncType type;
 	RTLIL::SigSpec signal;
-	std::vector<RTLIL::SigSig> actions;
+	std::vector<RTLIL::SyncAction> actions;
 	std::vector<RTLIL::MemWriteAction> mem_write_actions;
 
 	template<typename T> void rewrite_sigspecs(T &functor);
@@ -2611,8 +2614,11 @@ struct RTLIL::SyncRule
 	RTLIL::SyncRule *clone() const;
 };
 
-struct RTLIL::Process : public RTLIL::NamedObject
+struct RTLIL::Process : public RTLIL::AttrObject
 {
+	friend struct RTLIL::Cell;
+	friend struct RTLIL::Design;
+
 	Hasher::hash_t hashidx_;
 	[[nodiscard]] Hasher hash_into(Hasher h) const { h.eat(hashidx_); return h; }
 
@@ -2627,12 +2633,22 @@ public:
 	RTLIL::CaseRule root_case;
 	std::vector<RTLIL::SyncRule*> syncs;
 
+	// Context-aware src helpers. Resolve Design via module->design and
+	// route to the per-Design meta vector; assert the process is attached.
+	TwineRef src_id() const;
+	TwineRef src_ref() const { return src_id(); }
+	void set_src_id(TwineRef id);
+	void set_src_attribute(TwineRef src);
+	std::string get_src_attribute() const;
+	void adopt_src_from(const RTLIL::AttrObject *source);
+	void absorb_attrs(dict<RTLIL::IdString, RTLIL::Const> &&buf);
+
 	template<typename T> void rewrite_sigspecs(T &functor);
 	template<typename T> void rewrite_sigspecs2(T &functor);
 	RTLIL::Process *clone() const;
+
 	std::string to_rtlil_str() const;
 };
-
 
 inline RTLIL::SigBit::SigBit() : wire(NULL), data(RTLIL::State::S0) { }
 inline RTLIL::SigBit::SigBit(RTLIL::State bit) : wire(NULL), data(bit) { }
@@ -2672,7 +2688,9 @@ inline Hasher RTLIL::SigBit::hash_into(Hasher h) const {
 inline Hasher RTLIL::SigBit::hash_top() const {
 	Hasher h;
 	if (wire) {
-		h.force(hashlib::legacy::djb2_add(wire->name.index_, offset));
+		TwineRef name = wire->meta_ ? wire->meta_->name : Twine::Null;
+		h.eat(name);
+		h.eat(offset);
 		return h;
 	}
 	h.force(data);
@@ -2693,6 +2711,470 @@ inline RTLIL::SigBit::SigBit(const RTLIL::SigSpec &sig) {
 	auto it = sig.chunks().begin();
 	*this = SigBit(*it);
 }
+
+template<typename Derived>
+class CellAdderMixin {
+public:
+	// The add* methods create a cell and return the created cell. All signals must exist in advance.
+
+	RTLIL::Cell* addNot (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::Cell* addPos (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::Cell* addBuf (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::Cell* addNeg (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+
+	RTLIL::Cell* addAnd  (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::Cell* addOr   (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::Cell* addXor  (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::Cell* addXnor (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+
+	RTLIL::Cell* addReduceAnd  (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::Cell* addReduceOr   (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::Cell* addReduceXor  (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::Cell* addReduceXnor (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::Cell* addReduceBool (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+
+	RTLIL::Cell* addShl    (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::Cell* addShr    (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::Cell* addSshl   (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::Cell* addSshr   (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::Cell* addShift  (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::Cell* addShiftx (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+
+	RTLIL::Cell* addLt  (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::Cell* addLe  (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::Cell* addEq  (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::Cell* addNe  (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::Cell* addEqx (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::Cell* addNex (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::Cell* addGe  (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::Cell* addGt  (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+
+	RTLIL::Cell* addAdd (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::Cell* addSub (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::Cell* addMul (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+	// truncating division
+	RTLIL::Cell* addDiv (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+	// truncating modulo
+	RTLIL::Cell* addMod (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::Cell* addDivFloor (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::Cell* addModFloor (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::Cell* addPow (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool a_signed = false, bool b_signed = false, TwineRef src = Twine::Null);
+
+	RTLIL::Cell* addFa (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_c, const RTLIL::SigSpec &sig_x, const RTLIL::SigSpec &sig_y, TwineRef src = Twine::Null);
+
+	RTLIL::Cell* addLogicNot (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::Cell* addLogicAnd (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::Cell* addLogicOr  (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
+
+	RTLIL::Cell* addMux  (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_y, TwineRef src = Twine::Null);
+	RTLIL::Cell* addPmux (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_y, TwineRef src = Twine::Null);
+	RTLIL::Cell* addBmux (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_y, TwineRef src = Twine::Null);
+	RTLIL::Cell* addDemux (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_y, TwineRef src = Twine::Null);
+
+	RTLIL::Cell* addBweqx  (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, TwineRef src = Twine::Null);
+	RTLIL::Cell* addBwmux  (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_y, TwineRef src = Twine::Null);
+
+	RTLIL::Cell* addSlice  (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, RTLIL::Const offset, TwineRef src = Twine::Null);
+	RTLIL::Cell* addConcat (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, TwineRef src = Twine::Null);
+	RTLIL::Cell* addLut    (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, RTLIL::Const lut, TwineRef src = Twine::Null);
+	RTLIL::Cell* addTribuf (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_y, TwineRef src = Twine::Null);
+	RTLIL::Cell* addAssert (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, TwineRef src = Twine::Null);
+	RTLIL::Cell* addAssume (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, TwineRef src = Twine::Null);
+	RTLIL::Cell* addLive   (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, TwineRef src = Twine::Null);
+	RTLIL::Cell* addFair   (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, TwineRef src = Twine::Null);
+	RTLIL::Cell* addCover  (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, TwineRef src = Twine::Null);
+	RTLIL::Cell* addEquiv  (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, TwineRef src = Twine::Null);
+
+	RTLIL::Cell* addSr    (Twine &&name, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr, const RTLIL::SigSpec &sig_q, bool set_polarity = true, bool clr_polarity = true, TwineRef src = Twine::Null);
+	RTLIL::Cell* addFf    (Twine &&name, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, TwineRef src = Twine::Null);
+	RTLIL::Cell* addDff   (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_d,   const RTLIL::SigSpec &sig_q, bool clk_polarity = true, TwineRef src = Twine::Null);
+	RTLIL::Cell* addDffe  (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en,  const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool en_polarity = true, TwineRef src = Twine::Null);
+	RTLIL::Cell* addDffsr (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr, RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool set_polarity = true, bool clr_polarity = true, TwineRef src = Twine::Null);
+	RTLIL::Cell* addDffsre (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr, RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool en_polarity = true, bool set_polarity = true, bool clr_polarity = true, TwineRef src = Twine::Null);
+	RTLIL::Cell* addAdff (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_arst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const arst_value, bool clk_polarity = true, bool arst_polarity = true, TwineRef src = Twine::Null);
+	RTLIL::Cell* addAdffe (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_arst,  const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const arst_value, bool clk_polarity = true, bool en_polarity = true, bool arst_polarity = true, TwineRef src = Twine::Null);
+	RTLIL::Cell* addAldff (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_aload, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, const RTLIL::SigSpec &sig_ad, bool clk_polarity = true, bool aload_polarity = true, TwineRef src = Twine::Null);
+	RTLIL::Cell* addAldffe (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_aload,  const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, const RTLIL::SigSpec &sig_ad, bool clk_polarity = true, bool en_polarity = true, bool aload_polarity = true, TwineRef src = Twine::Null);
+	RTLIL::Cell* addSdff (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_srst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const srst_value, bool clk_polarity = true, bool srst_polarity = true, TwineRef src = Twine::Null);
+	RTLIL::Cell* addSdffe (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_srst,  const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const srst_value, bool clk_polarity = true, bool en_polarity = true, bool srst_polarity = true, TwineRef src = Twine::Null);
+	RTLIL::Cell* addSdffce (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_srst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const srst_value, bool clk_polarity = true, bool en_polarity = true, bool srst_polarity = true, TwineRef src = Twine::Null);
+	RTLIL::Cell* addDlatch (Twine &&name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool en_polarity = true, TwineRef src = Twine::Null);
+	RTLIL::Cell* addAdlatch (Twine &&name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_arst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const arst_value, bool en_polarity = true, bool arst_polarity = true, TwineRef src = Twine::Null);
+	RTLIL::Cell* addDlatchsr (Twine &&name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr, RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool en_polarity = true, bool set_polarity = true, bool clr_polarity = true, TwineRef src = Twine::Null);
+
+	RTLIL::Cell* addBufGate    (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_y, TwineRef src = Twine::Null);
+	RTLIL::Cell* addNotGate    (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_y, TwineRef src = Twine::Null);
+	RTLIL::Cell* addAndGate    (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, TwineRef src = Twine::Null);
+	RTLIL::Cell* addNandGate   (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, TwineRef src = Twine::Null);
+	RTLIL::Cell* addOrGate     (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, TwineRef src = Twine::Null);
+	RTLIL::Cell* addNorGate    (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, TwineRef src = Twine::Null);
+	RTLIL::Cell* addXorGate    (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, TwineRef src = Twine::Null);
+	RTLIL::Cell* addXnorGate   (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, TwineRef src = Twine::Null);
+	RTLIL::Cell* addAndnotGate (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, TwineRef src = Twine::Null);
+	RTLIL::Cell* addOrnotGate  (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, TwineRef src = Twine::Null);
+	RTLIL::Cell* addMuxGate    (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_s, const RTLIL::SigBit &sig_y, TwineRef src = Twine::Null);
+	RTLIL::Cell* addNmuxGate   (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_s, const RTLIL::SigBit &sig_y, TwineRef src = Twine::Null);
+	RTLIL::Cell* addAoi3Gate   (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, const RTLIL::SigBit &sig_y, TwineRef src = Twine::Null);
+	RTLIL::Cell* addOai3Gate   (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, const RTLIL::SigBit &sig_y, TwineRef src = Twine::Null);
+	RTLIL::Cell* addAoi4Gate   (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, const RTLIL::SigBit &sig_d, const RTLIL::SigBit &sig_y, TwineRef src = Twine::Null);
+	RTLIL::Cell* addOai4Gate   (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, const RTLIL::SigBit &sig_d, const RTLIL::SigBit &sig_y, TwineRef src = Twine::Null);
+
+	RTLIL::Cell* addSrGate     (Twine &&name, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr,
+			const RTLIL::SigSpec &sig_q, bool set_polarity = true, bool clr_polarity = true, TwineRef src = Twine::Null);
+	RTLIL::Cell* addFfGate     (Twine &&name, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, TwineRef src = Twine::Null);
+	RTLIL::Cell* addDffGate    (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, TwineRef src = Twine::Null);
+	RTLIL::Cell* addDffeGate   (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool en_polarity = true, TwineRef src = Twine::Null);
+	RTLIL::Cell* addDffsrGate  (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr,
+			RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool set_polarity = true, bool clr_polarity = true, TwineRef src = Twine::Null);
+	RTLIL::Cell* addDffsreGate (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr,
+			RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool en_polarity = true, bool set_polarity = true, bool clr_polarity = true, TwineRef src = Twine::Null);
+	RTLIL::Cell* addAdffGate   (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_arst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
+			bool arst_value = false, bool clk_polarity = true, bool arst_polarity = true, TwineRef src = Twine::Null);
+	RTLIL::Cell* addAdffeGate  (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_arst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
+			bool arst_value = false, bool clk_polarity = true, bool en_polarity = true, bool arst_polarity = true, TwineRef src = Twine::Null);
+	RTLIL::Cell* addAldffGate   (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_aload, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
+			const RTLIL::SigSpec &sig_ad, bool clk_polarity = true, bool aload_polarity = true, TwineRef src = Twine::Null);
+	RTLIL::Cell* addAldffeGate  (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_aload, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
+			const RTLIL::SigSpec &sig_ad, bool clk_polarity = true, bool en_polarity = true, bool aload_polarity = true, TwineRef src = Twine::Null);
+	RTLIL::Cell* addSdffGate   (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_srst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
+			bool srst_value = false, bool clk_polarity = true, bool srst_polarity = true, TwineRef src = Twine::Null);
+	RTLIL::Cell* addSdffeGate  (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_srst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
+			bool srst_value = false, bool clk_polarity = true, bool en_polarity = true, bool srst_polarity = true, TwineRef src = Twine::Null);
+	RTLIL::Cell* addSdffceGate (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_srst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
+			bool srst_value = false, bool clk_polarity = true, bool en_polarity = true, bool srst_polarity = true, TwineRef src = Twine::Null);
+	RTLIL::Cell* addDlatchGate (Twine &&name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool en_polarity = true, TwineRef src = Twine::Null);
+	RTLIL::Cell* addAdlatchGate(Twine &&name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_arst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
+			bool arst_value = false, bool en_polarity = true, bool arst_polarity = true, TwineRef src = Twine::Null);
+	RTLIL::Cell* addDlatchsrGate  (Twine &&name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr,
+			RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool en_polarity = true, bool set_polarity = true, bool clr_polarity = true, TwineRef src = Twine::Null);
+
+	// The methods without the add* prefix create a cell and an output signal. They return the newly created output signal.
+
+	RTLIL::SigSpec Not (Twine &&name, const RTLIL::SigSpec &sig_a, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::SigSpec Pos (Twine &&name, const RTLIL::SigSpec &sig_a, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::SigSpec Buf (Twine &&name, const RTLIL::SigSpec &sig_a, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::SigSpec Neg (Twine &&name, const RTLIL::SigSpec &sig_a, bool is_signed = false, TwineRef src = Twine::Null);
+
+	RTLIL::SigSpec And  (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::SigSpec Or   (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::SigSpec Xor  (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::SigSpec Xnor (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, TwineRef src = Twine::Null);
+
+	RTLIL::SigSpec ReduceAnd  (Twine &&name, const RTLIL::SigSpec &sig_a, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::SigSpec ReduceOr   (Twine &&name, const RTLIL::SigSpec &sig_a, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::SigSpec ReduceXor  (Twine &&name, const RTLIL::SigSpec &sig_a, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::SigSpec ReduceXnor (Twine &&name, const RTLIL::SigSpec &sig_a, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::SigSpec ReduceBool (Twine &&name, const RTLIL::SigSpec &sig_a, bool is_signed = false, TwineRef src = Twine::Null);
+
+	RTLIL::SigSpec Shl    (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::SigSpec Shr    (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::SigSpec Sshl   (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::SigSpec Sshr   (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::SigSpec Shift  (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::SigSpec Shiftx (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, TwineRef src = Twine::Null);
+
+	RTLIL::SigSpec Lt  (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::SigSpec Le  (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::SigSpec Eq  (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::SigSpec Ne  (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::SigSpec Eqx (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::SigSpec Nex (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::SigSpec Ge  (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::SigSpec Gt  (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, TwineRef src = Twine::Null);
+
+	RTLIL::SigSpec Add (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::SigSpec Sub (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::SigSpec Mul (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, TwineRef src = Twine::Null);
+	// truncating division
+	RTLIL::SigSpec Div (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, TwineRef src = Twine::Null);
+	// truncating modulo
+	RTLIL::SigSpec Mod (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::SigSpec DivFloor (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::SigSpec ModFloor (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::SigSpec Pow (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool a_signed = false, bool b_signed = false, TwineRef src = Twine::Null);
+
+	RTLIL::SigSpec LogicNot (Twine &&name, const RTLIL::SigSpec &sig_a, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::SigSpec LogicAnd (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, TwineRef src = Twine::Null);
+	RTLIL::SigSpec LogicOr  (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, TwineRef src = Twine::Null);
+
+	RTLIL::SigSpec Mux      (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_s, TwineRef src = Twine::Null);
+	RTLIL::SigSpec Pmux     (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_s, TwineRef src = Twine::Null);
+	RTLIL::SigSpec Bmux     (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, TwineRef src = Twine::Null);
+	RTLIL::SigSpec Demux     (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, TwineRef src = Twine::Null);
+
+	RTLIL::SigSpec Bweqx      (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, TwineRef src = Twine::Null);
+	RTLIL::SigSpec Bwmux      (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_s, TwineRef src = Twine::Null);
+
+	RTLIL::SigBit BufGate    (Twine &&name, const RTLIL::SigBit &sig_a, TwineRef src = Twine::Null);
+	RTLIL::SigBit NotGate    (Twine &&name, const RTLIL::SigBit &sig_a, TwineRef src = Twine::Null);
+	RTLIL::SigBit AndGate    (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, TwineRef src = Twine::Null);
+	RTLIL::SigBit NandGate   (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, TwineRef src = Twine::Null);
+	RTLIL::SigBit OrGate     (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, TwineRef src = Twine::Null);
+	RTLIL::SigBit NorGate    (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, TwineRef src = Twine::Null);
+	RTLIL::SigBit XorGate    (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, TwineRef src = Twine::Null);
+	RTLIL::SigBit XnorGate   (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, TwineRef src = Twine::Null);
+	RTLIL::SigBit AndnotGate (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, TwineRef src = Twine::Null);
+	RTLIL::SigBit OrnotGate  (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, TwineRef src = Twine::Null);
+	RTLIL::SigBit MuxGate    (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_s, TwineRef src = Twine::Null);
+	RTLIL::SigBit NmuxGate   (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_s, TwineRef src = Twine::Null);
+	RTLIL::SigBit Aoi3Gate   (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, TwineRef src = Twine::Null);
+	RTLIL::SigBit Oai3Gate   (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, TwineRef src = Twine::Null);
+	RTLIL::SigBit Aoi4Gate   (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, const RTLIL::SigBit &sig_d, TwineRef src = Twine::Null);
+	RTLIL::SigBit Oai4Gate   (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, const RTLIL::SigBit &sig_d, TwineRef src = Twine::Null);
+};
+
+// Zero-size masquerade for Module::name. Same contract as WireNameMasq,
+// plus a write path via operator=(IdString). Shadows NamedObject::name
+// at the Module-instance scope; static_cast<NamedObject*>(module)->name
+// still hits the (now-unused) inline base field. Writing requires
+// module->design to be set first.
+struct RTLIL::ModuleNameMasq : RTLIL::NameMasqBase<RTLIL::ModuleNameMasq> {
+	// Copying/moving is forbidden: a ModuleNameMasq derives its identity from
+	// `this` via offsetof(Module, name), so any instance not embedded in a
+	// Module would resolve to garbage. All conversions go through
+	// operator IdString() at the embedded location.
+	ModuleNameMasq() = default;
+	ModuleNameMasq(const ModuleNameMasq&) = delete;
+	ModuleNameMasq(ModuleNameMasq&&) = delete;
+	operator TwineRef() const;
+	ModuleNameMasq& operator=(RTLIL::IdString id);
+	// Without this, `new_mod->name = src_mod->name` invokes the implicit
+	// copy-assign (no-op) instead of operator=(IdString), so the meta
+	// never gets written.
+	ModuleNameMasq& operator=(const ModuleNameMasq& other) { return *this = RTLIL::IdString(other); }
+	TwineRef ref() const;
+	std::string escaped() const;
+	std::string unescaped() const;
+};
+
+struct RTLIL::Module : public RTLIL::AttrObject, public CellAdderMixin<RTLIL::Module>
+{
+	friend struct RTLIL::Cell;
+	friend struct RTLIL::Design;
+
+	[[no_unique_address]] RTLIL::ModuleNameMasq name;
+
+	Hasher::hash_t hashidx_;
+	[[nodiscard]] Hasher hash_into(Hasher h) const { h.eat(hashidx_); return h; }
+
+protected:
+	void add(RTLIL::Wire *wire);
+	void add(RTLIL::Cell *cell);
+	void add(RTLIL::Process *process);
+
+public:
+	RTLIL::Design *design;
+	pool<RTLIL::Monitor*> monitors;
+
+	int refcount_wires_;
+	int refcount_cells_;
+
+	dict<TwineRef, RTLIL::Wire*> wires_;
+	dict<TwineRef, RTLIL::Cell*> cells_;
+
+	std::vector<RTLIL::SigSig>   connections_;
+	std::vector<RTLIL::Binding*> bindings_;
+
+	idict<RTLIL::IdString> avail_parameters;
+	dict<RTLIL::IdString, RTLIL::Const> parameter_default_values;
+	dict<TwineRef, RTLIL::Memory*> memories;
+	dict<TwineRef, RTLIL::Process*> processes;
+
+	// Context-aware src helpers. Resolve Design via this->design and
+	// route to the per-Design meta vector; assert the module is attached.
+	TwineRef src_id() const;
+	TwineRef src_ref() const { return src_id(); }
+	void set_src_id(TwineRef id);
+	void set_src_attribute(TwineRef src);
+	std::string get_src_attribute() const;
+	void adopt_src_from(const RTLIL::AttrObject *source);
+	void absorb_attrs(dict<RTLIL::IdString, RTLIL::Const> &&buf);
+
+	Module();
+	virtual ~Module();
+	virtual TwineRef derive(RTLIL::Design *design, const dict<RTLIL::IdString, RTLIL::Const> &parameters, bool mayfail = false);
+	virtual TwineRef derive(RTLIL::Design *design, const dict<RTLIL::IdString, RTLIL::Const> &parameters, const dict<TwineRef, RTLIL::Module*> &interfaces, const dict<TwineRef, TwineRef> &modports, bool mayfail = false);
+	virtual size_t count_id(TwineRef id);
+	virtual void expand_interfaces(RTLIL::Design *design, const dict<RTLIL::IdString, RTLIL::Module *> &local_interfaces);
+	virtual bool reprocess_if_necessary(RTLIL::Design *design);
+
+	virtual void sort();
+	virtual void check();
+	virtual void optimize();
+	virtual void makeblackbox();
+
+	bool get_blackbox_attribute(bool ignore_wb=false) const {
+		return get_bool_attribute(ID::blackbox) || (!ignore_wb && get_bool_attribute(ID::whitebox));
+	}
+
+	void connect(const RTLIL::SigSig &conn);
+	void connect(const RTLIL::SigSpec &lhs, const RTLIL::SigSpec &rhs);
+	void new_connections(const std::vector<RTLIL::SigSig> &new_conn);
+	const std::vector<RTLIL::SigSig> &connections() const;
+
+	std::vector<TwineRef> ports;
+	void fixup_ports();
+
+	pool<RTLIL::Cell *> buf_norm_cell_queue;
+	pool<pair<RTLIL::Cell *, TwineRef>> buf_norm_cell_port_queue;
+	pool<RTLIL::Wire *> buf_norm_wire_queue;
+	pool<RTLIL::Cell *> pending_deleted_cells;
+	dict<RTLIL::Wire *, pool<RTLIL::Cell *>> buf_norm_connect_index;
+	void bufNormalize();
+
+	template<typename T> void rewrite_sigspecs(T &functor);
+	template<typename T> void rewrite_sigspecs2(T &functor);
+	// `src_id_verbatim`: when true, the caller guarantees that
+	// `new_mod->design->twines` is a verbatim copy of
+	// `this->design->twines`, so src_id_ values can be transferred
+	// without retain/release on the destination pool (the copied refcounts
+	// already account for the new AttrObject references). Used by
+	// Design::clone_into for wholesale design copies.
+	void cloneInto(RTLIL::Module *new_mod, bool src_id_verbatim = false) const;
+	virtual RTLIL::Module *clone() const;
+	// Clone variant that attaches the new module to `dst` BEFORE cloneInto
+	// runs. This is the right pattern when the destination design is known
+	// the pending-literal src stashing it entails. Subtypes override to
+	// preserve their type (AstModule). `src_id_verbatim` is forwarded to
+	// cloneInto.
+	virtual RTLIL::Module *clone(RTLIL::Design *dst, bool src_id_verbatim = false) const;
+	// As above, but additionally renames the new module to `target_name` in
+	// `dst`. Used when source and destination designs may contain modules
+	// with the same name and the new one must take a different identity.
+	virtual RTLIL::Module *clone(RTLIL::Design *dst, TwineRef target_name, bool src_id_verbatim = false) const;
+
+	bool has_memories() const;
+	bool has_processes() const;
+
+	bool has_memories_warn() const;
+	bool has_processes_warn() const;
+
+	bool is_selected() const;
+	bool is_selected_whole() const;
+
+	std::vector<RTLIL::Wire*> selected_wires() const;
+	std::vector<RTLIL::Cell*> selected_cells() const;
+	std::vector<RTLIL::Memory*> selected_memories() const;
+	std::vector<RTLIL::Process*> selected_processes() const;
+	std::vector<RTLIL::AttrObject*> selected_members() const;
+
+	template<typename T> bool selected(T *member) const {
+		return design->selected_member(meta_->name, member->meta_->name);
+	}
+
+	RTLIL::Wire* wire(TwineRef id) {
+		auto it = wires_.find(id);
+		return it == wires_.end() ? nullptr : it->second;
+	}
+	RTLIL::Cell* cell(TwineRef id) {
+		auto it = cells_.find(id);
+		return it == cells_.end() ? nullptr : it->second;
+	}
+	const RTLIL::Wire* wire(TwineRef id) const {
+		auto it = wires_.find(id);
+		return it == wires_.end() ? nullptr : it->second;
+	}
+	const RTLIL::Cell* cell(TwineRef id) const {
+		auto it = cells_.find(id);
+		return it == cells_.end() ? nullptr : it->second;
+	}
+
+	RTLIL::ObjRange<RTLIL::Wire*, TwineRef> wires() { return RTLIL::ObjRange<RTLIL::Wire*, TwineRef>(&wires_, &refcount_wires_); }
+	int wires_size() const { return wires_.size(); }
+	RTLIL::Wire* wire_at(int index) const { return wires_.element(index)->second; }
+	RTLIL::ObjRange<RTLIL::Cell*, TwineRef> cells() { return RTLIL::ObjRange<RTLIL::Cell*, TwineRef>(&cells_, &refcount_cells_); }
+	int cells_size() const { return cells_.size(); }
+	RTLIL::Cell* cell_at(int index) const { return cells_.element(index)->second; }
+
+	void add(RTLIL::Binding *binding);
+
+	// Removing wires is expensive. If you have to remove wires, remove them all at once.
+	void remove(const pool<RTLIL::Wire*> &wires);
+	void remove(RTLIL::Cell *cell);
+	void remove(RTLIL::Memory *memory);
+	void remove(RTLIL::Process *process);
+
+	void rename(RTLIL::Wire *wire, TwineRef new_name);
+	void rename(RTLIL::Cell *cell, TwineRef new_name);
+	void rename(TwineRef old_name, TwineRef new_name);
+
+	void swap_names(RTLIL::Wire *w1, RTLIL::Wire *w2);
+	void swap_names(RTLIL::Cell *c1, RTLIL::Cell *c2);
+
+	TwineRef uniquify(TwineRef name);
+	TwineRef uniquify(Twine&& name);
+	TwineRef uniquify(TwineRef name, int &index);
+	TwineRef uniquify(Twine&& name, int &index);
+
+	// Primary overloads: name already interned in design->twines.
+	RTLIL::Wire *addWire(TwineRef name, int width = 1);
+	RTLIL::Wire *addWire(TwineRef name, const RTLIL::Wire *other);
+	// Convenience: adds name into twines, then dispatches.
+	RTLIL::Wire *addWire(Twine &&name, int width = 1);
+	RTLIL::Wire *addWire(Twine &&name, const RTLIL::Wire *other);
+
+	// Primary overloads.
+	RTLIL::Cell *addCell(TwineRef name, TwineRef type);
+	RTLIL::Cell *addCell(TwineRef name, const RTLIL::Cell *other);
+	// Convenience.
+	RTLIL::Cell *addCell(Twine name, Twine type);
+	RTLIL::Cell *addCell(Twine &&name, TwineRef type);
+	RTLIL::Cell *addCell(TwineRef name, Twine &&type);
+	RTLIL::Cell *addCell(Twine &&name, const RTLIL::Cell *other);
+
+	// CellAdderMixin hook: cells added here are attached, so set src directly.
+	void cell_set_src(RTLIL::Cell *cell, TwineRef src) { cell->set_src_attribute(src); }
+
+	// NEW_ID analog for twine names; see NEW_TWINE in yosys_common.h.
+	TwineRef new_name(const std::string *prefix) {
+		TwineRef pref = design->twines.add(Twine{*prefix});
+		return design->twines.add(Twine{Twine::Suffix{pref, std::to_string(autoidx++)}});
+	}
+
+	RTLIL::Memory *addMemory(TwineRef name);
+	RTLIL::Memory *addMemory(Twine &&name);
+	RTLIL::Memory *addMemory(TwineRef name, const RTLIL::Memory *other);
+
+	RTLIL::Process *addProcess(TwineRef name);
+	RTLIL::Process *addProcess(Twine &&name);
+	RTLIL::Process *addProcess(TwineRef name, const RTLIL::Process *other);
+
+	// The add* methods create a cell and return the created cell. All signals must exist in advance.
+
+	RTLIL::Cell* addAnyinit(TwineRef name, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, TwineRef src = Twine::Null);
+	RTLIL::Cell* addAnyinit(Twine &&name, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, TwineRef src = Twine::Null);
+
+	// The methods without the add* prefix create a cell and an output signal. They return the newly created output signal.
+
+	RTLIL::SigSpec Anyconst  (TwineRef name, int width = 1, TwineRef src = Twine::Null);
+	RTLIL::SigSpec Anyseq    (TwineRef name, int width = 1, TwineRef src = Twine::Null);
+	RTLIL::SigSpec Allconst  (TwineRef name, int width = 1, TwineRef src = Twine::Null);
+	RTLIL::SigSpec Allseq    (TwineRef name, int width = 1, TwineRef src = Twine::Null);
+	RTLIL::SigSpec Initstate (TwineRef name, TwineRef src = Twine::Null);
+	RTLIL::SigSpec Anyconst  (Twine &&name, int width = 1, TwineRef src = Twine::Null);
+	RTLIL::SigSpec Anyseq    (Twine &&name, int width = 1, TwineRef src = Twine::Null);
+	RTLIL::SigSpec Allconst  (Twine &&name, int width = 1, TwineRef src = Twine::Null);
+	RTLIL::SigSpec Allseq    (Twine &&name, int width = 1, TwineRef src = Twine::Null);
+	RTLIL::SigSpec Initstate (Twine &&name, TwineRef src = Twine::Null);
+
+	RTLIL::SigSpec SetTag          (TwineRef name, const std::string &tag, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_c, TwineRef src = Twine::Null);
+	RTLIL::Cell*   addSetTag       (TwineRef name, const std::string &tag, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_c, const RTLIL::SigSpec &sig_y, TwineRef src = Twine::Null);
+	RTLIL::SigSpec GetTag          (TwineRef name, const std::string &tag, const RTLIL::SigSpec &sig_a, TwineRef src = Twine::Null);
+	RTLIL::Cell*   addOverwriteTag (TwineRef name, const std::string &tag, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_c, TwineRef src = Twine::Null);
+	RTLIL::SigSpec OriginalTag     (TwineRef name, const std::string &tag, const RTLIL::SigSpec &sig_a, TwineRef src = Twine::Null);
+	RTLIL::SigSpec FutureFF        (TwineRef name, const RTLIL::SigSpec &sig_e, TwineRef src = Twine::Null);
+	RTLIL::SigSpec SetTag          (Twine &&name, const std::string &tag, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_c, TwineRef src = Twine::Null);
+	RTLIL::Cell*   addSetTag       (Twine &&name, const std::string &tag, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_c, const RTLIL::SigSpec &sig_y, TwineRef src = Twine::Null);
+	RTLIL::SigSpec GetTag          (Twine &&name, const std::string &tag, const RTLIL::SigSpec &sig_a, TwineRef src = Twine::Null);
+	RTLIL::Cell*   addOverwriteTag (Twine &&name, const std::string &tag, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_c, TwineRef src = Twine::Null);
+	RTLIL::SigSpec OriginalTag     (Twine &&name, const std::string &tag, const RTLIL::SigSpec &sig_a, TwineRef src = Twine::Null);
+	RTLIL::SigSpec FutureFF        (Twine &&name, const RTLIL::SigSpec &sig_e, TwineRef src = Twine::Null);
+
+	std::string to_rtlil_str() const;
+#ifdef YOSYS_ENABLE_PYTHON
+	static std::map<unsigned int, RTLIL::Module*> *get_all_modules(void);
+#endif
+};
 
 template<typename T>
 void RTLIL::Module::rewrite_sigspecs(T &functor)
@@ -2736,8 +3218,8 @@ void RTLIL::CaseRule::rewrite_sigspecs(T &functor) {
 	for (auto &it : compare)
 		functor(it);
 	for (auto &it : actions) {
-		functor(it.first);
-		functor(it.second);
+		functor(it.lhs);
+		functor(it.rhs);
 	}
 	for (auto it : switches)
 		it->rewrite_sigspecs(functor);
@@ -2748,7 +3230,7 @@ void RTLIL::CaseRule::rewrite_sigspecs2(T &functor) {
 	for (auto &it : compare)
 		functor(it);
 	for (auto &it : actions) {
-		functor(it.first, it.second);
+		functor(it.lhs, it.rhs);
 	}
 	for (auto it : switches)
 		it->rewrite_sigspecs2(functor);
@@ -2775,8 +3257,8 @@ void RTLIL::SyncRule::rewrite_sigspecs(T &functor)
 {
 	functor(signal);
 	for (auto &it : actions) {
-		functor(it.first);
-		functor(it.second);
+		functor(it.lhs);
+		functor(it.rhs);
 	}
 	for (auto &it : mem_write_actions) {
 		functor(it.address);
@@ -2790,7 +3272,7 @@ void RTLIL::SyncRule::rewrite_sigspecs2(T &functor)
 {
 	functor(signal);
 	for (auto &it : actions) {
-		functor(it.first, it.second);
+		functor(it.lhs, it.rhs);
 	}
 	for (auto &it : mem_write_actions) {
 		functor(it.address);
@@ -2814,6 +3296,145 @@ void RTLIL::Process::rewrite_sigspecs2(T &functor)
 	for (auto it : syncs)
 		it->rewrite_sigspecs2(functor);
 }
+
+// The masq accessors below recover their containing Wire/Cell/Module by
+// subtracting offsetof from `this`. Those types are non-standard-layout (base
+// classes + virtuals), so offsetof is conditionally-supported, but it is
+// well-defined on GCC/Clang for these fixed field offsets.
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+#endif
+inline TwineRef RTLIL::WireNameMasq::ref() const {
+	const RTLIL::Wire *w = reinterpret_cast<const RTLIL::Wire *>(
+		reinterpret_cast<const char *>(this) - offsetof(RTLIL::Wire, name));
+	if (!w->module || !w->module->design || !w->meta_)
+		return Twine::Null;
+	return w->meta_->name;
+}
+
+inline std::string RTLIL::WireNameMasq::escaped() const {
+	const RTLIL::Wire *w = reinterpret_cast<const RTLIL::Wire *>(
+		reinterpret_cast<const char *>(this) - offsetof(RTLIL::Wire, name));
+	TwineRef id = ref();
+	if (id == Twine::Null)
+		return std::string();
+	return w->module->design->twines.str(id);
+}
+
+inline std::string RTLIL::WireNameMasq::unescaped() const {
+	const RTLIL::Wire *w = reinterpret_cast<const RTLIL::Wire *>(
+		reinterpret_cast<const char *>(this) - offsetof(RTLIL::Wire, name));
+	TwineRef id = ref();
+	if (id == Twine::Null)
+		return std::string();
+	return w->module->design->twines.unescaped_str(id);
+}
+
+inline TwineRef RTLIL::CellNameMasq::ref() const {
+	const RTLIL::Cell *c = reinterpret_cast<const RTLIL::Cell *>(
+		reinterpret_cast<const char *>(this) - offsetof(RTLIL::Cell, name));
+	if (!c->module || !c->module->design || !c->meta_)
+		return Twine::Null;
+	return c->meta_->name;
+}
+
+inline std::string RTLIL::CellNameMasq::escaped() const {
+	const RTLIL::Cell *c = reinterpret_cast<const RTLIL::Cell *>(
+		reinterpret_cast<const char *>(this) - offsetof(RTLIL::Cell, name));
+	TwineRef id = ref();
+	if (id == Twine::Null)
+		return std::string();
+	return c->module->design->twines.str(id);
+}
+
+inline std::string RTLIL::CellNameMasq::unescaped() const {
+	const RTLIL::Cell *c = reinterpret_cast<const RTLIL::Cell *>(
+		reinterpret_cast<const char *>(this) - offsetof(RTLIL::Cell, name));
+	TwineRef id = ref();
+	if (id == Twine::Null)
+		return std::string();
+	return c->module->design->twines.unescaped_str(id);
+}
+
+inline TwineRef RTLIL::CellTypeMasq::ref() const {
+	const RTLIL::Cell *c = reinterpret_cast<const RTLIL::Cell *>(
+		reinterpret_cast<const char *>(this) - offsetof(RTLIL::Cell, type));
+	return c->type_impl;
+}
+
+inline std::string RTLIL::CellTypeMasq::escaped() const {
+	const RTLIL::Cell *c = reinterpret_cast<const RTLIL::Cell *>(
+		reinterpret_cast<const char *>(this) - offsetof(RTLIL::Cell, type));
+	TwineRef id = c->type_impl;
+	if (id == Twine::Null)
+		return std::string();
+	if (c->module && c->module->design)
+		return c->module->design->twines.str(id);
+	// Static (TW::) refs are pool-independent; assert non-local ref.
+	log_assert(twine_untag(id) < STATIC_TWINE_END);
+	return TwinePool{}.str(id);
+}
+
+inline std::string RTLIL::CellTypeMasq::unescaped() const {
+	const RTLIL::Cell *c = reinterpret_cast<const RTLIL::Cell *>(
+		reinterpret_cast<const char *>(this) - offsetof(RTLIL::Cell, type));
+	TwineRef id = c->type_impl;
+	if (id == Twine::Null)
+		return std::string();
+	if (c->module && c->module->design)
+		return c->module->design->twines.unescaped_str(id);
+	log_assert(twine_untag(id) < STATIC_TWINE_END);
+	return TwinePool{}.unescaped_str(id);
+}
+
+inline RTLIL::CellTypeMasq::operator RTLIL::IdString() const {
+	std::string s = escaped();
+	if (s.empty())
+		return RTLIL::IdString{};
+	return RTLIL::IdString(s);
+}
+
+inline TwineRef RTLIL::ModuleNameMasq::ref() const {
+	const RTLIL::Module *m = reinterpret_cast<const RTLIL::Module *>(
+		reinterpret_cast<const char *>(this) - offsetof(RTLIL::Module, name));
+	if (!m->design || !m->meta_)
+		return Twine::Null;
+	return m->meta_->name;
+}
+
+inline std::string RTLIL::ModuleNameMasq::escaped() const {
+	const RTLIL::Module *m = reinterpret_cast<const RTLIL::Module *>(
+		reinterpret_cast<const char *>(this) - offsetof(RTLIL::Module, name));
+	TwineRef id = ref();
+	if (id == Twine::Null)
+		return std::string();
+	return m->design->twines.str(id);
+}
+
+inline std::string RTLIL::ModuleNameMasq::unescaped() const {
+	const RTLIL::Module *m = reinterpret_cast<const RTLIL::Module *>(
+		reinterpret_cast<const char *>(this) - offsetof(RTLIL::Module, name));
+	TwineRef id = ref();
+	if (id == Twine::Null)
+		return std::string();
+	return m->design->twines.unescaped_str(id);
+}
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif // -Winvalid-offsetof for masq accessors
+
+inline RTLIL::ModuleNameMasq::operator TwineRef() const { return ref(); }
+
+// Carry source locations across a rewrite: combine the src of every cell in
+// `sources` into a single twine and set it on every cell in `targets`. When
+// more than one source contributes, the combination is a twine *concat node*
+// referencing the contributing nodes -- the locations are never rendered to a
+// string and re-interned, so the graph structure of the merged location is
+// preserved. Sources without a src are skipped; if none has one, targets are
+// left alone.
+void merge_cell_src(RTLIL::Module *module, const std::vector<RTLIL::Cell*> &sources,
+		const std::vector<RTLIL::Cell*> &targets);
 
 YOSYS_NAMESPACE_END
 

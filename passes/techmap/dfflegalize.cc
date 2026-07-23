@@ -263,7 +263,7 @@ struct DffLegalizePass : public Pass {
 	}
 
 	void fail_ff(const FfData &ff, const char *reason) {
-		log_error("FF %s.%s (type %s) cannot be legalized: %s\n", ff.module->name.unescape(), ff.cell->name.unescape(), ff.cell->type.unescape(), reason);
+		log_error("FF %s.%s (type %s) cannot be legalized: %s\n", ff.module->name.unescaped(), ff.cell->name.str(), ff.cell->type.unescaped(), reason);
 	}
 
 	bool try_flip(FfData &ff, int supported_mask) {
@@ -293,7 +293,7 @@ struct DffLegalizePass : public Pass {
 		ff_dff.has_ce = ff.has_ce;
 		ff_dff.sig_ce = ff.sig_ce;
 		ff_dff.pol_ce = ff.pol_ce;
-		ff_dff.sig_q = ff.module->addWire(NEW_ID, ff.width);
+		ff_dff.sig_q = ff.module->addWire(NEW_TWINE, ff.width);
 		ff_dff.val_init = ff.val_init;
 		ff_dff.is_fine = ff.is_fine;
 
@@ -310,7 +310,7 @@ struct DffLegalizePass : public Pass {
 		ff_adff.has_ce = ff.has_ce;
 		ff_adff.sig_ce = ff.sig_ce;
 		ff_adff.pol_ce = ff.pol_ce;
-		ff_adff.sig_q = ff.module->addWire(NEW_ID, ff.width);
+		ff_adff.sig_q = ff.module->addWire(NEW_TWINE, ff.width);
 		ff_adff.val_init = Const(State::Sx, ff.width);
 		ff_adff.has_arst = true;
 		ff_adff.sig_arst = ff.sig_arst;
@@ -320,7 +320,7 @@ struct DffLegalizePass : public Pass {
 
 		FfData ff_sel(ff.module, &initvals, NEW_ID);
 		ff_sel.width = 1;
-		ff_sel.sig_q = ff.module->addWire(NEW_ID);
+		ff_sel.sig_q = ff.module->addWire(NEW_TWINE);
 		ff_sel.has_arst = true;
 		ff_sel.sig_arst = ff.sig_arst;
 		ff_sel.pol_arst = ff.pol_arst;
@@ -329,9 +329,9 @@ struct DffLegalizePass : public Pass {
 		ff_sel.is_fine = ff.is_fine;
 
 		if (ff.is_fine)
-			ff.module->addMuxGate(NEW_ID, ff_dff.sig_q, ff_adff.sig_q, ff_sel.sig_q, ff.sig_q);
+			ff.module->addMuxGate(NEW_TWINE, ff_dff.sig_q, ff_adff.sig_q, ff_sel.sig_q, ff.sig_q);
 		else
-			ff.module->addMux(NEW_ID, ff_dff.sig_q, ff_adff.sig_q, ff_sel.sig_q, ff.sig_q);
+			ff.module->addMux(NEW_TWINE, ff_dff.sig_q, ff_adff.sig_q, ff_sel.sig_q, ff.sig_q);
 
 		legalize_ff(ff_dff);
 		legalize_ff(ff_adff);
@@ -387,7 +387,7 @@ struct DffLegalizePass : public Pass {
 		if (ff.has_ce && !supported_cells[FF_ADFFE])
 			ff.unmap_ce();
 
-		log_warning("Emulating async set + reset with several FFs and a mux for %s.%s\n", ff.module->name.unescape(), ff.cell->name.unescape());
+		log_warning("Emulating async set + reset with several FFs and a mux for %s.%s\n", ff.module->name.unescaped(), ff.cell->name.str());
 
 		log_assert(ff.width == 1);
 		ff.remove();
@@ -409,7 +409,7 @@ struct DffLegalizePass : public Pass {
 		ff_clr.sig_arst = ff.sig_clr;
 		ff_clr.pol_arst = ff.pol_clr;
 		ff_clr.val_arst = Const(State::S0, ff.width);
-		ff_clr.sig_q = ff.module->addWire(NEW_ID, ff.width);
+		ff_clr.sig_q = ff.module->addWire(NEW_TWINE, ff.width);
 		ff_clr.val_init = init_clr ? ff.val_init : Const(State::Sx, ff.width);
 		ff_clr.is_fine = ff.is_fine;
 
@@ -430,7 +430,7 @@ struct DffLegalizePass : public Pass {
 		ff_set.sig_arst = ff.sig_set;
 		ff_set.pol_arst = ff.pol_set;
 		ff_set.val_arst = Const(State::S1, ff.width);
-		ff_set.sig_q = ff.module->addWire(NEW_ID, ff.width);
+		ff_set.sig_q = ff.module->addWire(NEW_TWINE, ff.width);
 		ff_set.val_init = init_set ? ff.val_init : Const(State::Sx, ff.width);
 		ff_set.is_fine = ff.is_fine;
 
@@ -441,14 +441,14 @@ struct DffLegalizePass : public Pass {
 		ff_sel.pol_set = ff.pol_set;
 		ff_sel.sig_clr = ff.sig_clr;
 		ff_sel.sig_set = ff.sig_set;
-		ff_sel.sig_q = ff.module->addWire(NEW_ID, ff.width);
+		ff_sel.sig_q = ff.module->addWire(NEW_TWINE, ff.width);
 		ff_sel.val_init = Const(initsel, ff.width);
 		ff_sel.is_fine = ff.is_fine;
 
 		if (!ff.is_fine)
-			ff.module->addMux(NEW_ID, ff_clr.sig_q, ff_set.sig_q, ff_sel.sig_q, ff.sig_q);
+			ff.module->addMux(NEW_TWINE, ff_clr.sig_q, ff_set.sig_q, ff_sel.sig_q, ff.sig_q);
 		else
-			ff.module->addMuxGate(NEW_ID, ff_clr.sig_q, ff_set.sig_q, ff_sel.sig_q, ff.sig_q);
+			ff.module->addMuxGate(NEW_TWINE, ff_clr.sig_q, ff_set.sig_q, ff_sel.sig_q, ff.sig_q);
 
 		legalize_ff(ff_clr);
 		legalize_ff(ff_set);
@@ -464,15 +464,15 @@ struct DffLegalizePass : public Pass {
 		auto active_high = [&](SigBit sig, bool pol) -> SigBit {
 			if (pol)
 				return sig;
-			return ff.is_fine ? ff.module->NotGate(NEW_ID, sig) : ff.module->Not(NEW_ID, sig)[0];
+			return ff.is_fine ? ff.module->NotGate(NEW_TWINE, sig) : ff.module->Not(NEW_TWINE, sig)[0];
 		};
 
 		auto do_mux = [&](SigBit a, SigBit b, SigBit s) -> SigBit {
-			return ff.is_fine ? ff.module->MuxGate(NEW_ID, a, b, s) : ff.module->Mux(NEW_ID, a, b, s)[0];
+			return ff.is_fine ? ff.module->MuxGate(NEW_TWINE, a, b, s) : ff.module->Mux(NEW_TWINE, a, b, s)[0];
 		};
 
 		auto do_or = [&](SigBit a, SigBit b) -> SigBit {
-			return ff.is_fine ? ff.module->OrGate(NEW_ID, a, b) : ff.module->Or(NEW_ID, a, b)[0];
+			return ff.is_fine ? ff.module->OrGate(NEW_TWINE, a, b) : ff.module->Or(NEW_TWINE, a, b)[0];
 		};
 
 		SigBit en = active_high(ff.sig_aload, ff.pol_aload);
@@ -651,7 +651,7 @@ struct DffLegalizePass : public Pass {
 				ff.unmap_ce();
 
 			if (ff.cell)
-				log_warning("Emulating mismatched async reset and init with several FFs and a mux for %s.%s\n", ff.module->name.unescape(), ff.cell->name.unescape());
+				log_warning("Emulating mismatched async reset and init with several FFs and a mux for %s.%s\n", ff.module->name.unescaped(), ff.cell->name.str());
 			emulate_split_init_arst(ff);
 			return;
 		}
@@ -809,7 +809,7 @@ struct DffLegalizePass : public Pass {
 			// The only hope left is breaking down to adlatch + dlatch + dlatch + mux.
 
 			if (ff.cell)
-				log_warning("Emulating mismatched async reset and init with several latches and a mux for %s.%s\n", ff.module->name.unescape(), ff.cell->name.unescape());
+				log_warning("Emulating mismatched async reset and init with several latches and a mux for %s.%s\n", ff.module->name.unescaped(), ff.cell->name.str());
 			ff.remove();
 
 			emulate_split_init_arst(ff);
@@ -898,11 +898,11 @@ struct DffLegalizePass : public Pass {
 			ff.sig_ad = State::S0;
 			ff.val_arst = State::S1;
 			ff.remove_init();
-			Wire *new_q = ff.module->addWire(NEW_ID);
+			Wire *new_q = ff.module->addWire(NEW_TWINE);
 			if (ff.is_fine)
-				ff.module->addNotGate(NEW_ID, new_q, ff.sig_q);
+				ff.module->addNotGate(NEW_TWINE, new_q, ff.sig_q);
 			else
-				ff.module->addNot(NEW_ID, new_q, ff.sig_q);
+				ff.module->addNot(NEW_TWINE, new_q, ff.sig_q);
 			ff.sig_q = new_q;
 			if (ff.val_init == State::S0)
 				ff.val_init = State::S1;
@@ -995,9 +995,9 @@ struct DffLegalizePass : public Pass {
 		} else if (sig == State::S1) {
 			sig = State::S0;
 		} else if (ff.is_fine) {
-			sig = ff.module->NotGate(NEW_ID, sig);
+			sig = ff.module->NotGate(NEW_TWINE, sig);
 		} else {
-			sig = ff.module->Not(NEW_ID, sig);
+			sig = ff.module->Not(NEW_TWINE, sig);
 		}
 		pol = !pol;
 	}

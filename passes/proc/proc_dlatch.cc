@@ -46,16 +46,16 @@ struct proc_dlatch_db_t
 
 		for (auto cell : module->cells())
 		{
-			if (cell->type.in(ID($mux), ID($pmux), ID($bwmux)))
+			if (cell->type.in(TW($mux), TW($pmux), TW($bwmux)))
 			{
-				auto sig_y = sigmap(cell->getPort(ID::Y));
+				auto sig_y = sigmap(cell->getPort(TW::Y));
 				for (int i = 0; i < GetSize(sig_y); i++)
 					mux_drivers[sig_y[i]] = pair<Cell*, int>(cell, i);
 
 				pool<SigBit> mux_srcbits_pool;
-				for (auto bit : sigmap(cell->getPort(ID::A)))
+				for (auto bit : sigmap(cell->getPort(TW::A)))
 					mux_srcbits_pool.insert(bit);
-				for (auto bit : sigmap(cell->getPort(ID::B)))
+				for (auto bit : sigmap(cell->getPort(TW::B)))
 					mux_srcbits_pool.insert(bit);
 
 				vector<SigBit> mux_srcbits_vec;
@@ -185,11 +185,11 @@ struct proc_dlatch_db_t
 		Cell *cell = it->second.first;
 		int index = it->second.second;
 
-		log_assert(cell->type.in(ID($mux), ID($pmux), ID($bwmux)));
-		bool is_bwmux = (cell->type == ID($bwmux));
-		SigSpec sig_a = sigmap(cell->getPort(ID::A));
-		SigSpec sig_b = sigmap(cell->getPort(ID::B));
-		SigSpec sig_s = sigmap(cell->getPort(ID::S));
+		log_assert(cell->type.in(TW($mux), TW($pmux), TW($bwmux)));
+		bool is_bwmux = (cell->type == TW($bwmux));
+		SigSpec sig_a = sigmap(cell->getPort(TW::A));
+		SigSpec sig_b = sigmap(cell->getPort(TW::B));
+		SigSpec sig_s = sigmap(cell->getPort(TW::S));
 		int width = GetSize(sig_a);
 
 		pool<int> children;
@@ -197,9 +197,9 @@ struct proc_dlatch_db_t
 		int n = find_mux_feedback(sig_a[index], needle, set_undef);
 		if (n != false_node) {
 			if (set_undef && sig_a[index] == needle) {
-				SigSpec sig = cell->getPort(ID::A);
+				SigSpec sig = cell->getPort(TW::A);
 				sig[index] = State::Sx;
-				cell->setPort(ID::A, sig);
+				cell->setPort(TW::A, sig);
 			}
 			bool sibling_undef = true;
 			for (int i = 0; i < (is_bwmux ? 1 : GetSize(sig_s)); i++)
@@ -220,9 +220,9 @@ struct proc_dlatch_db_t
 			n = find_mux_feedback(sig_b[i*width + index], needle, set_undef);
 			if (n != false_node) {
 				if (set_undef && sig_b[i*width + index] == needle) {
-					SigSpec sig = cell->getPort(ID::B);
+					SigSpec sig = cell->getPort(TW::B);
 					sig[i*width + index] = State::Sx;
-					cell->setPort(ID::B, sig);
+					cell->setPort(TW::B, sig);
 				}
 				bool sibling_undef = (sig_a[index] == State::Sx);
 				if (!is_bwmux)
@@ -258,9 +258,9 @@ struct proc_dlatch_db_t
 
 		log_assert(cell->type.in(ID($mux), ID($pmux), ID($bwmux)));
 		bool is_bwmux = (cell->type == ID($bwmux));
-		SigSpec sig_a = sigmap(cell->getPort(ID::A));
-		SigSpec sig_b = sigmap(cell->getPort(ID::B));
-		SigSpec sig_s = sigmap(cell->getPort(ID::S));
+		SigSpec sig_a = sigmap(cell->getPort(TW::A));
+		SigSpec sig_b = sigmap(cell->getPort(TW::B));
+		SigSpec sig_s = sigmap(cell->getPort(TW::S));
 		int width = GetSize(sig_a);
 
 		pool<int> children;
@@ -268,9 +268,9 @@ struct proc_dlatch_db_t
 		int n = find_mux_constant(sig_a[index], needle, set_undef);
 		if (n != false_node) {
 			if (set_undef && sig_a[index] == SigBit(needle)) {
-				SigSpec sig = cell->getPort(ID::A);
+				SigSpec sig = cell->getPort(TW::A);
 				sig[index] = State::Sx;
-				cell->setPort(ID::A, sig);
+				cell->setPort(TW::A, sig);
 			}
 			if (!is_bwmux) {
 				for (int i = 0; i < GetSize(sig_s); i++)
@@ -284,10 +284,10 @@ struct proc_dlatch_db_t
 		for (int i = 0; i < (is_bwmux ? 1 : GetSize(sig_s)); i++) {
 			n = find_mux_constant(sig_b[i*width + index], needle, set_undef);
 			if (n != false_node) {
-				if (set_undef && sig_b[i*width + index] == SigBit(needle)) {
-					SigSpec sig = cell->getPort(ID::B);
+				if (set_undef && sig_b[i*width + index] == needle) {
+					SigSpec sig = cell->getPort(TW::B);
 					sig[i*width + index] = State::Sx;
-					cell->setPort(ID::B, sig);
+					cell->setPort(TW::B, sig);
 				}
 				children.insert(make_inner(sig_s[is_bwmux ? index : i], State::S1, n));
 			}
@@ -317,20 +317,20 @@ struct proc_dlatch_db_t
 			if (rule.match == State::S1)
 				and_bits.append(rule.signal);
 			else if (rule.match == State::S0)
-				and_bits.append(module->Not(NEW_ID, rule.signal, false, src));
+				and_bits.append(module->Not(NEW_TWINE, rule.signal, false));
 			else
-				and_bits.append(module->Eq(NEW_ID, rule.signal, rule.match, false, src));
+				and_bits.append(module->Eq(NEW_TWINE, rule.signal, rule.match, false));
 		}
 
 		if (!rule.children.empty()) {
 			SigSpec or_bits;
 			for (int k : rule.children)
 				or_bits.append(make_hold(k, src));
-			and_bits.append(module->ReduceOr(NEW_ID, or_bits, false, src));
+			and_bits.append(module->ReduceOr(NEW_TWINE, or_bits, false));
 		}
 
 		if (GetSize(and_bits) == 2)
-			and_bits = module->And(NEW_ID, and_bits[0], and_bits[1], false, src);
+			and_bits = module->And(NEW_TWINE, and_bits[0], and_bits[1], false);
 		log_assert(GetSize(and_bits) == 1);
 
 		rules_sig[n] = and_bits[0];
@@ -339,9 +339,9 @@ struct proc_dlatch_db_t
 
 	void fixup_mux(Cell *cell)
 	{
-		SigSpec sig_a = cell->getPort(ID::A);
-		SigSpec sig_b = cell->getPort(ID::B);
-		SigSpec sig_s = cell->getPort(ID::S);
+		SigSpec sig_a = cell->getPort(TW::A);
+		SigSpec sig_b = cell->getPort(TW::B);
+		SigSpec sig_s = cell->getPort(TW::S);
 		SigSpec sig_any_valid_b;
 
 		SigSpec sig_new_b, sig_new_s;
@@ -360,18 +360,18 @@ struct proc_dlatch_db_t
 		}
 
 		if (sig_a.is_fully_undef() && !sig_any_valid_b.empty())
-			cell->setPort(ID::A, sig_any_valid_b);
+			cell->setPort(TW::A, sig_any_valid_b);
 
 		if (GetSize(sig_new_s) == 1) {
-			cell->type = ID($mux);
+			cell->type_impl = TW::$mux;
 			cell->unsetParam(ID::S_WIDTH);
 		} else {
-			cell->type = ID($pmux);
+			cell->type_impl = TW::$pmux;
 			cell->setParam(ID::S_WIDTH, GetSize(sig_new_s));
 		}
 
-		cell->setPort(ID::B, sig_new_b);
-		cell->setPort(ID::S, sig_new_s);
+		cell->setPort(TW::B, sig_new_b);
+		cell->setPort(TW::S, sig_new_s);
 	}
 
 	void fixup_muxes()
@@ -399,7 +399,7 @@ struct proc_dlatch_db_t
 			pool<Cell*> next_queue;
 
 			for (auto cell : queue) {
-				if (cell->type.in(ID($mux), ID($pmux)))
+				if (cell->type.in(TW($mux), TW($pmux)))
 					fixup_mux(cell);
 				for (auto bit : upstream_cell2net[cell])
 					for (auto cell : upstream_net2cell[bit])
@@ -409,7 +409,7 @@ struct proc_dlatch_db_t
 
 			queue.clear();
 			for (auto cell : next_queue) {
-				if (!visited.count(cell) && ct.cell_known(cell->type))
+				if (!visited.count(cell) && ct.cell_known(cell->type_impl))
 					queue.insert(cell);
 			}
 		}
@@ -437,21 +437,21 @@ void proc_dlatch(proc_dlatch_db_t &db, RTLIL::Process *proc, LatchPolicy policy)
 
 		if (proc->get_bool_attribute(ID::always_ff))
 			log_error("Found non edge/level sensitive event in always_ff process `%s.%s'.\n",
-					db.module->name.c_str(), proc->name.c_str());
+					db.module->design->twines.str(db.module->meta_->name).c_str(), db.module->design->twines.str(proc->meta_->name).c_str());
 
 		for (auto ss : sr->actions)
 		{
-			db.sigmap.apply(ss.first);
-			db.sigmap.apply(ss.second);
+			db.sigmap.apply(ss.lhs);
+			db.sigmap.apply(ss.rhs);
 
-			if (!db.quickcheck(ss.second, ss.first)) {
-				nolatches_bits.first.append(ss.first);
-				nolatches_bits.second.append(ss.second);
+			if (!db.quickcheck(ss.rhs, ss.lhs)) {
+				nolatches_bits.first.append(ss.lhs);
+				nolatches_bits.second.append(ss.rhs);
 				continue;
 			}
 
-			for (int i = 0; i < GetSize(ss.first); i++)
-				latches_out_in[ss.first[i]] = ss.second[i];
+			for (int i = 0; i < GetSize(ss.lhs); i++)
+				latches_out_in[ss.lhs[i]] = ss.rhs[i];
 		}
 		sr->actions.clear();
 	}
@@ -497,14 +497,14 @@ void proc_dlatch(proc_dlatch_db_t &db, RTLIL::Process *proc, LatchPolicy policy)
 
 		if (proc->get_bool_attribute(ID::always_latch) && !is_nosync)
 			log_error("No latch inferred for signal `%s.%s' from always_latch process `%s.%s'.\n",
-					db.module->name.c_str(), log_signal(lhs), db.module->name.c_str(), proc->name.c_str());
+					db.module->design->twines.str(db.module->meta_->name).c_str(), log_signal(lhs), db.module->design->twines.str(db.module->meta_->name).c_str(), db.module->design->twines.str(proc->meta_->name).c_str());
 		else if (!is_nosync)
 			log("No latch inferred for signal `%s.%s' from process `%s.%s'.\n",
-					db.module->name.c_str(), log_signal(lhs), db.module->name.c_str(), proc->name.c_str());
+					db.module->design->twines.str(db.module->meta_->name).c_str(), log_signal(lhs), db.module->design->twines.str(db.module->meta_->name).c_str(), db.module->design->twines.str(proc->meta_->name).c_str());
 		for (auto &bit : lhs) {
 			State val = db.initvals(bit);
 			if (db.initvals(bit) != State::Sx) {
-				log("Removing init bit %s for non-memory siginal `%s.%s` in process `%s.%s`.\n", log_signal(val), db.module->name, log_signal(bit), db.module->name, proc->name);
+				log("Removing init bit %s for non-memory siginal `%s.%s` in process `%s.%s`.\n", log_signal(val), db.module->design->twines.str(db.module->meta_->name), log_signal(bit), db.module->design->twines.str(db.module->meta_->name), db.module->design->twines.str(proc->meta_->name));
 			}
 			db.initvals.remove_init(bit);
 		}
@@ -534,32 +534,32 @@ void proc_dlatch(proc_dlatch_db_t &db, RTLIL::Process *proc, LatchPolicy policy)
 			SigSpec lhs = latches_bits.first.extract(offset, width);
 			SigSpec rhs = latches_bits.second.extract(offset, width);
 
-			SigBit en = db.module->Not(NEW_ID, db.make_hold(n, src));
+			SigBit en = db.module->Not(NEW_TWINE, db.make_hold(n, src));
 			bool has_rst = (nrst != db.false_node);
 			bool has_set = (nset != db.false_node);
 
 			Cell *cell;
 			if (has_rst)
-				cell = db.module->addAdlatch(NEW_ID, en, db.make_hold(nrst, src), rhs, lhs, RTLIL::Const(State::S0, width));
+				cell = db.module->addAdlatch(NEW_TWINE, en, db.make_hold(nrst, src), rhs, lhs, RTLIL::Const(State::S0, width));
 			else if (has_set)
-				cell = db.module->addAdlatch(NEW_ID, en, db.make_hold(nset, src), rhs, lhs, RTLIL::Const(State::S1, width));
+				cell = db.module->addAdlatch(NEW_TWINE, en, db.make_hold(nset, src), rhs, lhs, RTLIL::Const(State::S1, width));
 			else
-				cell = db.module->addDlatch(NEW_ID, en, rhs, lhs);
-			cell->set_src_attribute(src);
+				cell = db.module->addDlatch(NEW_TWINE, en, rhs, lhs);
+			cell->set_src_attribute(db.module->design->twines.add(Twine{src}));
 			db.generated_dlatches.insert(cell);
 
 			if (proc->get_bool_attribute(ID::always_comb))
 				log_error("Latch inferred for signal `%s.%s' from always_comb process `%s.%s'.\n",
-						db.module->name.c_str(), log_signal(lhs), db.module->name.c_str(), proc->name.c_str());
+						db.module->design->twines.str(db.module->meta_->name).c_str(), log_signal(lhs), db.module->design->twines.str(db.module->meta_->name).c_str(), db.module->design->twines.str(proc->meta_->name).c_str());
 			else if (policy == POLICY_ERROR)
 				log_error("Latch inferred for signal `%s.%s' from process `%s.%s': %s\n",
-						db.module->name.c_str(), log_signal(lhs), db.module->name.c_str(), proc->name.c_str(), cell);
+						db.module->design->twines.str(db.module->meta_->name).c_str(), log_signal(lhs), db.module->design->twines.str(db.module->meta_->name).c_str(), db.module->design->twines.str(proc->meta_->name).c_str(), cell);
 			else if (policy == POLICY_WARN)
 				log_warning("Latch inferred for signal `%s.%s' from process `%s.%s': %s\n",
-						db.module->name.c_str(), log_signal(lhs), db.module->name.c_str(), proc->name.c_str(), cell);
+						db.module->design->twines.str(db.module->meta_->name).c_str(), log_signal(lhs), db.module->design->twines.str(db.module->meta_->name).c_str(), db.module->design->twines.str(proc->meta_->name).c_str(), cell);
 			else
 				log("Latch inferred for signal `%s.%s' from process `%s.%s': %s\n",
-						db.module->name.c_str(), log_signal(lhs), db.module->name.c_str(), proc->name.c_str(), cell);
+						db.module->design->twines.str(db.module->meta_->name).c_str(), log_signal(lhs), db.module->design->twines.str(db.module->meta_->name).c_str(), db.module->design->twines.str(proc->meta_->name).c_str(), cell);
 		}
 
 		offset += width;

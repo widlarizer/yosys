@@ -31,8 +31,8 @@ static RTLIL::SigBit canonical_bit(RTLIL::SigBit bit)
 {
 	RTLIL::Wire *w;
 	while ((w = bit.wire) != NULL && !w->port_input &&
-			w->driverCell()->type.in(ID($buf), ID($_BUF_))) {
-		bit = w->driverCell()->getPort(ID::A)[bit.offset];
+			w->driverCell()->type.in(TW($buf), TW($_BUF_))) {
+		bit = w->driverCell()->getPort(TW::A)[bit.offset];
 	}
 	return bit;
 }
@@ -125,10 +125,10 @@ struct PortarcsPass : Pass {
 
 				for (auto cell : m->cells())
 				// Ignore all bufnorm helper cells
-				if (!cell->type.in(ID($buf), ID($input_port), ID($connect), ID($tribuf))) {
-					auto tdata = tinfo.find(cell->type);
+				if (!cell->type.in(TW($buf), TW($input_port), TW($connect), TW($tribuf))) {
+					auto tdata = tinfo.find(cell->type.ref());
 					if (tdata == tinfo.end())
-						log_cmd_error("Missing timing data for module '%s'.\n", cell->type.unescape());
+						log_cmd_error("Missing timing data for module '%s'.\n", cell->type.unescaped());
 					for (auto [edge, delay] : tdata->second.comb) {
 						auto from = edge.first.get_connection(cell);
 						auto to = edge.second.get_connection(cell);
@@ -174,7 +174,7 @@ struct PortarcsPass : Pass {
 
 				if (!bit.wire->port_input) {
 					auto cell = bit.wire->driverCell();
-					auto tdata = tinfo.find(cell->type);
+					auto tdata = tinfo.find(cell->type.ref());
 					log_assert(tdata != tinfo.end());
 					for (auto [edge, delay] : tdata->second.comb) {
 						auto from = edge.first.get_connection(cell);
@@ -224,7 +224,7 @@ struct PortarcsPass : Pass {
 						p[j] = -1;
 
 					auto cell = ordering[i].wire->driverCell();
-					auto tdata = tinfo.find(cell->type);
+					auto tdata = tinfo.find(cell->type.ref());
 					log_assert(tdata != tinfo.end());
 					for (auto [edge, delay] : tdata->second.comb) {
 						auto from = edge.first.get_connection(cell);
@@ -292,7 +292,7 @@ struct PortarcsPass : Pass {
 					int *p = annotations.at(canonical_bit(bit));
 					for (auto i = 0; i < inputs.size(); i++) {
 						if (p[i] >= 0) {
-							Cell *spec = m->addCell(NEW_ID, ID($specify2));
+							Cell *spec = m->addCell(NEW_TWINE, TW($specify2));
 							spec->setParam(ID::SRC_WIDTH, 1);
 							spec->setParam(ID::DST_WIDTH, 1);
 							spec->setParam(ID::T_FALL_MAX, p[i]);
@@ -304,9 +304,9 @@ struct PortarcsPass : Pass {
 							spec->setParam(ID::SRC_DST_POL, false);
 							spec->setParam(ID::SRC_DST_PEN, false);
 							spec->setParam(ID::FULL, false);
-							spec->setPort(ID::EN, Const(1, 1));
-							spec->setPort(ID::SRC, inputs[i]);
-							spec->setPort(ID::DST, bit);
+							spec->setPort(TW::EN, Const(1, 1));
+							spec->setPort(TW::SRC, inputs[i]);
+							spec->setPort(TW::DST, bit);
 						}
 					}
 				}

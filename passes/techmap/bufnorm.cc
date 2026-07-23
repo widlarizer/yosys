@@ -254,21 +254,21 @@ struct BufnormPass : public Pass {
 			SigMap sigmap(module);
 			module->new_connections({});
 
-			dict<pair<IdString, SigSpec>, Cell*> old_buffers;
+			dict<pair<TwineRef, SigSpec>, Cell*> old_buffers;
 
 			{
 				vector<Cell*> old_dup_buffers;
 				for (auto cell : module->cells())
 				{
-					if (!cell->type.in(ID($buf), ID($_BUF_)))
+					if (!cell->type.in(TW($buf), TW($_BUF_)))
 						continue;
 
-					SigSpec insig = cell->getPort(ID::A);
-					SigSpec outsig = cell->getPort(ID::Y);
+					SigSpec insig = cell->getPort(TW::A);
+					SigSpec outsig = cell->getPort(TW::Y);
 					for (int i = 0; i < GetSize(insig) && i < GetSize(outsig); i++)
 						sigmap.add(insig[i], outsig[i]);
 
-					pair<IdString,Wire*> key(cell->type, outsig.as_wire());
+					pair<TwineRef,Wire*> key(cell->type_impl, outsig.as_wire());
 					if (old_buffers.count(key))
 						old_dup_buffers.push_back(cell);
 					else
@@ -363,7 +363,7 @@ struct BufnormPass : public Pass {
 
 			for (auto cell : module->cells())
 			{
-				if (cell->type.in(ID($buf), ID($_BUF_)))
+				if (cell->type.in(TW($buf), TW($_BUF_)))
 					continue;
 
 				for (auto &conn : cell->connections())
@@ -384,7 +384,7 @@ struct BufnormPass : public Pass {
 							it->second.sort(compare_wires_f);
 							w = *(it->second.begin());
 						} else {
-							w = module->addWire(NEW_ID, GetSize(conn.second));
+							w = module->addWire(NEW_TWINE, GetSize(conn.second));
 							for (int i = 0; i < GetSize(w); i++)
 								sigmap.add(SigBit(w, i), keysig[i]);
 						}
@@ -392,7 +392,7 @@ struct BufnormPass : public Pass {
 
 					if (w->name.isPublic())
 						log("  directly driven by cell %s port %s: %s\n",
-								cell, conn.first.unescape(), w);
+								cell, design->twines.unescaped_str(conn.first), w);
 
 					for (auto bit : SigSpec(w))
 						mapped_bits[sigmap(bit)] = bit;
@@ -415,9 +415,9 @@ struct BufnormPass : public Pass {
 				return mapped_bits.at(bit);
 			};
 
-			auto make_buffer_f = [&](IdString type, const SigSpec &src, const SigSpec &dst)
+			auto make_buffer_f = [&](TwineRef type, const SigSpec &src, const SigSpec &dst)
 			{
-				auto it = old_buffers.find(pair<IdString, SigSpec>(type, dst));
+				auto it = old_buffers.find(pair<TwineRef, SigSpec>(type, dst));
 
 				if (it != old_buffers.end())
 				{
@@ -425,20 +425,20 @@ struct BufnormPass : public Pass {
 					old_buffers.erase(it);
 					added_buffers.insert(cell);
 
-					if (cell->getPort(ID::A) == src) {
+					if (cell->getPort(TW::A) == src) {
 						count_kept_buffers++;
 					} else {
-						cell->setPort(ID::A, src);
+						cell->setPort(TW::A, src);
 						count_updated_buffers++;
 					}
 					return;
 				}
 
-				Cell *cell = module->addCell(NEW_ID, type);
+				Cell *cell = module->addCell(NEW_TWINE, type);
 				added_buffers.insert(cell);
 
-				cell->setPort(ID::A, src);
-				cell->setPort(ID::Y, dst);
+				cell->setPort(TW::A, src);
+				cell->setPort(TW::Y, dst);
 				cell->fixup_parameters();
 				count_created_buffers++;
 			};
@@ -471,12 +471,12 @@ struct BufnormPass : public Pass {
 					}
 				} else {
 					if (bits_mode) {
-						IdString celltype = pos_mode ? ID($pos) : buf_mode ? ID($buf) : ID($_BUF_);
+						TwineRef celltype = pos_mode ? TW($pos) : buf_mode ? TW($buf) : TW($_BUF_);
 						for (int i = 0; i < GetSize(insig) && i < GetSize(outsig); i++)
 							make_buffer_f(celltype, insig[i], outsig[i]);
 					} else {
-						IdString celltype = pos_mode ? ID($pos) : buf_mode ? ID($buf) :
-								GetSize(outsig) == 1 ? ID($_BUF_) : ID($buf);
+						TwineRef celltype = pos_mode ? TW($pos) : buf_mode ? TW($buf) :
+								GetSize(outsig) == 1 ? TW($_BUF_) : TW($buf);
 						make_buffer_f(celltype, insig, outsig);
 					}
 				}
@@ -502,7 +502,7 @@ struct BufnormPass : public Pass {
 
 					if (conn.second != newsig) {
 						log("  fixing input signal on cell %s port %s: %s\n",
-								cell, conn.first.unescape(), log_signal(newsig));
+								cell, design->twines.unescaped_str(conn.first), log_signal(newsig));
 						cell->setPort(conn.first, newsig);
 						count_updated_cellports++;
 					}

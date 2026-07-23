@@ -287,25 +287,47 @@ void json_parse_attr_param(dict<IdString, Const> &results, JsonNode *node)
 	}
 }
 
+// AttrObject-aware overload: extracts ID::src and routes it to the typed
+// meta-vector slot via Design::set_src_attribute. Other keys still land
+// in the attributes dict via the generic path.
+void json_parse_attributes(RTLIL::Design *design, RTLIL::AttrObject *obj, JsonNode *node)
+{
+	if (node->type != 'D')
+		log_error("JSON attributes or parameters node is not a dictionary.\n");
+
+	for (auto it : node->data_dict)
+	{
+		IdString key = RTLIL::escape_id(it.first.c_str());
+		Const value = json_parse_attr_param_value(it.second);
+		if (key == ID::src && (value.flags & RTLIL::CONST_FLAG_STRING))
+			design->set_src_attribute(obj, design->twines.add(Twine{value.decode_string()}));
+		else
+			obj->attributes[key] = value;
+	}
+}
+
 void json_import(Design *design, string &modname, JsonNode *node)
 {
 	log("Importing module %s from JSON tree.\n", modname);
 
 	Module *module = new RTLIL::Module;
-	module->name = RTLIL::escape_id(modname.c_str());
+	module->design = design;
+	module->meta_->name = design->twines.add(RTLIL::escape_id(modname));
 
-	if (design->module(module->name))
-		log_error("Re-definition of module %s.\n", module->name.unescape());
+	if (design->module(module->meta_->name))
+		log_error("Re-definition of module %s.\n", design->twines.str(module->meta_->name));
 
 	design->add(module);
 
 	if (node->data_dict.count("attributes"))
-		json_parse_attr_param(module->attributes, node->data_dict.at("attributes"));
+		json_parse_attributes(design, module, node->data_dict.at("attributes"));
 
 	if (node->data_dict.count("parameter_default_values"))
 		json_parse_attr_param(module->parameter_default_values, node->data_dict.at("parameter_default_values"));
 
 	dict<int, SigBit> signal_bits;
+
+	dict<IdString, Wire*> wire_cache;
 
 	if (node->data_dict.count("ports"))
 	{
@@ -337,10 +359,12 @@ void json_import(Design *design, string &modname, JsonNode *node)
 			if (port_bits_node->type != 'A')
 				log_error("JSON port node '%s' has non-array bits attribute.\n", port_name.unescape());
 
-			Wire *port_wire = module->wire(port_name);
+			Wire *port_wire = wire_cache.count(port_name) ? wire_cache.at(port_name) : nullptr;
 
-			if (port_wire == nullptr)
-				port_wire = module->addWire(port_name, GetSize(port_bits_node->data_array));
+			if (port_wire == nullptr) {
+				port_wire = module->addWire(design->twines.add(port_name.str()), GetSize(port_bits_node->data_array));
+				wire_cache[port_name] = port_wire;
+			}
 
 			if (port_node->data_dict.count("upto") != 0) {
 				JsonNode *val = port_node->data_dict.at("upto");
@@ -435,10 +459,12 @@ void json_import(Design *design, string &modname, JsonNode *node)
 			if (bits_node->type != 'A')
 				log_error("JSON netname node '%s' has non-array bits attribute.\n", net_name.unescape());
 
-			Wire *wire = module->wire(net_name);
+			Wire *wire = wire_cache.count(net_name) ? wire_cache.at(net_name) : nullptr;
 
-			if (wire == nullptr)
-				wire = module->addWire(net_name, GetSize(bits_node->data_array));
+			if (wire == nullptr) {
+				wire = module->addWire(design->twines.add(net_name.str()), GetSize(bits_node->data_array));
+				wire_cache[net_name] = wire;
+			}
 
 			if (net_node->data_dict.count("upto") != 0) {
 				JsonNode *val = net_node->data_dict.at("upto");
@@ -483,7 +509,7 @@ void json_import(Design *design, string &modname, JsonNode *node)
 			}
 
 			if (net_node->data_dict.count("attributes"))
-				json_parse_attr_param(wire->attributes, net_node->data_dict.at("attributes"));
+				json_parse_attributes(design, wire, net_node->data_dict.at("attributes"));
 		}
 	}
 
@@ -512,7 +538,7 @@ void json_import(Design *design, string &modname, JsonNode *node)
 
 			IdString cell_type = RTLIL::escape_id(type_node->data_string.c_str());
 
-			Cell *cell = module->addCell(cell_name, cell_type);
+			Cell *cell = module->addCell(design->twines.add(cell_name.str()), design->twines.add(cell_type.str()));
 
 			if (cell_node->data_dict.count("connections") == 0)
 				log_error("JSON cells node '%s' has no connections attribute.\n", cell_name.unescape());
@@ -552,7 +578,7 @@ void json_import(Design *design, string &modname, JsonNode *node)
 					if (bitval_node->type == 'N') {
 						int bitidx = bitval_node->data_number;
 						if (signal_bits.count(bitidx) == 0)
-							signal_bits[bitidx] = module->addWire(NEW_ID);
+							signal_bits[bitidx] = module->addWire(NEW_TWINE);
 						sig.append(signal_bits.at(bitidx));
 					} else
 						log_error("JSON cells node '%s' connection '%s' has invalid bit value on bit %d.\n",
@@ -560,11 +586,11 @@ void json_import(Design *design, string &modname, JsonNode *node)
 
 				}
 
-				cell->setPort(conn_name, sig);
+				cell->setPort(design->twines.add(conn_name.str()), sig);
 			}
 
 			if (cell_node->data_dict.count("attributes"))
-				json_parse_attr_param(cell->attributes, cell_node->data_dict.at("attributes"));
+				json_parse_attributes(design, cell, cell_node->data_dict.at("attributes"));
 
 			if (cell_node->data_dict.count("parameters"))
 				json_parse_attr_param(cell->parameters, cell_node->data_dict.at("parameters"));
@@ -584,7 +610,8 @@ void json_import(Design *design, string &modname, JsonNode *node)
 			JsonNode *memory_node = memory_node_it.second;
 
 			RTLIL::Memory *mem = new RTLIL::Memory;
-			mem->name = memory_name;
+			mem->meta_->name = design->twines.add(memory_name.str());
+			mem->module = module;
 
 			if (memory_node->type != 'D')
 				log_error("JSON memory node '%s' is not a dictionary.\n", memory_name.unescape());
@@ -611,9 +638,9 @@ void json_import(Design *design, string &modname, JsonNode *node)
 			}
 
 			if (memory_node->data_dict.count("attributes"))
-				json_parse_attr_param(mem->attributes, memory_node->data_dict.at("attributes"));
+				json_parse_attributes(design, mem, memory_node->data_dict.at("attributes"));
 
-			module->memories[mem->name] = mem;
+			module->memories[mem->meta_->name] = mem;
 		}
 	}
 

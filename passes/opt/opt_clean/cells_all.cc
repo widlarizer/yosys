@@ -120,7 +120,7 @@ struct ConflictLogs {
 			// We could do this in parallel but hopefully this is rare.
 			for (auto [_, cell] : mod->cells_) {
 				for (auto &[port, sig] : cell->connections()) {
-					if (clean_ctx.ct_all.cell_known(cell->type) && !clean_ctx.ct_all.cell_input(cell->type, port))
+					if (clean_ctx.ct_all.cell_known(cell->type_impl) && !clean_ctx.ct_all.cell_input(cell->type_impl, port))
 						continue;
 					for (auto raw_bit : wire_map(sig))
 						used_raw_bits.insert(raw_bit);
@@ -189,20 +189,21 @@ ConflictLogs explore(CellAnalysis& analysis, CellTraversal& traversal, const Sig
 	actx.subpool.run([&analysis, &traversal, &logs, &wire_map, &mem2cells_vector, &wire2driver_builder, &actx, &clean_ctx](const ParallelDispatchThreadPool::RunCtx &ctx) {
 		for (int i : ctx.item_range(actx.mod->cells_size())) {
 			Cell *cell = actx.mod->cell_at(i);
-			if (cell->type.in(ID($memwr), ID($memwr_v2), ID($meminit), ID($meminit_v2)))
+			if (cell->type.in(TW($memwr), TW($memwr_v2), TW($meminit), TW($meminit_v2)))
 				mem2cells_vector.insert(ctx, {cell->getParam(ID::MEMID).decode_string(), i});
 
 			for (auto &it2 : cell->connections()) {
-				if (clean_ctx.ct_all.cell_known(cell->type) && !clean_ctx.ct_all.cell_output(cell->type, it2.first))
+				if (clean_ctx.ct_all.cell_known(cell->type_impl) && !clean_ctx.ct_all.cell_output(cell->type_impl, it2.first))
 					continue;
 				for (auto raw_bit : it2.second) {
 					if (raw_bit.wire == nullptr)
 						continue;
 					auto bit = actx.assign_map(raw_bit);
-					if (bit.wire == nullptr && clean_ctx.ct_all.cell_known(cell->type)) {
+					if (bit.wire == nullptr && clean_ctx.ct_all.cell_known(cell->type_impl)) {
+						auto twines = cell->module->design->twines;
 						std::string msg = stringf("Driver-driver conflict "
 							"for %s between cell %s.%s and constant %s in %s: Resolved using constant.",
-							log_signal(raw_bit), cell->name.unescape(), it2.first.unescape(), log_signal(bit), actx.mod->name.unescape());
+							log_signal(raw_bit), twines.str(cell->meta_->name), twines.str(it2.first), log_signal(bit), twines.str(actx.mod->meta_->name));
 							logs.logs.insert(ctx, {wire_map(raw_bit), msg});
 						}
 						if (bit.wire != nullptr)
@@ -237,7 +238,7 @@ struct MemAnalysis {
 	dict<std::string, int> indices;
 	MemAnalysis(const RTLIL::Module* mod) : unused(mod->memories.size()), indices() {
 		for (int i = 0; i < GetSize(mod->memories); ++i) {
-			indices[mod->memories.element(i)->first.str()] = i;
+			indices[mod->design->twines.str(mod->memories.element(i)->first)] = i;
 			unused[i].store(true, std::memory_order_relaxed);
 		}
 	}
@@ -256,11 +257,11 @@ void fixup_unused_cells_and_mems(CellAnalysis& analysis, MemAnalysis& mem_analys
 			for (auto cell_index : cell_indices) {
 				Cell *cell = actx.mod->cell_at(cell_index);
 				for (auto &it : cell->connections())
-					if (!clean_ctx.ct_all.cell_known(cell->type) || clean_ctx.ct_all.cell_input(cell->type, it.first))
+					if (!clean_ctx.ct_all.cell_known(cell->type_impl) || clean_ctx.ct_all.cell_input(cell->type_impl, it.first))
 						for (auto bit : actx.assign_map(it.second))
 							bits.insert(bit);
 
-				if (cell->type.in(ID($memrd), ID($memrd_v2))) {
+				if (cell->type.in(TW($memrd), TW($memrd_v2))) {
 					std::string mem_id = cell->getParam(ID::MEMID).decode_string();
 					if (mem_analysis.indices.count(mem_id)) {
 						int mem_index = mem_analysis.indices[mem_id];
@@ -304,7 +305,7 @@ pool<Cell*> all_unused_cells(const Module *mod, const CellAnalysis& analysis, Wi
 	});
 	for (int cell_index : sharded_unused_cells)
 		unused_cells.insert(mod->cell_at(cell_index));
-	unused_cells.sort(RTLIL::sort_by_name_id<RTLIL::Cell>());
+	unused_cells.sort(RTLIL::sort_by_name<RTLIL::Cell>());
 	return unused_cells;
 }
 
@@ -314,7 +315,7 @@ void remove_cells(RTLIL::Module* mod, FfInitVals& ffinit, const pool<Cell*>& cel
 			log_debug("  removing unused `%s' cell `%s'.\n", cell->type, cell->name);
 		mod->design->scratchpad_set_bool("opt.did_something", true);
 		if (cell->is_builtin_ff())
-			ffinit.remove_init(cell->getPort(ID::Q));
+			ffinit.remove_init(cell->getPort(TW::Q));
 		mod->remove(cell);
 		stats.count_rm_cells++;
 	}
@@ -324,9 +325,10 @@ void remove_mems(RTLIL::Module* mod, const MemAnalysis& mem_analysis, bool verbo
 	for (const auto &it : mem_analysis.indices) {
 		if (!mem_analysis.unused[it.second].load(std::memory_order_relaxed))
 			continue;
-		RTLIL::IdString id(it.first);
+		std::string id_s = it.first;
+		TwineRef id = mod->design->twines.add(std::string{it.first});
 		if (verbose)
-			log_debug("  removing unused memory `%s'.\n", id.unescape());
+			log_debug("  removing unused memory `%s'.\n", id_s);
 		delete mod->memories.at(id);
 		mod->memories.erase(id);
 	}

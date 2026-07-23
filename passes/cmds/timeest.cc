@@ -66,8 +66,8 @@ struct EstimateSta {
 	// and to account for the AIG model not being balanced
 	int cell_type_factor(IdString type)
 	{
-		if (type.in(ID($gt), ID($ge), ID($lt), ID($le), ID($add), ID($sub),
-					ID($logic_not), ID($reduce_and), ID($reduce_or), ID($eq)))
+		if (type.in(TW($gt), TW($ge), TW($lt), TW($le), TW($add), TW($sub),
+					TW($logic_not), TW($reduce_and), TW($reduce_or), TW($eq)))
 			return 1;
 		else
 			return 2;
@@ -97,7 +97,7 @@ struct EstimateSta {
 				FfData ff(nullptr, cell);
 				if (!ff.has_clk) {
 					log_warning("Ignoring unsupported storage element '%s' (%s)\n",
-								cell, cell->type.unescape());
+								cell, cell->type.unescaped());
 					continue;
 				}
 				if (!clk || ff.sig_clk.as_bit() != *clk)
@@ -112,16 +112,16 @@ struct EstimateSta {
 			} else if (cell->is_mem_cell()) {
 				// memories handled separately
 				continue;
-			} else if (cell->type == ID($scopeinfo)) {
+			} else if (cell->type == TW($scopeinfo)) {
 				continue;
 			} else {
 				// find or build AIG model of combinational cell
-				auto fingerprint = std::make_pair(cell->type, cell->parameters);
+				auto fingerprint = std::make_pair(RTLIL::IdString(cell->type), cell->parameters);
 				if (!aigs.count(fingerprint)) {
 					aigs.emplace(fingerprint, Aig(cell));
 					if (aigs.at(fingerprint).name.empty()) {
 						log_error("Unsupported cell '%s' in module '%s'",
-								  cell->type.unescape(), m);
+								  cell->type.unescaped(), m);
 					}
 				}
 
@@ -133,7 +133,7 @@ struct EstimateSta {
 		// since we're now taking reference into `aigs`, we can no longer modify it
 		// and thus have to fill `cell_aigs` in a separate loop
 		for (auto cell : combinational) {
-			auto fingerprint = std::make_pair(cell->type, cell->parameters);
+			auto fingerprint = std::make_pair(RTLIL::IdString(cell->type), cell->parameters);
 			cell_aigs.emplace(cell, &aigs.at(fingerprint));
 		}
 
@@ -188,7 +188,7 @@ struct EstimateSta {
 			assert(cell_aigs.count(cell));
 			Aig &aig = *cell_aigs.at(cell);
 			for (auto &node : aig.nodes) {
-				if (!node.portname.empty()) {
+				if (!node.portname == TwineRef{}) {
 					topo.edge(
 						desc_sig(cell->getPort(node.portname)[node.portbit]),
 						desc_aig(cell, node)
@@ -235,7 +235,7 @@ struct EstimateSta {
 			if (aig_node) {
 				Cell *cell = std::get<1>(node);
 				Aig &aig = *cell_aigs.at(cell);
-				if (!aig_node->portname.empty()) {
+				if (!aig_node->portname == TwineRef{}) {
 					// for a cell port, copy `levels` value from port bit
 					SigBit bit = cell->getPort(aig_node->portname)[aig_node->portbit];
 					levels[node] = levels[desc_sig(bit)];
@@ -294,7 +294,7 @@ struct EstimateSta {
 						critical[node] = true;
 				}
 
-				if (!aig_node->portname.empty()) {
+				if (!aig_node->portname == TwineRef{}) {
 					SigBit bit = cell->getPort(aig_node->portname)[aig_node->portbit];
 					if (critical.count(node))
 						critical[desc_sig(bit)] = true;
@@ -342,7 +342,7 @@ struct EstimateSta {
 						std::string src_attr = cell->get_src_attribute();
 						cell_src = stringf(" source: %s", src_attr);
 					}
-					log("    cell %s (%s)%s\n", cell, cell->type.unescape(), cell_src);
+					log("    cell %s (%s)%s\n", cell, cell->type.unescaped(), cell_src);
 					printed.insert(cell);
 				}
 			} else {
@@ -359,13 +359,13 @@ struct EstimateSta {
 
 		for (auto wire : m->wires()) {
 			if (bits_to_select.check_any(sigmap(wire)))
-				to_select.insert(wire->name);
+				{ RTLIL::IdString wn = wire->name; to_select.insert(wn); }
 		}
 
 		if (select) {
 			RTLIL::Selection sel(false);
 			for (auto member : to_select)
-				sel.selected_members[m->name].insert(member);
+				sel.selected_members[m->meta_->name].insert(m->design->twines.add(Twine{member.str()}));
 			m->design->selection_stack.back() = sel;
 			m->design->selection_stack.back().optimize(m->design);
 		}
@@ -420,16 +420,18 @@ struct TimeestPass : Pass {
 		if (select && d->selected_modules().size() > 1)
 			log_cmd_error("The -select option operates on a single selected module\n");
 
+		TwineSearch search(&d->twines);
 		for (auto m : d->selected_modules()) {
 			std::optional<SigBit> clk;
 
 			if (clk_domain_specified) {
-				if (!m->wire(RTLIL::escape_id(clk_name))) {
+				TwineRef clk_ref = search.find(RTLIL::escape_id(clk_name));
+				if (!m->wire(clk_ref)) {
 					log_warning("No domain '%s' in module %s\n", clk_name.c_str(), m);
 					continue;
 				}
 
-				clk = SigBit(m->wire(RTLIL::escape_id(clk_name)), 0);
+				clk = SigBit(m->wire(clk_ref), 0);
 			}
 
 			EstimateSta sta(m, clk, /*top_port_endpoints=*/ !clk_domain_specified);

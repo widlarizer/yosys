@@ -68,26 +68,26 @@ struct AigmapPass : public Pass {
 		{
 			vector<Cell*> replaced_cells;
 			int not_replaced_count = 0;
-			dict<IdString, int> stat_replaced;
-			dict<IdString, int> stat_not_replaced;
+			dict<TwineRef, int> stat_replaced;
+			dict<TwineRef, int> stat_not_replaced;
 			int orig_num_cells = GetSize(module->cells());
 
-			pool<IdString> new_sel;
+			pool<TwineRef> new_sel;
 			for (auto cell : module->selected_cells())
 			{
 				Aig aig(cell);
 
-				if (cell->type.in(ID($_AND_), ID($_NOT_)))
+				if (cell->type.in(TW($_AND_), TW($_NOT_)))
 					aig.name.clear();
 
-				if (nand_mode && cell->type == ID($_NAND_))
+				if (nand_mode && cell->type == TW($_NAND_))
 					aig.name.clear();
 
 				if (aig.name.empty()) {
 					not_replaced_count++;
-					stat_not_replaced[cell->type]++;
+					stat_not_replaced[cell->type_impl]++;
 					if (select_mode)
-						new_sel.insert(cell->name);
+						new_sel.insert(cell->name.ref());
 					continue;
 				}
 
@@ -108,10 +108,10 @@ struct AigmapPass : public Pass {
 						SigBit A = sigs.at(node.left_parent);
 						SigBit B = sigs.at(node.right_parent);
 						if (nand_mode && node.inverter) {
-							bit = module->addWire(NEW_ID);
-							auto gate = module->addNandGate(NEW_ID, A, B, bit);
+							bit = module->addWire(NEW_TWINE);
+							auto gate = module->addNandGate(NEW_TWINE, A, B, bit);
 							if (select_mode)
-								new_sel.insert(gate->name);
+								new_sel.insert(gate->name.ref());
 
 							goto skip_inverter;
 						} else {
@@ -119,20 +119,20 @@ struct AigmapPass : public Pass {
 							if (and_cache.count(key))
 								bit = and_cache.at(key);
 							else {
-								bit = module->addWire(NEW_ID);
-								auto gate = module->addAndGate(NEW_ID, A, B, bit);
+								bit = module->addWire(NEW_TWINE);
+								auto gate = module->addAndGate(NEW_TWINE, A, B, bit);
 								if (select_mode)
-									new_sel.insert(gate->name);
+									new_sel.insert(gate->name.ref());
 							}
 						}
 					}
 
 					if (node.inverter) {
-						SigBit new_bit = module->addWire(NEW_ID);
-						auto gate = module->addNotGate(NEW_ID, bit, new_bit);
+						SigBit new_bit = module->addWire(NEW_TWINE);
+						auto gate = module->addNotGate(NEW_TWINE, bit, new_bit);
 						bit = new_bit;
 						if (select_mode)
-							new_sel.insert(gate->name);
+							new_sel.insert(gate->name.ref());
 
 					}
 
@@ -144,7 +144,7 @@ struct AigmapPass : public Pass {
 				}
 
 				replaced_cells.push_back(cell);
-				stat_replaced[cell->type]++;
+				stat_replaced[cell->type_impl]++;
 			}
 
 			if (not_replaced_count == 0 && replaced_cells.empty())
@@ -157,14 +157,14 @@ struct AigmapPass : public Pass {
 				stat_replaced.sort();
 				log("  replaced %d cell types:\n", GetSize(stat_replaced));
 				for (auto &it : stat_replaced)
-					log("%8d %s\n", it.second, it.first.unescape());
+					log("%8d %s\n", it.second, design->twines.unescaped_str(it.first));
 			}
 
 			if (!stat_not_replaced.empty()) {
 				stat_not_replaced.sort();
 				log("  not replaced %d cell types:\n", GetSize(stat_not_replaced));
 				for (auto &it : stat_not_replaced)
-					log("%8d %s\n", it.second, it.first.unescape());
+					log("%8d %s\n", it.second, design->twines.unescaped_str(it.first));
 			}
 
 			for (auto cell : replaced_cells)
@@ -172,7 +172,7 @@ struct AigmapPass : public Pass {
 
 			if (select_mode) {
 				RTLIL::Selection& sel = design->selection();
-				sel.selected_members[module->name] = std::move(new_sel);
+				sel.selected_members[module->meta_->name] = std::move(new_sel);
 			}
 
 		}

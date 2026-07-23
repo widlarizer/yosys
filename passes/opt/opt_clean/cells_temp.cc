@@ -23,12 +23,12 @@ USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
 bool is_signed(RTLIL::Cell* cell) {
-	return cell->type == ID($pos) && cell->getParam(ID::A_SIGNED).as_bool();
+	return cell->type == TW($pos) && cell->getParam(ID::A_SIGNED).as_bool();
 }
 
 bool trim_buf(RTLIL::Cell* cell, ShardedVector<RTLIL::SigSig>& new_connections, const ParallelDispatchThreadPool::RunCtx &ctx) {
-	RTLIL::SigSpec a = cell->getPort(ID::A);
-	RTLIL::SigSpec y = cell->getPort(ID::Y);
+	RTLIL::SigSpec a = cell->getPort(TW::A);
+	RTLIL::SigSpec y = cell->getPort(TW::Y);
 	a.extend_u0(GetSize(y), is_signed(cell));
 
 	if (a.has_const(State::Sz)) {
@@ -50,21 +50,25 @@ bool trim_buf(RTLIL::Cell* cell, ShardedVector<RTLIL::SigSig>& new_connections, 
 }
 
 bool remove(ShardedVector<RTLIL::Cell*>& cells, RTLIL::Module* mod, bool verbose) {
+	// Removing $connect doesn't count as "doing something":
+	// $connect get rebuilt by bufnorm, and it doesn't represent real logic that enables further opt
 	bool did_something = false;
 	for (RTLIL::Cell *cell : cells) {
 		if (verbose) {
-			if (cell->type == ID($connect))
+			if (cell->type == TW($connect)) {
 				log_debug("  removing connect cell `%s': %s <-> %s\n", cell->name,
-						log_signal(cell->getPort(ID::A)), log_signal(cell->getPort(ID::B)));
-			else if (cell->type == ID($input_port))
+						log_signal(cell->getPort(TW::A)), log_signal(cell->getPort(TW::B)));
+			} else if (cell->type == TW($input_port)) {
+				did_something = true;
 				log_debug("  removing input port marker cell `%s': %s\n", cell->name,
-						log_signal(cell->getPort(ID::Y)));
-			else
+						log_signal(cell->getPort(TW::Y)));
+			} else {
+				did_something = true;
 				log_debug("  removing buffer cell `%s': %s = %s\n", cell->name,
-						log_signal(cell->getPort(ID::Y)), log_signal(cell->getPort(ID::A)));
+						log_signal(cell->getPort(TW::Y)), log_signal(cell->getPort(TW::A)));
+			}
 		}
 		mod->remove(cell);
-		did_something = true;
 	}
 	return did_something;
 }
@@ -79,17 +83,17 @@ void remove_temporary_cells(RTLIL::Module *module, ParallelDispatchThreadPool::S
 	subpool.run([const_module, &delcells, &new_connections](const ParallelDispatchThreadPool::RunCtx &ctx) {
 		for (int i : ctx.item_range(const_module->cells_size())) {
 			RTLIL::Cell *cell = const_module->cell_at(i);
-			if (cell->type.in(ID($pos), ID($_BUF_), ID($buf)) && !cell->has_keep_attr()) {
+			if (cell->type.in(TW($pos), TW($_BUF_), TW($buf)) && !cell->has_keep_attr()) {
 				if (trim_buf(cell, new_connections, ctx))
 					delcells.insert(ctx, cell);
-			} else if (cell->type.in(ID($connect)) && !cell->has_keep_attr()) {
-				RTLIL::SigSpec a = cell->getPort(ID::A);
-				RTLIL::SigSpec b = cell->getPort(ID::B);
+			} else if (cell->type.in(TW($connect)) && !cell->has_keep_attr()) {
+				RTLIL::SigSpec a = cell->getPort(TW::A);
+				RTLIL::SigSpec b = cell->getPort(TW::B);
 				if (a.has_const() && !b.has_const())
 					std::swap(a, b);
 				new_connections.insert(ctx, {a, b});
 				delcells.insert(ctx, cell);
-			} else if (cell->type.in(ID($input_port)) && !cell->has_keep_attr()) {
+			} else if (cell->type.in(TW($input_port)) && !cell->has_keep_attr()) {
 				delcells.insert(ctx, cell);
 			}
 		}

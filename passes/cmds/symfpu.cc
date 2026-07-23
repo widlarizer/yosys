@@ -48,6 +48,11 @@ struct rm {
 
 thread_local Module *symfpu_mod = nullptr;
 
+// symfpu.cc names wires/modules from IdString literals (ID(a), ID(o), ...);
+// under the twine migration the name-taking APIs want a TwineRef, so intern
+// the (public) string name into the design's twine pool.
+static inline TwineRef sym_name(IdString name) { return symfpu_mod->design->twines.add(std::string{name.str()}); }
+
 struct rtlil_traits {
 	using bwt = uint64_t;
 	using rm = struct rm;
@@ -128,16 +133,16 @@ struct prop {
 	explicit prop(SigBit bit) : bit(bit) {}
 	prop(bool v) : bit(v) {}
 
-	prop operator&&(const prop &op) const { return prop{symfpu_mod->And(NEW_ID, bit, op.bit)}; }
-	prop operator||(const prop &op) const { return prop{symfpu_mod->Or(NEW_ID, bit, op.bit)}; }
-	prop operator^(const prop &op) const { return prop{symfpu_mod->Xor(NEW_ID, bit, op.bit)}; }
-	prop operator!() const { return prop{symfpu_mod->Not(NEW_ID, bit)}; }
+	prop operator&&(const prop &op) const { return prop{symfpu_mod->And(NEW_TWINE, bit, op.bit)}; }
+	prop operator||(const prop &op) const { return prop{symfpu_mod->Or(NEW_TWINE, bit, op.bit)}; }
+	prop operator^(const prop &op) const { return prop{symfpu_mod->Xor(NEW_TWINE, bit, op.bit)}; }
+	prop operator!() const { return prop{symfpu_mod->Not(NEW_TWINE, bit)}; }
 
-	prop operator==(const prop &op) const { return prop{symfpu_mod->Eq(NEW_ID, bit, op.bit)}; }
+	prop operator==(const prop &op) const { return prop{symfpu_mod->Eq(NEW_TWINE, bit, op.bit)}; }
 
 	const prop &named(std::string_view s) const
 	{
-		symfpu_mod->connect(symfpu_mod->addWire(symfpu_mod->uniquify(stringf("\\%s", s))), bit);
+		symfpu_mod->connect(symfpu_mod->addWire(symfpu_mod->uniquify(symfpu_mod->design->twines.add(stringf("\\%s", s)))), bit);
 		return *this;
 	}
 };
@@ -147,7 +152,7 @@ template <bool is_signed> struct bv {
 
 	const bv &named(std::string_view s) const
 	{
-		symfpu_mod->connect(symfpu_mod->addWire(symfpu_mod->uniquify(stringf("\\%s", s)), bits.size()), bits);
+		symfpu_mod->connect(symfpu_mod->addWire(symfpu_mod->uniquify(symfpu_mod->design->twines.add(stringf("\\%s", s))), bits.size()), bits);
 		return *this;
 	}
 
@@ -226,97 +231,97 @@ template <bool is_signed> struct bv {
 
 	bv<is_signed> append(const bv<is_signed> &op) const { return bv{SigSpec({bits, op.bits})}; }
 
-	prop isAllOnes() const { return prop{symfpu_mod->ReduceAnd(NEW_ID, bits)}; }
-	prop isAllZeros() const { return prop{symfpu_mod->ReduceAnd(NEW_ID, symfpu_mod->Not(NEW_ID, bits))}; }
+	prop isAllOnes() const { return prop{symfpu_mod->ReduceAnd(NEW_TWINE, bits)}; }
+	prop isAllZeros() const { return prop{symfpu_mod->ReduceAnd(NEW_TWINE, symfpu_mod->Not(NEW_TWINE, bits))}; }
 
-	bv<is_signed> operator-() const { return bv{symfpu_mod->Neg(NEW_ID, bits, is_signed)}; }
-	bv<is_signed> operator~() const { return bv{symfpu_mod->Not(NEW_ID, bits, is_signed)}; }
+	bv<is_signed> operator-() const { return bv{symfpu_mod->Neg(NEW_TWINE, bits, is_signed)}; }
+	bv<is_signed> operator~() const { return bv{symfpu_mod->Not(NEW_TWINE, bits, is_signed)}; }
 
 	bv<is_signed> operator+(const bv<is_signed> &op) const
 	{
 		log_assert(getWidth() == op.getWidth());
-		return bv{symfpu_mod->Add(NEW_ID, bits, op.bits, is_signed)};
+		return bv{symfpu_mod->Add(NEW_TWINE, bits, op.bits, is_signed)};
 	}
 	bv<is_signed> operator-(const bv<is_signed> &op) const
 	{
 		log_assert(getWidth() == op.getWidth());
-		return bv{symfpu_mod->Sub(NEW_ID, bits, op.bits, is_signed)};
+		return bv{symfpu_mod->Sub(NEW_TWINE, bits, op.bits, is_signed)};
 	}
 	bv<is_signed> operator*(const bv<is_signed> &op) const
 	{
 		log_assert(getWidth() == op.getWidth());
 		log_assert(!is_signed);
-		return bv{symfpu_mod->Mul(NEW_ID, bits, op.bits, is_signed)};
+		return bv{symfpu_mod->Mul(NEW_TWINE, bits, op.bits, is_signed)};
 	}
 	bv<is_signed> operator%(const bv<is_signed> &op) const
 	{
 		log_assert(getWidth() == op.getWidth());
 		log_assert(!is_signed);
-		return bv{symfpu_mod->Mod(NEW_ID, bits, op.bits, is_signed)};
+		return bv{symfpu_mod->Mod(NEW_TWINE, bits, op.bits, is_signed)};
 	}
 	bv<is_signed> operator/(const bv<is_signed> &op) const
 	{
 		log_assert(getWidth() == op.getWidth());
 		log_assert(!is_signed);
-		return bv{symfpu_mod->Div(NEW_ID, bits, op.bits, is_signed)};
+		return bv{symfpu_mod->Div(NEW_TWINE, bits, op.bits, is_signed)};
 	}
 
 	bv<is_signed> operator|(const bv<is_signed> &op) const
 	{
 		log_assert(getWidth() == op.getWidth());
-		return bv{symfpu_mod->Or(NEW_ID, bits, op.bits, is_signed)};
+		return bv{symfpu_mod->Or(NEW_TWINE, bits, op.bits, is_signed)};
 	}
 	bv<is_signed> operator&(const bv<is_signed> &op) const
 	{
 		log_assert(getWidth() == op.getWidth());
-		return bv{symfpu_mod->And(NEW_ID, bits, op.bits, is_signed)};
+		return bv{symfpu_mod->And(NEW_TWINE, bits, op.bits, is_signed)};
 	}
 	bv<is_signed> operator<<(const bv<is_signed> &op) const
 	{
 		log_assert(getWidth() == op.getWidth());
-		return bv{symfpu_mod->Shl(NEW_ID, bits, op.bits, is_signed)};
+		return bv{symfpu_mod->Shl(NEW_TWINE, bits, op.bits, is_signed)};
 	}
 	bv<is_signed> operator>>(const bv<is_signed> &op) const
 	{
 		log_assert(getWidth() == op.getWidth());
 		if (is_signed)
-			return bv{symfpu_mod->Sshr(NEW_ID, bits, op.bits, is_signed)};
+			return bv{symfpu_mod->Sshr(NEW_TWINE, bits, op.bits, is_signed)};
 		else
-			return bv{symfpu_mod->Shr(NEW_ID, bits, op.bits, is_signed)};
+			return bv{symfpu_mod->Shr(NEW_TWINE, bits, op.bits, is_signed)};
 	}
 
 	prop operator!=(const bv<is_signed> &op) const
 	{
 		log_assert(getWidth() == op.getWidth());
-		return prop{symfpu_mod->Ne(NEW_ID, bits, op.bits, is_signed)};
+		return prop{symfpu_mod->Ne(NEW_TWINE, bits, op.bits, is_signed)};
 	}
 
 	prop operator==(const bv<is_signed> &op) const
 	{
 		log_assert(getWidth() == op.getWidth());
-		return prop{symfpu_mod->Eq(NEW_ID, bits, op.bits, is_signed)};
+		return prop{symfpu_mod->Eq(NEW_TWINE, bits, op.bits, is_signed)};
 	}
 
 	prop operator<=(const bv<is_signed> &op) const
 	{
 		log_assert(getWidth() == op.getWidth());
-		return prop{symfpu_mod->Le(NEW_ID, bits, op.bits, is_signed)};
+		return prop{symfpu_mod->Le(NEW_TWINE, bits, op.bits, is_signed)};
 	}
 	prop operator>=(const bv<is_signed> &op) const
 	{
 		log_assert(getWidth() == op.getWidth());
-		return prop{symfpu_mod->Ge(NEW_ID, bits, op.bits, is_signed)};
+		return prop{symfpu_mod->Ge(NEW_TWINE, bits, op.bits, is_signed)};
 	}
 
 	prop operator<(const bv<is_signed> &op) const
 	{
 		log_assert(getWidth() == op.getWidth());
-		return prop{symfpu_mod->Lt(NEW_ID, bits, op.bits, is_signed)};
+		return prop{symfpu_mod->Lt(NEW_TWINE, bits, op.bits, is_signed)};
 	}
 	prop operator>(const bv<is_signed> &op) const
 	{
 		log_assert(getWidth() == op.getWidth());
-		return prop{symfpu_mod->Gt(NEW_ID, bits, op.bits, is_signed)};
+		return prop{symfpu_mod->Gt(NEW_TWINE, bits, op.bits, is_signed)};
 	}
 
 	inline bv<is_signed> increment() const { return *this + one(getWidth()); }
@@ -340,12 +345,12 @@ template <bool is_signed> struct bv {
 
 PRIVATE_NAMESPACE_END
 
-prop symfpu::ite<prop, prop>::iteOp(const prop &cond, const prop &t, const prop &e) { return prop{symfpu_mod->Mux(NEW_ID, e.bit, t.bit, cond.bit)}; }
+prop symfpu::ite<prop, prop>::iteOp(const prop &cond, const prop &t, const prop &e) { return prop{symfpu_mod->Mux(NEW_TWINE, e.bit, t.bit, cond.bit)}; }
 
 template <bool is_signed> bv<is_signed> symfpu::ite<prop, bv<is_signed>>::iteOp(const prop &cond, const bv<is_signed> &t, const bv<is_signed> &e)
 {
 	log_assert(t.getWidth() == e.getWidth());
-	return bv<is_signed>{symfpu_mod->Mux(NEW_ID, e.bits, t.bits, cond.bit)};
+	return bv<is_signed>{symfpu_mod->Mux(NEW_TWINE, e.bits, t.bits, cond.bit)};
 }
 
 [[maybe_unused]] prop symfpu::ite<bool, prop>::iteOp(bool cond, const prop &t, const prop &e) { return cond ? t : e; }
@@ -362,44 +367,44 @@ prop rm::operator==(rm op) const { return mode == op.mode; }
 
 void rtlil_traits::precondition(const prop &cond)
 {
-	Cell *cell = symfpu_mod->addAssert(NEW_ID, cond.bit, State::S1);
+	Cell *cell = symfpu_mod->addAssert(NEW_TWINE, cond.bit, State::S1);
 	cell->set_bool_attribute(ID(symfpu_pre));
 }
 void rtlil_traits::postcondition(const prop &cond)
 {
-	Cell *cell = symfpu_mod->addAssert(NEW_ID, cond.bit, State::S1);
+	Cell *cell = symfpu_mod->addAssert(NEW_TWINE, cond.bit, State::S1);
 	cell->set_bool_attribute(ID(symfpu_post));
 }
 void rtlil_traits::invariant(const prop &cond)
 {
-	Cell *cell = symfpu_mod->addAssert(NEW_ID, cond.bit, State::S1);
+	Cell *cell = symfpu_mod->addAssert(NEW_TWINE, cond.bit, State::S1);
 	cell->set_bool_attribute(ID(symfpu_inv));
 }
 
 ubv input_ubv(IdString name, int width)
 {
-	auto input = symfpu_mod->addWire(name, width);
+	auto input = symfpu_mod->addWire(sym_name(name), width);
 	input->port_input = true;
 	return ubv(SigSpec(input));
 }
 
 prop input_prop(IdString name)
 {
-	auto input = symfpu_mod->addWire(name);
+	auto input = symfpu_mod->addWire(sym_name(name));
 	input->port_input = true;
 	return prop(SigBit(input));
 }
 
 void output_ubv(IdString name, const ubv &value)
 {
-	auto output = symfpu_mod->addWire(name, value.getWidth());
+	auto output = symfpu_mod->addWire(sym_name(name), value.getWidth());
 	symfpu_mod->connect(output, value.bits);
 	output->port_output = true;
 }
 
 void output_prop(IdString name, const prop &value)
 {
-	auto output = symfpu_mod->addWire(name);
+	auto output = symfpu_mod->addWire(sym_name(name));
 	symfpu_mod->connect(output, value.bit);
 	output->port_output = true;
 }
@@ -558,7 +563,7 @@ struct SymFpuPass : public Pass {
 		rm rounding_mode = parse_rounding(rounding);
 		fpt format(eb, sb);
 
-		auto mod = design->addModule(ID(symfpu));
+		auto mod = design->addModule(design->twines.add(std::string("\\symfpu")));
 
 		symfpu_mod = mod;
 
@@ -589,7 +594,7 @@ struct SymFpuPass : public Pass {
 			uf b = symfpu::unpack<rtlil_traits>(format, b_bv);
 			uf c = symfpu::unpack<rtlil_traits>(format, c_bv);
 
-			auto rm_wire = symfpu_mod->addWire(ID(rm), 5);
+			auto rm_wire = symfpu_mod->addWire(sym_name(ID(rm)), 5);
 			rm_wire->port_input = true;
 			SigSpec rm_sig(rm_wire);
 			prop rm_RNE(rm_sig[0]);
@@ -756,7 +761,7 @@ struct SymFpuConvertPass : public Pass {
 			log_cmd_error("rm must be set to a single rounding mode!\n");
 		rm rounding_mode = parse_rounding(rounding);
 
-		auto mod = design->addModule(ID(symfpu));
+		auto mod = design->addModule(design->twines.add(std::string("\\symfpu")));
 		symfpu_mod = mod;
 
 		fpt i_format(i_exp, i_size-i_exp);

@@ -644,6 +644,8 @@ int main(int argc, char **argv)
 			total_ns += gc_ns;
 			timedat.insert(make_tuple(gc_ns,
 					RTLIL::OwningIdString::garbage_collection_count(), "id_gc"));
+			total_ns += twine_gc_ns;
+			timedat.insert(make_tuple(twine_gc_ns, twine_gc_count, "twine_gc"));
 		}
 
 		if (timing_details)

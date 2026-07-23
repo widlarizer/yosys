@@ -30,7 +30,7 @@ struct LUTPin {
 };
 
 struct LUTType {
-    dict<IdString, LUTPin> inputs;
+    dict<TwineRef, LUTPin> inputs;
     IdString output_param;
 };
 
@@ -46,21 +46,21 @@ struct FoldInvWorker {
 
     const dict<IdString, LUTType> lut_types = {
         {ID(CC_LUT2), {{
-                {ID(I0), {0, ID(INIT)}},
-                {ID(I1), {1, ID(INIT)}},
+                {TW::I0, {0, ID(INIT)}},
+                {TW::I1, {1, ID(INIT)}},
             }, ID(INIT)}},
         {ID(CC_L2T4), {{
-                {ID(I0), {0, ID(INIT_L00)}},
-                {ID(I1), {1, ID(INIT_L00)}},
-                {ID(I2), {0, ID(INIT_L01)}},
-                {ID(I3), {1, ID(INIT_L01)}},
+                {TW::I0, {0, ID(INIT_L00)}},
+                {TW::I1, {1, ID(INIT_L00)}},
+                {TW::I2, {0, ID(INIT_L01)}},
+                {TW::I3, {1, ID(INIT_L01)}},
             }, ID(INIT_L10)}},
         {ID(CC_L2T5), {{
-                {ID(I0), {0, ID(INIT_L02)}},
-                {ID(I1), {1, ID(INIT_L02)}},
-                {ID(I2), {0, ID(INIT_L03)}},
-                {ID(I3), {1, ID(INIT_L03)}},
-                {ID(I4), {0, ID(INIT_L20)}},
+                {TW::I0, {0, ID(INIT_L02)}},
+                {TW::I1, {1, ID(INIT_L02)}},
+                {TW::I2, {0, ID(INIT_L03)}},
+                {TW::I3, {1, ID(INIT_L03)}},
+                {TW::I4, {0, ID(INIT_L20)}},
             }, ID(INIT_L20)}},
     };
 
@@ -68,10 +68,10 @@ struct FoldInvWorker {
     void find_inverted_bits()
     {
         for (auto cell : module->selected_cells()) {
-            if (cell->type != ID($__CC_NOT))
+            if (cell->type != TW($__CC_NOT))
                 continue;
-            SigBit a = sigmap(cell->getPort(ID::A)[0]);
-            SigBit y = sigmap(cell->getPort(ID::Y)[0]);
+            SigBit a = sigmap(cell->getPort(TW::A)[0]);
+            SigBit y = sigmap(cell->getPort(TW::Y)[0]);
             inverted_bits[y] = a;
             inverter_input[a] = cell;
         }
@@ -141,9 +141,9 @@ struct FoldInvWorker {
             auto found_type = lut_types.find(cell->type);
             if (found_type == lut_types.end())
                 continue;
-            if (!cell->hasPort(ID::O))
+            if (!cell->hasPort(TW::O))
                 continue;
-            auto o_sig = cell->getPort(ID::O);
+            auto o_sig = cell->getPort(TW::O);
             if (GetSize(o_sig) == 0)
                 continue;
             SigBit o = sigmap(o_sig[0]);
@@ -156,15 +156,15 @@ struct FoldInvWorker {
             Cell *orig_lut = pair.first;
             Cell *inv = pair.second;
             // Find the inverter output
-            SigBit inv_y = sigmap(inv->getPort(ID::Y)[0]);
+            SigBit inv_y = sigmap(inv->getPort(TW::Y)[0]);
             // Inverter output might not actually be used; if all users were folded into inputs already
             if (!used_bits.count(inv_y))
                 continue;
             // Create a duplicate of the LUT with an inverted output
             // (if the uninverted version becomes unused it will be swept away)
-            Cell *dup_lut = module->addCell(NEW_ID, orig_lut->type);
-            inv->unsetPort(ID::Y);
-            dup_lut->setPort(ID::O, inv_y);
+            Cell *dup_lut = module->addCell(NEW_TWINE, orig_lut->type_impl);
+            inv->unsetPort(TW::Y);
+            dup_lut->setPort(TW::O, inv_y);
             for (auto conn : orig_lut->connections()) {
                 if (conn.first == ID::O)
                     continue;
