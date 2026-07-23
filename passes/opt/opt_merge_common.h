@@ -135,12 +135,7 @@ struct CellHasher
 
 	Hasher hash_cell_function(const RTLIL::Cell *cell, Hasher h) const
 	{
-		// Hash the rendered type name, not cell->type: materialising the
-		// name masquerade into an IdString interns a string, which is not
-		// allowed while the hashing threads are running. Twine refs are not
-		// canonical (distinct nodes can render to the same name), so they
-		// cannot be hashed directly either.
-		h.eat(cell->module->design->twines.str(cell->type_impl));
+		h.eat(cell->type_impl);
 		h = hash_cell_inputs(cell, h);
 		h = hash_cell_parameters(cell, h);
 		return h;

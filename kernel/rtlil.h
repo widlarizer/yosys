@@ -1477,7 +1477,7 @@ struct RTLIL::CellTypeMasq {
 	bool operator!=(const std::string &rhs) const { return escaped() != rhs; }
 	bool operator==(const CellTypeMasq &rhs) const { return ref() == rhs.ref(); }
 	bool operator!=(const CellTypeMasq &rhs) const { return ref() != rhs.ref(); }
-	[[nodiscard]] Hasher hash_into(Hasher h) const { return RTLIL::IdString(*this).hash_into(h); }
+	[[nodiscard]] Hasher hash_into(Hasher h) const { return ref().hash_into(h); }
 };
 inline bool operator==(RTLIL::IdString lhs, const RTLIL::CellTypeMasq &rhs) { return lhs.str() == rhs.escaped(); }
 inline bool operator!=(RTLIL::IdString lhs, const RTLIL::CellTypeMasq &rhs) { return lhs.str() != rhs.escaped(); }
@@ -2689,8 +2689,13 @@ inline Hasher RTLIL::SigBit::hash_top() const {
 	Hasher h;
 	if (wire) {
 		TwineRef name = wire->meta_ ? wire->meta_->name : Twine::Null;
-		h.eat(name);
-		h.eat(offset);
+		uint32_t n = (uint32_t)name.value ^ (uint32_t)(name.value >> 32);
+		// This hashing trick is optimized for dense integers
+		// where the second integer is usually only up to 32 large
+		// which fits the offset of a wire. Better performance than
+		// just calling h.eat on the two fields in sequence!
+		// Do not mess this up again!
+		h.force(hashlib::legacy::djb2_add(n, offset));
 		return h;
 	}
 	h.force(data);
