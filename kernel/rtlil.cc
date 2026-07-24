@@ -3699,11 +3699,32 @@ RTLIL::Process *RTLIL::Module::addProcess(Twine &&name)
 }
 
 namespace {
+	// Re-intern a bare src/name IdString carried directly on a process node
+	// (not via an AttrObject meta slot) from the source design's pool into
+	// dst's. Same-pool refs stay valid, so pass them through untouched.
+	IdString migrate_process_id(IdString id, const RTLIL::Design *src_design, RTLIL::Design *dst_design)
+	{
+		if (id == Twine::Null || src_design == dst_design)
+			return id;
+		return dst_design->twines.copy_from(src_design->twines, id);
+	}
+
+	void migrate_process_actions(const std::vector<RTLIL::SyncAction> &s_acts,
+			std::vector<RTLIL::SyncAction> &d_acts,
+			const RTLIL::Design *src_design, RTLIL::Design *dst_design)
+	{
+		log_assert(s_acts.size() == d_acts.size());
+		for (size_t i = 0; i < s_acts.size(); i++)
+			d_acts[i].src = migrate_process_id(s_acts[i].src, src_design, dst_design);
+	}
+
 	// Walk two process trees in parallel and transfer src across the
 	// design boundary for every AttrObject (CaseRule, SwitchRule,
-	// MemWriteAction). Process::clone() drops src on these inner objects
-	// because they have no pool backpointer; this restores it now that
-	// both source and destination designs are known.
+	// MemWriteAction) as well as the bare src IdStrings carried by
+	// CaseRule::compare_src, SyncAction::src and MemWriteAction::memid.
+	// Process::clone() copies these verbatim, which leaves refs into the
+	// source design's pool; this re-interns them now that both designs
+	// are known.
 	void migrate_process_tree_src(const RTLIL::Process *src, const RTLIL::Design *src_design,
 			RTLIL::Process *dst, RTLIL::Design *dst_design)
 	{
@@ -3717,6 +3738,8 @@ namespace {
 			auto [s_cs, d_cs] = case_stack.back();
 			case_stack.pop_back();
 			copy_src_into(s_cs, src_design, d_cs, dst_design);
+			d_cs->compare_src = migrate_process_id(s_cs->compare_src, src_design, dst_design);
+			migrate_process_actions(s_cs->actions, d_cs->actions, src_design, dst_design);
 			log_assert(s_cs->switches.size() == d_cs->switches.size());
 			for (size_t i = 0; i < s_cs->switches.size(); i++) {
 				const auto *s_sw = s_cs->switches[i];
@@ -3731,10 +3754,13 @@ namespace {
 		for (size_t i = 0; i < src->syncs.size(); i++) {
 			const auto *s_sync = src->syncs[i];
 			auto *d_sync = dst->syncs[i];
+			migrate_process_actions(s_sync->actions, d_sync->actions, src_design, dst_design);
 			log_assert(s_sync->mem_write_actions.size() == d_sync->mem_write_actions.size());
-			for (size_t j = 0; j < s_sync->mem_write_actions.size(); j++)
+			for (size_t j = 0; j < s_sync->mem_write_actions.size(); j++) {
 				copy_src_into(&s_sync->mem_write_actions[j], src_design,
 						&d_sync->mem_write_actions[j], dst_design);
+				d_sync->mem_write_actions[j].memid = migrate_process_id(s_sync->mem_write_actions[j].memid, src_design, dst_design);
+			}
 		}
 	}
 }
