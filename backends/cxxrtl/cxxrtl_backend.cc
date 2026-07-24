@@ -177,39 +177,39 @@ struct Scheduler {
 bool is_unary_cell(TwineRef type)
 {
 	return type.in(
-		TW($not), TW($logic_not), TW($reduce_and), TW($reduce_or), TW($reduce_xor), TW($reduce_xnor), TW($reduce_bool),
-		TW($pos), TW($neg));
+		ID::$not, ID::$logic_not, ID::$reduce_and, ID::$reduce_or, ID::$reduce_xor, ID::$reduce_xnor, ID::$reduce_bool,
+		ID::$pos, ID::$neg);
 }
 
 bool is_binary_cell(TwineRef type)
 {
 	return type.in(
-		TW($and), TW($or), TW($xor), TW($xnor), TW($logic_and), TW($logic_or),
-		TW($shl), TW($sshl), TW($shr), TW($sshr), TW($shift), TW($shiftx),
-		TW($eq), TW($ne), TW($eqx), TW($nex), TW($gt), TW($ge), TW($lt), TW($le),
-		TW($add), TW($sub), TW($mul), TW($div), TW($mod), TW($modfloor), TW($divfloor));
+		ID::$and, ID::$or, ID::$xor, ID::$xnor, ID::$logic_and, ID::$logic_or,
+		ID::$shl, ID::$sshl, ID::$shr, ID::$sshr, ID::$shift, ID::$shiftx,
+		ID::$eq, ID::$ne, ID::$eqx, ID::$nex, ID::$gt, ID::$ge, ID::$lt, ID::$le,
+		ID::$add, ID::$sub, ID::$mul, ID::$div, ID::$mod, ID::$modfloor, ID::$divfloor);
 }
 
 bool is_extending_cell(TwineRef type)
 {
 	return !type.in(
-		TW($logic_not), TW($logic_and), TW($logic_or),
-		TW($reduce_and), TW($reduce_or), TW($reduce_xor), TW($reduce_xnor), TW($reduce_bool));
+		ID::$logic_not, ID::$logic_and, ID::$logic_or,
+		ID::$reduce_and, ID::$reduce_or, ID::$reduce_xor, ID::$reduce_xnor, ID::$reduce_bool);
 }
 
 bool is_inlinable_cell(TwineRef type)
 {
 	return is_unary_cell(type) || is_binary_cell(type) || type.in(
-		TW($mux), TW($concat), TW($slice), TW($pmux), TW($bmux), TW($demux), TW($bwmux));
+		ID::$mux, ID::$concat, ID::$slice, ID::$pmux, ID::$bmux, ID::$demux, ID::$bwmux);
 }
 
 bool is_ff_cell(TwineRef type)
 {
 	return type.in(
-		TW($dff), TW($dffe), TW($sdff), TW($sdffe), TW($sdffce),
-		TW($adff), TW($adffe), TW($dffsr), TW($dffsre),
-		TW($aldff), TW($aldffe),
-		TW($dlatch), TW($adlatch), TW($dlatchsr), TW($sr));
+		ID::$dff, ID::$dffe, ID::$sdff, ID::$sdffe, ID::$sdffce,
+		ID::$adff, ID::$adffe, ID::$dffsr, ID::$dffsre,
+		ID::$aldff, ID::$aldffe,
+		ID::$dlatch, ID::$adlatch, ID::$dlatchsr, ID::$sr);
 }
 
 bool is_internal_cell(TwineRef type)
@@ -219,14 +219,14 @@ bool is_internal_cell(TwineRef type)
 
 bool is_effectful_cell(TwineRef type)
 {
-	return type.in(TW($print), TW($check));
+	return type.in(ID::$print, ID::$check);
 }
 
 bool is_cxxrtl_blackbox_cell(const RTLIL::Cell *cell)
 {
 	RTLIL::Module *cell_module = cell->module->design->module(cell->type_impl);
 	log_assert(cell_module != nullptr);
-	return cell_module->get_bool_attribute(ID(cxxrtl_blackbox));
+	return cell_module->get_bool_attribute(ID::cxxrtl_blackbox);
 }
 
 bool is_memwr_process(const RTLIL::Process *process)
@@ -247,8 +247,8 @@ CxxrtlPortType cxxrtl_port_type(RTLIL::Module *module, TwineRef port)
 {
 	RTLIL::Wire *output_wire = module->wire(port);
 	log_assert(output_wire != nullptr);
-	bool is_comb = output_wire->get_bool_attribute(ID(cxxrtl_comb));
-	bool is_sync = output_wire->get_bool_attribute(ID(cxxrtl_sync));
+	bool is_comb = output_wire->get_bool_attribute(ID::cxxrtl_comb);
+	bool is_sync = output_wire->get_bool_attribute(ID::cxxrtl_sync);
 	if (is_comb && is_sync)
 		log_cmd_error("Port `%s.%s' is marked as both `cxxrtl_comb` and `cxxrtl_sync`.\n",
 		              module, log_signal(output_wire));
@@ -262,7 +262,7 @@ CxxrtlPortType cxxrtl_port_type(RTLIL::Module *module, TwineRef port)
 CxxrtlPortType cxxrtl_port_type(const RTLIL::Cell *cell, TwineRef port)
 {
 	RTLIL::Module *cell_module = cell->module->design->module(cell->type_impl);
-	if (cell_module == nullptr || !cell_module->get_bool_attribute(ID(cxxrtl_blackbox)))
+	if (cell_module == nullptr || !cell_module->get_bool_attribute(ID::cxxrtl_blackbox))
 		return CxxrtlPortType::UNKNOWN;
 	return cxxrtl_port_type(cell_module, port);
 }
@@ -738,9 +738,12 @@ struct CxxrtlWorker {
 	std::string indent;
 	int temporary = 0;
 
+	// Design whose twine pool backs every name rendered by this worker.
+	const RTLIL::Design *design = nullptr;
+
 	dict<const RTLIL::Module*, SigMap> sigmaps;
 	dict<const RTLIL::Module*, std::vector<Mem>> mod_memories;
-	pool<std::pair<const RTLIL::Module*, RTLIL::IdString>> writable_memories;
+	pool<std::pair<const RTLIL::Module*, TwineRef>> writable_memories;
 	pool<const RTLIL::Wire*> edge_wires;
 	dict<const RTLIL::Wire*, RTLIL::Const> wire_init;
 	dict<RTLIL::SigBit, RTLIL::SyncType> edge_types;
@@ -766,11 +769,11 @@ struct CxxrtlWorker {
 	//  1b. Generated identifiers for internal names (beginning with `$`) start with `i_`.
 	//  2. An underscore is escaped with another underscore, i.e. `__`.
 	//  3. Any other non-alnum character is escaped with underscores around its lowercase hex code, e.g. `@` as `_40_`.
-	std::string mangle_name(RTLIL::IdString name)
+	std::string mangle_name(TwineRef name)
 	{
 		std::string mangled;
 		bool first = true;
-		for (char c : name.str()) {
+		for (char c : design->twines.str(name)) {
 			if (first) {
 				first = false;
 				if (c == '\\')
@@ -796,7 +799,7 @@ struct CxxrtlWorker {
 		return mangled;
 	}
 
-	std::string mangle_module_name(RTLIL::IdString name, bool is_blackbox = false)
+	std::string mangle_module_name(TwineRef name, bool is_blackbox = false)
 	{
 		// Class namespace.
 		if (is_blackbox)
@@ -804,33 +807,27 @@ struct CxxrtlWorker {
 		return mangle_name(name);
 	}
 
-	std::string mangle_memory_name(RTLIL::IdString name)
+	std::string mangle_memory_name(TwineRef name)
 	{
 		// Class member namespace.
 		return "memory_" + mangle_name(name);
 	}
 
-	std::string mangle_cell_name(RTLIL::IdString name)
+	std::string mangle_cell_name(TwineRef name)
 	{
 		// Class member namespace.
 		return "cell_" + mangle_name(name);
 	}
 
-	std::string mangle_wire_name(RTLIL::IdString name)
+	std::string mangle_wire_name(TwineRef name)
 	{
 		// Class member namespace.
 		return mangle_name(name);
 	}
 
-	std::string mangle_wire_name(TwineRef name, const RTLIL::Design *design)
-	{
-		// Class member namespace.
-		return mangle_name(RTLIL::IdString(design->twines.str(name)));
-	}
-
 	std::string mangle(const RTLIL::Module *module)
 	{
-		return mangle_module_name(RTLIL::IdString(module->design->twines.str(module->meta_->name)), /*is_blackbox=*/module->get_bool_attribute(ID(cxxrtl_blackbox)));
+		return mangle_module_name(module->meta_->name, /*is_blackbox=*/module->get_bool_attribute(ID::cxxrtl_blackbox));
 	}
 
 	std::string mangle(const Mem *mem)
@@ -840,7 +837,7 @@ struct CxxrtlWorker {
 
 	std::string mangle(const RTLIL::Memory *memory)
 	{
-		return mangle_memory_name(RTLIL::IdString(memory->module->design->twines.str(memory->meta_->name)));
+		return mangle_memory_name(memory->meta_->name);
 	}
 
 	std::string mangle(const RTLIL::Cell *cell)
@@ -863,13 +860,13 @@ struct CxxrtlWorker {
 
 	std::vector<std::string> template_param_names(const RTLIL::Module *module)
 	{
-		if (!module->has_attribute(ID(cxxrtl_template)))
+		if (!module->has_attribute(ID::cxxrtl_template))
 			return {};
 
-		if (!(module->attributes.at(ID(cxxrtl_template)).flags & RTLIL::CONST_FLAG_STRING))
+		if (!(module->attributes.at(ID::cxxrtl_template).flags & RTLIL::CONST_FLAG_STRING))
 			log_cmd_error("Attribute `cxxrtl_template' of module `%s' is not a string.\n", module);
 
-		std::vector<std::string> param_names = split_by(module->get_string_attribute(ID(cxxrtl_template)), " \t");
+		std::vector<std::string> param_names = split_by(module->get_string_attribute(ID::cxxrtl_template), " \t");
 		for (const auto &param_name : param_names) {
 			// Various lowercase prefixes (p_, i_, cell_, ...) are used for member variables, so require
 			// parameters to start with an uppercase letter to avoid name conflicts. (This is the convention
@@ -906,7 +903,7 @@ struct CxxrtlWorker {
 	{
 		RTLIL::Module *cell_module = cell->module->design->module(cell->type_impl);
 		log_assert(cell_module != nullptr);
-		if (!cell_module->get_bool_attribute(ID(cxxrtl_blackbox)))
+		if (!cell_module->get_bool_attribute(ID::cxxrtl_blackbox))
 			return "";
 
 		std::vector<std::string> param_names = template_param_names(cell_module);
@@ -920,7 +917,7 @@ struct CxxrtlWorker {
 				params += ", ";
 			first = false;
 			params += "/*" + param_name + "=*/";
-			RTLIL::IdString id_param_name = '\\' + param_name;
+			TwineRef id_param_name = cell->module->design->twines.add('\\' + param_name);
 			if (!cell->hasParam(id_param_name))
 				log_cmd_error("Cell `%s.%s' does not have a parameter `%s', which is required by the templated module `%s'.\n",
 				              cell->module, cell, param_name.c_str(), cell_module);
@@ -943,7 +940,7 @@ struct CxxrtlWorker {
 	void dump_attrs(const RTLIL::AttrObject *object)
 	{
 		for (auto attr : object->attributes) {
-			f << indent << "// " << attr.first.str() << ": ";
+			f << indent << "// " << design->twines.str(attr.first) << ": ";
 			if (attr.second.flags & RTLIL::CONST_FLAG_STRING) {
 				f << attr.second.decode_string();
 			} else {
@@ -1143,7 +1140,7 @@ struct CxxrtlWorker {
 				if (is_cxxrtl_sync_port(cell, conn.first) && !conn.second.empty()) {
 					f << indent;
 					dump_sigspec_lhs(conn.second, for_debug);
-					f << " = " << mangle(cell) << access << mangle_wire_name(conn.first, cell->module->design) << ".curr;\n";
+					f << " = " << mangle(cell) << access << mangle_wire_name(conn.first) << ".curr;\n";
 				}
 	}
 
@@ -1155,7 +1152,7 @@ struct CxxrtlWorker {
 			if (is_extending_cell(cell->type.ref()))
 				f << '_' << (cell->getParam(ID::A_SIGNED).as_bool() ? 's' : 'u');
 			f << "<" << cell->getParam(ID::Y_WIDTH).as_int() << ">(";
-			dump_sigspec_rhs(cell->getPort(TW::A), for_debug);
+			dump_sigspec_rhs(cell->getPort(ID::A), for_debug);
 			f << ")";
 		// Binary cells
 		} else if (is_binary_cell(cell->type.ref())) {
@@ -1164,67 +1161,67 @@ struct CxxrtlWorker {
 				f << '_' << (cell->getParam(ID::A_SIGNED).as_bool() ? 's' : 'u') <<
 				            (cell->getParam(ID::B_SIGNED).as_bool() ? 's' : 'u');
 			f << "<" << cell->getParam(ID::Y_WIDTH).as_int() << ">(";
-			dump_sigspec_rhs(cell->getPort(TW::A), for_debug);
+			dump_sigspec_rhs(cell->getPort(ID::A), for_debug);
 			f << ", ";
-			dump_sigspec_rhs(cell->getPort(TW::B), for_debug);
+			dump_sigspec_rhs(cell->getPort(ID::B), for_debug);
 			f << ")";
 		// Muxes
-		} else if (cell->type == TW($mux)) {
+		} else if (cell->type == ID::$mux) {
 			f << "(";
-			dump_sigspec_rhs(cell->getPort(TW::S), for_debug);
+			dump_sigspec_rhs(cell->getPort(ID::S), for_debug);
 			f << " ? ";
-			dump_sigspec_rhs(cell->getPort(TW::B), for_debug);
+			dump_sigspec_rhs(cell->getPort(ID::B), for_debug);
 			f << " : ";
-			dump_sigspec_rhs(cell->getPort(TW::A), for_debug);
+			dump_sigspec_rhs(cell->getPort(ID::A), for_debug);
 			f << ")";
 		// Parallel (one-hot) muxes
-		} else if (cell->type == TW($pmux)) {
+		} else if (cell->type == ID::$pmux) {
 			int width = cell->getParam(ID::WIDTH).as_int();
 			int s_width = cell->getParam(ID::S_WIDTH).as_int();
 			for (int part = 0; part < s_width; part++) {
 				f << "(";
-				dump_sigspec_rhs(cell->getPort(TW::S).extract(part), for_debug);
+				dump_sigspec_rhs(cell->getPort(ID::S).extract(part), for_debug);
 				f << " ? ";
-				dump_sigspec_rhs(cell->getPort(TW::B).extract(part * width, width), for_debug);
+				dump_sigspec_rhs(cell->getPort(ID::B).extract(part * width, width), for_debug);
 				f << " : ";
 			}
-			dump_sigspec_rhs(cell->getPort(TW::A), for_debug);
+			dump_sigspec_rhs(cell->getPort(ID::A), for_debug);
 			for (int part = 0; part < s_width; part++) {
 				f << ")";
 			}
 		// Big muxes
-		} else if (cell->type == TW($bmux)) {
-			dump_sigspec_rhs(cell->getPort(TW::A), for_debug);
+		} else if (cell->type == ID::$bmux) {
+			dump_sigspec_rhs(cell->getPort(ID::A), for_debug);
 			f << ".bmux<";
 			f << cell->getParam(ID::WIDTH).as_int();
 			f << ">(";
-			dump_sigspec_rhs(cell->getPort(TW::S), for_debug);
+			dump_sigspec_rhs(cell->getPort(ID::S), for_debug);
 			f << ").val()";
 		// Bitwise muxes
-		} else if (cell->type == TW($bwmux)) {
-			dump_sigspec_rhs(cell->getPort(TW::A), for_debug);
+		} else if (cell->type == ID::$bwmux) {
+			dump_sigspec_rhs(cell->getPort(ID::A), for_debug);
 			f << ".bwmux(";
-			dump_sigspec_rhs(cell->getPort(TW::B), for_debug);
+			dump_sigspec_rhs(cell->getPort(ID::B), for_debug);
 			f << ",";
-			dump_sigspec_rhs(cell->getPort(TW::S), for_debug);
+			dump_sigspec_rhs(cell->getPort(ID::S), for_debug);
 			f << ").val()";
 		// Demuxes
-		} else if (cell->type == TW($demux)) {
-			dump_sigspec_rhs(cell->getPort(TW::A), for_debug);
+		} else if (cell->type == ID::$demux) {
+			dump_sigspec_rhs(cell->getPort(ID::A), for_debug);
 			f << ".demux<";
-			f << GetSize(cell->getPort(TW::Y));
+			f << GetSize(cell->getPort(ID::Y));
 			f << ">(";
-			dump_sigspec_rhs(cell->getPort(TW::S), for_debug);
+			dump_sigspec_rhs(cell->getPort(ID::S), for_debug);
 			f << ").val()";
 		// Concats
-		} else if (cell->type == TW($concat)) {
-			dump_sigspec_rhs(cell->getPort(TW::B), for_debug);
+		} else if (cell->type == ID::$concat) {
+			dump_sigspec_rhs(cell->getPort(ID::B), for_debug);
 			f << ".concat(";
-			dump_sigspec_rhs(cell->getPort(TW::A), for_debug);
+			dump_sigspec_rhs(cell->getPort(ID::A), for_debug);
 			f << ").val()";
 		// Slices
-		} else if (cell->type == TW($slice)) {
-			dump_sigspec_rhs(cell->getPort(TW::A), for_debug);
+		} else if (cell->type == ID::$slice) {
+			dump_sigspec_rhs(cell->getPort(ID::A), for_debug);
 			f << ".slice<";
 			f << cell->getParam(ID::OFFSET).as_int() + cell->getParam(ID::Y_WIDTH).as_int() - 1;
 			f << ",";
@@ -1241,7 +1238,7 @@ struct CxxrtlWorker {
 		fmt.parse_rtlil(cell);
 
 		f << indent << "if (";
-		dump_sigspec_rhs(cell->getPort(TW::EN));
+		dump_sigspec_rhs(cell->getPort(ID::EN));
 		f << " == value<1>{1u}) {\n";
 		inc_indent();
 			dict<std::string, RTLIL::SigSpec> fmt_args;
@@ -1293,7 +1290,7 @@ struct CxxrtlWorker {
 		fmt.parse_rtlil(cell);
 
 		f << indent << "if (";
-		dump_sigspec_rhs(cell->getPort(TW::EN));
+		dump_sigspec_rhs(cell->getPort(ID::EN));
 		f << ") {\n";
 		inc_indent();
 			dict<std::string, RTLIL::SigSpec> fmt_args;
@@ -1323,9 +1320,9 @@ struct CxxrtlWorker {
 				dump_sigspec_rhs(arg.second);
 				f << ";\n";
 			}
-			if (cell->hasPort(TW::A)) {
+			if (cell->hasPort(ID::A)) {
 				f << indent << "bool condition = (bool)";
-				dump_sigspec_rhs(cell->getPort(TW::A));
+				dump_sigspec_rhs(cell->getPort(ID::A));
 				f << ";\n";
 			}
 			f << indent << "if (performer) {\n";
@@ -1333,9 +1330,9 @@ struct CxxrtlWorker {
 				f << indent << "static const metadata_map attributes = ";
 				dump_metadata_map(cell->attributes);
 				f << ";\n";
-				if (cell->type == TW($print)) {
+				if (cell->type == ID::$print) {
 					f << indent << "performer->on_print(formatter, attributes);\n";
-				} else if (cell->type == TW($check)) {
+				} else if (cell->type == ID::$check) {
 					std::string flavor = cell->getParam(ID::FLAVOR).decode_string();
 					f << indent << "performer->on_check(";
 					if (flavor == "assert")
@@ -1354,9 +1351,9 @@ struct CxxrtlWorker {
 			dec_indent();
 			f << indent << "} else {\n";
 			inc_indent();
-				if (cell->type == TW($print)) {
+				if (cell->type == ID::$print) {
 					f << indent << print_output << " << formatter();\n";
-				} else if (cell->type == TW($check)) {
+				} else if (cell->type == ID::$check) {
 					std::string flavor = cell->getParam(ID::FLAVOR).decode_string();
 					if (flavor == "assert" || flavor == "assume") {
 						f << indent << "if (!condition) {\n";
@@ -1382,7 +1379,7 @@ struct CxxrtlWorker {
 		// Elidable cells
 		if (is_inlinable_cell(cell->type.ref())) {
 			f << indent;
-			dump_sigspec_lhs(cell->getPort(TW::Y), for_debug);
+			dump_sigspec_lhs(cell->getPort(ID::Y), for_debug);
 			f << " = ";
 			dump_cell_expr(cell, for_debug);
 			f << ";\n";
@@ -1395,12 +1392,12 @@ struct CxxrtlWorker {
 
 			if (!cell->getParam(ID::TRG_ENABLE).as_bool()) { // async effectful cell
 				f << indent << "auto " << mangle(cell) << "_next = ";
-				dump_sigspec_rhs(cell->getPort(TW::EN));
+				dump_sigspec_rhs(cell->getPort(ID::EN));
 				f << ".concat(";
-				if (cell->type == TW($print))
-					dump_sigspec_rhs(cell->getPort(TW::ARGS));
-				else if (cell->type == TW($check))
-					dump_sigspec_rhs(cell->getPort(TW::A));
+				if (cell->type == ID::$print)
+					dump_sigspec_rhs(cell->getPort(ID::ARGS));
+				else if (cell->type == ID::$check)
+					dump_sigspec_rhs(cell->getPort(ID::A));
 				else log_assert(false);
 				f << ").val();\n";
 
@@ -1422,9 +1419,9 @@ struct CxxrtlWorker {
 		} else if (is_ff_cell(cell->type.ref())) {
 			log_assert(!for_debug);
 			// Clocks might be slices of larger signals but should only ever be single bit
-			if (cell->hasPort(TW::CLK) && is_valid_clock(cell->getPort(TW::CLK))) {
+			if (cell->hasPort(ID::CLK) && is_valid_clock(cell->getPort(ID::CLK))) {
 				// Edge-sensitive logic
-				RTLIL::SigBit clk_bit = cell->getPort(TW::CLK)[0];
+				RTLIL::SigBit clk_bit = cell->getPort(ID::CLK)[0];
 				clk_bit = sigmaps[clk_bit.wire->module](clk_bit);
 				if (clk_bit.wire) {
 					f << indent << "if (" << (cell->getParam(ID::CLK_POLARITY).as_bool() ? "posedge_" : "negedge_")
@@ -1433,104 +1430,104 @@ struct CxxrtlWorker {
 					f << indent << "if (false) {\n";
 				}
 				inc_indent();
-					if (cell->hasPort(TW::EN)) {
+					if (cell->hasPort(ID::EN)) {
 						f << indent << "if (";
-						dump_sigspec_rhs(cell->getPort(TW::EN));
+						dump_sigspec_rhs(cell->getPort(ID::EN));
 						f << " == value<1> {" << cell->getParam(ID::EN_POLARITY).as_bool() << "u}) {\n";
 						inc_indent();
 					}
 					f << indent;
-					dump_sigspec_lhs(cell->getPort(TW::Q));
+					dump_sigspec_lhs(cell->getPort(ID::Q));
 					f << " = ";
-					dump_sigspec_rhs(cell->getPort(TW::D));
+					dump_sigspec_rhs(cell->getPort(ID::D));
 					f << ";\n";
-					if (cell->hasPort(TW::EN) && cell->type != TW($sdffce)) {
+					if (cell->hasPort(ID::EN) && cell->type != ID::$sdffce) {
 						dec_indent();
 						f << indent << "}\n";
 					}
-					if (cell->hasPort(TW::SRST)) {
+					if (cell->hasPort(ID::SRST)) {
 						f << indent << "if (";
-						dump_sigspec_rhs(cell->getPort(TW::SRST));
+						dump_sigspec_rhs(cell->getPort(ID::SRST));
 						f << " == value<1> {" << cell->getParam(ID::SRST_POLARITY).as_bool() << "u}) {\n";
 						inc_indent();
 							f << indent;
-							dump_sigspec_lhs(cell->getPort(TW::Q));
+							dump_sigspec_lhs(cell->getPort(ID::Q));
 							f << " = ";
 							dump_const(cell->getParam(ID::SRST_VALUE));
 							f << ";\n";
 						dec_indent();
 						f << indent << "}\n";
 					}
-					if (cell->hasPort(TW::EN) && cell->type == TW($sdffce)) {
+					if (cell->hasPort(ID::EN) && cell->type == ID::$sdffce) {
 						dec_indent();
 						f << indent << "}\n";
 					}
 				dec_indent();
 				f << indent << "}\n";
-			} else if (cell->hasPort(TW::EN)) {
+			} else if (cell->hasPort(ID::EN)) {
 				// Level-sensitive logic
 				f << indent << "if (";
-				dump_sigspec_rhs(cell->getPort(TW::EN));
+				dump_sigspec_rhs(cell->getPort(ID::EN));
 				f << " == value<1> {" << cell->getParam(ID::EN_POLARITY).as_bool() << "u}) {\n";
 				inc_indent();
 					f << indent;
-					dump_sigspec_lhs(cell->getPort(TW::Q));
+					dump_sigspec_lhs(cell->getPort(ID::Q));
 					f << " = ";
-					dump_sigspec_rhs(cell->getPort(TW::D));
+					dump_sigspec_rhs(cell->getPort(ID::D));
 					f << ";\n";
 				dec_indent();
 				f << indent << "}\n";
 			}
-			if (cell->hasPort(TW::ARST)) {
+			if (cell->hasPort(ID::ARST)) {
 				// Asynchronous reset (entire coarse cell at once)
 				f << indent << "if (";
-				dump_sigspec_rhs(cell->getPort(TW::ARST));
+				dump_sigspec_rhs(cell->getPort(ID::ARST));
 				f << " == value<1> {" << cell->getParam(ID::ARST_POLARITY).as_bool() << "u}) {\n";
 				inc_indent();
 					f << indent;
-					dump_sigspec_lhs(cell->getPort(TW::Q));
+					dump_sigspec_lhs(cell->getPort(ID::Q));
 					f << " = ";
 					dump_const(cell->getParam(ID::ARST_VALUE));
 					f << ";\n";
 				dec_indent();
 				f << indent << "}\n";
 			}
-			if (cell->hasPort(TW::ALOAD)) {
+			if (cell->hasPort(ID::ALOAD)) {
 				// Asynchronous load
 				f << indent << "if (";
-				dump_sigspec_rhs(cell->getPort(TW::ALOAD));
+				dump_sigspec_rhs(cell->getPort(ID::ALOAD));
 				f << " == value<1> {" << cell->getParam(ID::ALOAD_POLARITY).as_bool() << "u}) {\n";
 				inc_indent();
 					f << indent;
-					dump_sigspec_lhs(cell->getPort(TW::Q));
+					dump_sigspec_lhs(cell->getPort(ID::Q));
 					f << " = ";
-					dump_sigspec_rhs(cell->getPort(TW::AD));
+					dump_sigspec_rhs(cell->getPort(ID::AD));
 					f << ";\n";
 				dec_indent();
 				f << indent << "}\n";
 			}
-			if (cell->hasPort(TW::SET)) {
+			if (cell->hasPort(ID::SET)) {
 				// Asynchronous set (for individual bits)
 				f << indent;
-				dump_sigspec_lhs(cell->getPort(TW::Q));
+				dump_sigspec_lhs(cell->getPort(ID::Q));
 				f << " = ";
-				dump_sigspec_rhs(cell->getPort(TW::Q));
+				dump_sigspec_rhs(cell->getPort(ID::Q));
 				f << ".update(";
 				dump_const(RTLIL::Const(RTLIL::S1, cell->getParam(ID::WIDTH).as_int()));
 				f << ", ";
-				dump_sigspec_rhs(cell->getPort(TW::SET));
+				dump_sigspec_rhs(cell->getPort(ID::SET));
 				f << (cell->getParam(ID::SET_POLARITY).as_bool() ? "" : ".bit_not()") << ");\n";
 			}
-			if (cell->hasPort(TW::CLR)) {
+			if (cell->hasPort(ID::CLR)) {
 				// Asynchronous clear (for individual bits; priority over set)
 				f << indent;
-				dump_sigspec_lhs(cell->getPort(TW::Q));
+				dump_sigspec_lhs(cell->getPort(ID::Q));
 				f << " = ";
-				dump_sigspec_rhs(cell->getPort(TW::Q));
+				dump_sigspec_rhs(cell->getPort(ID::Q));
 				f << ".update(";
 				dump_const(RTLIL::Const(RTLIL::S0, cell->getParam(ID::WIDTH).as_int()));
 				f << ", ";
-				dump_sigspec_rhs(cell->getPort(TW::CLR));
+				dump_sigspec_rhs(cell->getPort(ID::CLR));
 				f << (cell->getParam(ID::CLR_POLARITY).as_bool() ? "" : ".bit_not()") << ");\n";
 			}
 		// Internal cells
@@ -1548,7 +1545,7 @@ struct CxxrtlWorker {
 					RTLIL::Module *cell_module = cell->module->design->module(cell->type_impl);
 					log_assert(cell_module != nullptr && cell_module->wire(conn.first));
 					RTLIL::Wire *cell_module_wire = cell_module->wire(conn.first);
-					f << indent << mangle(cell) << access << mangle_wire_name(conn.first, cell->module->design);
+					f << indent << mangle(cell) << access << mangle_wire_name(conn.first);
 					if (!is_cxxrtl_blackbox_cell(cell) && wire_types[cell_module_wire].is_buffered()) {
 						buffered_inputs = true;
 						f << ".next";
@@ -1580,7 +1577,7 @@ struct CxxrtlWorker {
 							continue; // fully sync ports are handled in CELL_SYNC nodes
 						f << indent;
 						dump_sigspec_lhs(conn.second);
-						f << " = " << mangle(cell) << access << mangle_wire_name(conn.first, cell->module->design);
+						f << " = " << mangle(cell) << access << mangle_wire_name(conn.first);
 						// Similarly to how there is no purpose to buffering cell inputs, there is also no purpose to buffering
 						// combinatorial cell outputs in case the cell converges within one cycle. (To convince yourself that
 						// this optimization is valid, consider that, since the cell converged within one cycle, it would not
@@ -1776,7 +1773,7 @@ struct CxxrtlWorker {
 					for (auto &action : sync->actions)
 						dump_assign(action, for_debug);
 					for (auto &memwr : sync->mem_write_actions) {
-						TwineRef memid_ref = search.find(memwr.memid.str());
+						TwineRef memid_ref = memwr.memid;
 						log_assert(memid_ref != Twine::Null);
 						RTLIL::Memory *memory = proc->module->memories[memid_ref];
 						std::string valid_index_temp = fresh_temporary();
@@ -1806,7 +1803,7 @@ struct CxxrtlWorker {
 	void dump_cell_effect_sync(std::vector<const RTLIL::Cell*> &cells)
 	{
 		log_assert(!cells.empty());
-		const auto &trg = cells[0]->getPort(TW::TRG);
+		const auto &trg = cells[0]->getPort(ID::TRG);
 		const auto &trg_polarity = cells[0]->getParam(ID::TRG_POLARITY);
 
 		f << indent << "if (";
@@ -1831,7 +1828,7 @@ struct CxxrtlWorker {
 			});
 			for (auto cell : cells) {
 				log_assert(cell->getParam(ID::TRG_ENABLE).as_bool());
-				log_assert(cell->getPort(TW::TRG) == trg);
+				log_assert(cell->getPort(ID::TRG) == trg);
 				log_assert(cell->getParam(ID::TRG_POLARITY) == trg_polarity);
 
 				std::vector<const RTLIL::Cell*> inlined_cells;
@@ -1848,7 +1845,7 @@ struct CxxrtlWorker {
 	{
 		auto &port = mem->rd_ports[portidx];
 		dump_attrs(&port);
-		f << indent << "// memory " << mem->memid.str() << " read port " << portidx << "\n";
+		f << indent << "// memory " << design->twines.str(mem->memid) << " read port " << portidx << "\n";
 		if (port.clk_enable) {
 			log_assert(!for_debug);
 			RTLIL::SigBit clk_bit = port.clk[0];
@@ -1995,7 +1992,7 @@ struct CxxrtlWorker {
 		for (int portidx = 0; portidx < GetSize(mem->wr_ports); portidx++) {
 			auto &port = mem->wr_ports[portidx];
 			dump_attrs(&port);
-			f << indent << "// memory " << mem->memid.str() << " write port " << portidx << "\n";
+			f << indent << "// memory " << design->twines.str(mem->memid) << " write port " << portidx << "\n";
 			if (port.clk_enable) {
 				RTLIL::SigBit clk_bit = port.clk[0];
 				clk_bit = sigmaps[clk_bit.wire->module](clk_bit);
@@ -2055,8 +2052,8 @@ struct CxxrtlWorker {
 		else if (wire->port_output)
 			f << "/*output*/ ";
 		f << (wire_type.is_buffered() ? "wire" : "value");
-		if (wire->module->has_attribute(ID(cxxrtl_blackbox)) && wire->has_attribute(ID(cxxrtl_width))) {
-			f << "<" << wire->get_string_attribute(ID(cxxrtl_width)) << ">";
+		if (wire->module->has_attribute(ID::cxxrtl_blackbox) && wire->has_attribute(ID::cxxrtl_width)) {
+			f << "<" << wire->get_string_attribute(ID::cxxrtl_width) << ">";
 		} else {
 			f << "<" << wire->width << ">";
 		}
@@ -2171,7 +2168,7 @@ struct CxxrtlWorker {
 					continue;
 				f << indent << mangle(cell);
 				RTLIL::Module *cell_module = module->design->module(cell->type_impl);
-				if (cell_module->get_bool_attribute(ID(cxxrtl_blackbox))) {
+				if (cell_module->get_bool_attribute(ID::cxxrtl_blackbox)) {
 					f << "->reset();\n";
 				} else {
 					f << ".reset();\n";
@@ -2184,7 +2181,7 @@ struct CxxrtlWorker {
 	{
 		inc_indent();
 			f << indent << "bool converged = " << (eval_converges.at(module) ? "true" : "false") << ";\n";
-			if (!module->get_bool_attribute(ID(cxxrtl_blackbox))) {
+			if (!module->get_bool_attribute(ID::cxxrtl_blackbox)) {
 				for (auto wire : module->wires()) {
 					if (edge_wires[wire]) {
 						for (auto edge_type : edge_types) {
@@ -2282,7 +2279,7 @@ struct CxxrtlWorker {
 				if (wire_type.is_buffered())
 					f << indent << "if (" << mangle(wire) << ".commit(observer)) changed = true;\n";
 			}
-			if (!module->get_bool_attribute(ID(cxxrtl_blackbox))) {
+			if (!module->get_bool_attribute(ID::cxxrtl_blackbox)) {
 				for (auto &mem : mod_memories[module]) {
 					if (!writable_memories.count({module, mem.memid}))
 						continue;
@@ -2299,7 +2296,7 @@ struct CxxrtlWorker {
 		dec_indent();
 	}
 
-	void dump_serialized_metadata(const dict<RTLIL::IdString, RTLIL::Const> &metadata_map) {
+	void dump_serialized_metadata(const dict<TwineRef, RTLIL::Const> &metadata_map) {
 		// Creating thousands metadata_map objects using initializer lists in a single function results in one of:
 		// 1. Megabytes of stack usage (with __attribute__((optnone))).
 		// 2. Minutes of compile time (without __attribute__((optnone))).
@@ -2312,13 +2309,13 @@ struct CxxrtlWorker {
 			}
 		};
 		for (auto metadata_item : metadata_map) {
-			if (!metadata_item.first.isPublic())
+			if (!metadata_item.first.is_public())
 				continue;
 			if (metadata_item.second.size() > 64 && (metadata_item.second.flags & RTLIL::CONST_FLAG_STRING) == 0) {
-				f << indent << "/* attribute " << metadata_item.first.str().substr(1) << " is over 64 bits wide */\n";
+				f << indent << "/* attribute " << design->twines.str(metadata_item.first).substr(1) << " is over 64 bits wide */\n";
 				continue;
 			}
-			data += metadata_item.first.str().substr(1) + '\0';
+			data += design->twines.str(metadata_item.first).substr(1) + '\0';
 			// In Yosys, a real is a type of string.
 			if (metadata_item.second.flags & RTLIL::CONST_FLAG_REAL) {
 				double dvalue = std::stod(metadata_item.second.decode_string());
@@ -2342,20 +2339,20 @@ struct CxxrtlWorker {
 		f << escape_c_string(data);
 	}
 
-	void dump_metadata_map(const dict<RTLIL::IdString, RTLIL::Const> &metadata_map) {
+	void dump_metadata_map(const dict<TwineRef, RTLIL::Const> &metadata_map) {
 		if (metadata_map.empty()) {
 			f << "metadata_map()";
 		} else {
 			f << "metadata_map({\n";
 			inc_indent();
 				for (auto metadata_item : metadata_map) {
-					if (!metadata_item.first.isPublic())
+					if (!metadata_item.first.is_public())
 						continue;
 					if (metadata_item.second.size() > 64 && (metadata_item.second.flags & RTLIL::CONST_FLAG_STRING) == 0) {
-						f << indent << "/* attribute " << metadata_item.first.str().substr(1) << " is over 64 bits wide */\n";
+						f << indent << "/* attribute " << design->twines.str(metadata_item.first).substr(1) << " is over 64 bits wide */\n";
 						continue;
 					}
-					f << indent << "{ " << escape_cxx_string(metadata_item.first.str().substr(1)) << ", ";
+					f << indent << "{ " << escape_cxx_string(design->twines.str(metadata_item.first).substr(1)) << ", ";
 					// In Yosys, a real is a type of string.
 					if (metadata_item.second.flags & RTLIL::CONST_FLAG_REAL) {
 						f << std::showpoint << std::stod(metadata_item.second.decode_string()) << std::noshowpoint;
@@ -2375,7 +2372,7 @@ struct CxxrtlWorker {
 
 	void dump_debug_attrs(const RTLIL::AttrObject *object, bool serialize = true)
 	{
-		dict<RTLIL::IdString, RTLIL::Const> attributes = object->attributes;
+		dict<TwineRef, RTLIL::Const> attributes = object->attributes;
 		// Inherently necessary to get access to the object, so a waste of space to emit.
 		attributes.erase(ID::hdlname);
 		// Internal Yosys attribute that should be removed but isn't.
@@ -2412,16 +2409,16 @@ struct CxxrtlWorker {
 				count_scopes++;
 				// If there were any submodules that were flattened, the module is also responsible for adding them.
 				for (auto cell : module->cells()) {
-					if (cell->type != TW($scopeinfo)) continue;
+					if (cell->type != ID::$scopeinfo) continue;
 					if (cell->getParam(ID::TYPE).decode_string() == "module") {
 						auto module_attrs = scopeinfo_attributes(cell, ScopeinfoAttrs::Module);
 						auto cell_attrs = scopeinfo_attributes(cell, ScopeinfoAttrs::Cell);
 						cell_attrs.erase(ID::module_not_derived);
 						f << indent << "scopes->add(path, " << escape_cxx_string(get_hdl_name(cell)) << ", ";
-						if (module_attrs.count(ID(hdlname))) {
-							f << escape_cxx_string(module_attrs.at(ID(hdlname)).decode_string());
+						if (module_attrs.count(ID::hdlname)) {
+							f << escape_cxx_string(module_attrs.at(ID::hdlname).decode_string());
 						} else {
-							f << escape_cxx_string(cell->get_string_attribute(ID(module)));
+							f << escape_cxx_string(cell->get_string_attribute(ID::module));
 						}
 						f << ", ";
 						dump_serialized_metadata(module_attrs);
@@ -2444,7 +2441,7 @@ struct CxxrtlWorker {
 							// Member wire
 							std::vector<std::string> flags;
 
-							if (!wire->name.isPublic())
+							if (!wire->name.is_public())
 								flags.push_back("GENERATED");
 
 							if (wire->port_input && wire->port_output)
@@ -2457,7 +2454,7 @@ struct CxxrtlWorker {
 							bool has_driven_sync = false;
 							bool has_driven_comb = false;
 							bool has_undriven = false;
-							if (!module->get_bool_attribute(ID(cxxrtl_blackbox))) {
+							if (!module->get_bool_attribute(ID::cxxrtl_blackbox)) {
 								for (auto bit : SigSpec(wire))
 									if (!bit_has_state.count(bit))
 										has_undriven = true;
@@ -2566,9 +2563,9 @@ struct CxxrtlWorker {
 						}
 					}
 				}
-				if (!module->get_bool_attribute(ID(cxxrtl_blackbox))) {
+				if (!module->get_bool_attribute(ID::cxxrtl_blackbox)) {
 					for (auto &mem : mod_memories[module]) {
-						if (!mem.memid.isPublic())
+						if (!mem.memid.is_public())
 							continue;
 						f << indent << "items->add(path, " << escape_cxx_string(mem.packed ? get_hdl_name(mem.cell) : get_hdl_name(mem.mem)) << ", ";
 						if (mem.packed) {
@@ -2582,7 +2579,7 @@ struct CxxrtlWorker {
 				}
 			dec_indent();
 			f << indent << "}\n";
-			if (!module->get_bool_attribute(ID(cxxrtl_blackbox))) {
+			if (!module->get_bool_attribute(ID::cxxrtl_blackbox)) {
 				for (auto cell : module->cells()) {
 					if (is_internal_cell(cell->type.ref()))
 						continue;
@@ -2603,7 +2600,7 @@ struct CxxrtlWorker {
 		log_debug("      Driven sync:  %zu\n", count_driven_sync);
 		log_debug("      Driven comb:  %zu\n", count_driven_comb);
 		log_debug("      Mixed driver: %zu\n", count_mixed_driver);
-		if (!module->get_bool_attribute(ID(cxxrtl_blackbox))) {
+		if (!module->get_bool_attribute(ID::cxxrtl_blackbox)) {
 			log_debug("    Inline wires:   %zu\n", count_inline_wires);
 			log_debug("    Alias wires:    %zu\n", count_alias_wires);
 			log_debug("    Const wires:    %zu\n", count_const_wires);
@@ -2615,8 +2612,8 @@ struct CxxrtlWorker {
 	void dump_module_intf(RTLIL::Module *module)
 	{
 		dump_attrs(module);
-		if (module->get_bool_attribute(ID(cxxrtl_blackbox))) {
-			if (module->has_attribute(ID(cxxrtl_template)))
+		if (module->get_bool_attribute(ID::cxxrtl_blackbox)) {
+			if (module->has_attribute(ID::cxxrtl_template))
 				f << indent << "template" << template_params(module, /*is_decl=*/true) << "\n";
 			f << indent << "struct " << mangle(module) << " : public module {\n";
 			inc_indent();
@@ -2697,9 +2694,9 @@ struct CxxrtlWorker {
 					if (is_effectful_cell(cell->type.ref())) {
 						if (cell->getParam(ID::TRG_ENABLE).as_bool() && cell->getParam(ID::TRG_WIDTH).as_int() == 0)
 							f << indent << "value<1> " << mangle(cell) << ";\n"; // async initial cell
-						if (!cell->getParam(ID::TRG_ENABLE).as_bool() && cell->type == TW($print))
+						if (!cell->getParam(ID::TRG_ENABLE).as_bool() && cell->type == ID::$print)
 							f << indent << "value<" << (1 + cell->getParam(ID::ARGS_WIDTH).as_int()) << "> " << mangle(cell) << ";\n"; // {EN, ARGS}
-						if (!cell->getParam(ID::TRG_ENABLE).as_bool() && cell->type == TW($check))
+						if (!cell->getParam(ID::TRG_ENABLE).as_bool() && cell->type == ID::$check)
 							f << indent << "value<2> " << mangle(cell) << ";\n"; // {EN, A}
 					}
 					if (is_internal_cell(cell->type.ref()))
@@ -2707,7 +2704,7 @@ struct CxxrtlWorker {
 					dump_attrs(cell);
 					RTLIL::Module *cell_module = module->design->module(cell->type_impl);
 					log_assert(cell_module != nullptr);
-					if (cell_module->get_bool_attribute(ID(cxxrtl_blackbox))) {
+					if (cell_module->get_bool_attribute(ID::cxxrtl_blackbox)) {
 						f << indent << "std::unique_ptr<" << mangle(cell_module) << template_args(cell) << "> ";
 						f << mangle(cell) << " = " << mangle(cell_module) << template_args(cell);
 						f << "::create(" << escape_cxx_string(get_hdl_name(cell)) << ", ";
@@ -2765,7 +2762,7 @@ struct CxxrtlWorker {
 
 	void dump_module_impl(RTLIL::Module *module)
 	{
-		if (module->get_bool_attribute(ID(cxxrtl_blackbox)))
+		if (module->get_bool_attribute(ID::cxxrtl_blackbox))
 			return;
 		f << indent << "void " << mangle(module) << "::reset() {\n";
 		dump_reset_method(module);
@@ -2793,6 +2790,7 @@ struct CxxrtlWorker {
 
 	void dump_design(RTLIL::Design *design)
 	{
+		this->design = design;
 		RTLIL::Module *top_module = nullptr;
 		std::vector<RTLIL::Module*> modules;
 
@@ -2811,9 +2809,9 @@ struct CxxrtlWorker {
 		for (auto module : design->modules()) {
 			if (!design->selected_module(module))
 				continue;
-			if (module->get_bool_attribute(ID(cxxrtl_blackbox)))
+			if (module->get_bool_attribute(ID::cxxrtl_blackbox))
 				modules.push_back(module); // cxxrtl blackboxes first
-			if (module->get_blackbox_attribute() || module->get_bool_attribute(ID(cxxrtl_blackbox)))
+			if (module->get_blackbox_attribute() || module->get_bool_attribute(ID::cxxrtl_blackbox))
 				continue;
 			if (module->get_bool_attribute(ID::top))
 				top_module = module;
@@ -2941,6 +2939,7 @@ struct CxxrtlWorker {
 
 	void analyze_design(RTLIL::Design *design)
 	{
+		this->design = design;
 		bool has_feedback_arcs = false;
 		bool has_buffered_comb_wires = false;
 
@@ -2958,7 +2957,7 @@ struct CxxrtlWorker {
 				mem.coalesce_inits();
 			}
 
-			if (module->get_bool_attribute(ID(cxxrtl_blackbox))) {
+			if (module->get_bool_attribute(ID::cxxrtl_blackbox)) {
 				for (auto port : module->ports) {
 					RTLIL::Wire *wire = module->wire(port);
 					if (wire->port_input && !wire->port_output) {
@@ -2966,13 +2965,13 @@ struct CxxrtlWorker {
 					} else if (wire->port_input || wire->port_output) {
 						wire_types[wire] = debug_wire_types[wire] = {WireType::BUFFERED};
 					}
-					if (wire->has_attribute(ID(cxxrtl_edge))) {
-						RTLIL::Const edge_attr = wire->attributes[ID(cxxrtl_edge)];
+					if (wire->has_attribute(ID::cxxrtl_edge)) {
+						RTLIL::Const edge_attr = wire->attributes[ID::cxxrtl_edge];
 						if (!(edge_attr.flags & RTLIL::CONST_FLAG_STRING) || (int)edge_attr.decode_string().size() != GetSize(wire))
 							log_cmd_error("Attribute `cxxrtl_edge' of port `%s.%s' is not a string with one character per bit.\n",
 							              module, log_signal(wire));
 
-						std::string edges = wire->get_string_attribute(ID(cxxrtl_edge));
+						std::string edges = wire->get_string_attribute(ID::cxxrtl_edge);
 						for (int i = 0; i < GetSize(wire); i++) {
 							RTLIL::SigSpec wire_sig = wire;
 							switch (edges[i]) {
@@ -3016,27 +3015,27 @@ struct CxxrtlWorker {
 				RTLIL::Module *cell_module = design->module(cell->type_impl);
 				if (cell_module &&
 				    cell_module->get_blackbox_attribute() &&
-				    !cell_module->get_bool_attribute(ID(cxxrtl_blackbox)))
+				    !cell_module->get_bool_attribute(ID::cxxrtl_blackbox))
 					log_cmd_error("External blackbox cell `%s' is not marked as a CXXRTL blackbox.\n", cell->type.unescaped());
 
 				if (cell_module &&
-				    cell_module->get_bool_attribute(ID(cxxrtl_blackbox)) &&
-				    cell_module->get_bool_attribute(ID(cxxrtl_template)))
+				    cell_module->get_bool_attribute(ID::cxxrtl_blackbox) &&
+				    cell_module->get_bool_attribute(ID::cxxrtl_template))
 					blackbox_specializations[cell_module].insert(template_args(cell));
 
 				flow.add_node(cell);
 
 				// Various DFF cells are treated like posedge/negedge processes, see above for details.
-				if (cell->type.in(TW($dff), TW($dffe), TW($adff), TW($adffe), TW($aldff), TW($aldffe), TW($dffsr), TW($dffsre), TW($sdff), TW($sdffe), TW($sdffce))) {
-					if (is_valid_clock(cell->getPort(TW::CLK)))
-						register_edge_signal(sigmap, cell->getPort(TW::CLK),
+				if (cell->type.in(ID::$dff, ID::$dffe, ID::$adff, ID::$adffe, ID::$aldff, ID::$aldffe, ID::$dffsr, ID::$dffsre, ID::$sdff, ID::$sdffe, ID::$sdffce)) {
+					if (is_valid_clock(cell->getPort(ID::CLK)))
+						register_edge_signal(sigmap, cell->getPort(ID::CLK),
 							cell->parameters[ID::CLK_POLARITY].as_bool() ? RTLIL::STp : RTLIL::STn);
 				}
 
 				// Effectful cells may be triggered on posedge/negedge events.
 				if (is_effectful_cell(cell->type.ref()) && cell->getParam(ID::TRG_ENABLE).as_bool()) {
 					for (size_t i = 0; i < (size_t)cell->getParam(ID::TRG_WIDTH).as_int(); i++) {
-						RTLIL::SigBit trg = cell->getPort(TW::TRG).extract(i, 1);
+						RTLIL::SigBit trg = cell->getPort(ID::TRG).extract(i, 1);
 						if (is_valid_clock(trg))
 							register_edge_signal(sigmap, trg,
 								cell->parameters[ID::TRG_POLARITY][i] == RTLIL::S1 ? RTLIL::STp : RTLIL::STn);
@@ -3159,16 +3158,16 @@ struct CxxrtlWorker {
 
 				if (feedback_wires[wire]) continue;
 				if (wire->port_output && !module->get_bool_attribute(ID::top)) continue;
-				if (!wire->name.isPublic() && !unbuffer_internal) continue;
-				if (wire->name.isPublic() && !unbuffer_public) continue;
+				if (!wire->name.is_public() && !unbuffer_internal) continue;
+				if (wire->name.is_public() && !unbuffer_public) continue;
 				if (flow.wire_sync_defs.count(wire) > 0) continue;
 				wire_type = {WireType::MEMBER};
 
 				if (edge_wires[wire]) continue;
 				if (wire->get_bool_attribute(ID::keep)) continue;
 				if (wire->port_input || wire->port_output) continue;
-				if (!wire->name.isPublic() && !localize_internal) continue;
-				if (wire->name.isPublic() && !localize_public) continue;
+				if (!wire->name.is_public() && !localize_internal) continue;
+				if (wire->name.is_public() && !localize_public) continue;
 				wire_type = {WireType::LOCAL};
 			}
 
@@ -3215,8 +3214,8 @@ struct CxxrtlWorker {
 					continue;
 				}
 
-				if (!wire->name.isPublic() && !inline_internal) continue;
-				if (wire->name.isPublic() && !inline_public) continue;
+				if (!wire->name.is_public() && !inline_internal) continue;
+				if (wire->name.is_public() && !inline_public) continue;
 				if (flow.is_inlinable(wire, live_wires[wire])) {
 					if (flow.wire_comb_defs[wire].size() > 1)
 						log_cmd_error("Wire %s.%s has multiple drivers!\n", module, wire);
@@ -3245,7 +3244,7 @@ struct CxxrtlWorker {
 							is_effectful_cell(node->cell->type.ref()) &&
 							node->cell->getParam(ID::TRG_ENABLE).as_bool() &&
 							node->cell->getParam(ID::TRG_WIDTH).as_int() != 0)
-						effect_sync_cells[make_pair(node->cell->getPort(TW::TRG), node->cell->getParam(ID::TRG_POLARITY))].push_back(node->cell);
+						effect_sync_cells[make_pair(node->cell->getPort(ID::TRG), node->cell->getParam(ID::TRG_POLARITY))].push_back(node->cell);
 					else
 						schedule[module].push_back(*node);
 				}
@@ -3289,7 +3288,7 @@ struct CxxrtlWorker {
 					if (!debug_info) continue;
 					if (wire->port_input || wire_type.is_buffered())
 						debug_wire_type = wire_type; // wire contains state
-					else if (!wire->name.isPublic())
+					else if (!wire->name.is_public())
 						continue; // internal and stateless
 
 					if (!debug_member) continue;
@@ -3309,7 +3308,7 @@ struct CxxrtlWorker {
 						} else if (rhs.is_wire()) {
 							if (wire_types[rhs.as_wire()].is_member())
 								debug_wire_type = {WireType::ALIAS, rhs}; // wire replaced with wire
-							else if (debug_eval && rhs.as_wire()->name.isPublic())
+							else if (debug_eval && rhs.as_wire()->name.is_public())
 								debug_wire_type = {WireType::ALIAS, rhs}; // wire replaced with outline
 							it = rhs.as_wire(); // and keep looking
 							continue;
@@ -3353,7 +3352,7 @@ struct CxxrtlWorker {
 				for (auto wire : module->wires()) {
 					const auto &wire_type = wire_types[wire];
 					auto &debug_wire_type = debug_wire_types[wire];
-					if (wire->name.isPublic()) continue;
+					if (wire->name.is_public()) continue;
 
 					if (debug_live_wires[wire].empty()) {
 						continue; // wire never used
@@ -3445,7 +3444,7 @@ struct CxxrtlWorker {
 		has_sync_init = false;
 
 		for (auto module : design->modules()) {
-			if (module->get_blackbox_attribute() && !module->has_attribute(ID(cxxrtl_blackbox)))
+			if (module->get_blackbox_attribute() && !module->has_attribute(ID::cxxrtl_blackbox))
 				continue;
 
 			if (!design->selected_whole_module(module))

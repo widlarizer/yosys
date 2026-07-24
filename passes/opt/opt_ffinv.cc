@@ -48,13 +48,13 @@ struct OptFfInvWorker
 			return false;
 		Cell *d_inv = nullptr;
 		for (auto &port: d_ports) {
-			if (port.cell == ff.cell && port.port == TW::D)
+			if (port.cell == ff.cell && port.port == ID::D)
 				continue;
-			if (port.port != TW::Y)
+			if (port.port != ID::Y)
 				return false;
-			if (port.cell->type.in(TW($not), TW($_NOT_))) {
+			if (port.cell->type.in(ID::$not, ID::$_NOT_)) {
 				// OK
-			} else if (port.cell->type.in(TW($lut))) {
+			} else if (port.cell->type.in(ID::$lut)) {
 				if (port.cell->getParam(ID::WIDTH) != 1)
 					return false;
 				if (port.cell->getParam(ID::LUT).as_int() != 1)
@@ -72,24 +72,24 @@ struct OptFfInvWorker
 		auto q_ports = index.query_ports(ff.sig_q);
 		pool<Cell *> q_luts;
 		for (auto &port: q_ports) {
-			if (port.cell == ff.cell && port.port == TW::Q)
+			if (port.cell == ff.cell && port.port == ID::Q)
 				continue;
 			if (port.cell == d_inv)
 				return false;
-			if (port.port != TW::A)
+			if (port.port != ID::A)
 				return false;
-			if (!port.cell->type.in(TW($not), TW($_NOT_), TW($lut)))
+			if (!port.cell->type.in(ID::$not, ID::$_NOT_, ID::$lut))
 				return false;
 			q_luts.insert(port.cell);
 		}
 
 		ff.flip_rst_bits({0});
-		ff.sig_d = d_inv->getPort(TW::A);
+		ff.sig_d = d_inv->getPort(ID::A);
 
 		for (Cell *lut: q_luts) {
-			if (lut->type == TW($lut)) {
+			if (lut->type == ID::$lut) {
 				int flip_mask = 0;
-				SigSpec sig_a = lut->getPort(TW::A);
+				SigSpec sig_a = lut->getPort(ID::A);
 				for (int i = 0; i < GetSize(sig_a); i++) {
 					if (index.sigmap(sig_a[i]) == index.sigmap(ff.sig_q[0])) {
 						flip_mask |= 1 << i;
@@ -101,14 +101,14 @@ struct OptFfInvWorker
 					new_mask_builder.push_back(mask[j ^ flip_mask]);
 				Const new_mask = new_mask_builder.build();
 				if (GetSize(sig_a) == 1 && new_mask.as_int() == 2) {
-					module->connect(lut->getPort(TW::Y), ff.sig_q);
+					module->connect(lut->getPort(ID::Y), ff.sig_q);
 					module->remove(lut);
 				} else {
 					lut->setParam(ID::LUT, new_mask);
 				}
 			} else {
 				// it was an inverter
-				module->connect(lut->getPort(TW::Y), ff.sig_q);
+				module->connect(lut->getPort(ID::Y), ff.sig_q);
 				module->remove(lut);
 			}
 		}
@@ -133,11 +133,11 @@ struct OptFfInvWorker
 		if (d_ports.size() != 2)
 			return false;
 		for (auto &port: d_ports) {
-			if (port.cell == ff.cell && port.port == TW::D)
+			if (port.cell == ff.cell && port.port == ID::D)
 				continue;
-			if (port.port != TW::Y)
+			if (port.port != ID::Y)
 				return false;
-			if (!port.cell->type.in(TW($not), TW($_NOT_), TW($lut)))
+			if (!port.cell->type.in(ID::$not, ID::$_NOT_, ID::$lut))
 				return false;
 			log_assert(d_lut == nullptr);
 			d_lut = port.cell;
@@ -151,15 +151,15 @@ struct OptFfInvWorker
 			return false;
 		Cell *q_inv = nullptr;
 		for (auto &port: q_ports) {
-			if (port.cell == ff.cell && port.port == TW::Q)
+			if (port.cell == ff.cell && port.port == ID::Q)
 				continue;
 			if (port.cell == d_lut)
 				return false;
-			if (port.port != TW::A)
+			if (port.port != ID::A)
 				return false;
-			if (port.cell->type.in(TW($not), TW($_NOT_))) {
+			if (port.cell->type.in(ID::$not, ID::$_NOT_)) {
 				// OK
-			} else if (port.cell->type.in(TW($lut))) {
+			} else if (port.cell->type.in(ID::$lut)) {
 				if (port.cell->getParam(ID::WIDTH) != 1)
 					return false;
 				if (port.cell->getParam(ID::LUT).as_int() != 1)
@@ -173,10 +173,10 @@ struct OptFfInvWorker
 		if (!q_inv) return false;
 
 		ff.flip_rst_bits({0});
-		ff.sig_q = q_inv->getPort(TW::Y);
+		ff.sig_q = q_inv->getPort(ID::Y);
 		module->remove(q_inv);
 
-		if (d_lut->type == TW($lut)) {
+		if (d_lut->type == ID::$lut) {
 			Const mask = d_lut->getParam(ID::LUT);
 			Const::Builder new_mask_builder(GetSize(mask));
 			for (int i = 0; i < GetSize(mask); i++) {
@@ -188,12 +188,12 @@ struct OptFfInvWorker
 			Const new_mask = new_mask_builder.build();
 			d_lut->setParam(ID::LUT, new_mask);
 			if (d_lut->getParam(ID::WIDTH) == 1 && new_mask.as_int() == 2) {
-				module->connect(ff.sig_d, d_lut->getPort(TW::A));
+				module->connect(ff.sig_d, d_lut->getPort(ID::A));
 				module->remove(d_lut);
 			}
 		} else {
 			// it was an inverter
-			module->connect(ff.sig_d, d_lut->getPort(TW::A));
+			module->connect(ff.sig_d, d_lut->getPort(ID::A));
 			module->remove(d_lut);
 		}
 

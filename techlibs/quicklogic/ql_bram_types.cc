@@ -79,10 +79,10 @@ struct QlBramTypesPass : public Pass {
 		for (RTLIL::Module* module : design->selected_modules())
 			for (RTLIL::Cell* cell: module->selected_cells())
 			{
-				if (cell->type != ID(TDP36K) || !cell->hasParam(ID(MODE_BITS)))
+				if (cell->type != ID::TDP36K || !cell->hasParam(ID::MODE_BITS))
 					continue;
 
-				RTLIL::Const mode_bits = cell->getParam(ID(MODE_BITS));
+				RTLIL::Const mode_bits = cell->getParam(ID::MODE_BITS);
 
 				bool split = mode_bits.extract(80).as_bool();
 

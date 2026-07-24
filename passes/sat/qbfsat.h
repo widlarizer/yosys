@@ -68,8 +68,8 @@ struct QbfSolutionType {
 		for (auto cell : module->cells()) {
 			pool<std::string> cell_src = module->design->src_leaves(cell);
 			auto pos = hole_to_value.find(cell_src);
-			if (pos != hole_to_value.end() && cell->type.in("$anyconst", "$anyseq")) {
-				RTLIL::SigSpec port_y = cell->getPort(TW::Y);
+			if (pos != hole_to_value.end() && cell->type.in(ID::$anyconst, ID::$anyseq)) {
+				RTLIL::SigSpec port_y = cell->getPort(ID::Y);
 				for (int i = GetSize(port_y) - 1; i >= 0; --i) {
 					hole_loc_idx_to_sigbit[std::make_pair(pos->first, i)] = port_y[i];
 					anyconst_sigbits.insert(port_y[i]);
@@ -125,7 +125,7 @@ struct QbfSolutionType {
 		//There is a question here: How exactly shall we identify holes?
 		//There are at least two reasonable options:
 		//1. By the source location of the $anyconst cells
-		//2. By the name(s) of the wire(s) connected to each SigBit of the $anyconst cell->getPort(TW::Y) SigSpec.
+		//2. By the name(s) of the wire(s) connected to each SigBit of the $anyconst cell->getPort(ID::Y) SigSpec.
 		//
 		//Option 1 has the benefit of being very precise.  There is very limited potential for confusion, as long
 		//as the source attribute has been set.  However, if the source attribute is not set, this won't work.
@@ -143,7 +143,7 @@ struct QbfSolutionType {
 		//
 		//where '[', ']', and '=' are literal symbols, "location" is the $anyconst cell source location attribute,
 		//"bit" is the index of the $anyconst cell, "name" is the `wire->name` field of the SigBit corresponding
-		//to the current bit of the $anyconst cell->getPort(TW::Y), "offset" is the `offset` field of that same
+		//to the current bit of the $anyconst cell->getPort(ID::Y), "offset" is the `offset` field of that same
 		//SigBit, and "value", which is either '0' or '1', represents the assignment for that bit.
 		auto hole_loc_idx_to_sigbit = get_hole_loc_idx_sigbit_map(module);
 		for (auto &x : hole_to_value) {

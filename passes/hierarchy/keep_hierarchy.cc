@@ -35,10 +35,10 @@ struct ThresholdHierarchyKeeping {
 		: design(design), costs(design), threshold(threshold) {}
 
 	uint64_t visit(RTLIL::Module *module) {
-		if (module->has_attribute(ID(gate_cost_equivalent)))
-			return module->attributes[ID(gate_cost_equivalent)].as_int();
+		if (module->has_attribute(ID::gate_cost_equivalent))
+			return module->attributes[ID::gate_cost_equivalent].as_int();
 
-		if (module->has_attribute(ID(keep_hierarchy)))
+		if (module->has_attribute(ID::keep_hierarchy))
 			return 0;
 
 		if (module->get_blackbox_attribute())
@@ -55,7 +55,7 @@ struct ThresholdHierarchyKeeping {
 		module->has_processes_warn();
 
 		for (auto cell : module->cells()) {
-			if (!cell->type.isPublic()) {
+			if (!cell->type.is_public()) {
 				size += costs.get(cell);
 			} else {
 				RTLIL::Module *submodule = design->module(cell->type_impl);

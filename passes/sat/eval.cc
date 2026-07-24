@@ -120,7 +120,7 @@ struct VlogHammerReporter
 	RTLIL::Design *design;
 	std::vector<RTLIL::Module*> modules;
 	std::vector<std::string> module_names;
-	std::vector<RTLIL::IdString> inputs;
+	std::vector<TwineRef> inputs;
 	std::vector<int> input_widths;
 	std::vector<RTLIL::Const> patterns;
 	int total_input_width;
@@ -153,11 +153,11 @@ struct VlogHammerReporter
 
 		ez->assume(satgen.signals_eq(recorded_set_vars, recorded_set_vals));
 
-		std::vector<int> y_vec = satgen.importDefSigSpec(module->wire(TW::y));
+		std::vector<int> y_vec = satgen.importDefSigSpec(module->wire(ID::y));
 		std::vector<bool> y_values;
 
 		if (model_undef) {
-			std::vector<int> y_undef_vec = satgen.importUndefSigSpec(module->wire(TW::y));
+			std::vector<int> y_undef_vec = satgen.importUndefSigSpec(module->wire(ID::y));
 			y_vec.insert(y_vec.end(), y_undef_vec.begin(), y_undef_vec.end());
 		}
 
@@ -253,7 +253,7 @@ struct VlogHammerReporter
 
 				std::vector<RTLIL::State> bits(patterns[idx].begin(), patterns[idx].begin() + total_input_width);
 				for (int i = 0; i < int(inputs.size()); i++) {
-					RTLIL::Wire *wire = module->wire(search.find(inputs[i].str()));
+					RTLIL::Wire *wire = module->wire(inputs[i]);
 					for (int j = input_widths[i]-1; j >= 0; j--) {
 						ce.set(RTLIL::SigSpec(wire, j), bits.back());
 						recorded_set_vars.append(RTLIL::SigSpec(wire, j));
@@ -263,16 +263,16 @@ struct VlogHammerReporter
 					if (module == modules.front()) {
 						RTLIL::SigSpec sig(wire);
 						if (!ce.eval(sig))
-							log_error("Can't read back value for port %s!\n", RTLIL::unescape_id(inputs[i]).c_str());
+							log_error("Can't read back value for port %s!\n", design->twines.unescaped_str(inputs[i]));
 						input_pattern_list += stringf(" %s", sig.as_const().as_string());
-						log("++PAT++ %d %s %s #\n", idx, RTLIL::unescape_id(inputs[i]).c_str(), sig.as_const().as_string());
+						log("++PAT++ %d %s %s #\n", idx, design->twines.unescaped_str(inputs[i]), sig.as_const().as_string());
 					}
 				}
 
-				if (module->wire(TW::y) == nullptr)
+				if (module->wire(ID::y) == nullptr)
 					log_error("No output wire (y) found in module %s!\n", design->twines.unescaped_str(module->name));
 
-				RTLIL::SigSpec sig(module->wire(TW::y));
+				RTLIL::SigSpec sig(module->wire(ID::y));
 				RTLIL::SigSpec undef;
 
 				while (!ce.eval(sig, undef)) {
@@ -307,11 +307,11 @@ struct VlogHammerReporter
 	{
 		TwineSearch search(&design->twines);
 		for (auto name : split(module_list, ",")) {
-			RTLIL::IdString esc_name = RTLIL::escape_id(module_prefix + name);
-			RTLIL::Module *mod = design->module(search.find(esc_name.str()));
+			TwineRef esc_name = design->twines.add(RTLIL::escape_id(module_prefix + name));
+			RTLIL::Module *mod = design->module(esc_name);
 			if (mod == nullptr)
 				log_error("Can't find module %s in current design!\n", name);
-			log("Using module %s (%s).\n", esc_name, name);
+			log("Using module %s (%s).\n", log_id(design, esc_name), name);
 			modules.push_back(mod);
 			module_names.push_back(name);
 		}
@@ -319,8 +319,8 @@ struct VlogHammerReporter
 		total_input_width = 0;
 		for (auto name : split(input_list, ",")) {
 			int width = -1;
-			RTLIL::IdString esc_name = RTLIL::escape_id(name);
-			TwineRef esc_ref = search.find(esc_name.str());
+			TwineRef esc_name = design->twines.add(RTLIL::escape_id(name));
+			TwineRef esc_ref = esc_name;
 			for (auto mod : modules) {
 				if (mod->wire(esc_ref) == nullptr)
 					log_error("Can't find input %s in module %s!\n", name, design->twines.unescaped_str(mod->name));
@@ -331,7 +331,7 @@ struct VlogHammerReporter
 					log_error("Port %s has different sizes in the different modules!\n", name);
 				width = port->width;
 			}
-			log("Using input port %s with width %d.\n", esc_name, width);
+			log("Using input port %s with width %d.\n", log_id(design, esc_name), width);
 			inputs.push_back(esc_name);
 			input_widths.push_back(width);
 			total_input_width += width;

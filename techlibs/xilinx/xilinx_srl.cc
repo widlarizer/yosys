@@ -35,8 +35,8 @@ void run_fixed(xilinx_srl_pm &pm)
 	SigSpec initval;
 	for (auto cell : ud.longest_chain) {
 		log_debug("    %s\n", cell);
-		if (cell->type.in(TW($_DFF_N_), TW($_DFF_P_), TW($_DFFE_NN_), TW($_DFFE_NP_), TW($_DFFE_PN_), TW($_DFFE_PP_))) {
-			SigBit Q = cell->getPort(TW::Q);
+		if (cell->type.in(ID::$_DFF_N_, ID::$_DFF_P_, ID::$_DFFE_NN_, ID::$_DFFE_NP_, ID::$_DFFE_PN_, ID::$_DFFE_PP_)) {
+			SigBit Q = cell->getPort(ID::Q);
 			log_assert(Q.wire);
 			auto it = Q.wire->attributes.find(ID::init);
 			if (it != Q.wire->attributes.end()) {
@@ -46,7 +46,7 @@ void run_fixed(xilinx_srl_pm &pm)
 			else
 				initval.append(State::Sx);
 		}
-		else if (cell->type.in(ID(FDRE), ID(FDRE_1))) {
+		else if (cell->type.in(ID::FDRE, ID::FDRE_1)) {
 			if (cell->getParam(ID::INIT).as_bool())
 				initval.append(State::S1);
 			else
@@ -59,41 +59,41 @@ void run_fixed(xilinx_srl_pm &pm)
 
 	auto first_cell = ud.longest_chain.back();
 	auto last_cell = ud.longest_chain.front();
-	Cell *c = pm.module->addCell(NEW_TWINE, TW($__XILINX_SHREG_));
+	Cell *c = pm.module->addCell(NEW_ID, ID::$__XILINX_SHREG_);
 	pm.module->swap_names(c, first_cell);
 
-	if (first_cell->type.in(TW($_DFF_N_), TW($_DFF_P_), TW($_DFFE_NN_), TW($_DFFE_NP_), TW($_DFFE_PN_), TW($_DFFE_PP_), ID(FDRE), ID(FDRE_1))) {
+	if (first_cell->type.in(ID::$_DFF_N_, ID::$_DFF_P_, ID::$_DFFE_NN_, ID::$_DFFE_NP_, ID::$_DFFE_PN_, ID::$_DFFE_PP_, ID::FDRE, ID::FDRE_1)) {
 		c->setParam(ID::DEPTH, GetSize(ud.longest_chain));
 		c->setParam(ID::INIT, initval.as_const());
-		if (first_cell->type.in(TW($_DFF_P_), TW($_DFFE_PN_), TW($_DFFE_PP_)))
-			c->setParam(ID(CLKPOL), 1);
-		else if (first_cell->type.in(TW($_DFF_N_), TW($_DFFE_NN_), TW($_DFFE_NP_), ID(FDRE_1)))
-			c->setParam(ID(CLKPOL), 0);
-		else if (first_cell->type.in(ID(FDRE))) {
-			if (!first_cell->getParam(ID(IS_C_INVERTED)).as_bool())
-				c->setParam(ID(CLKPOL), 1);
+		if (first_cell->type.in(ID::$_DFF_P_, ID::$_DFFE_PN_, ID::$_DFFE_PP_))
+			c->setParam(ID::CLKPOL, 1);
+		else if (first_cell->type.in(ID::$_DFF_N_, ID::$_DFFE_NN_, ID::$_DFFE_NP_, ID::FDRE_1))
+			c->setParam(ID::CLKPOL, 0);
+		else if (first_cell->type.in(ID::FDRE)) {
+			if (!first_cell->getParam(ID::IS_C_INVERTED).as_bool())
+				c->setParam(ID::CLKPOL, 1);
 			else
-				c->setParam(ID(CLKPOL), 0);
+				c->setParam(ID::CLKPOL, 0);
 		}
 		else
 			log_abort();
-		if (first_cell->type.in(TW($_DFFE_NP_), TW($_DFFE_PP_), ID(FDRE), ID(FDRE_1)))
-			c->setParam(ID(ENPOL), 1);
-		else if (first_cell->type.in(TW($_DFFE_NN_), TW($_DFFE_PN_)))
-			c->setParam(ID(ENPOL), 0);
+		if (first_cell->type.in(ID::$_DFFE_NP_, ID::$_DFFE_PP_, ID::FDRE, ID::FDRE_1))
+			c->setParam(ID::ENPOL, 1);
+		else if (first_cell->type.in(ID::$_DFFE_NN_, ID::$_DFFE_PN_))
+			c->setParam(ID::ENPOL, 0);
 		else
-			c->setParam(ID(ENPOL), 2);
+			c->setParam(ID::ENPOL, 2);
 
-		c->setPort(TW::C, first_cell->getPort(TW::C));
-		c->setPort(TW::D, first_cell->getPort(TW::D));
-		c->setPort(TW::Q, last_cell->getPort(TW::Q));
-		c->setPort(TW::L, GetSize(ud.longest_chain)-1);
-		if (first_cell->type.in(TW($_DFF_N_), TW($_DFF_P_)))
-			c->setPort(TW::E, State::S1);
-		else if (first_cell->type.in(TW($_DFFE_NN_), TW($_DFFE_NP_), TW($_DFFE_PN_), TW($_DFFE_PP_)))
-			c->setPort(TW::E, first_cell->getPort(TW::E));
-		else if (first_cell->type.in(ID(FDRE), ID(FDRE_1)))
-			c->setPort(TW::E, first_cell->getPort(TW::CE));
+		c->setPort(ID::C, first_cell->getPort(ID::C));
+		c->setPort(ID::D, first_cell->getPort(ID::D));
+		c->setPort(ID::Q, last_cell->getPort(ID::Q));
+		c->setPort(ID::L, GetSize(ud.longest_chain)-1);
+		if (first_cell->type.in(ID::$_DFF_N_, ID::$_DFF_P_))
+			c->setPort(ID::E, State::S1);
+		else if (first_cell->type.in(ID::$_DFFE_NN_, ID::$_DFFE_NP_, ID::$_DFFE_PN_, ID::$_DFFE_PP_))
+			c->setPort(ID::E, first_cell->getPort(ID::E));
+		else if (first_cell->type.in(ID::FDRE, ID::FDRE_1))
+			c->setPort(ID::E, first_cell->getPort(ID::CE));
 		else
 			log_abort();
 	}
@@ -115,8 +115,8 @@ void run_variable(xilinx_srl_pm &pm)
 		auto cell = i.first;
 		auto slice = i.second;
 		log_debug("    %s\n", cell);
-		if (cell->type.in(TW($_DFF_N_), TW($_DFF_P_), TW($_DFFE_NN_), TW($_DFFE_NP_), TW($_DFFE_PN_), TW($_DFFE_PP_), TW($dff), TW($dffe))) {
-			SigBit Q = cell->getPort(TW::Q)[slice];
+		if (cell->type.in(ID::$_DFF_N_, ID::$_DFF_P_, ID::$_DFFE_NN_, ID::$_DFFE_NP_, ID::$_DFFE_PN_, ID::$_DFFE_PP_, ID::$dff, ID::$dffe)) {
+			SigBit Q = cell->getPort(ID::Q)[slice];
 			log_assert(Q.wire);
 			auto it = Q.wire->attributes.find(ID::init);
 			if (it != Q.wire->attributes.end()) {
@@ -134,47 +134,47 @@ void run_variable(xilinx_srl_pm &pm)
 	auto first_cell = ud.chain.back().first;
 	auto first_slice = ud.chain.back().second;
 
-	Cell *c = pm.module->addCell(NEW_TWINE, TW($__XILINX_SHREG_));
+	Cell *c = pm.module->addCell(NEW_ID, ID::$__XILINX_SHREG_);
 	pm.module->swap_names(c, first_cell);
 
-	if (first_cell->type.in(TW($_DFF_N_), TW($_DFF_P_), TW($_DFFE_NN_), TW($_DFFE_NP_), TW($_DFFE_PN_), TW($_DFFE_PP_), TW($dff), TW($dffe))) {
+	if (first_cell->type.in(ID::$_DFF_N_, ID::$_DFF_P_, ID::$_DFFE_NN_, ID::$_DFFE_NP_, ID::$_DFFE_PN_, ID::$_DFFE_PP_, ID::$dff, ID::$dffe)) {
 		c->setParam(ID::DEPTH, GetSize(ud.chain));
 		c->setParam(ID::INIT, initval.as_const());
 		Const clkpol, enpol;
-		if (first_cell->type.in(TW($_DFF_P_), TW($_DFFE_PN_), TW($_DFFE_PP_)))
+		if (first_cell->type.in(ID::$_DFF_P_, ID::$_DFFE_PN_, ID::$_DFFE_PP_))
 			clkpol = 1;
-		else if (first_cell->type.in(TW($_DFF_N_), TW($_DFFE_NN_), TW($_DFFE_NP_)))
+		else if (first_cell->type.in(ID::$_DFF_N_, ID::$_DFFE_NN_, ID::$_DFFE_NP_))
 			clkpol = 0;
-		else if (first_cell->type.in(TW($dff), TW($dffe)))
+		else if (first_cell->type.in(ID::$dff, ID::$dffe))
 			clkpol = first_cell->getParam(ID::CLK_POLARITY);
 		else
 			log_abort();
-		if (first_cell->type.in(TW($_DFFE_NP_), TW($_DFFE_PP_)))
+		if (first_cell->type.in(ID::$_DFFE_NP_, ID::$_DFFE_PP_))
 			enpol = 1;
-		else if (first_cell->type.in(TW($_DFFE_NN_), TW($_DFFE_PN_)))
+		else if (first_cell->type.in(ID::$_DFFE_NN_, ID::$_DFFE_PN_))
 			enpol = 0;
-		else if (first_cell->type.in(TW($dffe)))
+		else if (first_cell->type.in(ID::$dffe))
 			enpol = first_cell->getParam(ID::EN_POLARITY);
 		else
 			enpol = 2;
-		c->setParam(ID(CLKPOL), clkpol);
-		c->setParam(ID(ENPOL), enpol);
+		c->setParam(ID::CLKPOL, clkpol);
+		c->setParam(ID::ENPOL, enpol);
 
-		if (first_cell->type.in(TW($_DFF_N_), TW($_DFF_P_), TW($_DFFE_NN_), TW($_DFFE_NP_), TW($_DFFE_PN_), TW($_DFFE_PP_)))
-			c->setPort(TW::C, first_cell->getPort(TW::C));
-		else if (first_cell->type.in(TW($dff), TW($dffe)))
-			c->setPort(TW::C, first_cell->getPort(TW::CLK));
+		if (first_cell->type.in(ID::$_DFF_N_, ID::$_DFF_P_, ID::$_DFFE_NN_, ID::$_DFFE_NP_, ID::$_DFFE_PN_, ID::$_DFFE_PP_))
+			c->setPort(ID::C, first_cell->getPort(ID::C));
+		else if (first_cell->type.in(ID::$dff, ID::$dffe))
+			c->setPort(ID::C, first_cell->getPort(ID::CLK));
 		else
 			log_abort();
-		c->setPort(TW::D, first_cell->getPort(TW::D)[first_slice]);
-		c->setPort(TW::Q, st.shiftx->getPort(TW::Y));
-		c->setPort(TW::L, st.shiftx->getPort(TW::B));
-		if (first_cell->type.in(TW($_DFF_N_), TW($_DFF_P_), TW($dff)))
-			c->setPort(TW::E, State::S1);
-		else if (first_cell->type.in(TW($_DFFE_NN_), TW($_DFFE_NP_), TW($_DFFE_PN_), TW($_DFFE_PP_)))
-			c->setPort(TW::E, first_cell->getPort(TW::E));
-		else if (first_cell->type.in(TW($dffe)))
-			c->setPort(TW::E, first_cell->getPort(TW::EN));
+		c->setPort(ID::D, first_cell->getPort(ID::D)[first_slice]);
+		c->setPort(ID::Q, st.shiftx->getPort(ID::Y));
+		c->setPort(ID::L, st.shiftx->getPort(ID::B));
+		if (first_cell->type.in(ID::$_DFF_N_, ID::$_DFF_P_, ID::$dff))
+			c->setPort(ID::E, State::S1);
+		else if (first_cell->type.in(ID::$_DFFE_NN_, ID::$_DFFE_NP_, ID::$_DFFE_PN_, ID::$_DFFE_PP_))
+			c->setPort(ID::E, first_cell->getPort(ID::E));
+		else if (first_cell->type.in(ID::$dffe))
+			c->setPort(ID::E, first_cell->getPort(ID::EN));
 		else
 			log_abort();
 	}

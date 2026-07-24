@@ -37,36 +37,37 @@ void create_ice40_wrapcarry(ice40_wrapcarry_pm &pm)
 
 	log("  replacing SB_LUT + SB_CARRY with $__ICE40_CARRY_WRAPPER cell.\n");
 
-	Cell *cell = pm.module->addCell(NEW_TWINE, TW($__ICE40_CARRY_WRAPPER));
+	Cell *cell = pm.module->addCell(NEW_ID, ID::$__ICE40_CARRY_WRAPPER);
 	pm.module->swap_names(cell, st.carry);
 
-	cell->setPort(TW::A, st.carry->getPort(TW::I0));
-	cell->setPort(TW::B, st.carry->getPort(TW::I1));
-	auto CI = st.carry->getPort(TW::CI);
-	cell->setPort(TW::CI, CI);
-	cell->setPort(TW::CO, st.carry->getPort(TW::CO));
+	cell->setPort(ID::A, st.carry->getPort(ID::I0));
+	cell->setPort(ID::B, st.carry->getPort(ID::I1));
+	auto CI = st.carry->getPort(ID::CI);
+	cell->setPort(ID::CI, CI);
+	cell->setPort(ID::CO, st.carry->getPort(ID::CO));
 
-	cell->setPort(TW::I0, st.lut->getPort(TW::I0));
-	auto I3 = st.lut->getPort(TW::I3);
+	cell->setPort(ID::I0, st.lut->getPort(ID::I0));
+	auto I3 = st.lut->getPort(ID::I3);
 	if ((*pm.sigmap)(CI) == (*pm.sigmap)(I3)) {
-		cell->setParam(ID(I3_IS_CI), State::S1);
+		cell->setParam(ID::I3_IS_CI, State::S1);
 		I3 = State::Sx;
 	}
 	else
-		cell->setParam(ID(I3_IS_CI), State::S0);
-	cell->setPort(TW::I3, I3);
-	cell->setPort(TW::O, st.lut->getPort(TW::O));
-	cell->setParam(ID::LUT, st.lut->getParam(ID(LUT_INIT)));
+		cell->setParam(ID::I3_IS_CI, State::S0);
+	cell->setPort(ID::I3, I3);
+	cell->setPort(ID::O, st.lut->getPort(ID::O));
+	cell->setParam(ID::LUT, st.lut->getParam(ID::LUT_INIT));
 
+	TwinePool &twines = cell->module->design->twines;
 	for (const auto &a : st.carry->attributes)
-		cell->attributes[stringf("\\SB_CARRY.%s", a.first)] = a.second;
+		cell->attributes[twines.add(stringf("\\SB_CARRY.%s", twines.str(a.first)))] = a.second;
 	for (const auto &a : st.lut->attributes)
-		cell->attributes[stringf("\\SB_LUT4.%s", a.first)] = a.second;
+		cell->attributes[twines.add(stringf("\\SB_LUT4.%s", twines.str(a.first)))] = a.second;
 	// via prefixed flat-literal attributes so the unwrap pass can restore.
 	if (st.carry->src_id() != Twine::Null)
-		cell->attributes[IdString("\\SB_CARRY.\\src")] = Const(st.carry->get_src_attribute());
+		cell->attributes[twines.add(std::string("\\SB_CARRY.\\src"))] = Const(st.carry->get_src_attribute());
 	if (st.lut->src_id() != Twine::Null)
-		cell->attributes[IdString("\\SB_LUT4.\\src")] = Const(st.lut->get_src_attribute());
+		cell->attributes[twines.add(std::string("\\SB_LUT4.\\src"))] = Const(st.lut->get_src_attribute());
 	// Propagate one of the cell-level srcs to the wrapper too so backends
 	// emitting `attribute \src` see a usable value on the wrapper.
 	if (cell->module && cell->module->design) {
@@ -75,7 +76,7 @@ void create_ice40_wrapcarry(ice40_wrapcarry_pm &pm)
 		else if (st.lut->src_id() != Twine::Null)
 			cell->set_src_id(st.lut->src_id());
 	}
-	cell->attributes[IdString{"\\SB_LUT4.name"}] = Const(st.lut->name.str());
+	cell->attributes[twines.add(std::string("\\SB_LUT4.name"))] = Const(st.lut->name.str());
 	if (st.carry->get_bool_attribute(ID::keep) || st.lut->get_bool_attribute(ID::keep))
 		cell->attributes[ID::keep] = true;
 
@@ -127,22 +128,24 @@ struct Ice40WrapCarryPass : public Pass {
 				ice40_wrapcarry_pm(module, &sigmap, module->selected_cells()).run_ice40_wrapcarry(create_ice40_wrapcarry);
 			} else {
 				for (auto cell : module->selected_cells()) {
-					if (cell->type != TW($__ICE40_CARRY_WRAPPER))
+					if (cell->type != ID::$__ICE40_CARRY_WRAPPER)
 						continue;
 
-					auto carry = module->addCell(NEW_TWINE, TW::SB_CARRY);
-					carry->setPort(TW::I0, cell->getPort(TW::A));
-					carry->setPort(TW::I1, cell->getPort(TW::B));
-					carry->setPort(TW::CI, cell->getPort(TW::CI));
-					carry->setPort(TW::CO, cell->getPort(TW::CO));
+					auto carry = module->addCell(NEW_ID, ID::SB_CARRY);
+					carry->setPort(ID::I0, cell->getPort(ID::A));
+					carry->setPort(ID::I1, cell->getPort(ID::B));
+					carry->setPort(ID::CI, cell->getPort(ID::CI));
+					carry->setPort(ID::CO, cell->getPort(ID::CO));
 					module->swap_names(carry, cell);
-					auto lut_name = cell->attributes.at(IdString{"\\SB_LUT4.name"}, Const(NEW_ID.str())).decode_string();
-					auto lut = module->addCell(module->design->twines.add(std::string{lut_name}), TW($lut));
+					TwinePool &twines = module->design->twines;
+					TwineRef lut_name_attr = twines.add(std::string("\\SB_LUT4.name"));
+					auto lut_name = cell->attributes.at(lut_name_attr, Const(twines.str(twines.add(NEW_ID)))).decode_string();
+					auto lut = module->addCell(module->design->twines.add(std::string{lut_name}), ID::$lut);
 					lut->setParam(ID::WIDTH, 4);
 					lut->setParam(ID::LUT, cell->getParam(ID::LUT));
-					auto I3 = cell->getPort(cell->getParam(ID(I3_IS_CI)).as_bool() ? TW::CI : TW::I3);
-					lut->setPort(TW::A, { I3, cell->getPort(TW::B), cell->getPort(TW::A), cell->getPort(TW::I0) });
-					lut->setPort(TW::Y, cell->getPort(TW::O));
+					auto I3 = cell->getPort(cell->getParam(ID::I3_IS_CI).as_bool() ? ID::CI : ID::I3);
+					lut->setPort(ID::A, { I3, cell->getPort(ID::B), cell->getPort(ID::A), cell->getPort(ID::I0) });
+					lut->setPort(ID::Y, cell->getPort(ID::O));
 
 					std::string carry_src, lut_src, fallback_src;
 					if (cell->src_id() != Twine::Null)
@@ -150,15 +153,16 @@ struct Ice40WrapCarryPass : public Pass {
 					for (const auto &a : cell->attributes) {
 						// Match the prefixed src first so we don't fall through
 						// to the generic SB_CARRY./SB_LUT4. prefix copy.
-						if (a.first == IdString("\\SB_CARRY.\\src")) {
+						std::string aname = twines.str(a.first);
+						if (aname == "\\SB_CARRY.\\src") {
 							carry_src = a.second.decode_string();
-						} else if (a.first == IdString("\\SB_LUT4.\\src")) {
+						} else if (aname == "\\SB_LUT4.\\src") {
 							lut_src = a.second.decode_string();
-						} else if (a.first.begins_with("\\SB_CARRY.\\")) {
-							carry->attributes[a.first.c_str() + strlen("\\SB_CARRY.")] = a.second;
-						} else if (a.first.begins_with("\\SB_LUT4.\\")) {
-							lut->attributes[a.first.c_str() + strlen("\\SB_LUT4.")] = a.second;
-						} else if (a.first.in(IdString{"\\SB_LUT4.name"}, ID::keep, ID::module_not_derived)) {
+						} else if (aname.starts_with("\\SB_CARRY.\\")) {
+							carry->attributes[twines.add(aname.substr(strlen("\\SB_CARRY.")))] = a.second;
+						} else if (aname.starts_with("\\SB_LUT4.\\")) {
+							lut->attributes[twines.add(aname.substr(strlen("\\SB_LUT4.")))] = a.second;
+						} else if (a.first.in(lut_name_attr, ID::keep, ID::module_not_derived)) {
 							continue;
 						} else {
 							log_abort();

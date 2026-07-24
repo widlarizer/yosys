@@ -240,7 +240,6 @@ void yosys_setup()
 	already_setup = true;
 	already_shutdown = false;
 
-	IdString::ensure_prepopulated();
 	twine_prepopulate();
 
 #ifdef YOSYS_ENABLE_PYTHON
@@ -285,7 +284,6 @@ void yosys_shutdown()
 
 	delete yosys_design;
 	yosys_design = NULL;
-	RTLIL::OwningIdString::collect_garbage();
 
 	for (auto f : log_files)
 		if (f != stderr)
@@ -334,23 +332,6 @@ const std::string *create_id_prefix(std::string_view file, int line, std::string
 		func = func.substr(pos+1);
 
 	return new std::string(stringf("$auto$%s:%d:%s$", file, line, func));
-}
-
-RTLIL::IdString new_id_suffix(std::string_view file, int line, std::string_view func, std::string_view suffix)
-{
-#ifdef _WIN32
-	size_t pos = file.find_last_of("/\\");
-#else
-	size_t pos = file.find_last_of('/');
-#endif
-	if (pos != std::string_view::npos)
-		file = file.substr(pos+1);
-
-	pos = func.find_last_of(':');
-	if (pos != std::string_view::npos)
-		func = func.substr(pos+1);
-
-	return stringf("$auto$%s:%d:%s$%s$%d", file, line, func, suffix, autoidx++);
 }
 
 RTLIL::Design *yosys_get_design()

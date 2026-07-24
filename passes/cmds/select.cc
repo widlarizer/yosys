@@ -29,14 +29,14 @@ PRIVATE_NAMESPACE_BEGIN
 
 static std::vector<RTLIL::Selection> work_stack;
 
-static bool match_ids(RTLIL::IdString id, const std::string &pattern)
+static bool match_ids(const std::string &id, const std::string &pattern)
 {
 	if (id == pattern)
 		return true;
 
 	const char *id_c = id.c_str();
 	const char *pat_c = pattern.c_str();
-	size_t id_size = strlen(id_c);
+	size_t id_size = id.size();
 	size_t pat_size = pattern.size();
 
 	if (*id_c == '\\' && id_size == 1 + pat_size && memcmp(id_c + 1, pat_c, pat_size) == 0)
@@ -105,39 +105,44 @@ static bool match_attr_val(const RTLIL::Const &value, const std::string &pattern
 	log_abort();
 }
 
-static bool match_attr(const dict<RTLIL::IdString, RTLIL::Const> &attributes, const std::string &name_pat, const std::string &value_pat, char match_op)
+static bool match_attr(const TwinePool &pool, const dict<TwineRef, RTLIL::Const> &attributes, const std::string &name_pat, const std::string &value_pat, char match_op)
 {
 	if (name_pat.find('*') != std::string::npos || name_pat.find('?') != std::string::npos || name_pat.find('[') != std::string::npos) {
 		for (auto &it : attributes) {
-			if (patmatch(name_pat.c_str(), it.first.c_str()) && match_attr_val(it.second, value_pat, match_op))
+			std::string name = pool.str(it.first);
+			if (patmatch(name_pat.c_str(), name.c_str()) && match_attr_val(it.second, value_pat, match_op))
 				return true;
-			if (it.first.size() > 0 && it.first[0] == '\\' && patmatch(name_pat.c_str(), it.first.substr(1).c_str()) && match_attr_val(it.second, value_pat, match_op))
+			if (name.size() > 0 && name[0] == '\\' && patmatch(name_pat.c_str(), name.c_str() + 1) && match_attr_val(it.second, value_pat, match_op))
 				return true;
 		}
 	} else {
-		if (name_pat.size() > 0 && (name_pat[0] == '\\' || name_pat[0] == '$') && attributes.count(name_pat) && match_attr_val(attributes.at(name_pat), value_pat, match_op))
-			return true;
-		if (attributes.count("\\" + name_pat) && match_attr_val(attributes.at("\\" + name_pat), value_pat, match_op))
+		if (name_pat.size() > 0 && (name_pat[0] == '\\' || name_pat[0] == '$')) {
+			TwineRef key = pool.find(name_pat);
+			if (key != Twine::Null && attributes.count(key) && match_attr_val(attributes.at(key), value_pat, match_op))
+				return true;
+		}
+		TwineRef key = pool.find("\\" + name_pat);
+		if (key != Twine::Null && attributes.count(key) && match_attr_val(attributes.at(key), value_pat, match_op))
 			return true;
 	}
 	return false;
 }
 
-static bool match_attr(const dict<RTLIL::IdString, RTLIL::Const> &attributes, const std::string &match_expr)
+static bool match_attr(const TwinePool &pool, const dict<TwineRef, RTLIL::Const> &attributes, const std::string &match_expr)
 {
 	size_t pos = match_expr.find_first_of("<!=>");
 
 	if (pos != std::string::npos) {
 		if (match_expr.compare(pos, 2, "!=") == 0)
-			return match_attr(attributes, match_expr.substr(0, pos), match_expr.substr(pos+2), '!');
+			return match_attr(pool, attributes, match_expr.substr(0, pos), match_expr.substr(pos+2), '!');
 		if (match_expr.compare(pos, 2, "<=") == 0)
-			return match_attr(attributes, match_expr.substr(0, pos), match_expr.substr(pos+2), '[');
+			return match_attr(pool, attributes, match_expr.substr(0, pos), match_expr.substr(pos+2), '[');
 		if (match_expr.compare(pos, 2, ">=") == 0)
-			return match_attr(attributes, match_expr.substr(0, pos), match_expr.substr(pos+2), ']');
-		return match_attr(attributes, match_expr.substr(0, pos), match_expr.substr(pos+1), match_expr[pos]);
+			return match_attr(pool, attributes, match_expr.substr(0, pos), match_expr.substr(pos+2), ']');
+		return match_attr(pool, attributes, match_expr.substr(0, pos), match_expr.substr(pos+1), match_expr[pos]);
 	}
 
-	return match_attr(attributes, match_expr, std::string(), 0);
+	return match_attr(pool, attributes, match_expr, std::string(), 0);
 }
 
 // AttrObject-aware overload: routes src queries to the typed src_id_ field.
@@ -152,12 +157,12 @@ static bool match_attr(const RTLIL::Design *design, const RTLIL::AttrObject *obj
 		size_t pos = match_expr.find_first_of("<!=>");
 		std::string name_part = (pos == std::string::npos) ? match_expr : match_expr.substr(0, pos);
 		if (name_part == "src" || name_part == "\\src") {
-			dict<RTLIL::IdString, RTLIL::Const> synthesized;
+			dict<TwineRef, RTLIL::Const> synthesized;
 			synthesized[RTLIL::ID::src] = RTLIL::Const(design->get_src_attribute(obj));
-			return match_attr(synthesized, match_expr);
+			return match_attr(design->twines, synthesized, match_expr);
 		}
 	}
-	return match_attr(obj->attributes, match_expr);
+	return match_attr(design->twines, obj->attributes, match_expr);
 }
 
 static void select_all(RTLIL::Design *design, RTLIL::Selection &lhs)
@@ -272,7 +277,7 @@ static void select_op_submod(RTLIL::Design *design, RTLIL::Selection &lhs)
 			{
 				if (design->module(cell->type_impl) == nullptr)
 					continue;
-				lhs.selected_modules.insert(design->twines.add(std::string{cell->type.str()}));
+				lhs.selected_modules.insert(cell->type);
 			}
 		}
 	}
@@ -285,7 +290,7 @@ static void select_op_cells_to_modules(RTLIL::Design *design, RTLIL::Selection &
 		if (lhs.selected_module(mod->meta_->name))
 			for (auto cell : mod->cells())
 				if (lhs.selected_member(mod->meta_->name, cell->meta_->name) && (design->module(cell->type_impl) != nullptr))
-					new_sel.selected_modules.insert(design->twines.add(std::string{cell->type.str()}));
+					new_sel.selected_modules.insert(cell->type);
 	lhs = new_sel;
 }
 
@@ -294,7 +299,7 @@ static void select_op_module_to_cells(RTLIL::Design *design, RTLIL::Selection &l
 	RTLIL::Selection new_sel(false, lhs.selects_boxes, design);
 	for (auto mod : design->modules())
 		for (auto cell : mod->cells())
-			if ((design->module(cell->type_impl) != nullptr) && lhs.selected_whole_module(design->twines.add(std::string{cell->type.str()})))
+			if ((design->module(cell->type_impl) != nullptr) && lhs.selected_whole_module(cell->type))
 				new_sel.selected_members[mod->meta_->name].insert(cell->meta_->name);
 	lhs = new_sel;
 }
@@ -508,7 +513,7 @@ static int parse_comma_list(std::set<std::string> &tokens, const std::string &st
 	}
 }
 
-static int select_op_expand(RTLIL::Design *design, RTLIL::Selection &lhs, std::vector<expand_rule_t> &rules, std::set<RTLIL::IdString> &limits, int max_objects, char mode, NewCellTypes &ct, bool eval_only)
+static int select_op_expand(RTLIL::Design *design, RTLIL::Selection &lhs, std::vector<expand_rule_t> &rules, std::set<TwineRef> &limits, int max_objects, char mode, NewCellTypes &ct, bool eval_only)
 {
 	int sel_objects = 0;
 	bool is_input, is_output;
@@ -521,7 +526,7 @@ static int select_op_expand(RTLIL::Design *design, RTLIL::Selection &lhs, std::v
 		auto selected_members = lhs.selected_members[mod->meta_->name];
 
 		for (auto wire : mod->wires())
-			if (lhs.selected_member(mod->meta_->name, wire->meta_->name) && limits.count(RTLIL::IdString(design->twines.str(wire->meta_->name))) == 0)
+			if (lhs.selected_member(mod->meta_->name, wire->meta_->name) && limits.count(wire->meta_->name) == 0)
 				selected_wires.insert(wire);
 
 		for (auto &conn : mod->connections())
@@ -583,7 +588,7 @@ static void select_op_expand(RTLIL::Design *design, const std::string &arg, char
 	int pos = (mode == 'x' ? 2 : 3) + (eval_only ? 1 : 0);
 	int levels = 1, rem_objects = -1;
 	std::vector<expand_rule_t> rules;
-	std::set<RTLIL::IdString> limits;
+	std::set<TwineRef> limits;
 
 	NewCellTypes ct;
 
@@ -633,14 +638,15 @@ static void select_op_expand(RTLIL::Design *design, const std::string &arg, char
 				std::string str = arg.substr(pos, endpos-pos);
 				if (str[0] == '@') {
 					str = RTLIL::escape_id(str.substr(1));
-					if (design->selection_vars.count(str) > 0) {
-						for (auto i1 : design->selection_vars.at(str).selected_members)
+					TwineRef sel_name = design->twines.find(str);
+					if (sel_name != Twine::Null && design->selection_vars.count(sel_name) > 0) {
+						for (auto i1 : design->selection_vars.at(sel_name).selected_members)
 						for (auto i2 : i1.second)
-							limits.insert(RTLIL::IdString(design->twines.str(i2)));
+							limits.insert(i2);
 					} else
 						log_cmd_error("Selection %s is not defined!\n", RTLIL::unescape_id(str));
 				} else
-					limits.insert(RTLIL::escape_id(str));
+					limits.insert(design->twines.add(RTLIL::escape_id(str)));
 			}
 			pos = endpos;
 		}
@@ -833,8 +839,9 @@ static void select_stmt(RTLIL::Design *design, std::string arg, bool disable_emp
 
 	if (arg[0] == '@') {
 		std::string set_name = RTLIL::escape_id(arg.substr(1));
-		if (design->selection_vars.count(set_name) > 0)
-			work_stack.push_back(design->selection_vars[set_name]);
+		TwineRef set_twine = design->twines.find(set_name);
+		if (set_twine != Twine::Null && design->selection_vars.count(set_twine) > 0)
+			work_stack.push_back(design->selection_vars[set_twine]);
 		else
 			log_cmd_error("Selection @%s is not defined!\n", RTLIL::unescape_id(set_name));
 		select_filter_active_mod(design, work_stack.back());
@@ -887,7 +894,7 @@ static void select_stmt(RTLIL::Design *design, std::string arg, bool disable_emp
 			continue;
 
 		if (arg_mod.compare(0, 2, "A:") == 0) {
-			if (!match_attr(mod->attributes, arg_mod.substr(2)))
+			if (!match_attr(design->twines, mod->attributes, arg_mod.substr(2)))
 				continue;
 		} else
 		if (arg_mod.compare(0, 2, "N:") == 0) {
@@ -943,7 +950,7 @@ static void select_stmt(RTLIL::Design *design, std::string arg, bool disable_emp
 		} else
 		if (arg_memb.compare(0, 2, "m:") == 0) {
 			for (auto &it : mod->memories)
-				if (match_ids(RTLIL::IdString(design->twines.str(it.first)), arg_memb.substr(2)))
+				if (match_ids(design->twines.str(it.first), arg_memb.substr(2)))
 					sel.selected_members[mod->meta_->name].insert(it.first);
 		} else
 		if (arg_memb.compare(0, 2, "c:") == 0) {
@@ -954,10 +961,11 @@ static void select_stmt(RTLIL::Design *design, std::string arg, bool disable_emp
 		if (arg_memb.compare(0, 2, "t:") == 0) {
 			if (arg_memb.compare(2, 1, "@") == 0) {
 				std::string set_name = RTLIL::escape_id(arg_memb.substr(3));
-				if (!design->selection_vars.count(set_name))
+				TwineRef set_twine = design->twines.find(set_name);
+				if (set_twine == Twine::Null || !design->selection_vars.count(set_twine))
 					log_cmd_error("Selection @%s is not defined!\n", RTLIL::unescape_id(set_name));
 
-				auto &muster = design->selection_vars[set_name];
+				auto &muster = design->selection_vars[set_twine];
 				for (auto cell : mod->cells())
 					if (muster.selected_modules.count(cell->type.ref()))
 						sel.selected_members[mod->meta_->name].insert(cell->name.ref());
@@ -969,7 +977,7 @@ static void select_stmt(RTLIL::Design *design, std::string arg, bool disable_emp
 		} else
 		if (arg_memb.compare(0, 2, "p:") == 0) {
 			for (auto &it : mod->processes)
-				if (match_ids(RTLIL::IdString(design->twines.str(it.first)), arg_memb.substr(2)))
+				if (match_ids(design->twines.str(it.first), arg_memb.substr(2)))
 					sel.selected_members[mod->meta_->name].insert(it.first);
 		} else
 		if (arg_memb.compare(0, 2, "a:") == 0) {
@@ -988,7 +996,7 @@ static void select_stmt(RTLIL::Design *design, std::string arg, bool disable_emp
 		} else
 		if (arg_memb.compare(0, 2, "r:") == 0) {
 			for (auto cell : mod->cells())
-				if (match_attr(cell->parameters, arg_memb.substr(2)))
+				if (match_attr(design->twines, cell->parameters, arg_memb.substr(2)))
 					sel.selected_members[mod->meta_->name].insert(cell->name.ref());
 		} else {
 			std::string orig_arg_memb = arg_memb;
@@ -1000,7 +1008,7 @@ static void select_stmt(RTLIL::Design *design, std::string arg, bool disable_emp
 					arg_memb_found[orig_arg_memb] = true;
 				}
 			for (auto &it : mod->memories)
-				if (match_ids(RTLIL::IdString(design->twines.str(it.first)), arg_memb)) {
+				if (match_ids(design->twines.str(it.first), arg_memb)) {
 					sel.selected_members[mod->meta_->name].insert(it.first);
 					arg_memb_found[orig_arg_memb] = true;
 				}
@@ -1010,7 +1018,7 @@ static void select_stmt(RTLIL::Design *design, std::string arg, bool disable_emp
 					arg_memb_found[orig_arg_memb] = true;
 				}
 			for (auto &it : mod->processes)
-				if (match_ids(RTLIL::IdString(design->twines.str(it.first)), arg_memb)) {
+				if (match_ids(design->twines.str(it.first), arg_memb)) {
 					sel.selected_members[mod->meta_->name].insert(it.first);
 					arg_memb_found[orig_arg_memb] = true;
 				}
@@ -1662,16 +1670,18 @@ struct SelectPass : public Pass {
 
 		if (!set_name.empty())
 		{
+			TwineRef set_twine = design->twines.add(std::string(set_name));
 			if (work_stack.size() == 0)
-				design->selection_vars[set_name] = RTLIL::Selection::EmptySelection(design);
+				design->selection_vars[set_twine] = RTLIL::Selection::EmptySelection(design);
 			else
-				design->selection_vars[set_name] = work_stack.back();
+				design->selection_vars[set_twine] = work_stack.back();
 			return;
 		}
 
 		if (!unset_name.empty())
 		{
-			if (!design->selection_vars.erase(unset_name))
+			TwineRef unset_twine = design->twines.find(unset_name);
+			if (unset_twine == Twine::Null || !design->selection_vars.erase(unset_twine))
 				log_error("Selection '%s' does not exist!\n", unset_name);
 			return;
 		}
@@ -1842,17 +1852,16 @@ struct LsPass : public Pass {
 
 		if (design->selected_active_module == Twine::Null)
 		{
-			std::vector<IdString> matches;
+			std::vector<TwineRef> matches;
 
 			for (auto mod : design->all_selected_modules())
 				matches.push_back(mod->name);
 
 			if (!matches.empty()) {
 				log("\n%d %s:\n", int(matches.size()), "modules");
-				std::sort(matches.begin(), matches.end(), RTLIL::sort_by_id_str());
-				TwineSearch search(&design->twines);
+				std::sort(matches.begin(), matches.end(), RTLIL::sort_by_twine_str_expensive(design->twines));
 				for (auto id : matches)
-					log("  %s%s\n", log_id(id), design->selected_whole_module(design->module(search.find(id.str()))) ? "" : "*");
+					log("  %s%s\n", log_id(design, id), design->selected_whole_module(design->module(id)) ? "" : "*");
 			}
 		}
 		else

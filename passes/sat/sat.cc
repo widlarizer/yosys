@@ -267,8 +267,8 @@ struct SatHelper
 			// Check for $anyinit cells that are forced to be defined
 			if (set_init_undef && satgen.def_formal)
 				for (auto cell : module->cells())
-					if (cell->type == TW($anyinit))
-						forced_def.append(sigmap(cell->getPort(TW::Q)));
+					if (cell->type == ID::$anyinit)
+						forced_def.append(sigmap(cell->getPort(ID::Q)));
 
 			for (auto wire : module->wires())
 			{
@@ -533,9 +533,9 @@ struct SatHelper
 				} else {
 					for (auto &d : drivers)
 					for (auto &p : d->connections()) {
-						if (d->type == TW($dff) && p.first == TW::CLK)
+						if (d->type == ID::$dff && p.first == ID::CLK)
 							continue;
-						if (d->type.begins_with("$_DFF_") && p.first == TW::C)
+						if (d->type.begins_with("$_DFF_") && p.first == ID::C)
 							continue;
 						queued_signals.add(handled_signals.remove(sigmap(p.second)));
 					}
@@ -1408,8 +1408,8 @@ struct SatPass : public Pass {
 		if (show_regs) {
 			pool<Wire*> reg_wires;
 			for (auto cell : module->cells()) {
-				if (cell->type == TW($dff) || cell->type.begins_with("$_DFF_"))
-					for (auto bit : cell->getPort(TW::Q))
+				if (cell->type == ID::$dff || cell->type.begins_with("$_DFF_"))
+					for (auto bit : cell->getPort(ID::Q))
 						if (bit.wire)
 							reg_wires.insert(bit.wire);
 			}
@@ -1419,7 +1419,7 @@ struct SatPass : public Pass {
 
 		if (show_public) {
 			for (auto wire : module->wires())
-				if (wire->name.isPublic())
+				if (wire->name.is_public())
 					shows.push_back(wire->name.str());
 		}
 

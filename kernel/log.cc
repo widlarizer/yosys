@@ -240,8 +240,6 @@ void log_formatted_header(RTLIL::Design *design, std::string_view format, std::s
 	if (log_hdump.count(header_id) && design != nullptr)
 		for (auto &filename : log_hdump.at(header_id)) {
 			log("Dumping current design to '%s'.\n", filename);
-			if (yosys_xtrace)
-				IdString::xtrace_db_dump();
 			Pass::call(design, {"dump", "-o", filename});
 			if (yosys_xtrace)
 				log("#X# -- end of dump --\n");
@@ -573,8 +571,8 @@ void log_flush()
 		f->flush();
 }
 
-void log_dump_val_worker(RTLIL::IdString v) {
-	log("%s", v.unescape());
+void log_dump_val_worker(TwineRef v) {
+	log("%s", log_id(v));
 }
 
 void log_dump_val_worker(RTLIL::SigSpec v) {
@@ -600,18 +598,43 @@ std::string log_const(const RTLIL::Const &value, bool autoint)
 	return "\"" + value.decode_string() + "\"";
 }
 
-const char *log_id(const RTLIL::IdString &str)
+const char *log_id_str(const std::string &str)
 {
-	std::string unescaped = str.unescape();
+	log_id_cache.push_back(strdup(str.c_str()));
+	return log_id_cache.back();
+}
+
+static const char *log_id_cached(std::string unescaped)
+{
 	log_id_cache.push_back(strdup(unescaped.c_str()));
 	return log_id_cache.back();
 }
 
+// Pool-free fallback: only static (ID::) handles carry their own name.
+// Anything else needs the owning Design; use log_id(design, ref) there.
+const char *log_id(const TwineRef &str)
+{
+	if (str == Twine::Null)
+		return log_id_cached(std::string());
+	std::string name = ID::str(str);
+	if (name.empty())
+		return log_id_cached(stringf("$twine$%zu", (size_t)str.untag()));
+	return log_id_cached(RTLIL::unescape_id(name));
+}
+
 static const char *log_id_twine(const RTLIL::Design *design, TwineRef name)
 {
-	std::string unescaped = RTLIL::unescape_id(design->twines.str(name));
-	log_id_cache.push_back(strdup(unescaped.c_str()));
-	return log_id_cache.back();
+	return log_id_cached(RTLIL::unescape_id(design->twines.str(name)));
+}
+
+const char *log_id(const RTLIL::Design *design, TwineRef name)
+{
+	return log_id_twine(design, name);
+}
+
+const char *log_id(const RTLIL::Module *module, TwineRef name)
+{
+	return log_id_twine(module->design, name);
 }
 
 const char *log_id(const RTLIL::Module *obj, const char *nullstr)

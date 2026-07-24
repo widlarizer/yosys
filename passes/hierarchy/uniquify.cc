@@ -72,7 +72,7 @@ struct UniquifyPass : public Pass {
 				{
 					Module *tmod = design->module(cell->type_impl);
 					std::string tmod_name_str(design->twines.str(tmod->meta_->name));
-					IdString newname = design->twines.str(module->meta_->name).data() + std::string(".") + cell->module->design->twines.str(cell->meta_->name);
+					std::string newname = design->twines.str(module->meta_->name) + "." + cell->module->design->twines.str(cell->meta_->name);
 
 					if (tmod == nullptr)
 						continue;
@@ -80,15 +80,15 @@ struct UniquifyPass : public Pass {
 					if (tmod->get_blackbox_attribute())
 						continue;
 
-					TwineRef newname_ref = design->twines.add(Twine{newname.str()});
+					TwineRef newname_ref = design->twines.add(std::string(newname));
 					if (tmod->get_bool_attribute(ID::unique) && newname_ref == tmod->meta_->name)
 						continue;
 
-					log("Creating module %s from %s.\n", log_id(newname), tmod);
+					log("Creating module %s from %s.\n", RTLIL::unescape_id(newname), tmod);
 
 					auto smod = tmod->clone();
 					smod->meta_->name = newname_ref;
-					cell->type_impl = cell->module->design->twines.add(Twine{newname.str()});
+					cell->type_impl = cell->module->design->twines.add(std::string(newname));
 					smod->set_bool_attribute(ID::unique);
 					if (smod->attributes.count(ID::hdlname) == 0)
 						smod->attributes[ID::hdlname] = RTLIL::Const(tmod_name_str);

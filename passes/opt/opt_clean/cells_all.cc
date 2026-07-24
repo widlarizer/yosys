@@ -189,7 +189,7 @@ ConflictLogs explore(CellAnalysis& analysis, CellTraversal& traversal, const Sig
 	actx.subpool.run([&analysis, &traversal, &logs, &wire_map, &mem2cells_vector, &wire2driver_builder, &actx, &clean_ctx](const ParallelDispatchThreadPool::RunCtx &ctx) {
 		for (int i : ctx.item_range(actx.mod->cells_size())) {
 			Cell *cell = actx.mod->cell_at(i);
-			if (cell->type.in(TW($memwr), TW($memwr_v2), TW($meminit), TW($meminit_v2)))
+			if (cell->type.in(ID::$memwr, ID::$memwr_v2, ID::$meminit, ID::$meminit_v2))
 				mem2cells_vector.insert(ctx, {cell->getParam(ID::MEMID).decode_string(), i});
 
 			for (auto &it2 : cell->connections()) {
@@ -261,7 +261,7 @@ void fixup_unused_cells_and_mems(CellAnalysis& analysis, MemAnalysis& mem_analys
 						for (auto bit : actx.assign_map(it.second))
 							bits.insert(bit);
 
-				if (cell->type.in(TW($memrd), TW($memrd_v2))) {
+				if (cell->type.in(ID::$memrd, ID::$memrd_v2)) {
 					std::string mem_id = cell->getParam(ID::MEMID).decode_string();
 					if (mem_analysis.indices.count(mem_id)) {
 						int mem_index = mem_analysis.indices[mem_id];
@@ -315,7 +315,7 @@ void remove_cells(RTLIL::Module* mod, FfInitVals& ffinit, const pool<Cell*>& cel
 			log_debug("  removing unused `%s' cell `%s'.\n", cell->type, cell->name);
 		mod->design->scratchpad_set_bool("opt.did_something", true);
 		if (cell->is_builtin_ff())
-			ffinit.remove_init(cell->getPort(TW::Q));
+			ffinit.remove_init(cell->getPort(ID::Q));
 		mod->remove(cell);
 		stats.count_rm_cells++;
 	}

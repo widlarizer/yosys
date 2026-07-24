@@ -148,7 +148,7 @@ struct BtorWorker
 
 	string getinfo(Mem *mem, bool srcsym = false)
 	{
-		string infostr = RTLIL::unescape_id(mem->memid);
+		string infostr = module->design->twines.unescaped_str(mem->memid);
 		if (!srcsym && !print_internal_names && infostr[0] == '$') return "";
 		if (mem->has_attribute(ID::src)) {
 			string src = module && module->design ? module->design->get_src_attribute(mem) : std::string();
@@ -281,28 +281,28 @@ struct BtorWorker
 		cell_recursion_guard.insert(cell);
 		btorf_push(cell->module->design->twines.str(cell->meta_->name));
 
-		if (cell->type.in(TW($add), TW($sub), TW($mul), TW($and), TW($or), TW($xor), TW($xnor), TW($shl), TW($sshl), TW($shr), TW($sshr), TW($shift), TW($shiftx),
-				TW($concat), TW($_AND_), TW($_NAND_), TW($_OR_), TW($_NOR_), TW($_XOR_), TW($_XNOR_)))
+		if (cell->type.in(ID::$add, ID::$sub, ID::$mul, ID::$and, ID::$or, ID::$xor, ID::$xnor, ID::$shl, ID::$sshl, ID::$shr, ID::$sshr, ID::$shift, ID::$shiftx,
+				ID::$concat, ID::$_AND_, ID::$_NAND_, ID::$_OR_, ID::$_NOR_, ID::$_XOR_, ID::$_XNOR_))
 		{
 			string btor_op;
-			if (cell->type == TW($add)) btor_op = "add";
-			if (cell->type == TW($sub)) btor_op = "sub";
-			if (cell->type == TW($mul)) btor_op = "mul";
-			if (cell->type.in(TW($shl), TW($sshl))) btor_op = "sll";
-			if (cell->type == TW($shr)) btor_op = "srl";
-			if (cell->type == TW($sshr)) btor_op = "sra";
-			if (cell->type.in(TW($shift), TW($shiftx))) btor_op = "shift";
-			if (cell->type.in(TW($and), TW($_AND_))) btor_op = "and";
-			if (cell->type.in(TW($or), TW($_OR_))) btor_op = "or";
-			if (cell->type.in(TW($xor), TW($_XOR_))) btor_op = "xor";
-			if (cell->type == TW($concat)) btor_op = "concat";
-			if (cell->type == TW($_NAND_)) btor_op = "nand";
-			if (cell->type == TW($_NOR_)) btor_op = "nor";
-			if (cell->type.in(TW($xnor), TW($_XNOR_))) btor_op = "xnor";
+			if (cell->type == ID::$add) btor_op = "add";
+			if (cell->type == ID::$sub) btor_op = "sub";
+			if (cell->type == ID::$mul) btor_op = "mul";
+			if (cell->type.in(ID::$shl, ID::$sshl)) btor_op = "sll";
+			if (cell->type == ID::$shr) btor_op = "srl";
+			if (cell->type == ID::$sshr) btor_op = "sra";
+			if (cell->type.in(ID::$shift, ID::$shiftx)) btor_op = "shift";
+			if (cell->type.in(ID::$and, ID::$_AND_)) btor_op = "and";
+			if (cell->type.in(ID::$or, ID::$_OR_)) btor_op = "or";
+			if (cell->type.in(ID::$xor, ID::$_XOR_)) btor_op = "xor";
+			if (cell->type == ID::$concat) btor_op = "concat";
+			if (cell->type == ID::$_NAND_) btor_op = "nand";
+			if (cell->type == ID::$_NOR_) btor_op = "nor";
+			if (cell->type.in(ID::$xnor, ID::$_XNOR_)) btor_op = "xnor";
 			log_assert(!btor_op.empty());
 
-			int width_ay = std::max(GetSize(cell->getPort(TW::A)), GetSize(cell->getPort(TW::Y)));
-			int width = std::max(width_ay, GetSize(cell->getPort(TW::B)));
+			int width_ay = std::max(GetSize(cell->getPort(ID::A)), GetSize(cell->getPort(ID::Y)));
+			int width = std::max(width_ay, GetSize(cell->getPort(ID::B)));
 
 			bool a_signed = cell->hasParam(ID::A_SIGNED) ? cell->getParam(ID::A_SIGNED).as_bool() : false;
 			bool b_signed = cell->hasParam(ID::B_SIGNED) ? cell->getParam(ID::B_SIGNED).as_bool() : false;
@@ -310,29 +310,29 @@ struct BtorWorker
 			if (btor_op == "shift" && !b_signed)
 				btor_op = "srl";
 
-			if (cell->type.in(TW($shl), TW($sshl), TW($shr), TW($sshr)))
+			if (cell->type.in(ID::$shl, ID::$sshl, ID::$shr, ID::$sshr))
 				b_signed = false;
 
-			if (cell->type == TW($sshr) && !a_signed)
+			if (cell->type == ID::$sshr && !a_signed)
 				btor_op = "srl";
 
 			int sid = get_bv_sid(width);
 			int nid;
 
 			int nid_a;
-			if (cell->type.in(TW($shl), TW($shr), TW($shift), TW($shiftx)) && a_signed && width_ay < width) {
+			if (cell->type.in(ID::$shl, ID::$shr, ID::$shift, ID::$shiftx) && a_signed && width_ay < width) {
 				// sign-extend A up to the width of Y
-				int nid_a_padded = get_sig_nid(cell->getPort(TW::A), width_ay, a_signed);
+				int nid_a_padded = get_sig_nid(cell->getPort(ID::A), width_ay, a_signed);
 
 				// zero-extend the rest
 				int zeroes = get_sig_nid(Const(0, width-width_ay));
 				nid_a = next_nid++;
 				btorf("%d concat %d %d %d\n", nid_a, sid, zeroes, nid_a_padded);
 			} else {
-				nid_a = get_sig_nid(cell->getPort(TW::A), width, a_signed);
+				nid_a = get_sig_nid(cell->getPort(ID::A), width, a_signed);
 			}
 
-			int nid_b = get_sig_nid(cell->getPort(TW::B), width, b_signed);
+			int nid_b = get_sig_nid(cell->getPort(ID::B), width, b_signed);
 
 			if (btor_op == "shift")
 			{
@@ -359,7 +359,7 @@ struct BtorWorker
 				btorf("%d %s %d %d %d%s\n", nid, btor_op, sid, nid_a, nid_b, getinfo(cell));
 			}
 
-			SigSpec sig = sigmap(cell->getPort(TW::Y));
+			SigSpec sig = sigmap(cell->getPort(ID::Y));
 
 			if (GetSize(sig) < width) {
 				int sid = get_bv_sid(GetSize(sig));
@@ -372,34 +372,34 @@ struct BtorWorker
 			goto okay;
 		}
 
-		if (cell->type.in(TW($div), TW($mod), TW($modfloor)))
+		if (cell->type.in(ID::$div, ID::$mod, ID::$modfloor))
 		{
 			bool a_signed = cell->hasParam(ID::A_SIGNED) ? cell->getParam(ID::A_SIGNED).as_bool() : false;
 			bool b_signed = cell->hasParam(ID::B_SIGNED) ? cell->getParam(ID::B_SIGNED).as_bool() : false;
 
 			string btor_op;
-			if (cell->type == TW($div)) btor_op = "div";
+			if (cell->type == ID::$div) btor_op = "div";
 			// "rem" = truncating modulo
-			if (cell->type == TW($mod)) btor_op = "rem";
+			if (cell->type == ID::$mod) btor_op = "rem";
 			// "mod" = flooring modulo
-			if (cell->type == TW($modfloor)) {
+			if (cell->type == ID::$modfloor) {
 				// "umod" doesn't exist because it's the same as "urem"
 				btor_op = a_signed || b_signed ? "mod" : "rem";
 			}
 			log_assert(!btor_op.empty());
 
-			int width = GetSize(cell->getPort(TW::Y));
-			width = std::max(width, GetSize(cell->getPort(TW::A)));
-			width = std::max(width, GetSize(cell->getPort(TW::B)));
+			int width = GetSize(cell->getPort(ID::Y));
+			width = std::max(width, GetSize(cell->getPort(ID::A)));
+			width = std::max(width, GetSize(cell->getPort(ID::B)));
 
-			int nid_a = get_sig_nid(cell->getPort(TW::A), width, a_signed);
-			int nid_b = get_sig_nid(cell->getPort(TW::B), width, b_signed);
+			int nid_a = get_sig_nid(cell->getPort(ID::A), width, a_signed);
+			int nid_b = get_sig_nid(cell->getPort(ID::B), width, b_signed);
 
 			int sid = get_bv_sid(width);
 			int nid = next_nid++;
 			btorf("%d %c%s %d %d %d%s\n", nid, a_signed || b_signed ? 's' : 'u', btor_op, sid, nid_a, nid_b, getinfo(cell));
 
-			SigSpec sig = sigmap(cell->getPort(TW::Y));
+			SigSpec sig = sigmap(cell->getPort(ID::Y));
 
 			if (GetSize(sig) < width) {
 				int sid = get_bv_sid(GetSize(sig));
@@ -412,120 +412,120 @@ struct BtorWorker
 			goto okay;
 		}
 
-		if (cell->type.in(TW($_ANDNOT_), TW($_ORNOT_)))
+		if (cell->type.in(ID::$_ANDNOT_, ID::$_ORNOT_))
 		{
 			int sid = get_bv_sid(1);
-			int nid_a = get_sig_nid(cell->getPort(TW::A));
-			int nid_b = get_sig_nid(cell->getPort(TW::B));
+			int nid_a = get_sig_nid(cell->getPort(ID::A));
+			int nid_b = get_sig_nid(cell->getPort(ID::B));
 
 			int nid1 = next_nid++;
 			int nid2 = next_nid++;
 
-			if (cell->type == TW($_ANDNOT_)) {
+			if (cell->type == ID::$_ANDNOT_) {
 				btorf("%d not %d %d\n", nid1, sid, nid_b);
 				btorf("%d and %d %d %d%s\n", nid2, sid, nid_a, nid1, getinfo(cell));
 			}
 
-			if (cell->type == TW($_ORNOT_)) {
+			if (cell->type == ID::$_ORNOT_) {
 				btorf("%d not %d %d\n", nid1, sid, nid_b);
 				btorf("%d or %d %d %d%s\n", nid2, sid, nid_a, nid1, getinfo(cell));
 			}
 
-			SigSpec sig = sigmap(cell->getPort(TW::Y));
+			SigSpec sig = sigmap(cell->getPort(ID::Y));
 			add_nid_sig(nid2, sig);
 			goto okay;
 		}
 
-		if (cell->type.in(TW($_OAI3_), TW($_AOI3_)))
+		if (cell->type.in(ID::$_OAI3_, ID::$_AOI3_))
 		{
 			int sid = get_bv_sid(1);
-			int nid_a = get_sig_nid(cell->getPort(TW::A));
-			int nid_b = get_sig_nid(cell->getPort(TW::B));
-			int nid_c = get_sig_nid(cell->getPort(TW::C));
+			int nid_a = get_sig_nid(cell->getPort(ID::A));
+			int nid_b = get_sig_nid(cell->getPort(ID::B));
+			int nid_c = get_sig_nid(cell->getPort(ID::C));
 
 			int nid1 = next_nid++;
 			int nid2 = next_nid++;
 			int nid3 = next_nid++;
 
-			if (cell->type == TW($_OAI3_)) {
+			if (cell->type == ID::$_OAI3_) {
 				btorf("%d or %d %d %d\n", nid1, sid, nid_a, nid_b);
 				btorf("%d and %d %d %d\n", nid2, sid, nid1, nid_c);
 				btorf("%d not %d %d%s\n", nid3, sid, nid2, getinfo(cell));
 			}
 
-			if (cell->type == TW($_AOI3_)) {
+			if (cell->type == ID::$_AOI3_) {
 				btorf("%d and %d %d %d\n", nid1, sid, nid_a, nid_b);
 				btorf("%d or %d %d %d\n", nid2, sid, nid1, nid_c);
 				btorf("%d not %d %d%s\n", nid3, sid, nid2, getinfo(cell));
 			}
 
-			SigSpec sig = sigmap(cell->getPort(TW::Y));
+			SigSpec sig = sigmap(cell->getPort(ID::Y));
 			add_nid_sig(nid3, sig);
 			goto okay;
 		}
 
-		if (cell->type.in(TW($_OAI4_), TW($_AOI4_)))
+		if (cell->type.in(ID::$_OAI4_, ID::$_AOI4_))
 		{
 			int sid = get_bv_sid(1);
-			int nid_a = get_sig_nid(cell->getPort(TW::A));
-			int nid_b = get_sig_nid(cell->getPort(TW::B));
-			int nid_c = get_sig_nid(cell->getPort(TW::C));
-			int nid_d = get_sig_nid(cell->getPort(TW::D));
+			int nid_a = get_sig_nid(cell->getPort(ID::A));
+			int nid_b = get_sig_nid(cell->getPort(ID::B));
+			int nid_c = get_sig_nid(cell->getPort(ID::C));
+			int nid_d = get_sig_nid(cell->getPort(ID::D));
 
 			int nid1 = next_nid++;
 			int nid2 = next_nid++;
 			int nid3 = next_nid++;
 			int nid4 = next_nid++;
 
-			if (cell->type == TW($_OAI4_)) {
+			if (cell->type == ID::$_OAI4_) {
 				btorf("%d or %d %d %d\n", nid1, sid, nid_a, nid_b);
 				btorf("%d or %d %d %d\n", nid2, sid, nid_c, nid_d);
 				btorf("%d and %d %d %d\n", nid3, sid, nid1, nid2);
 				btorf("%d not %d %d%s\n", nid4, sid, nid3, getinfo(cell));
 			}
 
-			if (cell->type == TW($_AOI4_)) {
+			if (cell->type == ID::$_AOI4_) {
 				btorf("%d and %d %d %d\n", nid1, sid, nid_a, nid_b);
 				btorf("%d and %d %d %d\n", nid2, sid, nid_c, nid_d);
 				btorf("%d or %d %d %d\n", nid3, sid, nid1, nid2);
 				btorf("%d not %d %d%s\n", nid4, sid, nid3, getinfo(cell));
 			}
 
-			SigSpec sig = sigmap(cell->getPort(TW::Y));
+			SigSpec sig = sigmap(cell->getPort(ID::Y));
 			add_nid_sig(nid4, sig);
 			goto okay;
 		}
 
-		if (cell->type.in(TW($lt), TW($le), TW($eq), TW($eqx), TW($ne), TW($nex), TW($ge), TW($gt)))
+		if (cell->type.in(ID::$lt, ID::$le, ID::$eq, ID::$eqx, ID::$ne, ID::$nex, ID::$ge, ID::$gt))
 		{
 			string btor_op;
-			if (cell->type == TW($lt)) btor_op = "lt";
-			if (cell->type == TW($le)) btor_op = "lte";
-			if (cell->type.in(TW($eq), TW($eqx))) btor_op = "eq";
-			if (cell->type.in(TW($ne), TW($nex))) btor_op = "neq";
-			if (cell->type == TW($ge)) btor_op = "gte";
-			if (cell->type == TW($gt)) btor_op = "gt";
+			if (cell->type == ID::$lt) btor_op = "lt";
+			if (cell->type == ID::$le) btor_op = "lte";
+			if (cell->type.in(ID::$eq, ID::$eqx)) btor_op = "eq";
+			if (cell->type.in(ID::$ne, ID::$nex)) btor_op = "neq";
+			if (cell->type == ID::$ge) btor_op = "gte";
+			if (cell->type == ID::$gt) btor_op = "gt";
 			log_assert(!btor_op.empty());
 
 			int width = 1;
-			width = std::max(width, GetSize(cell->getPort(TW::A)));
-			width = std::max(width, GetSize(cell->getPort(TW::B)));
+			width = std::max(width, GetSize(cell->getPort(ID::A)));
+			width = std::max(width, GetSize(cell->getPort(ID::B)));
 
 			bool a_signed = cell->hasParam(ID::A_SIGNED) ? cell->getParam(ID::A_SIGNED).as_bool() : false;
 			bool b_signed = cell->hasParam(ID::B_SIGNED) ? cell->getParam(ID::B_SIGNED).as_bool() : false;
 
 			int sid = get_bv_sid(1);
-			int nid_a = get_sig_nid(cell->getPort(TW::A), width, a_signed);
-			int nid_b = get_sig_nid(cell->getPort(TW::B), width, b_signed);
+			int nid_a = get_sig_nid(cell->getPort(ID::A), width, a_signed);
+			int nid_b = get_sig_nid(cell->getPort(ID::B), width, b_signed);
 
 			int nid = next_nid++;
-			if (cell->type.in(TW($lt), TW($le), TW($ge), TW($gt))) {
+			if (cell->type.in(ID::$lt, ID::$le, ID::$ge, ID::$gt)) {
 				btorf("%d %c%s %d %d %d%s\n", nid, a_signed || b_signed ? 's' : 'u', btor_op, sid, nid_a, nid_b, getinfo(cell));
 			} else {
 				btorf("%d %s %d %d %d%s\n", nid, btor_op, sid, nid_a, nid_b, getinfo(cell));
 			}
 
-			SigSpec sig = sigmap(cell->getPort(TW::Y));
+			SigSpec sig = sigmap(cell->getPort(ID::Y));
 
 			if (GetSize(sig) > 1) {
 				int sid = get_bv_sid(GetSize(sig));
@@ -538,21 +538,21 @@ struct BtorWorker
 			goto okay;
 		}
 
-		if (cell->type.in(TW($not), TW($neg), TW($_NOT_), TW($pos), TW($buf), TW($_BUF_)))
+		if (cell->type.in(ID::$not, ID::$neg, ID::$_NOT_, ID::$pos, ID::$buf, ID::$_BUF_))
 		{
 			string btor_op;
-			if (cell->type.in(TW($not), TW($_NOT_))) btor_op = "not";
-			if (cell->type == TW($neg)) btor_op = "neg";
+			if (cell->type.in(ID::$not, ID::$_NOT_)) btor_op = "not";
+			if (cell->type == ID::$neg) btor_op = "neg";
 
-			int width = std::max(GetSize(cell->getPort(TW::A)), GetSize(cell->getPort(TW::Y)));
+			int width = std::max(GetSize(cell->getPort(ID::A)), GetSize(cell->getPort(ID::Y)));
 
 			bool a_signed = cell->hasParam(ID::A_SIGNED) ? cell->getParam(ID::A_SIGNED).as_bool() : false;
-			int nid_a = get_sig_nid(cell->getPort(TW::A), width, a_signed);
-			SigSpec sig = sigmap(cell->getPort(TW::Y));
+			int nid_a = get_sig_nid(cell->getPort(ID::A), width, a_signed);
+			SigSpec sig = sigmap(cell->getPort(ID::Y));
 
 			// the $pos/$buf cells just pass through, all other cells need an actual operation applied
 			int nid = nid_a;
-			if (!cell->type.in(TW($pos), TW($buf), TW($_BUF_)))
+			if (!cell->type.in(ID::$pos, ID::$buf, ID::$_BUF_))
 			{
 				log_assert(!btor_op.empty());
 				int sid = get_bv_sid(width);
@@ -571,25 +571,25 @@ struct BtorWorker
 			goto okay;
 		}
 
-		if (cell->type.in(TW($logic_and), TW($logic_or), TW($logic_not)))
+		if (cell->type.in(ID::$logic_and, ID::$logic_or, ID::$logic_not))
 		{
 			string btor_op;
-			if (cell->type == TW($logic_and)) btor_op = "and";
-			if (cell->type == TW($logic_or))  btor_op = "or";
-			if (cell->type == TW($logic_not)) btor_op = "not";
+			if (cell->type == ID::$logic_and) btor_op = "and";
+			if (cell->type == ID::$logic_or)  btor_op = "or";
+			if (cell->type == ID::$logic_not) btor_op = "not";
 			log_assert(!btor_op.empty());
 
 			int sid = get_bv_sid(1);
-			int nid_a = get_sig_nid(cell->getPort(TW::A));
-			int nid_b = btor_op != "not" ? get_sig_nid(cell->getPort(TW::B)) : 0;
+			int nid_a = get_sig_nid(cell->getPort(ID::A));
+			int nid_b = btor_op != "not" ? get_sig_nid(cell->getPort(ID::B)) : 0;
 
-			if (GetSize(cell->getPort(TW::A)) > 1) {
+			if (GetSize(cell->getPort(ID::A)) > 1) {
 				int nid_red_a = next_nid++;
 				btorf("%d redor %d %d\n", nid_red_a, sid, nid_a);
 				nid_a = nid_red_a;
 			}
 
-			if (btor_op != "not" && GetSize(cell->getPort(TW::B)) > 1) {
+			if (btor_op != "not" && GetSize(cell->getPort(ID::B)) > 1) {
 				int nid_red_b = next_nid++;
 				btorf("%d redor %d %d\n", nid_red_b, sid, nid_b);
 				nid_b = nid_red_b;
@@ -601,7 +601,7 @@ struct BtorWorker
 			else
 				btorf("%d %s %d %d%s\n", nid, btor_op, sid, nid_a, getinfo(cell));
 
-			SigSpec sig = sigmap(cell->getPort(TW::Y));
+			SigSpec sig = sigmap(cell->getPort(ID::Y));
 
 			if (GetSize(sig) > 1) {
 				int sid = get_bv_sid(GetSize(sig));
@@ -615,20 +615,20 @@ struct BtorWorker
 			goto okay;
 		}
 
-		if (cell->type.in(TW($reduce_and), TW($reduce_or), TW($reduce_bool), TW($reduce_xor), TW($reduce_xnor)))
+		if (cell->type.in(ID::$reduce_and, ID::$reduce_or, ID::$reduce_bool, ID::$reduce_xor, ID::$reduce_xnor))
 		{
 			string btor_op;
-			if (cell->type == TW($reduce_and)) btor_op = "redand";
-			if (cell->type.in(TW($reduce_or), TW($reduce_bool))) btor_op = "redor";
-			if (cell->type.in(TW($reduce_xor), TW($reduce_xnor))) btor_op = "redxor";
+			if (cell->type == ID::$reduce_and) btor_op = "redand";
+			if (cell->type.in(ID::$reduce_or, ID::$reduce_bool)) btor_op = "redor";
+			if (cell->type.in(ID::$reduce_xor, ID::$reduce_xnor)) btor_op = "redxor";
 			log_assert(!btor_op.empty());
 
 			int sid = get_bv_sid(1);
-			int nid_a = get_sig_nid(cell->getPort(TW::A));
+			int nid_a = get_sig_nid(cell->getPort(ID::A));
 
 			int nid = next_nid++;
 
-			if (cell->type == TW($reduce_xnor)) {
+			if (cell->type == ID::$reduce_xnor) {
 				int nid2 = next_nid++;
 				btorf("%d %s %d %d%s\n", nid, btor_op, sid, nid_a, getinfo(cell));
 				btorf("%d not %d %d\n", nid2, sid, nid);
@@ -637,7 +637,7 @@ struct BtorWorker
 				btorf("%d %s %d %d%s\n", nid, btor_op, sid, nid_a, getinfo(cell));
 			}
 
-			SigSpec sig = sigmap(cell->getPort(TW::Y));
+			SigSpec sig = sigmap(cell->getPort(ID::Y));
 
 			if (GetSize(sig) > 1) {
 				int sid = get_bv_sid(GetSize(sig));
@@ -651,12 +651,12 @@ struct BtorWorker
 			goto okay;
 		}
 
-		if (cell->type.in(TW($mux), TW($_MUX_), TW($_NMUX_)))
+		if (cell->type.in(ID::$mux, ID::$_MUX_, ID::$_NMUX_))
 		{
-			SigSpec sig_a = sigmap(cell->getPort(TW::A));
-			SigSpec sig_b = sigmap(cell->getPort(TW::B));
-			SigSpec sig_s = sigmap(cell->getPort(TW::S));
-			SigSpec sig_y = sigmap(cell->getPort(TW::Y));
+			SigSpec sig_a = sigmap(cell->getPort(ID::A));
+			SigSpec sig_b = sigmap(cell->getPort(ID::B));
+			SigSpec sig_s = sigmap(cell->getPort(ID::S));
+			SigSpec sig_y = sigmap(cell->getPort(ID::Y));
 
 			int nid_a = get_sig_nid(sig_a);
 			int nid_b = get_sig_nid(sig_b);
@@ -665,7 +665,7 @@ struct BtorWorker
 			int sid = get_bv_sid(GetSize(sig_y));
 			int nid = next_nid++;
 
-			if (cell->type == TW($_NMUX_)) {
+			if (cell->type == ID::$_NMUX_) {
 				int tmp = nid;
 				nid = next_nid++;
 				btorf("%d ite %d %d %d %d\n", tmp, sid, nid_s, nid_b, nid_a);
@@ -678,12 +678,12 @@ struct BtorWorker
 			goto okay;
 		}
 
-		if (cell->type == TW($pmux))
+		if (cell->type == ID::$pmux)
 		{
-			SigSpec sig_a = sigmap(cell->getPort(TW::A));
-			SigSpec sig_b = sigmap(cell->getPort(TW::B));
-			SigSpec sig_s = sigmap(cell->getPort(TW::S));
-			SigSpec sig_y = sigmap(cell->getPort(TW::Y));
+			SigSpec sig_a = sigmap(cell->getPort(ID::A));
+			SigSpec sig_b = sigmap(cell->getPort(ID::B));
+			SigSpec sig_s = sigmap(cell->getPort(ID::S));
+			SigSpec sig_y = sigmap(cell->getPort(ID::Y));
 
 			int width = GetSize(sig_a);
 			int sid = get_bv_sid(width);
@@ -704,21 +704,21 @@ struct BtorWorker
 			goto okay;
 		}
 
-		if (cell->type.in(TW($dff), TW($ff), TW($anyinit), TW($_DFF_P_), TW($_DFF_N), TW($_FF_)))
+		if (cell->type.in(ID::$dff, ID::$ff, ID::$anyinit, ID::$_DFF_P_, ID::$_DFF_N, ID::$_FF_))
 		{
-			SigSpec sig_d = sigmap(cell->getPort(TW::D));
-			SigSpec sig_q = sigmap(cell->getPort(TW::Q));
+			SigSpec sig_d = sigmap(cell->getPort(ID::D));
+			SigSpec sig_q = sigmap(cell->getPort(ID::Q));
 
-			if ((!info_filename.empty() || ywmap_json.active()) && cell->type.in(TW($dff), TW($_DFF_P_), TW($_DFF_N_)))
+			if ((!info_filename.empty() || ywmap_json.active()) && cell->type.in(ID::$dff, ID::$_DFF_P_, ID::$_DFF_N_))
 			{
-				SigSpec sig_c = sigmap(cell->getPort(cell->type == TW($dff) ? TW::CLK : TW::C));
+				SigSpec sig_c = sigmap(cell->getPort(cell->type == ID::$dff ? ID::CLK : ID::C));
 				int nid = get_sig_nid(sig_c);
 				bool negedge = false;
 
-				if (cell->type == TW($_DFF_N_))
+				if (cell->type == ID::$_DFF_N_)
 					negedge = true;
 
-				if (cell->type == TW($dff) && !cell->getParam(ID::CLK_POLARITY).as_bool())
+				if (cell->type == ID::$dff && !cell->getParam(ID::CLK_POLARITY).as_bool())
 					negedge = true;
 
 				if (!info_filename.empty())
@@ -759,8 +759,8 @@ struct BtorWorker
 			else
 				btorf("%d state %d %s\n", nid, sid, symbol);
 
-			if (cell->get_bool_attribute(ID(clk2fflogic)))
-				ywmap_state(cell->getPort(TW::D)); // For a clk2fflogic FF the named signal is the D input not the Q output
+			if (cell->get_bool_attribute(ID::clk2fflogic))
+				ywmap_state(cell->getPort(ID::D)); // For a clk2fflogic FF the named signal is the D input not the Q output
 			else
 				ywmap_state(sig_q);
 
@@ -776,9 +776,9 @@ struct BtorWorker
 			goto okay;
 		}
 
-		if (cell->type.in(TW($anyconst), TW($anyseq)))
+		if (cell->type.in(ID::$anyconst, ID::$anyseq))
 		{
-			SigSpec sig_y = sigmap(cell->getPort(TW::Y));
+			SigSpec sig_y = sigmap(cell->getPort(ID::Y));
 
 			int sid = get_bv_sid(GetSize(sig_y));
 			int nid = next_nid++;
@@ -787,7 +787,7 @@ struct BtorWorker
 
 			ywmap_state(sig_y);
 
-			if (cell->type == TW($anyconst)) {
+			if (cell->type == ID::$anyconst) {
 				int nid2 = next_nid++;
 				btorf("%d next %d %d %d\n", nid2, sid, nid, nid);
 			}
@@ -796,9 +796,9 @@ struct BtorWorker
 			goto okay;
 		}
 
-		if (cell->type == TW($initstate))
+		if (cell->type == ID::$initstate)
 		{
-			SigSpec sig_y = sigmap(cell->getPort(TW::Y));
+			SigSpec sig_y = sigmap(cell->getPort(ID::Y));
 
 			if (initstate_nid < 0)
 			{
@@ -835,12 +835,12 @@ struct BtorWorker
 
 			if (asyncwr && syncwr)
 				log_error("Memory %s.%s has mixed async/sync write ports.\n",
-						module, RTLIL::unescape_id(mem->memid));
+						module, module->design->twines.unescaped_str(mem->memid));
 
 			for (auto &port : mem->rd_ports) {
 				if (port.clk_enable)
 					log_error("Memory %s.%s has sync read ports.  Please use memory_nordff to convert them first.\n",
-							module, RTLIL::unescape_id(mem->memid));
+							module, module->design->twines.unescaped_str(mem->memid));
 			}
 
 			int data_sid = get_bv_sid(mem->width);
@@ -899,10 +899,10 @@ struct BtorWorker
 			int nid = next_nid++;
 			int nid_head = nid;
 
-			if (mem->memid[0] == '$')
+			if (module->design->twines.str(mem->memid)[0] == '$')
 				btorf("%d state %d\n", nid, sid);
 			else
-				btorf("%d state %d %s\n", nid, sid, RTLIL::unescape_id(mem->memid));
+				btorf("%d state %d %s\n", nid, sid, module->design->twines.unescaped_str(mem->memid));
 
 			ywmap_state(cell);
 
@@ -977,15 +977,15 @@ struct BtorWorker
 			goto okay;
 		}
 
-		if (cell->type.in(TW($dffe), TW($sdff), TW($sdffe), TW($sdffce)) || cell->type.str().substr(0, 6) == "$_SDFF" || (cell->type.str().substr(0, 6) == "$_DFFE" && cell->type.str().size() == 10)) {
+		if (cell->type.in(ID::$dffe, ID::$sdff, ID::$sdffe, ID::$sdffce) || cell->type.str().substr(0, 6) == "$_SDFF" || (cell->type.str().substr(0, 6) == "$_DFFE" && cell->type.str().size() == 10)) {
 			log_error("Unsupported cell type %s for cell %s.%s -- please run `dffunmap` before `write_btor`.\n",
 					cell->type.unescape(), module, cell);
 		}
-		if (cell->type.in(TW($adff), TW($adffe), TW($aldff), TW($aldffe), TW($dffsr), TW($dffsre)) || cell->type.str().substr(0, 5) == "$_DFF" || cell->type.str().substr(0, 7) == "$_ALDFF") {
+		if (cell->type.in(ID::$adff, ID::$adffe, ID::$aldff, ID::$aldffe, ID::$dffsr, ID::$dffsre) || cell->type.str().substr(0, 5) == "$_DFF" || cell->type.str().substr(0, 7) == "$_ALDFF") {
 			log_error("Unsupported cell type %s for cell %s.%s -- please run `async2sync; dffunmap` or `clk2fflogic` before `write_btor`.\n",
 					cell->type.unescape(), module, cell);
 		}
-		if (cell->type.in(TW($sr), TW($dlatch), TW($adlatch), TW($dlatchsr)) || cell->type.str().substr(0, 8) == "$_DLATCH" || cell->type.str().substr(0, 5) == "$_SR_") {
+		if (cell->type.in(ID::$sr, ID::$dlatch, ID::$adlatch, ID::$dlatchsr) || cell->type.str().substr(0, 8) == "$_DLATCH" || cell->type.str().substr(0, 5) == "$_SR_") {
 			log_error("Unsupported cell type %s for cell %s.%s -- please run `clk2fflogic` before `write_btor`.\n",
 					cell->type.unescape(), module, cell);
 		}
@@ -1204,10 +1204,10 @@ struct BtorWorker
 
 		memories = Mem::get_all_memories(module);
 
-		dict<IdString, Mem*> mem_dict;
+		dict<std::string, Mem*> mem_dict;
 		for (auto &mem : memories) {
 			mem.narrow();
-			mem_dict[mem.memid] = &mem;
+			mem_dict[module->design->twines.str(mem.memid)] = &mem;
 		}
 		for (auto cell : module->cells())
 			if (cell->is_mem_cell())
@@ -1297,13 +1297,13 @@ struct BtorWorker
 
 		for (auto cell : module->cells())
 		{
-			if (cell->type == TW($assume))
+			if (cell->type == ID::$assume)
 			{
 				btorf_push(cell->module->design->twines.str(cell->meta_->name));
 
 				int sid = get_bv_sid(1);
-				int nid_a = get_sig_nid(cell->getPort(TW::A));
-				int nid_en = get_sig_nid(cell->getPort(TW::EN));
+				int nid_a = get_sig_nid(cell->getPort(ID::A));
+				int nid_en = get_sig_nid(cell->getPort(ID::EN));
 				int nid_not_en = next_nid++;
 				int nid_a_or_not_en = next_nid++;
 				int nid = next_nid++;
@@ -1317,13 +1317,13 @@ struct BtorWorker
 				btorf_pop(cell->module->design->twines.str(cell->meta_->name));
 			}
 
-			if (cell->type == TW($assert))
+			if (cell->type == ID::$assert)
 			{
 				btorf_push(cell->module->design->twines.str(cell->meta_->name));
 
 				int sid = get_bv_sid(1);
-				int nid_a = get_sig_nid(cell->getPort(TW::A));
-				int nid_en = get_sig_nid(cell->getPort(TW::EN));
+				int nid_a = get_sig_nid(cell->getPort(ID::A));
+				int nid_en = get_sig_nid(cell->getPort(ID::EN));
 				int nid_not_a = next_nid++;
 				int nid_en_and_not_a = next_nid++;
 
@@ -1346,13 +1346,13 @@ struct BtorWorker
 				btorf_pop(cell->module->design->twines.str(cell->meta_->name));
 			}
 
-			if (cell->type == TW($cover) && cover_mode)
+			if (cell->type == ID::$cover && cover_mode)
 			{
 				btorf_push(cell->module->design->twines.str(cell->meta_->name));
 
 				int sid = get_bv_sid(1);
-				int nid_a = get_sig_nid(cell->getPort(TW::A));
-				int nid_en = get_sig_nid(cell->getPort(TW::EN));
+				int nid_a = get_sig_nid(cell->getPort(ID::A));
+				int nid_en = get_sig_nid(cell->getPort(ID::EN));
 				int nid_en_and_a = next_nid++;
 
 				btorf("%d and %d %d %d\n", nid_en_and_a, sid, nid_en, nid_a);
@@ -1402,7 +1402,7 @@ struct BtorWorker
 
 				btorf_push(stringf("next %s", cell));
 
-				SigSpec sig = sigmap(cell->getPort(TW::D));
+				SigSpec sig = sigmap(cell->getPort(ID::D));
 				int nid_q = get_sig_nid(sig);
 				int sid = get_bv_sid(GetSize(sig));
 				btorf("%d next %d %d %d%s\n", next_nid++, sid, nid, nid_q, getinfo(cell));
@@ -1418,7 +1418,7 @@ struct BtorWorker
 				int nid = it.first;
 				Mem *mem = it.second;
 
-				btorf_push(stringf("next %s", RTLIL::unescape_id(mem->memid)));
+				btorf_push(stringf("next %s", module->design->twines.unescaped_str(mem->memid)));
 
 				int abits = ceil_log2(mem->size);
 
@@ -1466,7 +1466,7 @@ struct BtorWorker
 				int nid2 = next_nid++;
 				btorf("%d next %d %d %d%s\n", nid2, sid, nid, nid_head, getinfo(mem));
 
-				btorf_pop(stringf("next %s", RTLIL::unescape_id(mem->memid)));
+				btorf_pop(stringf("next %s", module->design->twines.unescaped_str(mem->memid)));
 			}
 		}
 

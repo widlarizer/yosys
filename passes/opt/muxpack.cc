@@ -37,12 +37,12 @@ struct ExclusiveDatabase
 		SigBit y_port;
 		pool<Cell*> reduce_or;
 		for (auto cell : module->cells()) {
-			if (cell->type == TW($eq)) {
-				SigSpec y_sig = sigmap(cell->getPort(TW::Y));
+			if (cell->type == ID::$eq) {
+				SigSpec y_sig = sigmap(cell->getPort(ID::Y));
 				if (GetSize(y_sig) == 0)
 					continue;
-				nonconst_sig = sigmap(cell->getPort(TW::A));
-				const_sig = sigmap(cell->getPort(TW::B));
+				nonconst_sig = sigmap(cell->getPort(ID::A));
+				const_sig = sigmap(cell->getPort(ID::B));
 				if (!const_sig.is_fully_const()) {
 					if (!nonconst_sig.is_fully_const())
 						continue;
@@ -50,15 +50,15 @@ struct ExclusiveDatabase
 				}
 				y_port = y_sig[0];
 			}
-			else if (cell->type == TW($logic_not)) {
-				SigSpec y_sig = sigmap(cell->getPort(TW::Y));
+			else if (cell->type == ID::$logic_not) {
+				SigSpec y_sig = sigmap(cell->getPort(ID::Y));
 				if (GetSize(y_sig) == 0)
 					continue;
-				nonconst_sig = sigmap(cell->getPort(TW::A));
+				nonconst_sig = sigmap(cell->getPort(ID::A));
 				const_sig = Const(State::S0, GetSize(nonconst_sig));
 				y_port = y_sig[0];
 			}
-			else if (cell->type == TW($reduce_or)) {
+			else if (cell->type == ID::$reduce_or) {
 				reduce_or.insert(cell);
 				continue;
 			}
@@ -72,7 +72,7 @@ struct ExclusiveDatabase
 		for (auto cell : reduce_or) {
 			nonconst_sig = SigSpec();
 			std::vector<Const> values;
-			SigSpec a_port = sigmap(cell->getPort(TW::A));
+			SigSpec a_port = sigmap(cell->getPort(ID::A));
 			for (auto bit : a_port) {
 				auto it = sig_cmp_prev.find(bit);
 				if (it == sig_cmp_prev.end()) {
@@ -90,7 +90,7 @@ struct ExclusiveDatabase
 			}
 			if (nonconst_sig.empty())
 				continue;
-			SigSpec y_sig = sigmap(cell->getPort(TW::Y));
+			SigSpec y_sig = sigmap(cell->getPort(ID::Y));
 			if (GetSize(y_sig) == 0)
 				continue;
 			y_port = y_sig[0];
@@ -152,13 +152,13 @@ struct MuxpackWorker
 
 		for (auto cell : module->cells())
 		{
-			if (cell->type.in(TW($mux), TW($pmux)) && !cell->get_bool_attribute(ID::keep))
+			if (cell->type.in(ID::$mux, ID::$pmux) && !cell->get_bool_attribute(ID::keep))
 			{
-				SigSpec a_sig = sigmap(cell->getPort(TW::A));
+				SigSpec a_sig = sigmap(cell->getPort(ID::A));
 				SigSpec b_sig;
-				if (cell->type == TW($mux))
-					b_sig = sigmap(cell->getPort(TW::B));
-				SigSpec y_sig = sigmap(cell->getPort(TW::Y));
+				if (cell->type == ID::$mux)
+					b_sig = sigmap(cell->getPort(ID::B));
+				SigSpec y_sig = sigmap(cell->getPort(ID::Y));
    
 				if (sig_chain_next.count(a_sig))
 					for (auto a_bit : a_sig)
@@ -195,16 +195,16 @@ struct MuxpackWorker
 		{
 			log_debug("Considering %s (%s)\n", cell, cell->type.unescaped());
 
-			SigSpec a_sig = sigmap(cell->getPort(TW::A));
-			if (cell->type == TW($mux)) {
-				SigSpec b_sig = sigmap(cell->getPort(TW::B));
+			SigSpec a_sig = sigmap(cell->getPort(ID::A));
+			if (cell->type == ID::$mux) {
+				SigSpec b_sig = sigmap(cell->getPort(ID::B));
 				if (sig_chain_prev.count(a_sig) + sig_chain_prev.count(b_sig) != 1)
 					goto start_cell;
 
 				if (!sig_chain_prev.count(a_sig))
 					a_sig = b_sig;
 			}
-			else if (cell->type == TW($pmux)) {
+			else if (cell->type == ID::$pmux) {
 				if (!sig_chain_prev.count(a_sig))
 					goto start_cell;
 			}
@@ -217,8 +217,8 @@ struct MuxpackWorker
 			{
 				Cell *prev_cell = sig_chain_prev.at(a_sig);
 				log_assert(prev_cell);
-				SigSpec s_sig = sigmap(cell->getPort(TW::S));
-				s_sig.append(sigmap(prev_cell->getPort(TW::S)));
+				SigSpec s_sig = sigmap(cell->getPort(ID::S));
+				s_sig.append(sigmap(prev_cell->getPort(ID::S)));
 				if (!excl_db.query(s_sig))
 					goto start_cell;
 			}
@@ -239,7 +239,7 @@ struct MuxpackWorker
 		{
 			chain.push_back(c);
 
-			SigSpec y_sig = sigmap(c->getPort(TW::Y));
+			SigSpec y_sig = sigmap(c->getPort(ID::Y));
 
 			if (sig_chain_next.count(y_sig) == 0)
 				break;
@@ -277,29 +277,29 @@ struct MuxpackWorker
 			mux_count += cases;
 			pmux_count += 1;
 
-			first_cell->type_impl = TW::$pmux;
-			SigSpec b_sig = first_cell->getPort(TW::B);
-			SigSpec s_sig = first_cell->getPort(TW::S);
+			first_cell->type_impl = ID::$pmux;
+			SigSpec b_sig = first_cell->getPort(ID::B);
+			SigSpec s_sig = first_cell->getPort(ID::S);
 
 			for (int i = 1; i < cases; i++) {
 				Cell* prev_cell = chain[cursor+i-1];
 				Cell* cursor_cell = chain[cursor+i];
-				if (sigmap(prev_cell->getPort(TW::Y)) == sigmap(cursor_cell->getPort(TW::A))) {
-					b_sig.append(cursor_cell->getPort(TW::B));
-					s_sig.append(cursor_cell->getPort(TW::S));
+				if (sigmap(prev_cell->getPort(ID::Y)) == sigmap(cursor_cell->getPort(ID::A))) {
+					b_sig.append(cursor_cell->getPort(ID::B));
+					s_sig.append(cursor_cell->getPort(ID::S));
 				}
 				else {
-					log_assert(cursor_cell->type == TW($mux));
-					b_sig.append(cursor_cell->getPort(TW::A));
-					s_sig.append(module->LogicNot(NEW_TWINE, cursor_cell->getPort(TW::S)));
+					log_assert(cursor_cell->type == ID::$mux);
+					b_sig.append(cursor_cell->getPort(ID::A));
+					s_sig.append(module->LogicNot(NEW_ID, cursor_cell->getPort(ID::S)));
 				}
 				remove_cells.insert(cursor_cell);
 			}
 
-			first_cell->setPort(TW::B, b_sig);
-			first_cell->setPort(TW::S, s_sig);
+			first_cell->setPort(ID::B, b_sig);
+			first_cell->setPort(ID::S, s_sig);
 			first_cell->setParam(ID::S_WIDTH, GetSize(s_sig));
-			first_cell->setPort(TW::Y, last_cell->getPort(TW::Y));
+			first_cell->setPort(ID::Y, last_cell->getPort(ID::Y));
 
 			cursor += cases;
 		}

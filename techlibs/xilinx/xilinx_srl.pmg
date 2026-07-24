@@ -18,22 +18,22 @@ match first
 	select !first->type.in(\FDRE, \FDRE_1) || port(first, \R, State::S0).is_fully_zero()
 	filter !non_first_cells.count(first)
 generate
-	SigSpec C = module->addWire(NEW_TWINE);
-	SigSpec D = module->addWire(NEW_TWINE);
-	SigSpec Q = module->addWire(NEW_TWINE);
+	SigSpec C = module->addWire(NEW_ID);
+	SigSpec D = module->addWire(NEW_ID);
+	SigSpec Q = module->addWire(NEW_ID);
 	auto r = rng(8);
 	Cell* cell;
 	switch (r)
 	{
 	case 0:
 	case 1:
-		cell = module->addCell(NEW_TWINE, \FDRE);
+		cell = module->addCell(NEW_ID, \FDRE);
 		cell->setPort(\C, C);
 		cell->setPort(\D, D);
 		cell->setPort(\Q, Q);
-		cell->setPort(\CE, module->addWire(NEW_TWINE));
+		cell->setPort(\CE, module->addWire(NEW_ID));
 		if (r & 1)
-			cell->setPort(\R, module->addWire(NEW_TWINE));
+			cell->setPort(\R, module->addWire(NEW_ID));
 		else {
 			if (rng(2) == 0)
 				cell->setPort(\R, State::S0);
@@ -41,13 +41,13 @@ generate
 		break;
 	case 2:
 	case 3:
-		cell = module->addDffGate(NEW_TWINE, C, D, Q, r & 1);
+		cell = module->addDffGate(NEW_ID, C, D, Q, r & 1);
 		break;
 	case 4:
 	case 5:
 	case 6:
 	case 7:
-		cell = module->addDffeGate(NEW_TWINE, C, module->addWire(NEW_TWINE), D, Q, r & 1, r & 2);
+		cell = module->addDffeGate(NEW_ID, C, module->addWire(NEW_ID), D, Q, r & 1, r & 2);
 		break;
 	default: log_abort();
 	}
@@ -105,9 +105,9 @@ endcode
 match next
 	select next->type.in($_DFF_N_, $_DFF_P_, $_DFFE_NN_, $_DFFE_NP_, $_DFFE_PN_, $_DFFE_PP_, \FDRE, \FDRE_1)
 	select !next->has_keep_attr()
-	select port(next, \D)[0].wire && !port(next, \D)[0].wire->get_bool_attribute(ID(keep))
+	select port(next, \D)[0].wire && !port(next, \D)[0].wire->get_bool_attribute(ID::keep)
 	select nusers(port(next, \Q)) == 2
-	index <IdString> next->type === first->type
+	index <TwineRef> next->type === first->type
 	index <SigBit> port(next, \Q) === port(first, \D)
 	filter port(next, clk_port) == port(first, clk_port)
 	filter en_port == Twine::Null || port(next, en_port) == port(first, en_port)
@@ -132,9 +132,9 @@ match next
 	semioptional
 	select next->type.in($_DFF_N_, $_DFF_P_, $_DFFE_NN_, $_DFFE_NP_, $_DFFE_PN_, $_DFFE_PP_, \FDRE, \FDRE_1)
 	select !next->has_keep_attr()
-	select port(next, \D)[0].wire && !port(next, \D)[0].wire->get_bool_attribute(ID(keep))
+	select port(next, \D)[0].wire && !port(next, \D)[0].wire->get_bool_attribute(ID::keep)
 	select nusers(port(next, \Q)) == 2
-	index <IdString> next->type === chain.back()->type
+	index <TwineRef> next->type === chain.back()->type
 	index <SigBit> port(next, \Q) === port(chain.back(), \D)
 	filter port(next, clk_port) == port(first, clk_port)
 	filter en_port == Twine::Null || port(next, en_port) == port(first, en_port)
@@ -143,9 +143,9 @@ match next
 	filter !first->type.in(\FDRE) || param(next, \IS_R_INVERTED).as_bool() == param(first, \IS_R_INVERTED).as_bool()
 	filter !first->type.in(\FDRE, \FDRE_1) || port(next, \R, State::S0).is_fully_zero()
 generate
-	Cell *cell = module->addCell(NEW_TWINE, chain.back()->type_impl);
+	Cell *cell = module->addCell(NEW_ID, chain.back()->type_impl);
 	cell->setPort(\C, chain.back()->getPort(\C));
-	cell->setPort(\D, module->addWire(NEW_TWINE));
+	cell->setPort(\D, module->addWire(NEW_ID));
 	cell->setPort(\Q, chain.back()->getPort(\D));
 	if (cell->type == \FDRE) {
 		if (rng(2) == 0)
@@ -191,7 +191,7 @@ match shiftx
 	filter param(shiftx, \A_WIDTH).as_int() >= minlen
 generate
 	minlen = 3;
-	module->addShiftx(NEW_TWINE, module->addWire(NEW_TWINE, rng(6)+minlen), module->addWire(NEW_TWINE, 3), module->addWire(NEW_TWINE));
+	module->addShiftx(NEW_ID, module->addWire(NEW_ID, rng(6)+minlen), module->addWire(NEW_ID, 3), module->addWire(NEW_ID));
 endmatch
 
 code shiftx_width
@@ -201,34 +201,34 @@ endcode
 match first
 	select first->type.in($_DFF_N_, $_DFF_P_, $_DFFE_NN_, $_DFFE_NP_, $_DFFE_PN_, $_DFFE_PP_, $dff, $dffe)
 	select !first->has_keep_attr()
-	select port(first, \Q)[0].wire && !port(first, \Q)[0].wire->get_bool_attribute(ID(keep))
+	select port(first, \Q)[0].wire && !port(first, \Q)[0].wire->get_bool_attribute(ID::keep)
 	slice idx GetSize(port(first, \Q))
 	select nusers(port(first, \Q)[idx]) <= 2
 	index <SigBit> port(first, \Q)[idx] === port(shiftx, \A)[shiftx_width-1]
 	set slice idx
 generate
-	SigSpec C = module->addWire(NEW_TWINE);
+	SigSpec C = module->addWire(NEW_ID);
 	auto WIDTH = rng(3)+1;
-	SigSpec D = module->addWire(NEW_TWINE, WIDTH);
-	SigSpec Q = module->addWire(NEW_TWINE, WIDTH);
+	SigSpec D = module->addWire(NEW_ID, WIDTH);
+	SigSpec Q = module->addWire(NEW_ID, WIDTH);
 	auto r = rng(8);
 	Cell *cell = nullptr;
 	switch (r)
 	{
 	case 0:
 	case 1:
-		cell = module->addDff(NEW_TWINE, C, D, Q, r & 1);
+		cell = module->addDff(NEW_ID, C, D, Q, r & 1);
 		break;
 	case 2:
 	case 3:
 	case 4:
 	case 5:
-		//cell = module->addDffe(NEW_TWINE, C, module->addWire(NEW_TWINE), D, Q, r & 1, r & 4);
+		//cell = module->addDffe(NEW_ID, C, module->addWire(NEW_ID), D, Q, r & 1, r & 4);
 		//break;
 	case 6:
 	case 7:
 		WIDTH = 1;
-		cell = module->addDffGate(NEW_TWINE, C, D[0], Q[0], r & 1);
+		cell = module->addDffGate(NEW_ID, C, D[0], Q[0], r & 1);
 		break;
 	default: log_abort();
 	}
@@ -272,10 +272,10 @@ match next
 	semioptional
 	select next->type.in($_DFF_N_, $_DFF_P_, $_DFFE_NN_, $_DFFE_NP_, $_DFFE_PN_, $_DFFE_PP_, $dff, $dffe)
 	select !next->has_keep_attr()
-	select port(next, \D)[0].wire && !port(next, \D)[0].wire->get_bool_attribute(ID(keep))
+	select port(next, \D)[0].wire && !port(next, \D)[0].wire->get_bool_attribute(ID::keep)
 	slice idx GetSize(port(next, \Q))
 	select nusers(port(next, \Q)[idx]) <= 3
-	index <IdString> next->type === chain.back().first->type
+	index <TwineRef> next->type === chain.back().first->type
 	index <SigBit> port(next, \Q)[idx] === port(chain.back().first, \D)[chain.back().second]
 	index <SigBit> port(next, \Q)[idx] === port(shiftx, \A)[shiftx_width-1-GetSize(chain)]
 	filter port(next, clk_port) == port(first, clk_port)
@@ -295,19 +295,19 @@ generate
 				back->connections_.at(\D)[slice] = port(back, \Q)[new_slice];
 			}
 			else {
-				auto D = module->addWire(NEW_TWINE, WIDTH);
+				auto D = module->addWire(NEW_ID, WIDTH);
 				if (back->type == $dff)
-					module->addDff(NEW_TWINE, port(back, \CLK), D, port(back, \D), param(back, \CLK_POLARITY).as_bool());
+					module->addDff(NEW_ID, port(back, \CLK), D, port(back, \D), param(back, \CLK_POLARITY).as_bool());
 				else if (back->type == $dffe)
-					module->addDffe(NEW_TWINE, port(back, \CLK), port(back, \EN), D, port(back, \D), param(back, \CLK_POLARITY).as_bool(), param(back, \EN_POLARITY).as_bool());
+					module->addDffe(NEW_ID, port(back, \CLK), port(back, \EN), D, port(back, \D), param(back, \CLK_POLARITY).as_bool(), param(back, \EN_POLARITY).as_bool());
 				else
 					log_abort();
 			}
 		}
 		else if (back->type.begins_with("$_DFF_")) {
-			Cell *cell = module->addCell(NEW_TWINE, back->type_impl);
+			Cell *cell = module->addCell(NEW_ID, back->type_impl);
 			cell->setPort(\C, back->getPort(\C));
-			cell->setPort(\D, module->addWire(NEW_TWINE));
+			cell->setPort(\D, module->addWire(NEW_ID));
 			cell->setPort(\Q, back->getPort(\D));
 		}
 		else

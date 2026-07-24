@@ -66,7 +66,7 @@ code sigA sigB sigH
 			wire_width++;
 		else {
 			if (wire_width) { // add empty wires for bit offset if needed
-				sigH.append(module->addWire(NEW_TWINE, wire_width));
+				sigH.append(module->addWire(NEW_ID, wire_width));
 				wire_width = 0;
 			}
 			sigH.append(O[j]);
@@ -337,9 +337,9 @@ code
 	for (auto c : argQ.chunks()) {
 		if (!c.wire)
 			reject;
-		if (c.wire->get_bool_attribute(ID(keep)))
+		if (c.wire->get_bool_attribute(ID::keep))
 			reject;
-		Const init = c.wire->attributes.at(ID(init), State::Sx);
+		Const init = c.wire->attributes.at(ID::init, State::Sx);
 		if (!init.is_fully_undef() && !init.is_fully_zero())
 			reject;
 	}
@@ -386,7 +386,7 @@ arg argD argSdff argQ clock clock_pol
 code
 	dff = nullptr;
 	for (auto c : argD.chunks())
-		if (c.wire->get_bool_attribute(ID(keep)))
+		if (c.wire->get_bool_attribute(ID::keep))
 			reject;
 endcode
 
@@ -419,7 +419,7 @@ code argQ
 		argQ.replace(D, Q);
 
 		for (auto c : argQ.chunks()) {
-			Const init = c.wire->attributes.at(ID(init), State::Sx);
+			Const init = c.wire->attributes.at(ID::init, State::Sx);
 			if (!init.is_fully_undef() && !init.is_fully_zero())
 				reject;
 		}

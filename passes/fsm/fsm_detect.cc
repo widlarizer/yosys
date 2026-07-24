@@ -55,7 +55,7 @@ ret_false:
 	sig2driver.find(sig, cellport_list);
 	for (auto &cellport : cellport_list)
 	{
-		if ((cellport.first->type != TW($mux) && cellport.first->type != TW($pmux)) || cellport.second != TW::Y) {
+		if ((cellport.first->type != ID::$mux && cellport.first->type != ID::$pmux) || cellport.second != ID::Y) {
 			goto ret_false;
 		}
 
@@ -67,8 +67,8 @@ ret_false:
 
 		recursion_monitor.insert(cellport.first);
 
-		RTLIL::SigSpec sig_a = assign_map(cellport.first->getPort(TW::A));
-		RTLIL::SigSpec sig_b = assign_map(cellport.first->getPort(TW::B));
+		RTLIL::SigSpec sig_a = assign_map(cellport.first->getPort(ID::A));
+		RTLIL::SigSpec sig_b = assign_map(cellport.first->getPort(ID::B));
 
 		if (!check_state_mux_tree(old_sig, sig_a, recursion_monitor, mux_tree_cache)) {
 			recursion_monitor.erase(cellport.first);
@@ -99,18 +99,18 @@ static bool check_state_users(RTLIL::SigSpec sig)
 		RTLIL::Cell *cell = cellport.first;
 		if (muxtree_cells.count(cell) > 0)
 			continue;
-		if (cell->type == TW($logic_not) && assign_map(cell->getPort(TW::A)) == sig)
+		if (cell->type == ID::$logic_not && assign_map(cell->getPort(ID::A)) == sig)
 			continue;
-		if (cellport.second != TW::A && cellport.second != TW::B)
+		if (cellport.second != ID::A && cellport.second != ID::B)
 			return false;
-		if (!cell->hasPort(TW::A) || !cell->hasPort(TW::B) || !cell->hasPort(TW::Y))
+		if (!cell->hasPort(ID::A) || !cell->hasPort(ID::B) || !cell->hasPort(ID::Y))
 			return false;
 		for (auto &port_it : cell->connections())
-			if (port_it.first != TW::A && port_it.first != TW::B && port_it.first != TW::Y)
+			if (port_it.first != ID::A && port_it.first != ID::B && port_it.first != ID::Y)
 				return false;
-		if (assign_map(cell->getPort(TW::A)) == sig && cell->getPort(TW::B).is_fully_const())
+		if (assign_map(cell->getPort(ID::A)) == sig && cell->getPort(ID::B).is_fully_const())
 			continue;
-		if (assign_map(cell->getPort(TW::B)) == sig && cell->getPort(TW::A).is_fully_const())
+		if (assign_map(cell->getPort(ID::B)) == sig && cell->getPort(ID::A).is_fully_const())
 			continue;
 		return false;
 	}
@@ -143,13 +143,13 @@ static void detect_fsm(RTLIL::Wire *wire, bool ignore_self_reset=false)
 
 	for (auto &cellport : cellport_list)
 	{
-		if ((cellport.first->type != TW($dff) && cellport.first->type != TW($adff)) || cellport.second != TW::Q)
+		if ((cellport.first->type != ID::$dff && cellport.first->type != ID::$adff) || cellport.second != ID::Q)
 			continue;
 
 		muxtree_cells.clear();
 		pool<Cell*> recursion_monitor;
-		RTLIL::SigSpec sig_q = assign_map(cellport.first->getPort(TW::Q));
-		RTLIL::SigSpec sig_d = assign_map(cellport.first->getPort(TW::D));
+		RTLIL::SigSpec sig_q = assign_map(cellport.first->getPort(ID::Q));
+		RTLIL::SigSpec sig_d = assign_map(cellport.first->getPort(ID::D));
 		dict<RTLIL::SigSpec, bool> mux_tree_cache;
 
 		if (sig_q != assign_map(wire))
@@ -173,10 +173,10 @@ static void detect_fsm(RTLIL::Wire *wire, bool ignore_self_reset=false)
 			RTLIL::Cell *cell = cellport.first;
 			bool set_output = false, clr_output = false;
 
-			if (cell->type.in(TW($ne), TW($reduce_or), TW($reduce_bool)))
+			if (cell->type.in(ID::$ne, ID::$reduce_or, ID::$reduce_bool))
 				set_output = true;
 
-			if (cell->type.in(TW($eq), TW($logic_not), TW($reduce_and)))
+			if (cell->type.in(ID::$eq, ID::$logic_not, ID::$reduce_and))
 				clr_output = true;
 
 			if (set_output || clr_output) {
@@ -200,8 +200,8 @@ static void detect_fsm(RTLIL::Wire *wire, bool ignore_self_reset=false)
 
 		SigSpec sig_y = sig_d, sig_undef;
 		if (!ignore_self_reset) {
-			if (cellport.first->type == TW($adff)) {
-				SigSpec sig_arst = assign_map(cellport.first->getPort(TW::ARST));
+			if (cellport.first->type == ID::$adff) {
+				SigSpec sig_arst = assign_map(cellport.first->getPort(ID::ARST));
 				if (ce.eval(sig_arst, sig_undef))
 					is_self_resetting = true;
 			}

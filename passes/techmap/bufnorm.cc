@@ -260,11 +260,11 @@ struct BufnormPass : public Pass {
 				vector<Cell*> old_dup_buffers;
 				for (auto cell : module->cells())
 				{
-					if (!cell->type.in(TW($buf), TW($_BUF_)))
+					if (!cell->type.in(ID::$buf, ID::$_BUF_))
 						continue;
 
-					SigSpec insig = cell->getPort(TW::A);
-					SigSpec outsig = cell->getPort(TW::Y);
+					SigSpec insig = cell->getPort(ID::A);
+					SigSpec outsig = cell->getPort(ID::Y);
 					for (int i = 0; i < GetSize(insig) && i < GetSize(outsig); i++)
 						sigmap.add(insig[i], outsig[i]);
 
@@ -309,7 +309,7 @@ struct BufnormPass : public Pass {
 				if (output_mode && wire->port_output)
 					return true;
 
-				if (public_mode && wire->name.isPublic())
+				if (public_mode && wire->name.is_public())
 					return true;
 
 				if (!nokeep_mode && wire->get_bool_attribute(ID::keep))
@@ -354,8 +354,8 @@ struct BufnormPass : public Pass {
 				}
 
 				// Nets with public names first
-				if (a->name.isPublic() != b->name.isPublic())
-					return a->name.isPublic();
+				if (a->name.is_public() != b->name.is_public())
+					return a->name.is_public();
 
 				// Otherwise just sort by name alphanumerically
 				return a->name.str() < b->name.str();
@@ -363,7 +363,7 @@ struct BufnormPass : public Pass {
 
 			for (auto cell : module->cells())
 			{
-				if (cell->type.in(TW($buf), TW($_BUF_)))
+				if (cell->type.in(ID::$buf, ID::$_BUF_))
 					continue;
 
 				for (auto &conn : cell->connections())
@@ -384,13 +384,13 @@ struct BufnormPass : public Pass {
 							it->second.sort(compare_wires_f);
 							w = *(it->second.begin());
 						} else {
-							w = module->addWire(NEW_TWINE, GetSize(conn.second));
+							w = module->addWire(NEW_ID, GetSize(conn.second));
 							for (int i = 0; i < GetSize(w); i++)
 								sigmap.add(SigBit(w, i), keysig[i]);
 						}
 					}
 
-					if (w->name.isPublic())
+					if (w->name.is_public())
 						log("  directly driven by cell %s port %s: %s\n",
 								cell, design->twines.unescaped_str(conn.first), w);
 
@@ -425,20 +425,20 @@ struct BufnormPass : public Pass {
 					old_buffers.erase(it);
 					added_buffers.insert(cell);
 
-					if (cell->getPort(TW::A) == src) {
+					if (cell->getPort(ID::A) == src) {
 						count_kept_buffers++;
 					} else {
-						cell->setPort(TW::A, src);
+						cell->setPort(ID::A, src);
 						count_updated_buffers++;
 					}
 					return;
 				}
 
-				Cell *cell = module->addCell(NEW_TWINE, type);
+				Cell *cell = module->addCell(NEW_ID, type);
 				added_buffers.insert(cell);
 
-				cell->setPort(TW::A, src);
-				cell->setPort(TW::Y, dst);
+				cell->setPort(ID::A, src);
+				cell->setPort(ID::Y, dst);
 				cell->fixup_parameters();
 				count_created_buffers++;
 			};
@@ -471,12 +471,12 @@ struct BufnormPass : public Pass {
 					}
 				} else {
 					if (bits_mode) {
-						TwineRef celltype = pos_mode ? TW($pos) : buf_mode ? TW($buf) : TW($_BUF_);
+						TwineRef celltype = pos_mode ? ID::$pos : buf_mode ? ID::$buf : ID::$_BUF_;
 						for (int i = 0; i < GetSize(insig) && i < GetSize(outsig); i++)
 							make_buffer_f(celltype, insig[i], outsig[i]);
 					} else {
-						TwineRef celltype = pos_mode ? TW($pos) : buf_mode ? TW($buf) :
-								GetSize(outsig) == 1 ? TW($_BUF_) : TW($buf);
+						TwineRef celltype = pos_mode ? ID::$pos : buf_mode ? ID::$buf :
+								GetSize(outsig) == 1 ? ID::$_BUF_ : ID::$buf;
 						make_buffer_f(celltype, insig, outsig);
 					}
 				}

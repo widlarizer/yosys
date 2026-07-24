@@ -183,7 +183,7 @@ struct IcellLiberty : Pass {
 			}
 		}
 
-		pool<RTLIL::IdString> done;
+		pool<TwineRef> done;
 		LibertyStubber stubber = {};
 
 		stubber.liberty_prefix(*liberty_file);
@@ -194,7 +194,7 @@ struct IcellLiberty : Pass {
 				if (!inst_module || !inst_module->get_blackbox_attribute())
 					continue;
 				Module *base = inst_module;
-				auto base_name_id = ID(base->design->twines.str(base->meta_->name));
+				auto base_name_id = base->meta_->name;
 				if (!done.count(base_name_id)) {
 					stubber.liberty_cell(base, base, *liberty_file);
 					done.insert(base_name_id);

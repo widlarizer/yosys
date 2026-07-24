@@ -48,7 +48,7 @@ struct FsmInfoPass : public Pass {
 
 		for (auto mod : design->selected_modules())
 			for (auto cell : mod->selected_cells())
-				if (cell->type == TW($fsm)) {
+				if (cell->type == ID::$fsm) {
 					log("\n");
 					log("FSM `%s' from module `%s':\n", cell, mod);
 					FsmData fsm_data;

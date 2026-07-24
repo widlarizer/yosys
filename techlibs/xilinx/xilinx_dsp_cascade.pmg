@@ -89,7 +89,7 @@ finally
 
 			if (i % MAX_DSP_CASCADE > 0) {
 				if (P >= 0) {
-					Wire *cascade = module->addWire(NEW_TWINE, 48);
+					Wire *cascade = module->addWire(NEW_ID, 48);
 					dsp_pcin->setPort(\C, Const(0, 48));
 					dsp_pcin->setPort(\PCIN, cascade);
 					dsp->setPort(\PCOUT, cascade);
@@ -117,7 +117,7 @@ finally
 					log_debug("PCOUT -> PCIN cascade for %s -> %s\n", dsp, dsp_pcin);
 				}
 				if (AREG >= 0) {
-					Wire *cascade = module->addWire(NEW_TWINE, 30);
+					Wire *cascade = module->addWire(NEW_ID, 30);
 					dsp_pcin->setPort(\A, Const(0, 30));
 					dsp_pcin->setPort(\ACIN, cascade);
 					dsp->setPort(\ACOUT, cascade);
@@ -131,7 +131,7 @@ finally
 					log_debug("ACOUT -> ACIN cascade for %s -> %s\n", dsp, dsp_pcin);
 				}
 				if (BREG >= 0) {
-					Wire *cascade = module->addWire(NEW_TWINE, 18);
+					Wire *cascade = module->addWire(NEW_ID, 18);
 					if (dsp->type.in(\DSP48A, \DSP48A1)) {
 						// According to UG389 p9 [https://www.xilinx.com/support/documentation/user_guides/ug389.pdf]
 						// "The DSP48A1 component uses this input when cascading
@@ -368,11 +368,11 @@ code
 		if (!c.wire)
 			reject;
 		// Abandon matches when 'Q' has the keep attribute set
-		if (c.wire->get_bool_attribute(ID(keep)))
+		if (c.wire->get_bool_attribute(ID::keep))
 			reject;
 		// Abandon matches when 'Q' has a non-zero init attribute set
 		// (not supported by DSP48E1)
-		Const init = c.wire->attributes.at(ID(init), Const());
+		Const init = c.wire->attributes.at(ID::init, Const());
 		if (!init.empty())
 			for (auto b : init.extract(c.offset, c.width))
 				if (b != State::Sx && b != State::S0)

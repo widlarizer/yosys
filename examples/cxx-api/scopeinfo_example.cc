@@ -101,7 +101,7 @@ struct ScopeinfoExamplePass : public Pass {
 					if (!(*wire_i)->name.isPublic())
 						continue;
 
-					std::pair<ModuleHdlnameIndex::Cursor, IdString> scope_i = index.containing_scope(*wire_i);
+					std::pair<ModuleHdlnameIndex::Cursor, TwineRef> scope_i = index.containing_scope(*wire_i);
 					if (!scope_i.first.valid())
 						continue;
 
@@ -111,7 +111,7 @@ struct ScopeinfoExamplePass : public Pass {
 						if (!(*wire_j)->name.isPublic())
 							continue;
 
-						std::pair<ModuleHdlnameIndex::Cursor, IdString> scope_j = index.containing_scope(*wire_j);
+						std::pair<ModuleHdlnameIndex::Cursor, TwineRef> scope_j = index.containing_scope(*wire_j);
 						if (!scope_j.first.valid())
 							continue;
 

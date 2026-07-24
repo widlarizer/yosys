@@ -98,12 +98,12 @@ struct TimingInfo
 		auto &t = r.first->second;
 
 		for (auto cell : module->cells()) {
-			if (cell->type == TW($specify2)) {
-				auto en = cell->getPort(TW::EN);
+			if (cell->type == ID::$specify2) {
+				auto en = cell->getPort(ID::EN);
 				if (en.is_fully_const() && !en.as_bool())
 					continue;
-				auto src = cell->getPort(TW::SRC);
-				auto dst = cell->getPort(TW::DST);
+				auto src = cell->getPort(ID::SRC);
+				auto dst = cell->getPort(ID::DST);
 				for (const auto &c : src.chunks())
 					if (!c.wire || !c.wire->port_input)
 						log_error("Module '%s' contains specify cell '%s' where SRC '%s' is not a module input.\n", module, cell, log_signal(src));
@@ -136,9 +136,9 @@ struct TimingInfo
 					}
 				}
 			}
-			else if (cell->type == TW($specify3)) {
-				auto src = cell->getPort(TW::SRC).as_bit();
-				auto dst = cell->getPort(TW::DST);
+			else if (cell->type == ID::$specify3) {
+				auto src = cell->getPort(ID::SRC).as_bit();
+				auto dst = cell->getPort(ID::DST);
 				if (!src.wire || !src.wire->port_input)
 					log_error("Module '%s' contains specify cell '%s' where SRC '%s' is not a module input.\n", module, cell, log_signal(src));
 				for (const auto &c : dst.chunks())
@@ -160,12 +160,12 @@ struct TimingInfo
 					}
 				}
 			}
-			else if (cell->type == TW($specrule)) {
-				IdString type = cell->getParam(ID::TYPE).decode_string();
-				if (type != TW($setup) && type != TW($setuphold))
+			else if (cell->type == ID::$specrule) {
+				std::string type = cell->getParam(ID::TYPE).decode_string();
+				if (type != "$setup" && type != "$setuphold")
 					continue;
-				auto src = cell->getPort(TW::SRC);
-				auto dst = cell->getPort(TW::DST).as_bit();
+				auto src = cell->getPort(ID::SRC);
+				auto dst = cell->getPort(ID::DST).as_bit();
 				for (const auto &c : src.chunks())
 					if (!c.wire || !c.wire->port_input)
 						log_error("Module '%s' contains specify cell '%s' where SRC '%s' is not a module input.\n", module, cell, log_signal(src));

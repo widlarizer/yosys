@@ -31,7 +31,7 @@ code
 			reject;
 		}
 
-		Cell *mac = module->addCell(NEW_TWINE, Twine{std::string("$__NX_MAC18X18")});
+		Cell *mac = module->addCell(NEW_ID, Twine{std::string("$__NX_MAC18X18")});
 		TwineRef add_C = (add_AB == \A) ? \B : \A;
 
 		mac->setPort(\A, port(mul, \A));
@@ -81,7 +81,7 @@ code
 	}
 
 	{
-		Cell *mac = module->addCell(NEW_TWINE, Twine{std::string("$__NX_PREADD18X18")});
+		Cell *mac = module->addCell(NEW_ID, Twine{std::string("$__NX_PREADD18X18")});
 
 		TwineRef mul_other = (actual_mul_AB == \A) ? \B : \A;
 		TwineRef sgn_AC = (mul_other == \A) ? \B_SIGNED : \A_SIGNED;
@@ -177,7 +177,7 @@ code
 	}
 
 	{
-		Cell *mac = module->addCell(NEW_TWINE, Twine{std::string("$__NX_MAC9X9WIDE_4LANE")});
+		Cell *mac = module->addCell(NEW_ID, Twine{std::string("$__NX_MAC9X9WIDE_4LANE")});
 
 		auto ext9 = [&](SigSpec s) {
 			s.extend_u0(9, is_signed);

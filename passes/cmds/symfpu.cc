@@ -48,10 +48,10 @@ struct rm {
 
 thread_local Module *symfpu_mod = nullptr;
 
-// symfpu.cc names wires/modules from IdString literals (ID(a), ID(o), ...);
+// symfpu.cc names wires/modules from TwineRef literals (ID::a, ID::o, ...);
 // under the twine migration the name-taking APIs want a TwineRef, so intern
 // the (public) string name into the design's twine pool.
-static inline TwineRef sym_name(IdString name) { return symfpu_mod->design->twines.add(std::string{name.str()}); }
+static inline TwineRef sym_name(TwineRef name) { return name; }
 
 struct rtlil_traits {
 	using bwt = uint64_t;
@@ -133,12 +133,12 @@ struct prop {
 	explicit prop(SigBit bit) : bit(bit) {}
 	prop(bool v) : bit(v) {}
 
-	prop operator&&(const prop &op) const { return prop{symfpu_mod->And(NEW_TWINE, bit, op.bit)}; }
-	prop operator||(const prop &op) const { return prop{symfpu_mod->Or(NEW_TWINE, bit, op.bit)}; }
-	prop operator^(const prop &op) const { return prop{symfpu_mod->Xor(NEW_TWINE, bit, op.bit)}; }
-	prop operator!() const { return prop{symfpu_mod->Not(NEW_TWINE, bit)}; }
+	prop operator&&(const prop &op) const { return prop{symfpu_mod->And(NEW_ID, bit, op.bit)}; }
+	prop operator||(const prop &op) const { return prop{symfpu_mod->Or(NEW_ID, bit, op.bit)}; }
+	prop operator^(const prop &op) const { return prop{symfpu_mod->Xor(NEW_ID, bit, op.bit)}; }
+	prop operator!() const { return prop{symfpu_mod->Not(NEW_ID, bit)}; }
 
-	prop operator==(const prop &op) const { return prop{symfpu_mod->Eq(NEW_TWINE, bit, op.bit)}; }
+	prop operator==(const prop &op) const { return prop{symfpu_mod->Eq(NEW_ID, bit, op.bit)}; }
 
 	const prop &named(std::string_view s) const
 	{
@@ -231,97 +231,97 @@ template <bool is_signed> struct bv {
 
 	bv<is_signed> append(const bv<is_signed> &op) const { return bv{SigSpec({bits, op.bits})}; }
 
-	prop isAllOnes() const { return prop{symfpu_mod->ReduceAnd(NEW_TWINE, bits)}; }
-	prop isAllZeros() const { return prop{symfpu_mod->ReduceAnd(NEW_TWINE, symfpu_mod->Not(NEW_TWINE, bits))}; }
+	prop isAllOnes() const { return prop{symfpu_mod->ReduceAnd(NEW_ID, bits)}; }
+	prop isAllZeros() const { return prop{symfpu_mod->ReduceAnd(NEW_ID, symfpu_mod->Not(NEW_ID, bits))}; }
 
-	bv<is_signed> operator-() const { return bv{symfpu_mod->Neg(NEW_TWINE, bits, is_signed)}; }
-	bv<is_signed> operator~() const { return bv{symfpu_mod->Not(NEW_TWINE, bits, is_signed)}; }
+	bv<is_signed> operator-() const { return bv{symfpu_mod->Neg(NEW_ID, bits, is_signed)}; }
+	bv<is_signed> operator~() const { return bv{symfpu_mod->Not(NEW_ID, bits, is_signed)}; }
 
 	bv<is_signed> operator+(const bv<is_signed> &op) const
 	{
 		log_assert(getWidth() == op.getWidth());
-		return bv{symfpu_mod->Add(NEW_TWINE, bits, op.bits, is_signed)};
+		return bv{symfpu_mod->Add(NEW_ID, bits, op.bits, is_signed)};
 	}
 	bv<is_signed> operator-(const bv<is_signed> &op) const
 	{
 		log_assert(getWidth() == op.getWidth());
-		return bv{symfpu_mod->Sub(NEW_TWINE, bits, op.bits, is_signed)};
+		return bv{symfpu_mod->Sub(NEW_ID, bits, op.bits, is_signed)};
 	}
 	bv<is_signed> operator*(const bv<is_signed> &op) const
 	{
 		log_assert(getWidth() == op.getWidth());
 		log_assert(!is_signed);
-		return bv{symfpu_mod->Mul(NEW_TWINE, bits, op.bits, is_signed)};
+		return bv{symfpu_mod->Mul(NEW_ID, bits, op.bits, is_signed)};
 	}
 	bv<is_signed> operator%(const bv<is_signed> &op) const
 	{
 		log_assert(getWidth() == op.getWidth());
 		log_assert(!is_signed);
-		return bv{symfpu_mod->Mod(NEW_TWINE, bits, op.bits, is_signed)};
+		return bv{symfpu_mod->Mod(NEW_ID, bits, op.bits, is_signed)};
 	}
 	bv<is_signed> operator/(const bv<is_signed> &op) const
 	{
 		log_assert(getWidth() == op.getWidth());
 		log_assert(!is_signed);
-		return bv{symfpu_mod->Div(NEW_TWINE, bits, op.bits, is_signed)};
+		return bv{symfpu_mod->Div(NEW_ID, bits, op.bits, is_signed)};
 	}
 
 	bv<is_signed> operator|(const bv<is_signed> &op) const
 	{
 		log_assert(getWidth() == op.getWidth());
-		return bv{symfpu_mod->Or(NEW_TWINE, bits, op.bits, is_signed)};
+		return bv{symfpu_mod->Or(NEW_ID, bits, op.bits, is_signed)};
 	}
 	bv<is_signed> operator&(const bv<is_signed> &op) const
 	{
 		log_assert(getWidth() == op.getWidth());
-		return bv{symfpu_mod->And(NEW_TWINE, bits, op.bits, is_signed)};
+		return bv{symfpu_mod->And(NEW_ID, bits, op.bits, is_signed)};
 	}
 	bv<is_signed> operator<<(const bv<is_signed> &op) const
 	{
 		log_assert(getWidth() == op.getWidth());
-		return bv{symfpu_mod->Shl(NEW_TWINE, bits, op.bits, is_signed)};
+		return bv{symfpu_mod->Shl(NEW_ID, bits, op.bits, is_signed)};
 	}
 	bv<is_signed> operator>>(const bv<is_signed> &op) const
 	{
 		log_assert(getWidth() == op.getWidth());
 		if (is_signed)
-			return bv{symfpu_mod->Sshr(NEW_TWINE, bits, op.bits, is_signed)};
+			return bv{symfpu_mod->Sshr(NEW_ID, bits, op.bits, is_signed)};
 		else
-			return bv{symfpu_mod->Shr(NEW_TWINE, bits, op.bits, is_signed)};
+			return bv{symfpu_mod->Shr(NEW_ID, bits, op.bits, is_signed)};
 	}
 
 	prop operator!=(const bv<is_signed> &op) const
 	{
 		log_assert(getWidth() == op.getWidth());
-		return prop{symfpu_mod->Ne(NEW_TWINE, bits, op.bits, is_signed)};
+		return prop{symfpu_mod->Ne(NEW_ID, bits, op.bits, is_signed)};
 	}
 
 	prop operator==(const bv<is_signed> &op) const
 	{
 		log_assert(getWidth() == op.getWidth());
-		return prop{symfpu_mod->Eq(NEW_TWINE, bits, op.bits, is_signed)};
+		return prop{symfpu_mod->Eq(NEW_ID, bits, op.bits, is_signed)};
 	}
 
 	prop operator<=(const bv<is_signed> &op) const
 	{
 		log_assert(getWidth() == op.getWidth());
-		return prop{symfpu_mod->Le(NEW_TWINE, bits, op.bits, is_signed)};
+		return prop{symfpu_mod->Le(NEW_ID, bits, op.bits, is_signed)};
 	}
 	prop operator>=(const bv<is_signed> &op) const
 	{
 		log_assert(getWidth() == op.getWidth());
-		return prop{symfpu_mod->Ge(NEW_TWINE, bits, op.bits, is_signed)};
+		return prop{symfpu_mod->Ge(NEW_ID, bits, op.bits, is_signed)};
 	}
 
 	prop operator<(const bv<is_signed> &op) const
 	{
 		log_assert(getWidth() == op.getWidth());
-		return prop{symfpu_mod->Lt(NEW_TWINE, bits, op.bits, is_signed)};
+		return prop{symfpu_mod->Lt(NEW_ID, bits, op.bits, is_signed)};
 	}
 	prop operator>(const bv<is_signed> &op) const
 	{
 		log_assert(getWidth() == op.getWidth());
-		return prop{symfpu_mod->Gt(NEW_TWINE, bits, op.bits, is_signed)};
+		return prop{symfpu_mod->Gt(NEW_ID, bits, op.bits, is_signed)};
 	}
 
 	inline bv<is_signed> increment() const { return *this + one(getWidth()); }
@@ -345,12 +345,12 @@ template <bool is_signed> struct bv {
 
 PRIVATE_NAMESPACE_END
 
-prop symfpu::ite<prop, prop>::iteOp(const prop &cond, const prop &t, const prop &e) { return prop{symfpu_mod->Mux(NEW_TWINE, e.bit, t.bit, cond.bit)}; }
+prop symfpu::ite<prop, prop>::iteOp(const prop &cond, const prop &t, const prop &e) { return prop{symfpu_mod->Mux(NEW_ID, e.bit, t.bit, cond.bit)}; }
 
 template <bool is_signed> bv<is_signed> symfpu::ite<prop, bv<is_signed>>::iteOp(const prop &cond, const bv<is_signed> &t, const bv<is_signed> &e)
 {
 	log_assert(t.getWidth() == e.getWidth());
-	return bv<is_signed>{symfpu_mod->Mux(NEW_TWINE, e.bits, t.bits, cond.bit)};
+	return bv<is_signed>{symfpu_mod->Mux(NEW_ID, e.bits, t.bits, cond.bit)};
 }
 
 [[maybe_unused]] prop symfpu::ite<bool, prop>::iteOp(bool cond, const prop &t, const prop &e) { return cond ? t : e; }
@@ -367,42 +367,42 @@ prop rm::operator==(rm op) const { return mode == op.mode; }
 
 void rtlil_traits::precondition(const prop &cond)
 {
-	Cell *cell = symfpu_mod->addAssert(NEW_TWINE, cond.bit, State::S1);
-	cell->set_bool_attribute(ID(symfpu_pre));
+	Cell *cell = symfpu_mod->addAssert(NEW_ID, cond.bit, State::S1);
+	cell->set_bool_attribute(ID::symfpu_pre);
 }
 void rtlil_traits::postcondition(const prop &cond)
 {
-	Cell *cell = symfpu_mod->addAssert(NEW_TWINE, cond.bit, State::S1);
-	cell->set_bool_attribute(ID(symfpu_post));
+	Cell *cell = symfpu_mod->addAssert(NEW_ID, cond.bit, State::S1);
+	cell->set_bool_attribute(ID::symfpu_post);
 }
 void rtlil_traits::invariant(const prop &cond)
 {
-	Cell *cell = symfpu_mod->addAssert(NEW_TWINE, cond.bit, State::S1);
-	cell->set_bool_attribute(ID(symfpu_inv));
+	Cell *cell = symfpu_mod->addAssert(NEW_ID, cond.bit, State::S1);
+	cell->set_bool_attribute(ID::symfpu_inv);
 }
 
-ubv input_ubv(IdString name, int width)
+ubv input_ubv(TwineRef name, int width)
 {
 	auto input = symfpu_mod->addWire(sym_name(name), width);
 	input->port_input = true;
 	return ubv(SigSpec(input));
 }
 
-prop input_prop(IdString name)
+prop input_prop(TwineRef name)
 {
 	auto input = symfpu_mod->addWire(sym_name(name));
 	input->port_input = true;
 	return prop(SigBit(input));
 }
 
-void output_ubv(IdString name, const ubv &value)
+void output_ubv(TwineRef name, const ubv &value)
 {
 	auto output = symfpu_mod->addWire(sym_name(name), value.getWidth());
 	symfpu_mod->connect(output, value.bits);
 	output->port_output = true;
 }
 
-void output_prop(IdString name, const prop &value)
+void output_prop(TwineRef name, const prop &value)
 {
 	auto output = symfpu_mod->addWire(sym_name(name));
 	symfpu_mod->connect(output, value.bit);
@@ -567,34 +567,34 @@ struct SymFpuPass : public Pass {
 
 		symfpu_mod = mod;
 
-		auto a_bv = input_ubv(ID(a), eb+sb);
+		auto a_bv = input_ubv(ID::a, eb+sb);
 		uf a = symfpu::unpack<rtlil_traits>(format, a_bv);
 
 		if (classify) {
-			output_prop(ID(isNormal), symfpu::isNormal(format, a));
-			output_prop(ID(isSubnormal), symfpu::isSubnormal(format, a));
-			output_prop(ID(isZero), symfpu::isZero(format, a));
-			output_prop(ID(isInfinite), symfpu::isInfinite(format, a));
-			output_prop(ID(isNaN), symfpu::isNaN(format, a));
-			output_prop(ID(isPositive), symfpu::isPositive(format, a));
-			output_prop(ID(isNegative), symfpu::isNegative(format, a));
-			output_prop(ID(isFinite), symfpu::isFinite(format, a));
+			output_prop(ID::isNormal, symfpu::isNormal(format, a));
+			output_prop(ID::isSubnormal, symfpu::isSubnormal(format, a));
+			output_prop(ID::isZero, symfpu::isZero(format, a));
+			output_prop(ID::isInfinite, symfpu::isInfinite(format, a));
+			output_prop(ID::isNaN, symfpu::isNaN(format, a));
+			output_prop(ID::isPositive, symfpu::isPositive(format, a));
+			output_prop(ID::isNegative, symfpu::isNegative(format, a));
+			output_prop(ID::isFinite, symfpu::isFinite(format, a));
 		} else if (compare) {
-			auto b_bv = input_ubv(ID(b), eb+sb);
+			auto b_bv = input_ubv(ID::b, eb+sb);
 			uf b = symfpu::unpack<rtlil_traits>(format, b_bv);
-			output_prop(ID(smtlibEqual), symfpu::smtlibEqual(format, a, b));
-			output_prop(ID(ieee754Equal), symfpu::ieee754Equal(format, a, b));
-			output_prop(ID(lessThan), symfpu::lessThan(format, a, b));
-			output_prop(ID(lessThanOrEqual), symfpu::lessThanOrEqual(format, a, b));
-			output_prop(ID(sNV), a.getNaN() || b.getNaN());
-			output_prop(ID(qNV), (a.getNaN() && is_sNaN(a_bv, sb)) || (b.getNaN() && is_sNaN(b_bv, sb)));
+			output_prop(ID::smtlibEqual, symfpu::smtlibEqual(format, a, b));
+			output_prop(ID::ieee754Equal, symfpu::ieee754Equal(format, a, b));
+			output_prop(ID::lessThan, symfpu::lessThan(format, a, b));
+			output_prop(ID::lessThanOrEqual, symfpu::lessThanOrEqual(format, a, b));
+			output_prop(ID::sNV, a.getNaN() || b.getNaN());
+			output_prop(ID::qNV, (a.getNaN() && is_sNaN(a_bv, sb)) || (b.getNaN() && is_sNaN(b_bv, sb)));
 		} else {
-			auto b_bv = input_ubv(ID(b), eb+sb);
-			auto c_bv = input_ubv(ID(c), eb+sb);
+			auto b_bv = input_ubv(ID::b, eb+sb);
+			auto c_bv = input_ubv(ID::c, eb+sb);
 			uf b = symfpu::unpack<rtlil_traits>(format, b_bv);
 			uf c = symfpu::unpack<rtlil_traits>(format, c_bv);
 
-			auto rm_wire = symfpu_mod->addWire(sym_name(ID(rm)), 5);
+			auto rm_wire = symfpu_mod->addWire(sym_name(ID::rm), 5);
 			rm_wire->port_input = true;
 			SigSpec rm_sig(rm_wire);
 			prop rm_RNE(rm_sig[0]);
@@ -639,13 +639,13 @@ struct SymFpuPass : public Pass {
 
 			// calling this more than once will fail
 			auto output_fpu = [&signals_invalid, &format](const uf_flagged &o_flagged) {
-				output_prop(ID(NV), o_flagged.nv || signals_invalid);
-				output_prop(ID(DZ), o_flagged.dz);
-				output_prop(ID(OF), o_flagged.of);
-				output_prop(ID(UF), o_flagged.uf);
-				output_prop(ID(NX), o_flagged.nx);
+				output_prop(ID::NV, o_flagged.nv || signals_invalid);
+				output_prop(ID::DZ, o_flagged.dz);
+				output_prop(ID::OF, o_flagged.of);
+				output_prop(ID::UF, o_flagged.uf);
+				output_prop(ID::NX, o_flagged.nx);
 
-				output_ubv(ID(o), symfpu::pack<rtlil_traits>(format, o_flagged.val));
+				output_ubv(ID::o, symfpu::pack<rtlil_traits>(format, o_flagged.val));
 			};
 
 			if (rounding.compare("DYN") != 0)
@@ -767,35 +767,35 @@ struct SymFpuConvertPass : public Pass {
 		fpt i_format(i_exp, i_size-i_exp);
 		fpt o_format(o_exp, o_size-o_exp);
 
-		auto i_bv = input_ubv(ID(i), i_size);
+		auto i_bv = input_ubv(ID::i, i_size);
 		uf i_f = symfpu::unpack<rtlil_traits>(i_format, i_bv);
 		prop i_sNaN(i_f.getNaN() && is_sNaN(i_bv, i_size-i_exp));
 
-		auto output_flags = [](IdString name, const prop &nv, const prop &nx, const prop &of = prop(false), const prop &uf = prop(false), const prop &dz = prop(false)) {
+		auto output_flags = [](TwineRef name, const prop &nv, const prop &nx, const prop &of = prop(false), const prop &uf = prop(false), const prop &dz = prop(false)) {
 			output_ubv(name, ubv{SigSpec({nv.bit, dz.bit, of.bit, uf.bit, nx.bit})});
 		};
 
 		uf_flagged o_ff = symfpu::convertFloatToFloat_flagged(i_format, o_format, rounding_mode, i_f);
-		output_ubv(ID(o_ff), symfpu::pack<rtlil_traits>(o_format, o_ff.val));
-		output_flags(ID(flags_ff), o_ff.nv || i_sNaN, o_ff.nx, o_ff.of, o_ff.uf);
+		output_ubv(ID::o_ff, symfpu::pack<rtlil_traits>(o_format, o_ff.val));
+		output_flags(ID::flags_ff, o_ff.nv || i_sNaN, o_ff.nx, o_ff.of, o_ff.uf);
 
-		auto is_signed = input_prop(ID(is_signed));
+		auto is_signed = input_prop(ID::is_signed);
 
 		// use riscv behavior for invalid inputs
 		ubv o_signed_default = symfpu::ITE(i_f.getSign(), ubv::one(1).append(ubv::zero(o_size-1)), ubv::zero(1).append(ubv::allOnes(o_size-1)));
 		ubv o_unsigned_default = symfpu::ITE(i_f.getSign(), ubv::zero(o_size), ubv::allOnes(o_size));
 		auto o_fi_signed = symfpu::convertFloatToSBV_flagged(i_format, rounding_mode, i_f, o_size, o_signed_default);
 		auto o_fi_unsigned = symfpu::convertFloatToUBV_flagged(i_format, rounding_mode, i_f, o_size, o_unsigned_default);
-		output_ubv(ID(o_fi), symfpu::ITE(is_signed, o_fi_signed.val.toUnsigned(), o_fi_unsigned.val));
-		output_flags(ID(flags_fi),
+		output_ubv(ID::o_fi, symfpu::ITE(is_signed, o_fi_signed.val.toUnsigned(), o_fi_unsigned.val));
+		output_flags(ID::flags_fi,
 			symfpu::ITE(is_signed, o_fi_signed.nv, o_fi_unsigned.nv),
 			symfpu::ITE(is_signed, o_fi_signed.nx, o_fi_unsigned.nx));
 
 		uf_flagged o_if(uf_flagged_ite::iteOp(is_signed,
 			symfpu::convertSBVToFloat_flagged<rtlil_traits>(o_format, rounding_mode, i_bv),
 			symfpu::convertUBVToFloat_flagged<rtlil_traits>(o_format, rounding_mode, i_bv)));
-		output_ubv(ID(o_if), symfpu::pack<rtlil_traits>(o_format, o_if.val));
-		output_flags(ID(flags_if), o_if.nv, o_if.nx, o_if.of);
+		output_ubv(ID::o_if, symfpu::pack<rtlil_traits>(o_format, o_if.val));
+		output_flags(ID::flags_if, o_if.nv, o_if.nx, o_if.of);
 
 		symfpu_mod->fixup_ports();
 	}

@@ -29,7 +29,7 @@ PRIVATE_NAMESPACE_BEGIN
 // the case where both LUT and dedicated logic input are connected to the same
 // constant.
 struct dlogic_t {
-	IdString cell_type;
+	TwineRef cell_type;
 	// LUT input idx -> hard cell's port name
 	dict<int, TwineRef> lut_input_port;
 };
@@ -50,7 +50,7 @@ struct OptLutWorker
 
 	bool evaluate_lut(RTLIL::Cell *lut, dict<SigBit, bool> inputs)
 	{
-		SigSpec lut_input = sigmap(lut->getPort(TW::A));
+		SigSpec lut_input = sigmap(lut->getPort(ID::A));
 		int lut_width = lut->getParam(ID::WIDTH).as_int();
 		Const lut_table = lut->getParam(ID::LUT);
 		int lut_index = 0;
@@ -99,7 +99,7 @@ struct OptLutWorker
 		}
 		for (int i = 0; i < GetSize(dlogic); i++)
 		{
-			log("  with %-12s (#%d) %4d\n", dlogic[i].cell_type, i, dlogic_counts[i]);
+			log("  with %-12s (#%d) %4d\n", log_id(module, dlogic[i].cell_type), i, dlogic_counts[i]);
 		}
 	}
 
@@ -109,16 +109,16 @@ struct OptLutWorker
 		log("Discovering LUTs.\n");
 		for (auto cell : module->selected_cells())
 		{
-			if (cell->type == TW($lut))
+			if (cell->type == ID::$lut)
 			{
 				if (cell->has_keep_attr())
 					continue;
-				SigBit lut_output = cell->getPort(TW::Y);
+				SigBit lut_output = cell->getPort(ID::Y);
 				if (lut_output.wire->get_bool_attribute(ID::keep))
 					continue;
 
 				int lut_width = cell->getParam(ID::WIDTH).as_int();
-				SigSpec lut_input = cell->getPort(TW::A);
+				SigSpec lut_input = cell->getPort(ID::A);
 				int lut_arity = 0;
 
 				log_debug("Found $lut\\WIDTH=%d cell %s.%s.\n", lut_width, module, cell);
@@ -218,7 +218,7 @@ struct OptLutWorker
 			}
 
 			auto lut = worklist.pop();
-			SigSpec lut_input = sigmap(lut->getPort(TW::A));
+			SigSpec lut_input = sigmap(lut->getPort(ID::A));
 			pool<int> &lut_dlogic_inputs = luts_dlogic_inputs[lut];
 
 			vector<SigBit> lut_inputs;
@@ -280,7 +280,7 @@ struct OptLutWorker
 					log_debug("  Not eliminating cell (connected to dedicated logic).\n");
 				else
 				{
-					SigSpec lut_output = lut->getPort(TW::Y);
+					SigSpec lut_output = lut->getPort(ID::Y);
 					for (auto &port : index.query_ports(lut_output))
 					{
 						if (port.cell != lut && luts.count(port.cell))
@@ -317,13 +317,13 @@ struct OptLutWorker
 			}
 
 			auto lutA = worklist.pop();
-			SigSpec lutA_input = sigmap(lutA->getPort(TW::A));
-			SigBit lutA_output = sigmap(lutA->getPort(TW::Y)[0]);
+			SigSpec lutA_input = sigmap(lutA->getPort(ID::A));
+			SigBit lutA_output = sigmap(lutA->getPort(ID::Y)[0]);
 			int lutA_width = lutA->getParam(ID::WIDTH).as_int();
 			int lutA_arity = luts_arity[lutA];
 			pool<int> &lutA_dlogic_inputs = luts_dlogic_inputs[lutA];
 
-			auto lutA_output_ports = index.query_ports(lutA->getPort(TW::Y));
+			auto lutA_output_ports = index.query_ports(lutA->getPort(ID::Y));
 			if (lutA_output_ports.size() != 2)
 				continue;
 
@@ -335,15 +335,15 @@ struct OptLutWorker
 				if (luts.count(port.cell))
 				{
 					auto lutB = port.cell;
-					SigSpec lutB_input = sigmap(lutB->getPort(TW::A));
-					SigSpec lutB_output = sigmap(lutB->getPort(TW::Y)[0]);
+					SigSpec lutB_input = sigmap(lutB->getPort(ID::A));
+					SigSpec lutB_output = sigmap(lutB->getPort(ID::Y)[0]);
 					int lutB_width = lutB->getParam(ID::WIDTH).as_int();
 					int lutB_arity = luts_arity[lutB];
 					pool<int> &lutB_dlogic_inputs = luts_dlogic_inputs[lutB];
 
 					log_debug("Found %s.%s (cell A) feeding %s.%s (cell B).\n", module, lutA, module, lutB);
 
-					if (index.query_is_output(lutA->getPort(TW::Y)))
+					if (index.query_is_output(lutA->getPort(ID::Y)))
 					{
 						log_debug("  Not combining LUTs (cascade connection feeds module output).\n");
 						continue;
@@ -453,7 +453,7 @@ struct OptLutWorker
 					}
 
 					int lutM_width = lutM->getParam(ID::WIDTH).as_int();
-					SigSpec lutM_input = sigmap(lutM->getPort(TW::A));
+					SigSpec lutM_input = sigmap(lutM->getPort(ID::A));
 					std::vector<SigBit> lutM_new_inputs;
 					for (int i = 0; i < lutM_width; i++)
 					{
@@ -499,8 +499,8 @@ struct OptLutWorker
 					log_debug("  Merged truth table: %s.\n", lutM_new_table.as_string());
 
 					lutM->setParam(ID::LUT, lutM_new_table);
-					lutM->setPort(TW::A, lutM_new_inputs);
-					lutM->setPort(TW::Y, lutB_output);
+					lutM->setPort(ID::A, lutM_new_inputs);
+					lutM->setPort(ID::Y, lutB_output);
 
 					luts_arity[lutM] = lutM_arity;
 					luts.erase(lutR);
@@ -556,16 +556,16 @@ struct OptLutPass : public Pass {
 					log_cmd_error("Unsupported -tech argument: %s\n", tech);
 
 				dlogic = {{
-					ID(SB_CARRY),
+					ID::SB_CARRY,
 					dict<int, TwineRef>{
-						std::make_pair(1, TW(I0)),
-						std::make_pair(2, TW(I1)),
-						std::make_pair(3, TW(CI))
+						std::make_pair(1, ID::I0),
+						std::make_pair(2, ID::I1),
+						std::make_pair(3, ID::CI)
 					}
 				}, {
-					ID(SB_CARRY),
+					ID::SB_CARRY,
 					dict<int, TwineRef>{
-						std::make_pair(3, TW(CO))
+						std::make_pair(3, ID::CO)
 					}
 				}};
 				continue;

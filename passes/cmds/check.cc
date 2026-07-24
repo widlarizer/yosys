@@ -76,7 +76,7 @@ int check_bufnorm_wire(RTLIL::Module *module, RTLIL::Wire *wire)
 			if (!dsig.is_wire() || dsig.as_wire() != wire)
 				log_warning("bufNorm: wire %s.%s driverCell_ %s port %s does not connect back to this wire\n",
 					log_id(module), log_id(wire), log_id(driver), module->design->twines.str(dport).c_str()), counter++;
-			if (wire->port_input && !wire->port_output && driver->type != TW($input_port))
+			if (wire->port_input && !wire->port_output && driver->type != ID::$input_port)
 				log_warning("bufNorm: module input wire %s.%s is driven by non-$input_port cell %s of type %s\n",
 					log_id(module), log_id(wire), log_id(driver), log_id(driver->type)), counter++;
 		}
@@ -203,7 +203,7 @@ struct CheckPass : public Pass {
 			if (latchonly) {
 				for (auto cell : module->cells())
 					if (
-						cell->type.in(ID($dlatch), ID($adlatch), ID($dlatchsr)) ||
+						cell->type.in(ID::$dlatch, ID::$adlatch, ID::$dlatchsr) ||
 						cell->type.begins_with("$_DLATCH_") || cell->type.begins_with("$_DLATCHSR_")
 					) {
 						log_warning("Cell %s.%s is a latch of type %s.\n", module, cell, cell->type.unescape());
@@ -217,7 +217,7 @@ struct CheckPass : public Pass {
 			dict<SigBit, Cell *> driver_cells;
 			dict<SigBit, int> wire_drivers_count;
 			pool<SigBit> used_wires;
-			TopoSort<std::pair<RTLIL::IdString, int>> topo;
+			TopoSort<std::pair<TwineRef, int>> topo;
 			for (auto &proc_it : module->processes)
 			{
 				std::vector<RTLIL::CaseRule*> all_cases = {&proc_it.second->root_case};
@@ -263,11 +263,11 @@ struct CheckPass : public Pass {
 			}
 
 			struct CircuitEdgesDatabase : AbstractCellEdgesDatabase {
-				TopoSort<std::pair<RTLIL::IdString, int>> &topo;
+				TopoSort<std::pair<TwineRef, int>> &topo;
 				SigMap sigmap;
 				bool force_detail;
 
-				CircuitEdgesDatabase(TopoSort<std::pair<RTLIL::IdString, int>> &topo, SigMap &sigmap, bool force_detail)
+				CircuitEdgesDatabase(TopoSort<std::pair<TwineRef, int>> &topo, SigMap &sigmap, bool force_detail)
 					: topo(topo), sigmap(sigmap), force_detail(force_detail) {}
 
 				void add_edge(RTLIL::Cell *cell, TwineRef from_port, int from_bit,
@@ -280,24 +280,24 @@ struct CheckPass : public Pass {
 					SigBit to = sigmap(to_portsig[to_bit]);
 
 					if (from.wire && to.wire)
-						topo.edge(std::make_pair(RTLIL::IdString(from.wire->name), from.offset), std::make_pair(RTLIL::IdString(to.wire->name), to.offset));
+						topo.edge(std::make_pair(TwineRef(from.wire->name), from.offset), std::make_pair(TwineRef(to.wire->name), to.offset));
 				}
 
 				bool detail_costly(Cell *cell) {
 					// Only those cell types for which the edge data can expode quadratically
 					// in port widths are those for us to check.
 					if (!cell->type.in(
-							TW($add), TW($sub),
-							TW($shl), TW($shr), TW($sshl), TW($sshr), TW($shift), TW($shiftx),
-							TW($pmux), TW($bmux)))
+							ID::$add, ID::$sub,
+							ID::$shl, ID::$shr, ID::$sshl, ID::$sshr, ID::$shift, ID::$shiftx,
+							ID::$pmux, ID::$bmux))
 						return false;
 
 					int in_widths = 0, out_widths = 0;
 
-					if (cell->type.in(TW($pmux), TW($bmux))) {
+					if (cell->type.in(ID::$pmux, ID::$bmux)) {
 						// We're skipping inputs A and B, since each of their bits contributes only one edge
-						in_widths = GetSize(cell->getPort(TW::S));
-						out_widths = GetSize(cell->getPort(TW::Y));
+						in_widths = GetSize(cell->getPort(ID::S));
+						out_widths = GetSize(cell->getPort(ID::Y));
 					} else {
 						for (auto &conn : cell->connections()) {
 							if (cell->input(conn.first))
@@ -330,14 +330,14 @@ struct CheckPass : public Pass {
 						if (cell->input(conn.first))
 						for (auto bit : sigmap(conn.second))
 						if (bit.wire)
-							topo.edge(std::make_pair(RTLIL::IdString(bit.wire->name), bit.offset),
-									  std::make_pair(RTLIL::IdString(cell->name), -1));
+							topo.edge(std::make_pair(TwineRef(bit.wire->name), bit.offset),
+									  std::make_pair(TwineRef(cell->name), -1));
 
 						if (cell->output(conn.first))
 						for (auto bit : sigmap(conn.second))
 						if (bit.wire)
-							topo.edge(std::make_pair(RTLIL::IdString(cell->name), -1),
-									  std::make_pair(RTLIL::IdString(bit.wire->name), bit.offset));
+							topo.edge(std::make_pair(TwineRef(cell->name), -1),
+									  std::make_pair(TwineRef(bit.wire->name), bit.offset));
 					}
 
 					// Return false to signify the fallback
@@ -351,7 +351,7 @@ struct CheckPass : public Pass {
 			for (auto cell : module->cells())
 			{
 				if (mapped && cell->type.begins_with("$") && design->module(cell->type_impl) == nullptr) {
-					if (allow_tbuf && cell->type == TW($_TBUF_)) goto cell_allowed;
+					if (allow_tbuf && cell->type == ID::$_TBUF_) goto cell_allowed;
 					log_warning("Cell %s.%s is an unmapped internal cell of type %s.\n", module, cell, cell->type.unescaped());
 					counter++;
 				cell_allowed:;
@@ -359,17 +359,17 @@ struct CheckPass : public Pass {
 
 				if (
 					nolatches && (
-					cell->type.in(ID($dlatch), ID($adlatch), ID($dlatchsr)) ||
+					cell->type.in(ID::$dlatch, ID::$adlatch, ID::$dlatchsr) ||
 					cell->type.begins_with("$_DLATCH_") || cell->type.begins_with("$_DLATCHSR_"))
 				) {
 					log_warning("Cell %s.%s is a latch of type %s.\n", module, cell, cell->type.unescape());
 					counter++;
 				}
 
-				if (cell->type == TW($connect)) {
+				if (cell->type == ID::$connect) {
 					// Inefficient, but rare case in sane design
-					auto sig_a = cell->getPort(TW::A);
-					auto sig_b = cell->getPort(TW::B);
+					auto sig_a = cell->getPort(ID::A);
+					auto sig_b = cell->getPort(ID::B);
 					for (int i = 0; i < sig_a.size(); i++) {
 						int count_a = wire_drivers_count[sig_a[i]];
 						int count_b = wire_drivers_count[sig_b[i]];
@@ -410,7 +410,7 @@ struct CheckPass : public Pass {
 					}
 				}
 
-				if (yosys_celltypes.cell_evaluable(cell->type.ref()) || cell->type.in(TW($mem_v2), TW($memrd), TW($memrd_v2)) \
+				if (yosys_celltypes.cell_evaluable(cell->type.ref()) || cell->type.in(ID::$mem_v2, ID::$memrd, ID::$memrd_v2) \
 						|| cell->is_builtin_ff()) {
 					if (!edges_db.add_edges_from_cell(cell))
 						coarsened_cells.insert(cell);
@@ -484,7 +484,7 @@ struct CheckPass : public Pass {
 				SigBit prev;
 				for (auto it = loop.rbegin(); it != loop.rend(); it++)
 				if (it->second != -1) { // skip the fallback helper nodes
-					prev = SigBit(module->wire(search.find(it->first.str())), it->second);
+					prev = SigBit(module->wire(it->first), it->second);
 					break;
 				}
 				log_assert(prev != SigBit());
@@ -516,7 +516,7 @@ struct CheckPass : public Pass {
 						}
 					};
 
-					Wire *wire = module->wire(search.find(pair.first.str()));
+					Wire *wire = module->wire(pair.first);
 					log_assert(wire);
 					SigBit bit(wire, pair.second);
 					log_assert(driver_cells.count(bit));
@@ -538,7 +538,7 @@ struct CheckPass : public Pass {
 						suggest_detail = true;
 					}
 
-					if (wire->name.isPublic()) {
+					if (wire->name.is_public()) {
 						std::string wire_src;
 						if (wire->has_attribute(ID::src)) {
 							std::string src_attr = wire->get_src_attribute();
@@ -560,7 +560,7 @@ struct CheckPass : public Pass {
 					if (cell->is_builtin_ff() == 0)
 						continue;
 
-					for (auto bit : sigmap(cell->getPort(TW::Q)))
+					for (auto bit : sigmap(cell->getPort(ID::Q)))
 						init_bits.erase(bit);
 				}
 

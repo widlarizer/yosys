@@ -173,7 +173,7 @@ struct SimInstance
 
 	pool<SigBit> dirty_bits;
 	pool<Cell*> dirty_cells;
-	pool<IdString> dirty_memories;
+	pool<TwineRef> dirty_memories;
 	pool<SimInstance*> dirty_children;
 
 	struct ff_state_t
@@ -211,7 +211,7 @@ struct SimInstance
 		{
 			return std::make_tuple(
 				cell->getParam(ID::TRG_ENABLE).as_bool(), // Group by trigger
-				cell->getPort(TW::TRG),
+				cell->getPort(ID::TRG),
 				cell->getParam(ID::TRG_POLARITY),
 				-cell->getParam(ID::PRIORITY).as_int(), // Then sort by descending PRIORITY
 				cell
@@ -225,10 +225,10 @@ struct SimInstance
 	};
 
 	dict<Cell*, ff_state_t> ff_database;
-	dict<IdString, mem_state_t> mem_database;
+	dict<TwineRef, mem_state_t> mem_database;
 	pool<Cell*> formal_database;
 	pool<Cell*> initstate_database;
-	dict<Cell*, IdString> mem_cells;
+	dict<Cell*, TwineRef> mem_cells;
 	std::vector<print_state_t> print_database;
 
 	std::vector<Mem> memories;
@@ -240,11 +240,11 @@ struct SimInstance
 	};
 
 	dict<Wire*, signal_entry_t> signal_database;
-	dict<IdString, std::map<int, pair<int, Const>>> trace_mem_database;
-	dict<std::pair<IdString, int>, Const> trace_mem_init_database;
+	dict<TwineRef, std::map<int, pair<int, Const>>> trace_mem_database;
+	dict<std::pair<TwineRef, int>, Const> trace_mem_init_database;
 	dict<Wire*, fstHandle> fst_handles;
 	dict<Wire*, fstHandle> fst_inputs;
-	dict<IdString, dict<int,fstHandle>> fst_memories;
+	dict<TwineRef, dict<int,fstHandle>> fst_memories;
 
 	SimInstance(SimShared *shared, std::string scope, Module *module, Cell *instance = nullptr, SimInstance *parent = nullptr) :
 			shared(shared), scope(scope), module(module), instance(instance), parent(parent), sigmap(module)
@@ -279,7 +279,7 @@ struct SimInstance
 
 			if ((shared->fst) && !(shared->hide_internal && wire->name[0] == '$')) {
 				fstHandle id = shared->fst->getHandle(scope + "." + module->design->twines.unescaped_str(wire->name.ref()));
-				if (id==0 && wire->name.isPublic())
+				if (id==0 && wire->name.is_public())
 					log_warning("Unable to find wire %s in input file.\n", (scope + "." + module->design->twines.unescaped_str(wire->name.ref())));
 				fst_handles[wire] = id;
 			}
@@ -332,7 +332,7 @@ struct SimInstance
 					}
 			}
 
-			if (cell->is_builtin_ff() || cell->type == TW($anyinit)) {
+			if (cell->is_builtin_ff() || cell->type == ID::$anyinit) {
 				FfData ff_data(nullptr, cell);
 				ff_state_t ff;
 				ff.past_d = Const(State::Sx, ff_data.width);
@@ -343,7 +343,7 @@ struct SimInstance
 				ff.data = ff_data;
 				ff_database[cell] = ff;
 
-				if (cell->get_bool_attribute(ID(clk2fflogic))) {
+				if (cell->get_bool_attribute(ID::clk2fflogic)) {
 					for (int i = 0; i < ff_data.width; i++)
 						clk2fflogic_drivers.emplace(sigmap(ff_data.sig_d[i]), sigmap(ff_data.sig_q[i]));
 				}
@@ -351,25 +351,26 @@ struct SimInstance
 
 			if (cell->is_mem_cell())
 			{
-				std::string name = cell->parameters.at(ID::MEMID).decode_string();
+				std::string name_str = cell->parameters.at(ID::MEMID).decode_string();
+				TwineRef name = module->design->twines.add(std::string(name_str));
 				mem_cells[cell] = name;
 				if (shared->fst)
-					fst_memories[name] = shared->fst->getMemoryHandles(scope + "." + RTLIL::unescape_id(name));
+					fst_memories[name] = shared->fst->getMemoryHandles(scope + "." + RTLIL::unescape_id(name_str));
 			}
 
-			if (cell->type.in(TW($assert), TW($cover), TW($assume)))
+			if (cell->type.in(ID::$assert, ID::$cover, ID::$assume))
 				formal_database.insert(cell);
 
-			if (cell->type == TW($initstate))
+			if (cell->type == ID::$initstate)
 				initstate_database.insert(cell);
 
-			if (cell->type == TW($print)) {
+			if (cell->type == ID::$print) {
 				print_database.emplace_back();
 				auto &print = print_database.back();
 				print.cell = cell;
 				print.fmt.parse_rtlil(cell);
-				print.past_trg = Const(State::Sx, cell->getPort(TW::TRG).size());
-				print.past_args = Const(State::Sx, cell->getPort(TW::ARGS).size());
+				print.past_trg = Const(State::Sx, cell->getPort(ID::TRG).size());
+				print.past_args = Const(State::Sx, cell->getPort(ID::ARGS).size());
 				print.past_en = State::Sx;
 				print.initial_done = false;
 			}
@@ -498,12 +499,12 @@ struct SimInstance
 		}
 	}
 
-	void set_memory_state(IdString memid, Const addr, Const data)
+	void set_memory_state(TwineRef memid, Const addr, Const data)
 	{
 		set_memory_state(memid, addr.as_int(), data);
 	}
 
-	void set_memory_state(IdString memid, int addr, Const data)
+	void set_memory_state(TwineRef memid, int addr, Const data)
 	{
 		auto &state = mem_database[memid];
 
@@ -519,7 +520,7 @@ struct SimInstance
 			dirty_memories.insert(memid);
 	}
 
-	void set_memory_state_bit(IdString memid, int offset, State data)
+	void set_memory_state_bit(TwineRef memid, int offset, State data)
 	{
 		auto &state = mem_database[memid];
 		if (offset >= state.mem->size * state.mem->width)
@@ -561,19 +562,19 @@ struct SimInstance
 			RTLIL::SigSpec sig_a, sig_b, sig_c, sig_d, sig_s, sig_y;
 			bool has_a, has_b, has_c, has_d, has_s, has_y;
 
-			has_a = cell->hasPort(TW::A);
-			has_b = cell->hasPort(TW::B);
-			has_c = cell->hasPort(TW::C);
-			has_d = cell->hasPort(TW::D);
-			has_s = cell->hasPort(TW::S);
-			has_y = cell->hasPort(TW::Y);
+			has_a = cell->hasPort(ID::A);
+			has_b = cell->hasPort(ID::B);
+			has_c = cell->hasPort(ID::C);
+			has_d = cell->hasPort(ID::D);
+			has_s = cell->hasPort(ID::S);
+			has_y = cell->hasPort(ID::Y);
 
-			if (has_a) sig_a = cell->getPort(TW::A);
-			if (has_b) sig_b = cell->getPort(TW::B);
-			if (has_c) sig_c = cell->getPort(TW::C);
-			if (has_d) sig_d = cell->getPort(TW::D);
-			if (has_s) sig_s = cell->getPort(TW::S);
-			if (has_y) sig_y = cell->getPort(TW::Y);
+			if (has_a) sig_a = cell->getPort(ID::A);
+			if (has_b) sig_b = cell->getPort(ID::B);
+			if (has_c) sig_c = cell->getPort(ID::C);
+			if (has_d) sig_d = cell->getPort(ID::D);
+			if (has_s) sig_s = cell->getPort(ID::S);
+			if (has_y) sig_y = cell->getPort(ID::Y);
 
 			if (shared->debug)
 				log("[%s] eval %s (%s)\n", hiername(), cell, cell->type.unescaped());
@@ -602,16 +603,16 @@ struct SimInstance
 			return;
 		}
 
-		if (cell->type == TW($print))
+		if (cell->type == ID::$print)
 			return;
 
-		if (cell->type == TW($connect))
+		if (cell->type == ID::$connect)
 			return;
 
 		log_error("Unsupported cell type: %s (%s.%s)\n", cell->type.unescaped(), module, cell);
 	}
 
-	void update_memory(IdString id) {
+	void update_memory(TwineRef id) {
 		auto &mdb = mem_database[id];
 		auto &mem = *mdb.mem;
 
@@ -878,10 +879,10 @@ struct SimInstance
 			Cell *cell = print.cell;
 			bool triggered = false;
 
-			Const trg = get_state(cell->getPort(TW::TRG));
+			Const trg = get_state(cell->getPort(ID::TRG));
 			bool trg_en = cell->getParam(ID::TRG_ENABLE).as_bool();
-			Const en = get_state(cell->getPort(TW::EN));
-			Const args = get_state(cell->getPort(TW::ARGS));
+			Const en = get_state(cell->getPort(ID::EN));
+			Const args = get_state(cell->getPort(ID::ARGS));
 
 			bool sampled = trg_en && trg.size() > 0;
 
@@ -901,7 +902,7 @@ struct SimInstance
 					// initial $print (TRG width = 0, TRG_ENABLE = true)
 					if (!print.initial_done && en != print.past_en)
 						triggered = true;
-				} else if (cell->get_bool_attribute(ID(trg_on_gclk))) {
+				} else if (cell->get_bool_attribute(ID::trg_on_gclk)) {
 					// unified $print for cycle based FV semantics
 					triggered = gclk_trigger;
 				} else {
@@ -937,20 +938,20 @@ struct SimInstance
 				if (cell->has_attribute(ID::src))
 					label = cell->get_src_attribute();
 
-				State a = get_state(cell->getPort(TW::A))[0];
-				State en = get_state(cell->getPort(TW::EN))[0];
+				State a = get_state(cell->getPort(ID::A))[0];
+				State en = get_state(cell->getPort(ID::EN))[0];
 
-				if (en == State::S1 && (cell->type == TW($cover) ? a == State::S1 : a != State::S1)) {
+				if (en == State::S1 && (cell->type == ID::$cover ? a == State::S1 : a != State::S1)) {
 					shared->triggered_assertions.emplace_back(shared->step, this, cell);
 				}
 
-				if (cell->type == TW($cover) && en == State::S1 && a == State::S1)
+				if (cell->type == ID::$cover && en == State::S1 && a == State::S1)
 					log("Cover %s.%s (%s) reached.\n", hiername(), cell, label);
 
-				if (cell->type == TW($assume) && en == State::S1 && a != State::S1)
+				if (cell->type == ID::$assume && en == State::S1 && a != State::S1)
 					log("Assumption %s.%s (%s) failed.\n", hiername(), cell, label);
 
-				if (cell->type == TW($assert) && en == State::S1 && a != State::S1) {
+				if (cell->type == ID::$assert && en == State::S1 && a != State::S1) {
 					log_cell_w_hierarchy("Failed assertion", cell);
 					if (shared->serious_asserts)
 						log_error("Assertion %s.%s (%s) failed.\n", hiername(), cell, label);
@@ -967,7 +968,7 @@ struct SimInstance
 	void set_initstate_outputs(State state)
 	{
 		for (auto cell : initstate_database)
-			set_state(cell->getPort(TW::Y), state);
+			set_state(cell->getPort(ID::Y), state);
 		for (auto child : children)
 			child.second->set_initstate_outputs(state);
 	}
@@ -1033,7 +1034,7 @@ struct SimInstance
 	void write_output_header(std::function<void(const std::string&)> enter_scope, std::function<void()> exit_scope, std::function<void(const char*, int, Wire*, int, bool)> register_signal)
 	{
 		int exit_scopes = 1;
-		if (shared->hdlname && instance != nullptr && instance->name.isPublic() && instance->has_attribute(ID::hdlname)) {
+		if (shared->hdlname && instance != nullptr && instance->name.is_public() && instance->has_attribute(ID::hdlname)) {
 			auto hdlname = instance->get_hdlname_attribute();
 			log_assert(!hdlname.empty());
 			for (auto name : hdlname)
@@ -1056,7 +1057,7 @@ struct SimInstance
 
 		for (auto signal : signal_database)
 		{
-			if (shared->hdlname && signal.first->name.isPublic() && signal.first->has_attribute(ID::hdlname)) {
+			if (shared->hdlname && signal.first->name.is_public() && signal.first->has_attribute(ID::hdlname)) {
 				auto hdlname = signal.first->get_hdlname_attribute();
 				log_assert(!hdlname.empty());
 				auto signal_name = std::move(hdlname.back());
@@ -1078,7 +1079,7 @@ struct SimInstance
 
 			std::vector<std::string> hdlname;
 			std::string signal_name;
-			bool has_hdlname = shared->hdlname && cell != nullptr && cell->name.isPublic() && cell->has_attribute(ID::hdlname);
+			bool has_hdlname = shared->hdlname && cell != nullptr && cell->name.is_public() && cell->has_attribute(ID::hdlname);
 
 			if (has_hdlname) {
 				hdlname = cell->get_hdlname_attribute();
@@ -1088,7 +1089,7 @@ struct SimInstance
 				for (auto name : hdlname)
 					enter_scope(name);
 			} else {
-				signal_name = RTLIL::unescape_id(memid);
+				signal_name = module->design->twines.unescaped_str(memid);
 			}
 
 			for (auto &trace_index : trace_mem.second) {
@@ -1111,7 +1112,7 @@ struct SimInstance
 			exit_scope();
 	}
 
-	void register_memory_addr(IdString memid, int addr)
+	void register_memory_addr(TwineRef memid, int addr)
 	{
 		auto &mdb = mem_database.at(memid);
 		auto &mem = *mdb.mem;
@@ -1184,7 +1185,7 @@ struct SimInstance
 		for (auto cell : module->cells())
 		{
 			if (cell->is_mem_cell()) {
-				std::string memid = cell->parameters.at(ID::MEMID).decode_string();
+				TwineRef memid = module->design->twines.add(cell->parameters.at(ID::MEMID).decode_string());
 				for (auto &data : fst_memories[memid])
 				{
 					std::string v = shared->fst->valueOf(data.second);
@@ -1202,8 +1203,8 @@ struct SimInstance
 	{
 		for (auto cell : module->cells())
 		{
-			if (cell->type.in(TW($anyseq))) {
-				SigSpec sig_y = sigmap(cell->getPort(TW::Y));
+			if (cell->type.in(ID::$anyseq)) {
+				SigSpec sig_y = sigmap(cell->getPort(ID::Y));
 				if (sig_y.is_wire()) {
 					bool found = false;
 					for(auto &item : fst_handles) {
@@ -1298,7 +1299,7 @@ struct SimInstance
 		}
 	}
 
-	void setMemState(dict<int, std::pair<std::string,int>> bits, std::string values)
+	void setMemState(dict<int, std::pair<TwineRef,int>> bits, std::string values)
 	{
 		for(auto bit : bits) {
 			if (bit.first >= GetSize(values))
@@ -1358,7 +1359,7 @@ struct SimInstance
 struct SimWorker : SimShared
 {
 	SimInstance *top = nullptr;
-	pool<IdString> clock, clockn, reset, resetn;
+	pool<TwineRef> clock, clockn, reset, resetn;
 	std::string timescale;
 	std::string sim_filename;
 	std::string map_filename;
@@ -1456,11 +1457,11 @@ struct SimWorker : SimShared
 		top->update_ph3(true);
 	}
 
-	void set_inports(pool<IdString> ports, State value)
+	void set_inports(pool<TwineRef> ports, State value)
 	{
 		for (auto portname : ports)
 		{
-			TwineRef portref = top->module->design->twines.add(std::string{portname.str()});
+			TwineRef portref = portname;
 			Wire *w = top->module->wire(portref);
 
 			if (w == nullptr)
@@ -1545,7 +1546,7 @@ struct SimWorker : SimShared
 
 		for (auto portname : clock)
 		{
-			TwineRef portref = topmod->design->twines.add(std::string{portname.str()});
+			TwineRef portref = portname;
 			Wire *w = topmod->wire(portref);
 			if (!w)
 				log_error("Can't find port %s on module %s.\n", topmod->design->twines.unescaped_str(portref), top->module);
@@ -1558,7 +1559,7 @@ struct SimWorker : SimShared
 		}
 		for (auto portname : clockn)
 		{
-			TwineRef portref = topmod->design->twines.add(std::string{portname.str()});
+			TwineRef portref = portname;
 			Wire *w = topmod->wire(portref);
 			if (!w)
 				log_error("Can't find port %s on module %s.\n", topmod->design->twines.unescaped_str(portref), top->module);
@@ -1686,7 +1687,7 @@ struct SimWorker : SimShared
 		std::string type, symbol;
 		int variable, index;
 		dict<int, std::pair<SigBit,bool>> inputs, inits, latches;
-		dict<int, std::pair<std::string,int>> mem_inits, mem_latches;
+		dict<int, std::pair<TwineRef,int>> mem_inits, mem_latches;
 		if (mf.fail())
 			log_cmd_error("Not able to read AIGER witness map file.\n");
 		while (mf >> type >> variable >> index >> symbol) {
@@ -1699,7 +1700,7 @@ struct SimWorker : SimShared
 					log_warning("Wire/cell %s not present in module %s\n",symbol,topmod);
 
 				if (c->is_mem_cell()) {
-					std::string memid = c->parameters.at(ID::MEMID).decode_string();
+					TwineRef memid = topmod->design->twines.add(c->parameters.at(ID::MEMID).decode_string());
 					auto &state = top->mem_database[memid];
 
 					int offset = (mem_cell_addr(symbol) - state.mem->start_offset) * state.mem->width + index;
@@ -1900,8 +1901,8 @@ struct SimWorker : SimShared
 							Cell *c = topmod->cell(found);
 							if (!c)
 								log_warning("Wire/cell %s not present in module %s\n", unescaped_s, topmod);
-							else if (c->type.in(TW($anyconst), TW($anyseq))) {
-								SigSpec sig_y= c->getPort(TW::Y);
+							else if (c->type.in(ID::$anyconst, ID::$anyseq)) {
+								SigSpec sig_y= c->getPort(ID::Y);
 								if ((int)parts[1].size() != GetSize(sig_y))
 									log_error("Size of wire %s is different than provided data.\n", log_signal(sig_y));
 								top->set_state(sig_y, Const::from_string(parts[1]));
@@ -1920,7 +1921,7 @@ struct SimWorker : SimShared
 
 						Const addr = Const::from_string(parts[1].substr(1,parts[1].size()-2));
 						Const data = Const::from_string(parts[2]);
-						top->set_memory_state(c->parameters.at(ID::MEMID).decode_string(), addr, data);
+						top->set_memory_state(topmod->design->twines.add(c->parameters.at(ID::MEMID).decode_string()), addr, data);
 					}
 					break;
 			}
@@ -1933,7 +1934,7 @@ struct SimWorker : SimShared
 	{
 		SimInstance *instance;
 		Wire *wire;
-		IdString memid;
+		TwineRef memid;
 		int addr;
 	};
 
@@ -1945,7 +1946,7 @@ struct SimWorker : SimShared
 	{
 		YwHierarchy hierarchy;
 		pool<IdPath> paths;
-		dict<IdPath, pool<IdString>> mem_paths;
+		dict<IdPath, pool<std::string>> mem_paths;
 
 		for (auto &signal : yw.signals)
 			paths.insert(signal.path);
@@ -2216,7 +2217,7 @@ struct SimWorker : SimShared
 
 		for (auto portname : clock)
 		{
-			TwineRef portref = topmod->design->twines.add(std::string{portname.str()});
+			TwineRef portref = portname;
 			Wire *w = topmod->wire(portref);
 			if (!w)
 				log_error("Can't find port %s on module %s.\n", topmod->design->twines.unescaped_str(portref), top->module);
@@ -2230,7 +2231,7 @@ struct SimWorker : SimShared
 		}
 		for (auto portname : clockn)
 		{
-			TwineRef portref = topmod->design->twines.add(std::string{portname.str()});
+			TwineRef portref = portname;
 			Wire *w = topmod->wire(portref);
 			if (!w)
 				log_error("Can't find port %s on module %s.\n", topmod->design->twines.unescaped_str(portref), top->module);
@@ -2565,10 +2566,10 @@ struct AIWWriter : public OutputWriter
 				log_error("Index %d for wire %s is out of range\n", index, log_signal(w));
 			if (type == "input") {
 				aiw_inputs[variable] = SigBit(w,index-w->start_offset);
-				if (worker->clock.count(RTLIL::escape_id(symbol))) {
+				if (worker->clock.count(escaped_s)) {
 					clocks[variable] = true;
 				}
-				if (worker->clockn.count(RTLIL::escape_id(symbol))) {
+				if (worker->clockn.count(escaped_s)) {
 					clocks[variable] = false;
 				}
 				max_input = max(max_input,variable);
@@ -2838,19 +2839,19 @@ struct SimPass : public Pass {
 				continue;
 			}
 			if (args[argidx] == "-clock" && argidx+1 < args.size()) {
-				worker.clock.insert(RTLIL::escape_id(args[++argidx]));
+				worker.clock.insert(design->twines.add(RTLIL::escape_id(args[++argidx])));
 				continue;
 			}
 			if (args[argidx] == "-clockn" && argidx+1 < args.size()) {
-				worker.clockn.insert(RTLIL::escape_id(args[++argidx]));
+				worker.clockn.insert(design->twines.add(RTLIL::escape_id(args[++argidx])));
 				continue;
 			}
 			if (args[argidx] == "-reset" && argidx+1 < args.size()) {
-				worker.reset.insert(RTLIL::escape_id(args[++argidx]));
+				worker.reset.insert(design->twines.add(RTLIL::escape_id(args[++argidx])));
 				continue;
 			}
 			if (args[argidx] == "-resetn" && argidx+1 < args.size()) {
-				worker.resetn.insert(RTLIL::escape_id(args[++argidx]));
+				worker.resetn.insert(design->twines.add(RTLIL::escape_id(args[++argidx])));
 				continue;
 			}
 			if (args[argidx] == "-timescale" && argidx+1 < args.size()) {
@@ -3065,11 +3066,11 @@ struct Fst2TbPass : public Pass {
 		size_t argidx;
 		for (argidx = 1; argidx < args.size(); argidx++) {
 			if (args[argidx] == "-clock" && argidx+1 < args.size()) {
-				worker.clock.insert(RTLIL::escape_id(args[++argidx]));
+				worker.clock.insert(design->twines.add(RTLIL::escape_id(args[++argidx])));
 				continue;
 			}
 			if (args[argidx] == "-clockn" && argidx+1 < args.size()) {
-				worker.clockn.insert(RTLIL::escape_id(args[++argidx]));
+				worker.clockn.insert(design->twines.add(RTLIL::escape_id(args[++argidx])));
 				continue;
 			}
 			if (args[argidx] == "-r" && argidx+1 < args.size()) {

@@ -60,11 +60,11 @@ TEST(TwinePublicityTest, SuffixInheritsPublicity)
 TEST(TwinePublicityTest, StaticHandlesAreTagged)
 {
 	TwinePool pool;
-	EXPECT_TRUE(twine_is_public(TW::A));
-	EXPECT_EQ(pool.str(TW::A), "\\A");
-	EXPECT_EQ(pool.unescaped_str(TW::A), "A");
-	EXPECT_FALSE(twine_is_public(TW::$and));
-	EXPECT_EQ(pool.str(TW::$and), "$and");
+	EXPECT_TRUE(twine_is_public(ID::A));
+	EXPECT_EQ(pool.str(ID::A), "\\A");
+	EXPECT_EQ(pool.unescaped_str(ID::A), "A");
+	EXPECT_FALSE(twine_is_public(ID::$and));
+	EXPECT_EQ(pool.str(ID::$and), "$and");
 }
 
 TEST(TwinePublicityTest, LookupReturnsTaggedHandle)
@@ -76,7 +76,7 @@ TEST(TwinePublicityTest, LookupReturnsTaggedHandle)
 	TwineSearch search(&pool);
 	EXPECT_EQ(search.find("\\net"), pub);
 	EXPECT_EQ(search.find("$net"), priv);
-	EXPECT_EQ(search.find("\\A"), TW::A);
+	EXPECT_EQ(search.find("\\A"), ID::A);
 	EXPECT_EQ(search.find("\\nonexistent"), Twine::Null);
 }
 
@@ -88,7 +88,7 @@ TEST(TwinePublicityTest, CopyFromPreservesTag)
 	EXPECT_TRUE(twine_is_public(copied));
 	EXPECT_EQ(dst.str(copied), "\\xfer");
 	// Static handles pass through tag and all.
-	EXPECT_EQ(dst.copy_from(src, TW::A), TW::A);
+	EXPECT_EQ(dst.copy_from(src, ID::A), ID::A);
 }
 
 TEST(TwinePublicityTest, GcKeepsTaggedRoots)
@@ -109,8 +109,8 @@ TEST(TwinePublicityTest, WireNameMasquerade)
 	RTLIL::Wire *pub = mod->addWire(design.twines.add(std::string("\\sig")));
 	RTLIL::Wire *priv = mod->addWire(design.twines.add(std::string("$sig")));
 
-	EXPECT_TRUE(pub->name.isPublic());
-	EXPECT_FALSE(priv->name.isPublic());
+	EXPECT_TRUE(pub->name.is_public());
+	EXPECT_FALSE(priv->name.is_public());
 	EXPECT_EQ(pub->name.escaped(), "\\sig");
 	EXPECT_EQ(pub->name.unescaped(), "sig");
 	EXPECT_EQ(pub->name.str(), "\\sig");

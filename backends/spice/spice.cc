@@ -27,7 +27,7 @@
 USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
-static string spice_id2str(IdString id)
+static string spice_id2str(const std::string &id)
 {
 	static const char *escape_chars = "$\\[]()<>=";
 	string s = RTLIL::unescape_id(id);
@@ -38,22 +38,22 @@ static string spice_id2str(IdString id)
 	return s;
 }
 
-static string spice_id2str(IdString id, bool use_inames, idict<IdString, 1> &inums)
+static string spice_id2str(const RTLIL::Design *design, TwineRef id, bool use_inames, idict<TwineRef, 1> &inums)
 {
-	if (!use_inames && *id.c_str() == '$')
+	if (!use_inames && design->twines.str(id)[0] == '$')
 		return stringf("%d", inums(id));
-	return spice_id2str(id);
+	return spice_id2str(design->twines.str(id));
 }
 
-static void print_spice_net(std::ostream &f, RTLIL::SigBit s, std::string &neg, std::string &pos, std::string &ncpf, int &nc_counter, bool use_inames, idict<IdString, 1> &inums)
+static void print_spice_net(std::ostream &f, RTLIL::SigBit s, std::string &neg, std::string &pos, std::string &ncpf, int &nc_counter, bool use_inames, idict<TwineRef, 1> &inums)
 {
 	if (s.wire) {
 		if (s.wire->port_id)
 			use_inames = true;
 		if (s.wire->width > 1)
-			f << stringf(" %s.%d", spice_id2str(s.wire->name, use_inames, inums), s.offset);
+			f << stringf(" %s.%d", spice_id2str(s.wire->module->design, s.wire->name.ref(), use_inames, inums), s.offset);
 		else
-			f << stringf(" %s", spice_id2str(s.wire->name, use_inames, inums));
+			f << stringf(" %s", spice_id2str(s.wire->module->design, s.wire->name.ref(), use_inames, inums));
 	} else {
 		if (s == RTLIL::State::S0)
 			f << stringf(" %s", neg);
@@ -67,12 +67,12 @@ static void print_spice_net(std::ostream &f, RTLIL::SigBit s, std::string &neg, 
 static void print_spice_module(std::ostream &f, RTLIL::Module *module, RTLIL::Design *design, std::string &neg, std::string &pos, std::string &buf, std::string &ncpf, bool big_endian, bool use_inames)
 {
 	SigMap sigmap(module);
-	idict<IdString, 1> inums;
+	idict<TwineRef, 1> inums;
 	int cell_counter = 0, conn_counter = 0, nc_counter = 0;
 
 	for (auto cell : module->cells())
 	{
-		if (cell->type == TW($scopeinfo))
+		if (cell->type == ID::$scopeinfo)
 			continue;
 
 		f << stringf("X%d", cell_counter++);
@@ -121,7 +121,7 @@ static void print_spice_module(std::ostream &f, RTLIL::Module *module, RTLIL::De
 			}
 		}
 
-		f << stringf(" %s\n", spice_id2str(cell->type));
+		f << stringf(" %s\n", spice_id2str(cell->type.str()));
 	}
 
 	for (auto &conn : module->connections())
@@ -244,18 +244,18 @@ struct SpiceBackend : public Backend {
 				ports.at(wire->port_id-1) = wire;
 			}
 
-			*f << stringf(".SUBCKT %s", spice_id2str(IdString(design->twines.str(module->meta_->name))));
+			*f << stringf(".SUBCKT %s", spice_id2str(module->design->twines.str(module->meta_->name)));
 			for (RTLIL::Wire *wire : ports) {
 				log_assert(wire != NULL);
 				if (wire->width > 1) {
 					for (int i = 0; i < wire->width; i++)
-						*f << stringf(" %s.%d", spice_id2str(wire->name), big_endian ? wire->width - 1 - i : i);
+						*f << stringf(" %s.%d", spice_id2str(wire->name.str()), big_endian ? wire->width - 1 - i : i);
 				} else
-					*f << stringf(" %s", spice_id2str(wire->name));
+					*f << stringf(" %s", spice_id2str(wire->name.str()));
 			}
 			*f << stringf("\n");
 			print_spice_module(*f, module, design, neg, pos, buf, ncpf, big_endian, use_inames);
-			*f << stringf(".ENDS %s\n\n", spice_id2str(IdString(design->twines.str(module->meta_->name))));
+			*f << stringf(".ENDS %s\n\n", spice_id2str(module->design->twines.str(module->meta_->name)));
 		}
 
 		if (!top_module_name.empty()) {

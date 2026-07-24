@@ -137,7 +137,7 @@ struct ModuleIndex {
 					rhs.replace(constant_outputs);
 					log_assert(rhs.is_fully_const());
 					parent.module->connect(value.extract(chunk.offset, chunk.width), rhs);
-					SigSpec dummy = parent.module->addWire(NEW_TWINE_SUFFIX("const_output"), chunk.width);
+					SigSpec dummy = parent.module->addWire(NEW_ID_SUFFIX("const_output"), chunk.width);
 					for (int i = 0; i < chunk.width; i++)
 						value[chunk.offset + i] = dummy[i];
 				}
@@ -182,7 +182,7 @@ struct ModuleIndex {
 		severed_port_bits.sort_and_unify();
 		for (auto chunk : severed_port_bits.chunks()) {
 			SigSpec &value = instantiation->connections_.at(chunk.wire->meta_->name);
-			SigSpec dummy = parent.module->addWire(NEW_TWINE_SUFFIX("tie_together"), chunk.width);
+			SigSpec dummy = parent.module->addWire(NEW_ID_SUFFIX("tie_together"), chunk.width);
 			for (int i = 0; i < chunk.width; i++)
 				value[chunk.offset + i] = dummy[i];
 		}
@@ -431,13 +431,13 @@ struct OptHierPass : Pass {
 		if (!d->top_module())
 			log_cmd_error("Top module needs to be selected for opt_hier\n");
 
-		dict<IdString, ModuleIndex> indices;
+		dict<TwineRef, ModuleIndex> indices;
 		for (auto module : d->modules()) {
 			log_debug("Building index for %s\n", module);
 			indices.emplace(module->name, ModuleIndex(module));
 		}
 
-		dict<IdString, UsageData> usage_datas;
+		dict<TwineRef, UsageData> usage_datas;
 		for (auto module : d->selected_modules(RTLIL::SELECT_WHOLE_ONLY, RTLIL::SB_UNBOXED_CMDERR)) {
 			if (module->get_bool_attribute(ID::top))
 				continue;

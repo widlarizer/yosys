@@ -33,7 +33,7 @@ struct MemoryMapWorker
 	bool rom_only = false;
 	bool keepdc = false;
 	bool formal = false;
-	dict<RTLIL::IdString, std::vector<RTLIL::Const>> attributes;
+	dict<std::string, std::vector<RTLIL::Const>> attributes;
 
 	RTLIL::Design *design;
 	RTLIL::Module *module;
@@ -64,10 +64,10 @@ struct MemoryMapWorker
 		return value;
 	}
 
-	std::string genid(RTLIL::IdString name, std::string token1 = "", int i = -1, std::string token2 = "", int j = -1, std::string token3 = "", int k = -1, std::string token4 = "")
+	std::string genid(TwineRef name, std::string token1 = "", int i = -1, std::string token2 = "", int j = -1, std::string token3 = "", int k = -1, std::string token4 = "")
 	{
 		std::stringstream sstr;
-		sstr << "$memory" << name.str() << token1;
+		sstr << "$memory" << design->twines.str(name) << token1;
 
 		if (i >= 0)
 			sstr << "[" << i << "]";
@@ -94,12 +94,12 @@ struct MemoryMapWorker
 		TwineRef src_ref = mem_src.empty() ? Twine::Null : design->twines.add(Twine{mem_src});
 		if (decoder_cache.count(key) == 0) {
 			if (GetSize(addr_sig) < 2) {
-				decoder_cache[key] = module->Eq(NEW_TWINE, addr_sig, addr_val, false, src_ref);
+				decoder_cache[key] = module->Eq(NEW_ID, addr_sig, addr_val, false, src_ref);
 			} else {
 				int split_at = GetSize(addr_sig) / 2;
 				RTLIL::SigBit left_eq = addr_decode(addr_sig.extract(0, split_at), addr_val.extract(0, split_at));
 				RTLIL::SigBit right_eq = addr_decode(addr_sig.extract(split_at, GetSize(addr_sig) - split_at), addr_val.extract(split_at, GetSize(addr_val) - split_at));
-				decoder_cache[key] = module->And(NEW_TWINE, left_eq, right_eq, false, src_ref);
+				decoder_cache[key] = module->And(NEW_ID, left_eq, right_eq, false, src_ref);
 			}
 		}
 
@@ -128,11 +128,12 @@ struct MemoryMapWorker
 
 		// check if attributes allow us to infer FFRAM for this memory
 		for (const auto &attr : attributes) {
-			if (mem.attributes.count(attr.first)) {
-				const auto &cell_attr = mem.attributes[attr.first];
+			TwineRef attr_ref = design->twines.find(attr.first);
+			if (attr_ref != Twine::Null && mem.attributes.count(attr_ref)) {
+				const auto &cell_attr = mem.attributes[attr_ref];
 				if (attr.second.empty()) {
 					log("Not mapping memory %s in module %s (attribute %s is set).\n",
-							mem.memid.c_str(), log_id(module), attr.first.c_str());
+							log_id(module, mem.memid), log_id(module), RTLIL::unescape_id(attr.first));
 					return;
 				}
 
@@ -146,10 +147,10 @@ struct MemoryMapWorker
 				if (!found) {
 					if (cell_attr.flags & RTLIL::CONST_FLAG_STRING) {
 						log("Not mapping memory %s in module %s (attribute %s is set to \"%s\").\n",
-								mem.memid.c_str(), log_id(module), attr.first.c_str(), cell_attr.decode_string().c_str());
+								log_id(module, mem.memid), log_id(module), RTLIL::unescape_id(attr.first), cell_attr.decode_string().c_str());
 					} else {
 						log("Not mapping memory %s in module %s (attribute %s is set to %d).\n",
-								mem.memid.c_str(), log_id(module), attr.first.c_str(), cell_attr.as_int());
+								log_id(module, mem.memid), log_id(module), RTLIL::unescape_id(attr.first), cell_attr.as_int());
 					}
 					return;
 				}
@@ -183,29 +184,29 @@ struct MemoryMapWorker
 				static_only = false;
 				if (GetSize(refclock) != 0)
 					log("Not mapping memory %s in module %s (mixed clocked and async write ports).\n",
-							mem.memid.c_str(), log_id(module));
+							log_id(module, mem.memid), log_id(module));
 				if (!formal)
 					log("Not mapping memory %s in module %s (write port %d has no clock).\n",
-								mem.memid.c_str(), log_id(module), i);
+								log_id(module, mem.memid), log_id(module), i);
 				async_wr = true;
 				continue;
 			}
 			static_only = false;
 			if (async_wr)
 				log("Not mapping memory %s in module %s (mixed clocked and async write ports).\n",
-						mem.memid.c_str(), log_id(module));
+						log_id(module, mem.memid), log_id(module));
 			if (refclock.size() == 0) {
 				refclock = port.clk;
 				refclock_pol = port.clk_polarity;
 			}
 			if (port.clk != refclock || port.clk_polarity != refclock_pol) {
 				log("Not mapping memory %s in module %s (write clock %d is incompatible with other clocks).\n",
-						mem.memid.c_str(), log_id(module), i);
+						log_id(module, mem.memid), log_id(module), i);
 				return;
 			}
 		}
 
-		log("Mapping memory %s in module %s:\n", mem.memid, log_id(module));
+		log("Mapping memory %s in module %s:\n", log_id(module, mem.memid), log_id(module));
 
 		int abits = ceil_log2(mem.size);
 		std::vector<RTLIL::SigSpec> data_reg_in(1 << abits);
@@ -238,34 +239,34 @@ struct MemoryMapWorker
 				if (static_only) {
 					// non-static part is a ROM, we only reach this with keepdc
 					if (formal) {
-						c = module->addCell(Twine{ff_id}, TW($ff));
+						c = module->addCell(Twine{ff_id}, ID::$ff);
 					} else {
-						c = module->addCell(Twine{ff_id}, TW($dff));
+						c = module->addCell(Twine{ff_id}, ID::$dff);
 						c->parameters[ID::CLK_POLARITY] = RTLIL::Const(RTLIL::State::S1);
-						c->setPort(TW::CLK, RTLIL::SigSpec(RTLIL::State::S0));
+						c->setPort(ID::CLK, RTLIL::SigSpec(RTLIL::State::S0));
 					}
 				} else if (async_wr) {
 					log_assert(formal); // General async write not implemented yet, checked against above
-					c = module->addCell(Twine{ff_id}, TW($ff));
+					c = module->addCell(Twine{ff_id}, ID::$ff);
 				} else {
-					c = module->addCell(Twine{ff_id}, TW($dff));
+					c = module->addCell(Twine{ff_id}, ID::$dff);
 					c->parameters[ID::CLK_POLARITY] = RTLIL::Const(refclock_pol);
-					c->setPort(TW::CLK, refclock);
+					c->setPort(ID::CLK, refclock);
 				}
 				c->set_src_attribute(mem_src.empty() ? Twine::Null : design->twines.add(Twine{mem_src}));
 				c->parameters[ID::WIDTH] = mem.width;
 
 				RTLIL::Wire *w_in = module->addWire(design->twines.add(Twine{genid(mem.memid, "", addr, "$d")}), mem.width);
 				data_reg_in[idx] = w_in;
-				c->setPort(TW::D, w_in);
+				c->setPort(ID::D, w_in);
 
-				std::string w_out_name = stringf("%s[%d]", mem.memid.str(), addr);
+				std::string w_out_name = stringf("%s[%d]", design->twines.str(mem.memid), addr);
 				if (module->wire(wire_search.find(w_out_name)) != nullptr)
 					w_out_name = genid(mem.memid, "", addr, "$q");
 
 				RTLIL::Wire *w_out = module->addWire(design->twines.add(std::string{w_out_name}), mem.width);
 
-				if (formal && mem.packed && mem.cell->name.isPublic()) {
+				if (formal && mem.packed && mem.cell->name.is_public()) {
 					auto hdlname = mem.cell->get_hdlname_attribute();
 					if (hdlname.empty())
 						hdlname.push_back(mem.cell->name.unescaped());
@@ -277,7 +278,7 @@ struct MemoryMapWorker
 					w_out->attributes[ID::init] = w_init.as_const();
 
 				data_reg_out[idx] = w_out;
-				c->setPort(TW::Q, w_out);
+				c->setPort(ID::Q, w_out);
 
 				if (static_only)
 					module->connect(RTLIL::SigSig(w_in, w_out));
@@ -306,18 +307,18 @@ struct MemoryMapWorker
 
 				for (size_t k = 0; k < rd_signals.size(); k++)
 				{
-					RTLIL::Cell *c = module->addCell(Twine{genid(mem.memid, "$rdmux", i, "", j, "", k)}, TW($mux));
+					RTLIL::Cell *c = module->addCell(Twine{genid(mem.memid, "$rdmux", i, "", j, "", k)}, ID::$mux);
 					c->set_src_attribute(mem_src.empty() ? Twine::Null : design->twines.add(Twine{mem_src}));
 					c->parameters[ID::WIDTH] = GetSize(port.data);
-					c->setPort(TW::Y, rd_signals[k]);
-					c->setPort(TW::S, rd_addr.extract(abits-j-1, 1));
+					c->setPort(ID::Y, rd_signals[k]);
+					c->setPort(ID::S, rd_addr.extract(abits-j-1, 1));
 					count_mux++;
 
-					c->setPort(TW::A, module->addWire(Twine{genid(mem.memid, "$rdmux", i, "", j, "", k, "$a")}, GetSize(port.data)));
-					c->setPort(TW::B, module->addWire(Twine{genid(mem.memid, "$rdmux", i, "", j, "", k, "$b")}, GetSize(port.data)));
+					c->setPort(ID::A, module->addWire(Twine{genid(mem.memid, "$rdmux", i, "", j, "", k, "$a")}, GetSize(port.data)));
+					c->setPort(ID::B, module->addWire(Twine{genid(mem.memid, "$rdmux", i, "", j, "", k, "$b")}, GetSize(port.data)));
 
-					next_rd_signals.push_back(c->getPort(TW::A));
-					next_rd_signals.push_back(c->getPort(TW::B));
+					next_rd_signals.push_back(c->getPort(ID::A));
+					next_rd_signals.push_back(c->getPort(ID::B));
 				}
 
 				next_rd_signals.swap(rd_signals);
@@ -366,29 +367,29 @@ struct MemoryMapWorker
 
 						if (wr_bit != State::S1)
 						{
-							RTLIL::Cell *c = module->addCell(design->twines.add(Twine{genid(mem.memid, "$wren", addr, "", j, "", wr_offset)}), TW($and));
+							RTLIL::Cell *c = module->addCell(design->twines.add(Twine{genid(mem.memid, "$wren", addr, "", j, "", wr_offset)}), ID::$and);
 							c->set_src_attribute(mem_src.empty() ? Twine::Null : design->twines.add(Twine{mem_src}));
 							c->parameters[ID::A_SIGNED] = RTLIL::Const(0);
 							c->parameters[ID::B_SIGNED] = RTLIL::Const(0);
 							c->parameters[ID::A_WIDTH] = RTLIL::Const(1);
 							c->parameters[ID::B_WIDTH] = RTLIL::Const(1);
 							c->parameters[ID::Y_WIDTH] = RTLIL::Const(1);
-							c->setPort(TW::A, w);
-							c->setPort(TW::B, wr_bit);
+							c->setPort(ID::A, w);
+							c->setPort(ID::B, wr_bit);
 
 							w = module->addWire(design->twines.add(Twine{genid(mem.memid, "$wren", addr, "", j, "", wr_offset, "$y")}));
-							c->setPort(TW::Y, RTLIL::SigSpec(w));
+							c->setPort(ID::Y, RTLIL::SigSpec(w));
 						}
 
-						RTLIL::Cell *c = module->addCell(design->twines.add(Twine{genid(mem.memid, "$wrmux", addr, "", j, "", wr_offset)}), TW($mux));
+						RTLIL::Cell *c = module->addCell(design->twines.add(Twine{genid(mem.memid, "$wrmux", addr, "", j, "", wr_offset)}), ID::$mux);
 						c->set_src_attribute(mem_src.empty() ? Twine::Null : design->twines.add(Twine{mem_src}));
 						c->parameters[ID::WIDTH] = wr_width;
-						c->setPort(TW::A, sig.extract(wr_offset, wr_width));
-						c->setPort(TW::B, port.data.extract(wr_offset + sub * mem.width, wr_width));
-						c->setPort(TW::S, RTLIL::SigSpec(w));
+						c->setPort(ID::A, sig.extract(wr_offset, wr_width));
+						c->setPort(ID::B, port.data.extract(wr_offset + sub * mem.width, wr_width));
+						c->setPort(ID::S, RTLIL::SigSpec(w));
 
 						w = module->addWire(design->twines.add(Twine{genid(mem.memid, "$wrmux", addr, "", j, "", wr_offset, "$y")}), wr_width);
-						c->setPort(TW::Y, w);
+						c->setPort(ID::Y, w);
 
 						sig.replace(wr_offset, w);
 						wr_offset += wr_width;
@@ -454,7 +455,7 @@ struct MemoryMapPass : public Pass {
 		bool rom_only = false;
 		bool keepdc = false;
 		bool formal = false;
-		dict<RTLIL::IdString, std::vector<RTLIL::Const>> attributes;
+		dict<std::string, std::vector<RTLIL::Const>> attributes;
 
 		log_header(design, "Executing MEMORY_MAP pass (converting memories to logic and flip-flops).\n");
 

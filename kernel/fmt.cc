@@ -30,8 +30,8 @@ void Fmt::append_literal(const std::string &str) {
 }
 
 void Fmt::parse_rtlil(const RTLIL::Cell *cell) {
-	std::string fmt = cell->getParam(ID(FORMAT)).decode_string();
-	RTLIL::SigSpec args = cell->getPort(TW::ARGS);
+	std::string fmt = cell->getParam(ID::FORMAT).decode_string();
+	RTLIL::SigSpec args = cell->getPort(ID::ARGS);
 	parts.clear();
 
 	FmtPart part;
@@ -259,9 +259,9 @@ void Fmt::emit_rtlil(RTLIL::Cell *cell) const {
 		}
 	}
 
-	cell->setParam(ID(FORMAT), fmt);
-	cell->setParam(ID(ARGS_WIDTH), args.size());
-	cell->setPort(TW::ARGS, args);
+	cell->setParam(ID::FORMAT, fmt);
+	cell->setParam(ID::ARGS_WIDTH, args.size());
+	cell->setPort(ID::ARGS, args);
 }
 
 static size_t compute_required_decimal_places(size_t size, bool signed_)
@@ -350,7 +350,7 @@ void Fmt::apply_verilog_automatic_sizing_and_add(FmtPart &part)
 	}
 }
 
-void Fmt::parse_verilog(const std::vector<VerilogFmtArg> &args, bool sformat_like, int default_base, RTLIL::IdString task_name, RTLIL::IdString module_name)
+void Fmt::parse_verilog(const std::vector<VerilogFmtArg> &args, bool sformat_like, int default_base, const std::string &task_name, const std::string &module_name)
 {
 	parts.clear();
 
@@ -390,10 +390,10 @@ void Fmt::parse_verilog(const std::vector<VerilogFmtArg> &args, bool sformat_lik
 							part.str += '%';
 						} else if (fmt.substr(i, 2) == "%l" || fmt.substr(i, 2) == "%L") {
 							i++;
-							part.str += module_name.str();
+							part.str += module_name;
 						} else if (fmt.substr(i, 2) == "%m" || fmt.substr(i, 2) == "%M") {
 							i++;
-							part.str += module_name.str();
+							part.str += module_name;
 						} else {
 							if (!part.str.empty()) {
 								part.type = FmtPart::LITERAL;

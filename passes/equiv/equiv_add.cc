@@ -85,10 +85,10 @@ struct EquivAddPass : public Pass {
 
 				if (gold_cell->input(port) && gate_cell->input(port))
 				{
-					SigSpec combined_sig = module->addWire(NEW_TWINE, width);
+					SigSpec combined_sig = module->addWire(NEW_ID, width);
 
 					for (int i = 0; i < width; i++) {
-						module->addEquiv(NEW_TWINE, gold_sig[i], gate_sig[i], combined_sig[i]);
+						module->addEquiv(NEW_ID, gold_sig[i], gate_sig[i], combined_sig[i]);
 						gold_sig[i] = gate_sig[i] = combined_sig[i];
 					}
 
@@ -99,12 +99,12 @@ struct EquivAddPass : public Pass {
 
 				if (gold_cell->output(port) && gate_cell->output(port))
 				{
-					SigSpec new_gold_wire = module->addWire(NEW_TWINE, width);
-					SigSpec new_gate_wire = module->addWire(NEW_TWINE, width);
+					SigSpec new_gold_wire = module->addWire(NEW_ID, width);
+					SigSpec new_gate_wire = module->addWire(NEW_ID, width);
 					SigSig gg_conn;
 
 					for (int i = 0; i < width; i++) {
-						module->addEquiv(NEW_TWINE, new_gold_wire[i], new_gold_wire[i], gold_sig[i]);
+						module->addEquiv(NEW_ID, new_gold_wire[i], new_gold_wire[i], gold_sig[i]);
 						gg_conn.first.append(gate_sig[i]);
 						gg_conn.second.append(gold_sig[i]);
 						gold_sig[i] = new_gold_wire[i];
@@ -142,7 +142,7 @@ struct EquivAddPass : public Pass {
 			}
 
 			log_assert(GetSize(gold_signal) == GetSize(gate_signal));
-			SigSpec equiv_signal = module->addWire(NEW_TWINE, GetSize(gold_signal));
+			SigSpec equiv_signal = module->addWire(NEW_ID, GetSize(gold_signal));
 
 			SigMap sigmap(module);
 			sigmap.apply(gold_signal);
@@ -152,7 +152,7 @@ struct EquivAddPass : public Pass {
 			pool<Cell*> added_equiv_cells;
 
 			for (int i = 0; i < GetSize(gold_signal); i++) {
-				Cell *equiv_cell = module->addEquiv(NEW_TWINE, gold_signal[i], gate_signal[i], equiv_signal[i]);
+				Cell *equiv_cell = module->addEquiv(NEW_ID, gold_signal[i], gate_signal[i], equiv_signal[i]);
 				equiv_cell->set_bool_attribute(ID::keep);
 				to_equiv_bits[gold_signal[i]] = equiv_signal[i];
 				to_equiv_bits[gate_signal[i]] = equiv_signal[i];

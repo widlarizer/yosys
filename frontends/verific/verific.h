@@ -48,10 +48,10 @@ struct VerificClocking {
 
 	VerificClocking() { }
 	VerificClocking(VerificImporter *importer, Verific::Net *net, bool sva_at_only = false);
-	RTLIL::Cell *addDff(IdString name, SigSpec sig_d, SigSpec sig_q, Const init_value = Const());
-	RTLIL::Cell *addAdff(IdString name, RTLIL::SigSpec sig_arst, SigSpec sig_d, SigSpec sig_q, Const arst_value);
-	RTLIL::Cell *addDffsr(IdString name, RTLIL::SigSpec sig_set, RTLIL::SigSpec sig_clr, SigSpec sig_d, SigSpec sig_q);
-	RTLIL::Cell *addAldff(IdString name, RTLIL::SigSpec sig_aload, RTLIL::SigSpec sig_adata, SigSpec sig_d, SigSpec sig_q);
+	RTLIL::Cell *addDff(TwineRef name, SigSpec sig_d, SigSpec sig_q, Const init_value = Const());
+	RTLIL::Cell *addAdff(TwineRef name, RTLIL::SigSpec sig_arst, SigSpec sig_d, SigSpec sig_q, Const arst_value);
+	RTLIL::Cell *addDffsr(TwineRef name, RTLIL::SigSpec sig_set, RTLIL::SigSpec sig_clr, SigSpec sig_d, SigSpec sig_q);
+	RTLIL::Cell *addAldff(TwineRef name, RTLIL::SigSpec sig_aload, RTLIL::SigSpec sig_adata, SigSpec sig_d, SigSpec sig_q);
 
 	bool property_matches_sequence(const VerificClocking &seq) const {
 		if (clock_net != seq.clock_net)
@@ -85,8 +85,8 @@ public:
 
 	RTLIL::SigBit net_map_at(Verific::Net *net);
 
-	RTLIL::IdString new_verific_id(Verific::DesignObj *obj);
-	void import_attributes(dict<RTLIL::IdString, RTLIL::Const> &attributes, Verific::DesignObj *obj, Verific::Netlist  *nl = nullptr, int wire_width_hint = -1);
+	TwineRef new_verific_id(Verific::DesignObj *obj);
+	void import_attributes(dict<TwineRef, RTLIL::Const> &attributes, Verific::DesignObj *obj, Verific::Netlist  *nl = nullptr, int wire_width_hint = -1);
 
 	RTLIL::SigBit netToSigBit(Verific::Net *net);
 	RTLIL::SigSpec operatorInput(Verific::Instance *inst);
@@ -96,8 +96,8 @@ public:
 	RTLIL::SigSpec operatorInportCase(Verific::Instance *inst, const char *portname);
 	RTLIL::SigSpec operatorOutput(Verific::Instance *inst, const pool<Verific::Net*> *any_all_nets = nullptr);
 
-	bool import_netlist_instance_gates(Verific::Instance *inst, RTLIL::IdString inst_name);
-	bool import_netlist_instance_cells(Verific::Instance *inst, RTLIL::IdString inst_name);
+	bool import_netlist_instance_gates(Verific::Instance *inst, TwineRef inst_name);
+	bool import_netlist_instance_cells(Verific::Instance *inst, TwineRef inst_name);
 
 	void merge_past_ffs_clock(pool<RTLIL::Cell*> &candidates, SigBit clock, bool clock_pol);
 	void merge_past_ffs(pool<RTLIL::Cell*> &candidates);

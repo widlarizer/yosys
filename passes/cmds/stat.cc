@@ -60,19 +60,19 @@ struct statdata_t {
 	double local_sequential_area = 0;
 	double submodule_area = 0;
 	int num_submodules = 0;
-	std::map<IdString, unsigned int, RTLIL::sort_by_id_str> num_submodules_by_type;
-	std::map<IdString, double, RTLIL::sort_by_id_str> submodules_area_by_type;
+	std::map<std::string, unsigned int> num_submodules_by_type;
+	std::map<std::string, double> submodules_area_by_type;
 
-	std::map<IdString, unsigned int, RTLIL::sort_by_id_str> local_num_cells_by_type;
-	std::map<IdString, double, RTLIL::sort_by_id_str> local_area_cells_by_type;
-	std::map<IdString, double, RTLIL::sort_by_id_str> local_seq_area_cells_by_type;
+	std::map<std::string, unsigned int> local_num_cells_by_type;
+	std::map<std::string, double> local_area_cells_by_type;
+	std::map<std::string, double> local_seq_area_cells_by_type;
 	string tech;
 
 	std::map<TwineRef, unsigned int> num_cells_by_type_raw;
-	std::map<IdString, unsigned int, RTLIL::sort_by_id_str> num_cells_by_type;
-	std::map<IdString, double, RTLIL::sort_by_id_str> area_cells_by_type;
-	std::map<IdString, double, RTLIL::sort_by_id_str> seq_area_cells_by_type;
-	std::set<IdString> unknown_cell_area;
+	std::map<std::string, unsigned int> num_cells_by_type;
+	std::map<std::string, double> area_cells_by_type;
+	std::map<std::string, double> seq_area_cells_by_type;
+	std::set<std::string> unknown_cell_area;
 
 	statdata_t operator+(const statdata_t &other) const
 	{
@@ -153,7 +153,7 @@ struct statdata_t {
 		}
 	}
 
-	statdata_t(RTLIL::Design *design, const RTLIL::Module *mod, bool width_mode, dict<IdString, cell_area_t> &cell_area, string techname)
+	statdata_t(RTLIL::Design *design, const RTLIL::Module *mod, bool width_mode, dict<std::string, cell_area_t> &cell_area, string techname)
 	{
 		tech = techname;
 
@@ -173,7 +173,7 @@ struct statdata_t {
 				local_num_port_bits += wire->width;
 			}
 
-			if (wire->name.isPublic()) {
+			if (wire->name.is_public()) {
 				num_pub_wires++;
 				local_num_pub_wires++;
 				num_pub_wire_bits += wire->width;
@@ -195,42 +195,42 @@ struct statdata_t {
 			local_num_memory_bits += it.second->width * it.second->size;
 		}
 		for (auto cell : mod->selected_cells()) {
-			IdString cell_type = cell->type;
+			std::string cell_type = cell->type;
 			if (width_mode) {
-				if (cell_type.in(TW($not), TW($pos), TW($neg), TW($logic_not), TW($logic_and), TW($logic_or), TW($reduce_and),
-						 TW($reduce_or), TW($reduce_xor), TW($reduce_xnor), TW($reduce_bool), TW($lut), TW($and), TW($or),
-						 TW($xor), TW($xnor), TW($shl), TW($shr), TW($sshl), TW($sshr), TW($shift), TW($shiftx), TW($lt),
-						 TW($le), TW($eq), TW($ne), TW($eqx), TW($nex), TW($ge), TW($gt), TW($add), TW($sub), TW($mul),
-						 TW($div), TW($mod), TW($divfloor), TW($modfloor), TW($pow), TW($alu))) {
-					int width_a = cell->hasPort(TW::A) ? GetSize(cell->getPort(TW::A)) : 0;
-					int width_b = cell->hasPort(TW::B) ? GetSize(cell->getPort(TW::B)) : 0;
-					int width_y = cell->hasPort(TW::Y) ? GetSize(cell->getPort(TW::Y)) : 0;
+				if (cell->type.in(ID::$not, ID::$pos, ID::$neg, ID::$logic_not, ID::$logic_and, ID::$logic_or, ID::$reduce_and,
+						 ID::$reduce_or, ID::$reduce_xor, ID::$reduce_xnor, ID::$reduce_bool, ID::$lut, ID::$and, ID::$or,
+						 ID::$xor, ID::$xnor, ID::$shl, ID::$shr, ID::$sshl, ID::$sshr, ID::$shift, ID::$shiftx, ID::$lt,
+						 ID::$le, ID::$eq, ID::$ne, ID::$eqx, ID::$nex, ID::$ge, ID::$gt, ID::$add, ID::$sub, ID::$mul,
+						 ID::$div, ID::$mod, ID::$divfloor, ID::$modfloor, ID::$pow, ID::$alu)) {
+					int width_a = cell->hasPort(ID::A) ? GetSize(cell->getPort(ID::A)) : 0;
+					int width_b = cell->hasPort(ID::B) ? GetSize(cell->getPort(ID::B)) : 0;
+					int width_y = cell->hasPort(ID::Y) ? GetSize(cell->getPort(ID::Y)) : 0;
 					cell_type = stringf("%s_%d", cell_type, max<int>({width_a, width_b, width_y}));
-				} else if (cell_type.in(TW($mux)))
-					cell_type = stringf("%s_%d", cell_type, GetSize(cell->getPort(TW::Y)));
-				else if (cell_type.in(TW($bmux), TW($pmux)))
+				} else if (cell->type.in(ID::$mux))
+					cell_type = stringf("%s_%d", cell_type, GetSize(cell->getPort(ID::Y)));
+				else if (cell->type.in(ID::$bmux, ID::$pmux))
 					cell_type =
-					  stringf("%s_%d_%d", cell_type, GetSize(cell->getPort(TW::Y)), GetSize(cell->getPort(TW::S)));
-				else if (cell_type == TW($demux))
+					  stringf("%s_%d_%d", cell_type, GetSize(cell->getPort(ID::Y)), GetSize(cell->getPort(ID::S)));
+				else if (cell->type == ID::$demux)
 					cell_type =
-					  stringf("%s_%d_%d", cell_type, GetSize(cell->getPort(TW::A)), GetSize(cell->getPort(TW::S)));
-				else if (cell_type.in(TW($sr), TW($ff), TW($dff), TW($dffe), TW($dffsr), TW($dffsre), TW($adff), TW($adffe),
-						      TW($sdff), TW($sdffe), TW($sdffce), TW($aldff), TW($aldffe), TW($dlatch), TW($adlatch),
-						      TW($dlatchsr)))
-					cell_type = stringf("%s_%d", cell_type, GetSize(cell->getPort(TW::Q)));
+					  stringf("%s_%d_%d", cell_type, GetSize(cell->getPort(ID::A)), GetSize(cell->getPort(ID::S)));
+				else if (cell->type.in(ID::$sr, ID::$ff, ID::$dff, ID::$dffe, ID::$dffsr, ID::$dffsre, ID::$adff, ID::$adffe,
+						      ID::$sdff, ID::$sdffe, ID::$sdffce, ID::$aldff, ID::$aldffe, ID::$dlatch, ID::$adlatch,
+						      ID::$dlatchsr))
+					cell_type = stringf("%s_%d", cell_type, GetSize(cell->getPort(ID::Q)));
 			}
 
 			if (!cell_area.empty()) {
 				// check if cell_area provides a area calculator
-				if (cell_area.count(cell->type)) {
-					cell_area_t cell_data = cell_area.at(cell->type);
+				if (cell_area.count(std::string(cell->type))) {
+					cell_area_t cell_data = cell_area.at(std::string(cell->type));
 					if (cell_data.single_parameter_area.size() > 0) {
 						// assume that we just take the max of the A,B,Y ports
 
-						int width_a = cell->hasPort(TW::A) ? GetSize(cell->getPort(TW::A)) : 0;
-						int width_b = cell->hasPort(TW::B) ? GetSize(cell->getPort(TW::B)) : 0;
-						int width_y = cell->hasPort(TW::Y) ? GetSize(cell->getPort(TW::Y)) : 0;
-						int width_q = cell->hasPort(TW::Q) ? GetSize(cell->getPort(TW::Q)) : 0;
+						int width_a = cell->hasPort(ID::A) ? GetSize(cell->getPort(ID::A)) : 0;
+						int width_b = cell->hasPort(ID::B) ? GetSize(cell->getPort(ID::B)) : 0;
+						int width_y = cell->hasPort(ID::Y) ? GetSize(cell->getPort(ID::Y)) : 0;
+						int width_q = cell->hasPort(ID::Q) ? GetSize(cell->getPort(ID::Q)) : 0;
 						int max_width = max<int>({width_a, width_b, width_y, width_q});
 						if (!cell_area.count(cell_type)) {
 							cell_area[cell_type] = cell_data;
@@ -251,15 +251,15 @@ struct statdata_t {
 						for (auto &it : cell_data.parameter_names) {
 							TwineRef port_name;
 							if (it == "A") {
-								port_name = TW::A;
+								port_name = ID::A;
 							} else if (it == "B") {
-								port_name = TW::B;
+								port_name = ID::B;
 							} else if (it == "Y") {
-								port_name = TW::Y;
+								port_name = ID::Y;
 							} else if (it == "Q") {
-								port_name = TW::Q;
+								port_name = ID::Q;
 							} else if (it == "S") {
-								port_name = TW::S;
+								port_name = ID::S;
 							} else {
 								port_name = design->twines.add(std::string{it});
 							}
@@ -355,12 +355,12 @@ struct statdata_t {
 
 	unsigned int estimate_xilinx_lc()
 	{
-		unsigned int lut6_cnt = num_cells_by_type[ID::LUT6];
-		unsigned int lut5_cnt = num_cells_by_type[ID::LUT5];
-		unsigned int lut4_cnt = num_cells_by_type[ID::LUT4];
-		unsigned int lut3_cnt = num_cells_by_type[ID::LUT3];
-		unsigned int lut2_cnt = num_cells_by_type[ID::LUT2];
-		unsigned int lut1_cnt = num_cells_by_type[ID::LUT1];
+		unsigned int lut6_cnt = num_cells_by_type[ID::str(ID::LUT6)];
+		unsigned int lut5_cnt = num_cells_by_type[ID::str(ID::LUT5)];
+		unsigned int lut4_cnt = num_cells_by_type[ID::str(ID::LUT4)];
+		unsigned int lut3_cnt = num_cells_by_type[ID::str(ID::LUT3)];
+		unsigned int lut2_cnt = num_cells_by_type[ID::str(ID::LUT2)];
+		unsigned int lut1_cnt = num_cells_by_type[ID::str(ID::LUT1)];
 		unsigned int lc_cnt = 0;
 
 		lc_cnt += lut6_cnt;
@@ -738,32 +738,33 @@ struct statdata_t {
 	}
 };
 
-statdata_t hierarchy_worker(const TwinePool& twines, std::map<IdString, statdata_t> &mod_stat, IdString mod, int level, bool quiet = false, bool has_area = true,
+statdata_t hierarchy_worker(const TwinePool& twines, std::map<TwineRef, statdata_t> &mod_stat, TwineRef mod, int level, bool quiet = false, bool has_area = true,
 			    bool hierarchy_mode = true)
 {
 	statdata_t mod_data = mod_stat.at(mod);
 
 	for (auto &it : mod_data.num_submodules_by_type) {
-		if (mod_stat.count(it.first) > 0) {
+		TwineRef sub = twines.find(it.first);
+		if (sub != Twine::Null && mod_stat.count(sub) > 0) {
 			if (!quiet)
-				mod_data.print_log_line(RTLIL::unescape_id(it.first), mod_stat.at(it.first).local_num_cells,
-							mod_stat.at(it.first).local_area, mod_stat.at(it.first).num_cells, mod_stat.at(it.first).area,
+				mod_data.print_log_line(RTLIL::unescape_id(it.first), mod_stat.at(sub).local_num_cells,
+							mod_stat.at(sub).local_area, mod_stat.at(sub).num_cells, mod_stat.at(sub).area,
 							level, has_area, hierarchy_mode);
-			hierarchy_worker(twines, mod_stat, it.first, level + 1, quiet, has_area, hierarchy_mode) * it.second;
+			hierarchy_worker(twines, mod_stat, sub, level + 1, quiet, has_area, hierarchy_mode) * it.second;
 		}
 	}
 
 	return mod_data;
 }
 
-statdata_t hierarchy_builder(RTLIL::Design *design, const RTLIL::Module *top_mod, std::map<IdString, statdata_t> &mod_stat,
-			     bool width_mode, dict<IdString, cell_area_t> &cell_area, string techname)
+statdata_t hierarchy_builder(RTLIL::Design *design, const RTLIL::Module *top_mod, std::map<TwineRef, statdata_t> &mod_stat,
+			     bool width_mode, dict<std::string, cell_area_t> &cell_area, string techname)
 {
 	if (top_mod == nullptr)
 		top_mod = design->top_module();
 	statdata_t mod_data(design, top_mod, width_mode, cell_area, techname);
 	for (auto cell : top_mod->selected_cells()) {
-		if (cell_area.count(cell->type) == 0) {
+		if (cell_area.count(std::string(cell->type)) == 0) {
 			if (design->has(cell->type_impl)) {
 				if (!(design->module(cell->type_impl)->attributes.count(ID::blackbox))) {
 					// deal with modules
@@ -809,7 +810,7 @@ statdata_t hierarchy_builder(RTLIL::Design *design, const RTLIL::Module *top_mod
 	return mod_data;
 }
 
-void read_liberty_cellarea(dict<IdString, cell_area_t> &cell_area, string liberty_file)
+void read_liberty_cellarea(dict<std::string, cell_area_t> &cell_area, string liberty_file)
 {
 	std::istream *f = uncompressed(liberty_file.c_str());
 	yosys_input_files.insert(liberty_file);
@@ -886,9 +887,7 @@ void read_liberty_cellarea(dict<IdString, cell_area_t> &cell_area, string libert
 
 		if (ar != nullptr && !ar->value.empty()) {
 			string prefix = cell->args[0].substr(0, 1) == "$" ? "" : "\\";
-			// TwineRef t = twines.add(std::string{prefix + cell->args[0]});
-			IdString t = prefix + cell->args[0];
-			cell_area[t] = {atof(ar->value.c_str()), is_flip_flop, single_parameter_area, double_parameter_area,
+			cell_area[prefix + cell->args[0]] = {atof(ar->value.c_str()), is_flip_flop, single_parameter_area, double_parameter_area,
 							     port_names};
 		}
 	}
@@ -941,8 +940,8 @@ struct StatPass : public Pass {
 	{
 		bool width_mode = false, json_mode = false, hierarchy_mode = false;
 		RTLIL::Module *top_mod = nullptr;
-		std::map<IdString, statdata_t> mod_stat;
-		dict<IdString, cell_area_t> cell_area;
+		std::map<TwineRef, statdata_t> mod_stat;
+		dict<std::string, cell_area_t> cell_area;
 		string techname;
 
 		size_t argidx;

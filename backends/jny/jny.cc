@@ -264,7 +264,7 @@ struct JnyWriter
         if (_include_attributes) {
             f << ",\n" << _indent << "  \"attributes\": {\n";
 
-            write_prams(mod->attributes, indent_level + 2);
+            write_prams(mod->design, mod->attributes, indent_level + 2);
 
             f << "\n";
             f << _indent << "  }";
@@ -344,7 +344,7 @@ struct JnyWriter
         }
     }
 
-    void write_prams(dict<RTLIL::IdString, RTLIL::Const>& params, uint16_t indent_level = 0) {
+    void write_prams(Design *design, dict<TwineRef, RTLIL::Const>& params, uint16_t indent_level = 0) {
         const auto _indent = gen_indent(indent_level);
 
         bool first_param{true};
@@ -353,10 +353,10 @@ struct JnyWriter
                 f << stringf(",\n");
             const auto param_val = param.second;
             if (!param_val.empty()) {
-                f << stringf("  %s\"%s\": ", _indent, escape_string(RTLIL::unescape_id(param.first)));
+                f << stringf("  %s\"%s\": ", _indent, escape_string(design->twines.unescaped_str(param.first)));
                 write_param_val(param_val);
             } else {
-                f << stringf("  %s\"%s\": true", _indent, escape_string(RTLIL::unescape_id(param.first)));
+                f << stringf("  %s\"%s\": true", _indent, escape_string(design->twines.unescaped_str(param.first)));
             }
 
             first_param = false;
@@ -390,7 +390,7 @@ struct JnyWriter
         if (_include_attributes) {
             f << ",\n" << _indent << "    \"attributes\": {\n";
 
-            write_prams(cell->attributes, indent_level + 2);
+            write_prams(cell->module->design, cell->attributes, indent_level + 2);
 
             f << "\n";
             f << _indent << "    }";
@@ -399,7 +399,7 @@ struct JnyWriter
         if (_include_properties) {
             f << ",\n" << _indent << "    \"parameters\": {\n";
 
-            write_prams(cell->parameters, indent_level + 2);
+            write_prams(cell->module->design, cell->parameters, indent_level + 2);
 
             f << "\n";
             f << _indent << "    }";

@@ -27,7 +27,7 @@ PRIVATE_NAMESPACE_BEGIN
 struct EquivMakeWorker
 {
 	Module *gold_mod, *gate_mod, *equiv_mod;
-	pool<IdString> wire_names, cell_names;
+	pool<TwineRef> wire_names, cell_names;
 	CellTypes ct;
 
 	bool inames;
@@ -35,8 +35,8 @@ struct EquivMakeWorker
 	vector<string> encfiles;
 	bool make_assert;
 
-	pool<IdString> blacklist_names;
-	dict<IdString, dict<Const, Const>> encdata;
+	pool<TwineRef> blacklist_names;
+	dict<TwineRef, dict<Const, Const>> encdata;
 
 	pool<SigBit> undriven_bits;
 	SigMap assign_map;
@@ -55,7 +55,7 @@ struct EquivMakeWorker
 					token = next_token(line);
 					if (token.empty())
 						break;
-					blacklist_names.insert(RTLIL::escape_id(token));
+					blacklist_names.insert(gold_mod->design->twines.add(RTLIL::escape_id(token)));
 				}
 			}
 		}
@@ -78,11 +78,11 @@ struct EquivMakeWorker
 					continue;
 
 				if (token == ".fsm") {
-					IdString modname = RTLIL::escape_id(next_token(line));
+					TwineRef modname = gold_mod->design->twines.add(RTLIL::escape_id(next_token(line)));
 					(void)modname;
-					IdString signame = RTLIL::escape_id(next_token(line));
+					TwineRef signame = gold_mod->design->twines.add(RTLIL::escape_id(next_token(line)));
 					if (encdata.count(signame))
-						log_cmd_error("Re-definition of signal '%s' in encfile '%s'!\n", signame, fn);
+						log_cmd_error("Re-definition of signal '%s' in encfile '%s'!\n", log_id(gold_mod->design, signame), fn);
 					encdata[signame] = dict<Const, Const>();
 					ed = &encdata[signame];
 					continue;
@@ -106,30 +106,30 @@ struct EquivMakeWorker
 		Module *gate_clone = gate_mod->clone();
 
 		for (auto it : gold_clone->wires().to_vector()) {
-			if ((it->name.isPublic() || inames) && blacklist_names.count(it->name) == 0)
+			if ((it->name.is_public() || inames) && blacklist_names.count(it->name) == 0)
 				wire_names.insert(it->name);
 			gold_clone->rename(it, gold_clone->design->twines.add(std::string{it->name.str() + "_gold"}));
 		}
 
 		for (auto it : gold_clone->cells().to_vector()) {
-			if ((it->name.isPublic() || inames) && blacklist_names.count(it->name) == 0)
+			if ((it->name.is_public() || inames) && blacklist_names.count(it->name) == 0)
 				cell_names.insert(it->name);
 			gold_clone->rename(it, gold_clone->design->twines.add(std::string{it->name.str() + "_gold"}));
-			if (it->type.in(TW($input_port), TW($output_port), TW($public)))
+			if (it->type.in(ID::$input_port, ID::$output_port, ID::$public))
 				gold_clone->remove(it);
 		}
 
 		for (auto it : gate_clone->wires().to_vector()) {
-			if ((it->name.isPublic() || inames) && blacklist_names.count(it->name) == 0)
+			if ((it->name.is_public() || inames) && blacklist_names.count(it->name) == 0)
 				wire_names.insert(it->name);
 			gate_clone->rename(it, gate_clone->design->twines.add(std::string{it->name.str() + "_gate"}));
 		}
 
 		for (auto it : gate_clone->cells().to_vector()) {
-			if ((it->name.isPublic() || inames) && blacklist_names.count(it->name) == 0)
+			if ((it->name.is_public() || inames) && blacklist_names.count(it->name) == 0)
 				cell_names.insert(it->name);
 			gate_clone->rename(it, gate_clone->design->twines.add(std::string{it->name.str() + "_gate"}));
-			if (it->type.in(TW($input_port), TW($output_port), TW($public)))
+			if (it->type.in(ID::$input_port, ID::$output_port, ID::$public))
 				gate_clone->remove(it);
 		}
 
@@ -141,8 +141,8 @@ struct EquivMakeWorker
 
 	void add_eq_assertion(const SigSpec &gold_sig, const SigSpec &gate_sig)
 	{
-		auto eq_wire = equiv_mod->Eqx(NEW_TWINE, gold_sig, gate_sig);
-		equiv_mod->addAssert(NEW_TWINE_SUFFIX("assert"), eq_wire, State::S1);
+		auto eq_wire = equiv_mod->Eqx(NEW_ID, gold_sig, gate_sig);
+		equiv_mod->addAssert(NEW_ID_SUFFIX("assert"), eq_wire, State::S1);
 	}
 
 	void find_same_wires()
@@ -157,8 +157,8 @@ struct EquivMakeWorker
 		TwineSearch search(&equiv_mod->design->twines);
 		for (auto id : wire_names)
 		{
-			TwineRef gold_id = search.find(id.str() + "_gold");
-			TwineRef gate_id = search.find(id.str() + "_gate");
+			TwineRef gold_id = search.find(equiv_mod->design->twines.str(id) + "_gold");
+			TwineRef gate_id = search.find(equiv_mod->design->twines.str(id) + "_gate");
 
 			Wire *gold_wire = equiv_mod->wire(gold_id);
 			Wire *gate_wire = equiv_mod->wire(gate_id);
@@ -167,8 +167,8 @@ struct EquivMakeWorker
 			{
 				log("Creating encoder/decoder for signal %s.\n", log_id(id));
 
-				Wire *dec_wire = equiv_mod->addWire(Twine{id.str() + "_decoded"}, gold_wire->width);
-				Wire *enc_wire = equiv_mod->addWire(Twine{id.str() + "_encoded"}, gate_wire->width);
+				Wire *dec_wire = equiv_mod->addWire(Twine{equiv_mod->design->twines.str(id) + "_decoded"}, gold_wire->width);
+				Wire *enc_wire = equiv_mod->addWire(Twine{equiv_mod->design->twines.str(id) + "_encoded"}, gate_wire->width);
 
 				SigSpec dec_a, dec_b, dec_s;
 				SigSpec enc_a, enc_b, enc_s;
@@ -211,11 +211,11 @@ struct EquivMakeWorker
 					for (auto &bit : enc_result)
 						if (bit != State::S1) bit = State::S0;
 
-					SigSpec dec_eq = equiv_mod->addWire(NEW_TWINE);
-					SigSpec enc_eq = equiv_mod->addWire(NEW_TWINE);
+					SigSpec dec_eq = equiv_mod->addWire(NEW_ID);
+					SigSpec enc_eq = equiv_mod->addWire(NEW_ID);
 
-					equiv_mod->addEq(NEW_TWINE, reduced_dec_sig, reduced_dec_pat, dec_eq);
-					cells_list.push_back(equiv_mod->addEq(NEW_TWINE, reduced_enc_sig, reduced_enc_pat, enc_eq));
+					equiv_mod->addEq(NEW_ID, reduced_dec_sig, reduced_dec_pat, dec_eq);
+					cells_list.push_back(equiv_mod->addEq(NEW_ID, reduced_enc_sig, reduced_enc_pat, enc_eq));
 
 					dec_s.append(dec_eq);
 					enc_s.append(enc_eq);
@@ -223,8 +223,8 @@ struct EquivMakeWorker
 					enc_b.append(enc_result);
 				}
 
-				equiv_mod->addPmux(NEW_TWINE, dec_a, dec_b, dec_s, dec_wire);
-				equiv_mod->addPmux(NEW_TWINE, enc_a, enc_b, enc_s, enc_wire);
+				equiv_mod->addPmux(NEW_ID, dec_a, dec_b, dec_s, dec_wire);
+				equiv_mod->addPmux(NEW_ID, enc_a, enc_b, enc_s, enc_wire);
 
 				rd_signal_map.add(assign_map(gate_wire), enc_wire);
 				gate_wire = dec_wire;
@@ -249,7 +249,7 @@ struct EquivMakeWorker
 				gold_wire->port_output = false;
 				gate_wire->port_output = false;
 
-				Wire *wire = equiv_mod->addWire(Twine{id.str()}, gold_wire->width);
+				Wire *wire = equiv_mod->addWire(id, gold_wire->width);
 				wire->port_output = true;
 
 				if (make_assert)
@@ -260,7 +260,7 @@ struct EquivMakeWorker
 				else
 				{
 					for (int i = 0; i < wire->width; i++)
-						equiv_mod->addEquiv(NEW_TWINE, SigSpec(gold_wire, i), SigSpec(gate_wire, i), SigSpec(wire, i));
+						equiv_mod->addEquiv(NEW_ID, SigSpec(gold_wire, i), SigSpec(gate_wire, i), SigSpec(wire, i));
 				}
 
 				rd_signal_map.add(assign_map(gold_wire), wire);
@@ -269,7 +269,7 @@ struct EquivMakeWorker
 			else
 			if (gold_wire->port_input || gate_wire->port_input)
 			{
-				Wire *wire = equiv_mod->addWire(Twine{id.str()}, gold_wire->width);
+				Wire *wire = equiv_mod->addWire(id, gold_wire->width);
 				wire->port_input = true;
 				gold_wire->port_input = false;
 				gate_wire->port_input = false;
@@ -285,7 +285,7 @@ struct EquivMakeWorker
 					add_eq_assertion(gold_wire, gate_wire);
 
 				else {
-					Wire *wire = equiv_mod->addWire(Twine{id.str()}, gold_wire->width);
+					Wire *wire = equiv_mod->addWire(id, gold_wire->width);
 					SigSpec rdmap_gold, rdmap_gate, rdmap_equiv;
 
 					for (int i = 0; i < wire->width; i++) {
@@ -297,7 +297,7 @@ struct EquivMakeWorker
 							log("  Skipping signal bit %s [%d]: undriven on gate side.\n", gate_wire, i);
 							continue;
 						}
-						equiv_mod->addEquiv(NEW_TWINE, SigSpec(gold_wire, i), SigSpec(gate_wire, i), SigSpec(wire, i));
+						equiv_mod->addEquiv(NEW_ID, SigSpec(gold_wire, i), SigSpec(gate_wire, i), SigSpec(wire, i));
 						rdmap_gold.append(SigBit(gold_wire, i));
 						rdmap_gate.append(SigBit(gate_wire, i));
 						rdmap_equiv.append(SigBit(wire, i));
@@ -335,8 +335,8 @@ struct EquivMakeWorker
 		TwineSearch search(&equiv_mod->design->twines);
 		for (auto id : cell_names)
 		{
-			TwineRef gold_id = search.find(id.str() + "_gold");
-			TwineRef gate_id = search.find(id.str() + "_gate");
+			TwineRef gold_id = search.find(equiv_mod->design->twines.str(id) + "_gold");
+			TwineRef gate_id = search.find(equiv_mod->design->twines.str(id) + "_gate");
 
 			Cell *gold_cell = equiv_mod->cell(gold_id);
 			Cell *gate_cell = equiv_mod->cell(gate_id);
@@ -372,8 +372,8 @@ struct EquivMakeWorker
 				{
 					for (int i = 0; i < GetSize(gold_sig); i++)
 						if (gold_sig[i] != gate_sig[i]) {
-							Wire *w = equiv_mod->addWire(NEW_TWINE);
-							equiv_mod->addEquiv(NEW_TWINE, gold_sig[i], gate_sig[i], w);
+							Wire *w = equiv_mod->addWire(NEW_ID);
+							equiv_mod->addEquiv(NEW_ID, gold_sig[i], gate_sig[i], w);
 							gold_sig[i] = w;
 						}
 				}
@@ -382,7 +382,7 @@ struct EquivMakeWorker
 			}
 
 			equiv_mod->remove(gate_cell);
-			equiv_mod->rename(gold_cell, search.find(id.str()));
+			equiv_mod->rename(gold_cell, id);
 		}
 	}
 

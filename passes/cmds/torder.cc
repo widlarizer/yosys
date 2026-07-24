@@ -52,15 +52,15 @@ struct TorderPass : public Pass {
 	void execute(std::vector<std::string> args, RTLIL::Design *design) override
 	{
 		bool noautostop = false;
-		dict<IdString, pool<IdString>> stop_db;
+		dict<TwineRef, pool<TwineRef>> stop_db;
 
 		log_header(design, "Executing TORDER pass (print cells in topological order).\n");
 
 		size_t argidx;
 		for (argidx = 1; argidx < args.size(); argidx++) {
 			if (args[argidx] == "-stop" && argidx+2 < args.size()) {
-				IdString cell_type = RTLIL::escape_id(args[++argidx]);
-				IdString cell_port = RTLIL::escape_id(args[++argidx]);
+				TwineRef cell_type = design->twines.add(RTLIL::escape_id(args[++argidx]));
+				TwineRef cell_port = design->twines.add(RTLIL::escape_id(args[++argidx]));
 				stop_db[cell_type].insert(cell_port);
 				continue;
 			}
@@ -77,19 +77,19 @@ struct TorderPass : public Pass {
 			log("module %s\n", module);
 
 			SigMap sigmap(module);
-			dict<SigBit, pool<IdString>> bit_drivers, bit_users;
-			TopoSort<IdString, RTLIL::sort_by_id_str> toposort;
+			dict<SigBit, pool<TwineRef>> bit_drivers, bit_users;
+			TopoSort<TwineRef> toposort;
 
 			for (auto cell : module->selected_cells())
 			for (auto conn : cell->connections())
 			{
-				if (stop_db.count(RTLIL::IdString(cell->type)) && stop_db.at(RTLIL::IdString(cell->type)).count(RTLIL::IdString(design->twines.str(conn.first))))
+				if (stop_db.count(TwineRef(cell->type)) && stop_db.at(TwineRef(cell->type)).count(conn.first))
 					continue;
 
 				if (!noautostop && yosys_celltypes.cell_known(cell->type.ref())) {
 					if (conn.first.in(ID::Q, ID::CTRL_OUT, ID::RD_DATA))
 						continue;
-					if (cell->type.in(TW($memrd), TW($memrd_v2)) && conn.first == ID::DATA)
+					if (cell->type.in(ID::$memrd, ID::$memrd_v2) && conn.first == ID::DATA)
 						continue;
 				}
 
@@ -116,12 +116,12 @@ struct TorderPass : public Pass {
 			for (auto &it : toposort.loops) {
 				log("  loop");
 				for (auto cell : it)
-					log(" %s", cell);
+					log(" %s", log_id(module, cell));
 				log("\n");
 			}
 
 			for (auto cell : toposort.sorted)
-					log("  cell %s\n", cell);
+					log("  cell %s\n", log_id(module, cell));
 		}
 	}
 } TorderPass;

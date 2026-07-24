@@ -109,7 +109,7 @@ bool compare_signals(const RTLIL::SigBit &s1, const RTLIL::SigBit &s2, const Sha
 	if ((w1->port_input && w1->port_output) != (w2->port_input && w2->port_output))
 		return !(w2->port_input && w2->port_output);
 
-	if (w1->name.isPublic() && w2->name.isPublic()) {
+	if (w1->name.is_public() && w2->name.is_public()) {
 		ShardedSigPool::AccumulatedValue s1_val = {s1, s1.hash_top().yield()};
 		ShardedSigPool::AccumulatedValue s2_val = {s2, s2.hash_top().yield()};
 		bool regs1 = regs.find(s1_val) != nullptr;
@@ -132,8 +132,8 @@ bool compare_signals(const RTLIL::SigBit &s1, const RTLIL::SigBit &s2, const Sha
 	if (w1->port_output != w2->port_output)
 		return w2->port_output;
 
-	if (w1->name.isPublic() != w2->name.isPublic())
-		return w2->name.isPublic();
+	if (w1->name.is_public() != w2->name.is_public())
+		return w2->name.is_public();
 
 	int attrs1 = count_nontrivial_wire_attrs(w1);
 	int attrs2 = count_nontrivial_wire_attrs(w2);
@@ -245,7 +245,7 @@ struct SigConnKinds {
 						// see commit message e36c71b5
 						bool clk2fflogic = cell->get_bool_attribute(ID::clk2fflogic);
 						for (auto &[port, sig] : cell->connections())
-							if (clk2fflogic ? port == TW::D : clean_ctx.ct_all.cell_output(cell->type_impl, port))
+							if (clk2fflogic ? port == ID::D : clean_ctx.ct_all.cell_output(cell->type_impl, port))
 								add_spec(raw_register_builder, ctx, sig);
 					}
 					for (auto &[_, sig] : cell->connections())

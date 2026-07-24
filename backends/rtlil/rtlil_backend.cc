@@ -32,54 +32,23 @@ USING_YOSYS_NAMESPACE
 using namespace RTLIL_BACKEND;
 YOSYS_NAMESPACE_BEGIN
 
-void RTLIL_BACKEND::dump_attributes(std::ostream &f, std::string indent, const RTLIL::AttrObject *obj, const RTLIL::Design *design, DumpMode mode)
+static std::string twine_handle(TwineRef ref)
 {
-	if (design && design->obj_src_id(obj) != Twine::Null) {
-		TwineRef id = design->obj_src_id(obj);
-		f << stringf("%s" "attribute \\src ", indent);
-		if (mode == DumpMode::Readable) {
-			dump_const(f, RTLIL::Const(design->twines.str(id)));
-		} else {
-			dump_const(f, RTLIL::Const(stringf("@%zu", id)));
-			if (mode == DumpMode::Replayable)
-				f << stringf("  # %s", design->twines.str(id).c_str());
-		}
-		f << stringf("\n");
-	}
-	for (const auto& [name, value] : reversed(obj->attributes)) {
-		f << stringf("%s" "attribute %s ", indent, name);
-		dump_const(f, value);
-		f << stringf("\n");
-	}
+	return stringf("%s@%zu", twine_is_public(ref) ? "$pub" : "$priv", (size_t)twine_untag(ref));
 }
 
-void RTLIL_BACKEND::dump_twines(std::ostream &f, const RTLIL::Design *design)
+static std::string twine_ref(const RTLIL::Design *design, TwineRef ref, DumpMode mode)
 {
-	if (!design || design->twines.size() == 0)
-		return;
-	f << stringf("twines\n");
-	std::vector<TwineRef> ids;
-	for (size_t idx = 0; idx < design->twines.backing.size(); ++idx)
-		ids.push_back(STATIC_TWINE_END + idx);
-	std::sort(ids.begin(), ids.end());
-	for (TwineRef id : ids) {
-		const Twine &n = design->twines[id];
-		if (n.is_leaf()) {
-			f << stringf("  leaf %zu ", id);
-			dump_const(f, RTLIL::Const(n.leaf()));
-			f << stringf("\n");
-		} else if (n.is_suffix()) {
-			f << stringf("  suffix %zu %zu ", id, n.suffix().prefix);
-			dump_const(f, RTLIL::Const(n.suffix().tail));
-			f << stringf("\n");
-		} else if (n.is_concat()) {
-			f << stringf("  concat %zu", id);
-			for (TwineRef c : n.children())
-				f << stringf(" %zu", c);
-			f << stringf("\n");
-		}
-	}
-	f << stringf("end\n");
+	if (mode == DumpMode::Readable || twine_untag(ref) < STATIC_TWINE_END)
+		return design->twines.str(ref);
+	return twine_handle(ref);
+}
+
+static std::string twine_cmt(const RTLIL::Design *design, TwineRef ref, DumpMode mode)
+{
+	if (mode != DumpMode::Replayable || twine_untag(ref) < STATIC_TWINE_END)
+		return "";
+	return stringf("  # %s", design->twines.str(ref).c_str());
 }
 
 void RTLIL_BACKEND::dump_const(std::ostream &f, const RTLIL::Const &data, int width, int offset, bool autoint)
@@ -144,23 +113,54 @@ void RTLIL_BACKEND::dump_const(std::ostream &f, const RTLIL::Const &data, int wi
 	}
 }
 
-static std::string twine_handle(TwineRef ref)
+void RTLIL_BACKEND::dump_attributes(std::ostream &f, std::string indent, const RTLIL::AttrObject *obj, const RTLIL::Design *design, DumpMode mode)
 {
-	return stringf("%s@%zu", twine_is_public(ref) ? "$pub" : "$priv", (size_t)twine_untag(ref));
+	if (design && design->obj_src_id(obj) != Twine::Null) {
+		TwineRef id = design->obj_src_id(obj);
+		f << stringf("%s" "attribute \\src ", indent);
+		if (mode == DumpMode::Readable) {
+			dump_const(f, RTLIL::Const(design->twines.str(id)));
+		} else {
+			dump_const(f, RTLIL::Const(stringf("@%zu", id)));
+			if (mode == DumpMode::Replayable)
+				f << stringf("  # %s", design->twines.str(id).c_str());
+		}
+		f << stringf("\n");
+	}
+	for (const auto& [name, value] : reversed(obj->attributes)) {
+		f << stringf("%s" "attribute %s ", indent, twine_ref(design, name, mode));
+		dump_const(f, value);
+		f << stringf("\n");
+	}
 }
 
-static std::string twine_ref(const RTLIL::Design *design, TwineRef ref, DumpMode mode)
+void RTLIL_BACKEND::dump_twines(std::ostream &f, const RTLIL::Design *design)
 {
-	if (mode == DumpMode::Readable || twine_untag(ref) < STATIC_TWINE_END)
-		return design->twines.str(ref);
-	return twine_handle(ref);
-}
-
-static std::string twine_cmt(const RTLIL::Design *design, TwineRef ref, DumpMode mode)
-{
-	if (mode != DumpMode::Replayable || twine_untag(ref) < STATIC_TWINE_END)
-		return "";
-	return stringf("  # %s", design->twines.str(ref).c_str());
+	if (!design || design->twines.size() == 0)
+		return;
+	f << stringf("twines\n");
+	std::vector<TwineRef> ids;
+	for (size_t idx = 0; idx < design->twines.backing.size(); ++idx)
+		ids.push_back(STATIC_TWINE_END + idx);
+	std::sort(ids.begin(), ids.end());
+	for (TwineRef id : ids) {
+		const Twine &n = design->twines[id];
+		if (n.is_leaf()) {
+			f << stringf("  leaf %zu ", id);
+			dump_const(f, RTLIL::Const(n.leaf()));
+			f << stringf("\n");
+		} else if (n.is_suffix()) {
+			f << stringf("  suffix %zu %zu ", id, n.suffix().prefix);
+			dump_const(f, RTLIL::Const(n.suffix().tail));
+			f << stringf("\n");
+		} else if (n.is_concat()) {
+			f << stringf("  concat %zu", id);
+			for (TwineRef c : n.children())
+				f << stringf(" %zu", c);
+			f << stringf("\n");
+		}
+	}
+	f << stringf("end\n");
 }
 
 static std::string sigspec_str(const RTLIL::SigSpec &sig, DumpMode mode)
@@ -260,7 +260,7 @@ void RTLIL_BACKEND::dump_cell(std::ostream &f, std::string indent, const RTLIL::
 				(param.flags & RTLIL::CONST_FLAG_SIGNED) != 0 ? " signed" : "",
 				(param.flags & RTLIL::CONST_FLAG_REAL) != 0 ? " real" : "",
 				(param.flags & RTLIL::CONST_FLAG_UNSIZED) != 0 ? " unsized" : "",
-				name);
+				twine_ref(design, name, mode));
 		dump_const(f, param);
 		f << stringf("\n");
 	}
@@ -338,7 +338,7 @@ void RTLIL_BACKEND::dump_proc_sync(std::ostream &f, std::string indent, const RT
 
 	for (auto &it: sy->mem_write_actions) {
 		dump_attributes(f, indent, &it, design, mode);
-		f << stringf("%s  memwr %s ", indent, it.memid);
+		f << stringf("%s  memwr %s ", indent, twine_ref(design, it.memid, mode));
 		dump_sigspec(f, it.address, true, mode);
 		f << stringf(" ");
 		dump_sigspec(f, it.data, true, mode);
@@ -386,9 +386,9 @@ void RTLIL_BACKEND::dump_module(std::ostream &f, std::string indent, RTLIL::Modu
 			for (const auto &p : module->avail_parameters) {
 				const auto &it = module->parameter_default_values.find(p);
 				if (it == module->parameter_default_values.end()) {
-					f << stringf("%s" "  parameter %s\n", indent, p);
+					f << stringf("%s" "  parameter %s\n", indent, twine_ref(design, p, mode));
 				} else {
-					f << stringf("%s" "  parameter %s ", indent, p);
+					f << stringf("%s" "  parameter %s ", indent, twine_ref(design, p, mode));
 					dump_const(f, it->second);
 					f << stringf("\n");
 				}

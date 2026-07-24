@@ -181,8 +181,8 @@ struct SmtPrintVisitor : public Functional::AbstractVisitor<SExpr> {
 	SExpr memory_read(Node, Node mem, Node addr) override { return list("select", n(mem), n(addr)); }
 	SExpr memory_write(Node, Node mem, Node addr, Node data) override { return list("store", n(mem), n(addr), n(data)); }
 
-	SExpr input(Node, TwineRef name, TwineRef kind) override { log_assert(kind == TW($input)); return input_struct.access("inputs", name); }
-	SExpr state(Node, TwineRef name, TwineRef kind) override { log_assert(kind == TW($state)); return state_struct.access("state", name); }
+	SExpr input(Node, TwineRef name, TwineRef kind) override { log_assert(kind == ID::$input); return input_struct.access("inputs", name); }
+	SExpr state(Node, TwineRef name, TwineRef kind) override { log_assert(kind == ID::$state); return state_struct.access("state", name); }
 };
 
 struct SmtModule {

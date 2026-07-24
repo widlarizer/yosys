@@ -86,16 +86,6 @@ namespace RTLIL
 		SB_EXCL_BB_CMDERR = 15 // call log_cmd_error on black boxed module
 	};
 
-	enum class StaticId : short {
-		STATIC_ID_BEGIN = 0,
-#define X(N) N,
-#include "kernel/constids.inc"
-#undef X
-		STATIC_ID_END,
-	};
-
-
-
 	enum PortDir : unsigned char  {
 		PD_UNKNOWN = 0,
 		PD_INPUT = 1,
@@ -128,9 +118,6 @@ namespace RTLIL
 	struct SyncRule;
 	struct Process;
 	struct Binding;
-	struct IdString;
-	struct OwningIdString;
-	struct StaticIdString;
 	struct ObjMeta;
 	template<typename Derived> struct NameMasqBase;
 	struct ModuleNameMasq;
@@ -148,646 +135,17 @@ struct SigMap;
 extern int64_t twine_gc_ns;
 extern int twine_gc_count;
 
-struct RTLIL::IdString
-{
-	struct Storage {
-		char *buf;
-		int size;
-
-		std::string_view str_view() const { return {buf, static_cast<size_t>(size)}; }
-	};
-	struct AutoidxStorage {
-		// Append the negated (i.e. positive) ID to this string to get
-		// the real string. The prefix strings must live forever.
-		const std::string *prefix;
-		// Cache of the full string, or nullptr if not cached yet.
-		std::atomic<char *> full_str;
-
-		AutoidxStorage(const std::string *prefix) : prefix(prefix), full_str(nullptr) {}
-		AutoidxStorage(AutoidxStorage&& other) : prefix(other.prefix), full_str(other.full_str.exchange(nullptr, std::memory_order_relaxed)) {}
-		~AutoidxStorage() { delete[] full_str.load(std::memory_order_acquire); }
-	};
-
-	// the global id string cache
-
-	static bool destruct_guard_ok; // POD, will be initialized to zero
-	static struct destruct_guard_t {
-		destruct_guard_t() { destruct_guard_ok = true; }
-		~destruct_guard_t() { destruct_guard_ok = false; }
-	} destruct_guard;
-
-	// String storage for non-autoidx IDs
-	static std::vector<Storage> global_id_storage_;
-	// Lookup table for non-autoidx IDs
-	static std::unordered_map<std::string_view, int> global_id_index_;
-	// Storage for autoidx IDs, which have negative indices, i.e. all entries in this
-	// map have negative keys.
-	static std::unordered_map<int, AutoidxStorage> global_autoidx_id_storage_;
-	// All (index, refcount) pairs in this map have refcount > 0.
-	static std::unordered_map<int, int> global_refcount_storage_;
-	static std::vector<int> global_free_idx_list_;
-
-	static int refcount(int idx) {
-		auto it = global_refcount_storage_.find(idx);
-		if (it == global_refcount_storage_.end())
-			return 0;
-		return it->second;
-	}
-
-	static inline void xtrace_db_dump()
-	{
-	#ifdef YOSYS_XTRACE_GET_PUT
-		for (int idx = 0; idx < GetSize(global_id_storage_); idx++)
-		{
-			if (global_id_storage_.at(idx).buf == nullptr)
-				log("#X# DB-DUMP index %d: FREE\n", idx);
-			else
-				log("#X# DB-DUMP index %d: '%s' (ref %u)\n", idx, global_id_storage_.at(idx).buf, refcount(idx));
-		}
-	#endif
-	}
-
-	static inline void checkpoint()
-	{
-	#ifdef YOSYS_SORT_ID_FREE_LIST
-		std::sort(global_free_idx_list_.begin(), global_free_idx_list_.end(), std::greater<int>());
-	#endif
-	}
-
-	static int insert(std::string_view p)
-	{
-		log_assert(destruct_guard_ok);
-		log_assert(!Multithreading::active());
-
-		auto it = global_id_index_.find(p);
-		if (it != global_id_index_.end()) {
-	#ifdef YOSYS_XTRACE_GET_PUT
-			if (yosys_xtrace)
-				log("#X# GET-BY-NAME '%s' (index %d, refcount %u)\n", global_id_storage_.at(it->second).buf, it->second, refcount(it->second));
-	#endif
-			return it->second;
-		}
-		return really_insert(p, it);
-	}
-
-	// Inserts an ID with string `prefix + autoidx', incrementing autoidx.
-	// `prefix` must start with '$auto$', end with '$', and live forever.
-	static IdString new_autoidx_with_prefix(const std::string *prefix) {
-		log_assert(!Multithreading::active());
-		int index = -(autoidx++);
-		global_autoidx_id_storage_.insert({index, prefix});
-		return from_index(index);
-	}
-
-	// the actual IdString object is just is a single int
-
-	int index_;
-
-	constexpr inline IdString() : index_(0) { }
-	inline IdString(const char *str) : index_(insert(std::string_view(str))) { }
-	constexpr IdString(const IdString &str) = default;
-	IdString(IdString &&str) = default;
-	inline IdString(const std::string &str) : index_(insert(std::string_view(str))) { }
-	inline IdString(std::string_view str) : index_(insert(str)) { }
-	constexpr inline IdString(StaticId id) : index_(static_cast<short>(id)) {}
-
-	IdString &operator=(const IdString &rhs) = default;
-
-	inline void operator=(const char *rhs) {
-		IdString id(rhs);
-		*this = id;
-	}
-
-	inline void operator=(const std::string &rhs) {
-		IdString id(rhs);
-		*this = id;
-	}
-
-	inline const char *c_str() const {
-		if (index_ >= 0)
-			return global_id_storage_.at(index_).buf;
-
-		AutoidxStorage &s = global_autoidx_id_storage_.at(index_);
-		char *full_str = s.full_str.load(std::memory_order_acquire);
-		if (full_str != nullptr)
-			return full_str;
-		const std::string &prefix = *s.prefix;
-		std::string suffix = std::to_string(-index_);
-		char *c = new char[prefix.size() + suffix.size() + 1];
-		memcpy(c, prefix.data(), prefix.size());
-		memcpy(c + prefix.size(), suffix.c_str(), suffix.size() + 1);
-		if (s.full_str.compare_exchange_strong(full_str, c, std::memory_order_acq_rel))
-			return c;
-		delete[] c;
-		return full_str;
-	}
-
-	inline std::string str() const {
-		std::string result;
-		append_to(&result);
-		return result;
-	}
-
-	inline void append_to(std::string *out) const {
-		if (index_ >= 0) {
-			*out += global_id_storage_.at(index_).str_view();
-			return;
-		}
-		*out += *global_autoidx_id_storage_.at(index_).prefix;
-		*out += std::to_string(-index_);
-	}
-
-	std::string unescape() const {
-		if (index_ < 0) {
-			// Must start with "$auto$" so no unescaping required.
-			return str();
-		}
-		std::string_view str = global_id_storage_.at(index_).str_view();
-		if (str.size() < 2 || str[0] != '\\' || str[1] == '$' || str[1] == '\\' || (str[1] >= '0' && str[1] <= '9'))
-			return std::string(str);
-		return std::string(str.substr(1));
-	}
-
-	class Substrings {
-		std::string_view first_;
-		int suffix_number;
-		char buf[10];
-	public:
-		Substrings(const Storage &storage) : first_(storage.str_view()), suffix_number(-1) {}
-		// suffix_number must be non-negative
-		Substrings(const std::string *prefix, int suffix_number)
-				: first_(*prefix), suffix_number(suffix_number) {}
-		std::string_view first() { return first_; }
-		std::optional<std::string_view> next() {
-			if (suffix_number < 0)
-				return std::nullopt;
-                       int i = sizeof(buf);
-			do {
-				--i;
-                               buf[i] = (suffix_number % 10) + '0';
-                               suffix_number /= 10;
-			} while (suffix_number > 0);
-			suffix_number = -1;
-			return std::string_view(buf + i, sizeof(buf) - i);
-		}
-	};
-
-	class const_iterator {
-		const std::string *prefix;
-		std::string suffix;
-		const char *c_str;
-		int c_str_len;
-		// When this is INT_MAX it's the generic "end" value.
-		int index;
-
-	public:
-		using iterator_category = std::forward_iterator_tag;
-		using value_type = char;
-		using difference_type = std::ptrdiff_t;
-		using pointer = const char*;
-		using reference = const char&;
-
-		const_iterator(const Storage &storage) : prefix(nullptr), c_str(storage.buf), c_str_len(storage.size), index(0) {}
-		const_iterator(const std::string *prefix, int number) :
-				prefix(prefix), suffix(std::to_string(number)), c_str(nullptr), c_str_len(0), index(0) {}
-		// Construct end-marker
-		const_iterator() : prefix(nullptr), c_str(nullptr), c_str_len(0), index(INT_MAX) {}
-
-		int size() const {
-			if (c_str != nullptr)
-				return c_str_len;
-			return GetSize(*prefix) + GetSize(suffix);
-		}
-
-		char operator*() const {
-			if (c_str != nullptr)
-				return c_str[index];
-			int prefix_size = GetSize(*prefix);
-			if (index < prefix_size)
-				return prefix->at(index);
-			return suffix[index - prefix_size];
-		}
-
-		const_iterator& operator++() { ++index; return *this; }
-		const_iterator operator++(int) { const_iterator result(*this); ++index; return result; }
-		const_iterator& operator+=(int i) { index += i; return *this; }
-
-		const_iterator operator+(int add) {
-			const_iterator result = *this;
-			result += add;
-			return result;
-		}
-
-		bool operator==(const const_iterator& other) const {
-			return index == other.index || (other.index == INT_MAX && index == size())
-				|| (index == INT_MAX && other.index == other.size());
-		}
-		bool operator!=(const const_iterator& other) const {
-			return !(*this == other);
-		}
-	};
-	const_iterator begin() const {
-		if (index_ >= 0) {
-			return const_iterator(global_id_storage_.at(index_));
-		}
-		return const_iterator(global_autoidx_id_storage_.at(index_).prefix, -index_);
-	}
-	const_iterator end() const {
-		return const_iterator();
-	}
-
-	Substrings substrings() const {
-		if (index_ >= 0) {
-			return Substrings(global_id_storage_.at(index_));
-		}
-		return Substrings(global_autoidx_id_storage_.at(index_).prefix, -index_);
-	}
-
-	inline bool lt_by_name(IdString rhs) const {
-		Substrings lhs_it = substrings();
-		Substrings rhs_it = rhs.substrings();
-		std::string_view lhs_substr = lhs_it.first();
-		std::string_view rhs_substr = rhs_it.first();
-		while (true) {
-			int min = std::min(GetSize(lhs_substr), GetSize(rhs_substr));
-			int diff = memcmp(lhs_substr.data(), rhs_substr.data(), min);
-			if (diff != 0)
-				return diff < 0;
-			lhs_substr = lhs_substr.substr(min);
-			rhs_substr = rhs_substr.substr(min);
-			if (rhs_substr.empty()) {
-				if (std::optional<std::string_view> s = rhs_it.next())
-					rhs_substr = *s;
-				else
-					return false;
-			}
-			if (lhs_substr.empty()) {
-				if (std::optional<std::string_view> s = lhs_it.next())
-					lhs_substr = *s;
-				else
-					return true;
-			}
-		}
-	}
-
-	inline bool operator<(IdString rhs) const {
-		return index_ < rhs.index_;
-	}
-
-	inline bool operator==(IdString rhs) const { return index_ == rhs.index_; }
-	inline bool operator!=(IdString rhs) const { return index_ != rhs.index_; }
-
-	// The methods below are just convenience functions for better compatibility with std::string.
-
-	bool operator==(const std::string &rhs) const { return c_str() == rhs; }
-	bool operator!=(const std::string &rhs) const { return c_str() != rhs; }
-
-	bool operator==(const char *rhs) const { return strcmp(c_str(), rhs) == 0; }
-	bool operator!=(const char *rhs) const { return strcmp(c_str(), rhs) != 0; }
-
-	char operator[](size_t i) const {
-		if (index_ >= 0) {
-			const Storage &storage = global_id_storage_.at(index_);
-#ifndef NDEBUG
-			log_assert(static_cast<int>(i) < storage.size);
-#endif
-			return *(storage.buf + i);
-		}
-		const std::string &id_start = *global_autoidx_id_storage_.at(index_).prefix;
-		if (i < id_start.size())
-			return id_start[i];
-		i -= id_start.size();
-		std::string suffix = std::to_string(-index_);
-#ifndef NDEBUG
-		// Allow indexing to access the trailing null.
-		log_assert(i <= suffix.size());
-#endif
-		return suffix[i];
-	}
-
-	std::string substr(size_t pos = 0, size_t len = std::string::npos) const {
-		std::string result;
-		const_iterator it = begin() + pos;
-		const_iterator end_it = end();
-		if (len != std::string::npos && len < it.size() - pos) {
-			end_it = it + len;
-		}
-		std::copy(it, end_it, std::back_inserter(result));
-		return result;
-	}
-
-	int compare(size_t pos, size_t len, const char* s) const {
-		const_iterator it = begin() + pos;
-		const_iterator end_it = end();
-		while (len > 0 && *s != 0 && it != end_it) {
-			int diff = *it - *s;
-			if (diff != 0)
-				return diff;
-			++it;
-			++s;
-			--len;
-		}
-		return 0;
-	}
-
-	bool begins_with(std::string_view prefix) const {
-		Substrings it = substrings();
-		std::string_view substr = it.first();
-		while (true) {
-			int min = std::min(GetSize(substr), GetSize(prefix));
-			if (memcmp(substr.data(), prefix.data(), min) != 0)
-				return false;
-			prefix = prefix.substr(min);
-			if (prefix.empty())
-				return true;
-			substr = substr.substr(min);
-			if (substr.empty()) {
-				if (std::optional<std::string_view> s = it.next())
-					substr = *s;
-				else
-					return false;
-			}
-		}
-	}
-
-	bool ends_with(std::string_view suffix) const {
-		size_t sz = size();
-		if (sz < suffix.size()) return false;
-		return compare(sz - suffix.size(), suffix.size(), suffix.data()) == 0;
-	}
-
-	bool contains(std::string_view s) const {
-		if (index_ >= 0)
-			return global_id_storage_.at(index_).str_view().find(s) != std::string::npos;
-		return str().find(s) != std::string::npos;
-	}
-
-	size_t size() const {
-		return begin().size();
-	}
-
-	bool empty() const {
-		return index_ == 0;
-	}
-
-	void clear() {
-		*this = IdString();
-	}
-
-	[[nodiscard]] Hasher hash_into(Hasher h) const { return hash_ops<int>::hash_into(index_, h); }
-
-	[[nodiscard]] Hasher hash_top() const {
-		Hasher h;
-		h.force((Hasher::hash_t) index_);
-		return h;
-	}
-
-	// The following is a helper key_compare class. Instead of for example std::set<Cell*>
-	// use std::set<Cell*, IdString::compare_ptr_by_name<Cell>> if the order of cells in the
-	// set has an influence on the algorithm.
-
-	template<typename T> struct compare_ptr_by_name {
-		bool operator()(const T *a, const T *b) const {
-			return (a == nullptr || b == nullptr) ? (a < b) : (a->name.ref() < b->name.ref());
-		}
-	};
-
-	// often one needs to check if a given IdString is part of a list (for example a list
-	// of cell types). the following functions helps with that.
-	// Constrained to 2+ args so a single argument always resolves to a concrete
-	// overload below; otherwise a single argument matching none of them (e.g. a
-	// TwineRef) would re-match this template and recurse infinitely.
-	template<typename... Args>
-	bool in(const Args &... args) const requires (sizeof...(Args) != 1) {
-		return (... || in(args));
-	}
-
-	bool in(IdString rhs) const { return *this == rhs; }
-	inline bool in(TwineRef rhs) const;
-	bool in(const char *rhs) const { return *this == rhs; }
-	bool in(const std::string &rhs) const { return *this == rhs; }
-	inline bool in(const pool<IdString> &rhs) const;
-	inline bool in(const pool<IdString> &&rhs) const;
-
-	bool isPublic() const { return begins_with("\\"); }
-
-private:
-	static void prepopulate();
-	static int really_insert(std::string_view p, std::unordered_map<std::string_view, int>::iterator &it);
-
-protected:
-	static IdString from_index(int index) {
-		IdString result;
-		result.index_ = index;
-		return result;
-	}
-
-public:
-	static void ensure_prepopulated() {
-		if (global_id_index_.empty())
-			prepopulate();
-	}
-
-	// Thread-safe read-only pool lookup for use while Multithreading::active().
-	// global_id_index_ is stable (no writes) during parallel passes, so
-	// concurrent find() calls are safe. Returns empty IdString if not found.
-	static IdString lookup_threadsafe(std::string_view p) {
-		auto it = global_id_index_.find(p);
-		return from_index(it != global_id_index_.end() ? it->second : 0);
-	}
-};
-
-inline bool operator==(TwineRef a, RTLIL::IdString b) {
-	size_t bi = (size_t)(unsigned)b.index_;
-	return bi != 0 && a.untag().value + 1 == bi;
-}
-inline bool operator==(RTLIL::IdString a, TwineRef b) { return b == a; }
-
-inline bool RTLIL::IdString::in(TwineRef rhs) const { return *this == rhs; }
-
-struct RTLIL::OwningIdString : public RTLIL::IdString {
-	inline OwningIdString() { }
-	inline OwningIdString(const OwningIdString &str) : IdString(str) { get_reference(); }
-	inline OwningIdString(const char *str) : IdString(str) { get_reference(); }
-	inline OwningIdString(const IdString &str) : IdString(str) { get_reference(); }
-	inline OwningIdString(IdString &&str) : IdString(str) {	get_reference(); }
-	inline OwningIdString(const std::string &str) : IdString(str) { get_reference(); }
-	inline OwningIdString(std::string_view str) : IdString(str) { get_reference(); }
-	inline OwningIdString(StaticId id) : IdString(id) {}
-	inline ~OwningIdString() {
-		put_reference();
-	}
-
-	inline OwningIdString &operator=(const OwningIdString &rhs) {
-		put_reference();
-		index_ = rhs.index_;
-		get_reference();
-		return *this;
-	}
-	inline OwningIdString &operator=(const IdString &rhs) {
-		put_reference();
-		index_ = rhs.index_;
-		get_reference();
-		return *this;
-	}
-	inline OwningIdString &operator=(OwningIdString &&rhs) {
-		std::swap(index_, rhs.index_);
-		return *this;
-	}
-
-	// Collect all non-owning references.
-	static void collect_garbage();
-	static int64_t garbage_collection_ns() { return gc_ns; }
-	static int garbage_collection_count() { return gc_count; }
-
-	// Used by the ID() macro to create an IdString with no destructor whose string will
-	// never be released. If ID() creates a closure-static `OwningIdString` then
-	// initialization of the static registers its destructor to run at exit, which is
-	// wasteful.
-	static IdString immortal(const char* str) {
-		IdString result(str);
-		get_reference(result.index_);
-		return result;
-	}
-private:
-	static int64_t gc_ns;
-	static int gc_count;
-
-	void get_reference()
-	{
-		get_reference(index_);
-	}
-	static void get_reference(int idx)
-	{
-		log_assert(!Multithreading::active());
-
-		if (idx < static_cast<short>(StaticId::STATIC_ID_END))
-			return;
-		auto it = global_refcount_storage_.find(idx);
-		if (it == global_refcount_storage_.end())
-			global_refcount_storage_.insert(it, {idx, 1});
-		else
-			++it->second;
-	#ifdef YOSYS_XTRACE_GET_PUT
-		if (yosys_xtrace && idx >= static_cast<short>(StaticId::STATIC_ID_END))
-			log("#X# GET-BY-INDEX '%s' (index %d, refcount %u)\n", from_index(idx), idx, refcount(idx));
-	#endif
-	}
-
-	void put_reference()
-	{
-		log_assert(!Multithreading::active());
-
-		// put_reference() may be called from destructors after the destructor of
-		// global_refcount_storage_ has been run. in this case we simply do nothing.
-		if (index_ < static_cast<short>(StaticId::STATIC_ID_END) || !destruct_guard_ok)
-			return;
-	#ifdef YOSYS_XTRACE_GET_PUT
-		if (yosys_xtrace)
-			log("#X# PUT '%s' (index %d, refcount %u)\n", from_index(index_), index_, refcount(index_));
-	#endif
-		auto it = global_refcount_storage_.find(index_);
-		log_assert(it != global_refcount_storage_.end() && it->second >= 1);
-		if (--it->second == 0) {
-			global_refcount_storage_.erase(it);
-		}
-	}
-};
-
-namespace hashlib {
-	template <>
-	struct hash_ops<RTLIL::IdString> {
-		static inline bool cmp(RTLIL::IdString a, RTLIL::IdString b) {
-			return a == b;
-		}
-		[[nodiscard]] static inline Hasher hash(RTLIL::IdString id) {
-			return id.hash_top();
-		}
-		[[nodiscard]] static inline Hasher hash_into(RTLIL::IdString id, Hasher h) {
-			return id.hash_into(h);
-		}
-	};
-};
-
-/**
- * How to not use these methods:
- * 1. if(celltype.in({...})) -> if(celltype.in(...))
- * 2. pool<IdString> p; ... a.in(p) -> (bool)p.count(a)
- */
-[[deprecated]]
-inline bool RTLIL::IdString::in(const pool<IdString> &rhs) const { return rhs.count(*this) != 0; }
-[[deprecated]]
-inline bool RTLIL::IdString::in(const pool<IdString> &&rhs) const { return rhs.count(*this) != 0; }
+namespace RTLIL { using YOSYS_NAMESPACE_PREFIX ID; }
 
 namespace RTLIL {
-	namespace ID {
-#define X(_id) constexpr IdString _id(StaticId::_id);
-#include "kernel/constids.inc"
-#undef X
-	}
-}
+	// Attribute and parameter names are TwineRefs into the owning Design's
+	// pool, so a verbatim dict copy across designs would leave dangling
+	// handles. Rebuilds the keys through the destination pool when the
+	// designs differ; a plain copy otherwise.
+	void copy_attr_dict(dict<TwineRef, RTLIL::Const> &dst,
+			const dict<TwineRef, RTLIL::Const> &src,
+			const RTLIL::Design *src_design, RTLIL::Design *dst_design);
 
-struct IdTableEntry {
-	const std::string_view name;
-	const RTLIL::IdString static_id;
-};
-
-constexpr IdTableEntry IdTable[] = {
-#define X(_id) {#_id, ID::_id},
-#include "kernel/constids.inc"
-#undef X
-};
-
-constexpr int lookup_well_known_id(std::string_view name)
-{
-	int low = 0;
-	int high = sizeof(IdTable) / sizeof(IdTable[0]);
-	while (high - low >= 2) {
-		int mid = (low + high) / 2;
-		if (name < IdTable[mid].name)
-			high = mid;
-		else
-			low = mid;
-	}
-	if (IdTable[low].name == name)
-		return low;
-	return -1;
-}
-
-// Create a statically allocated IdString object, using for example ID::A or TW($add).
-//
-// Recipe for Converting old code that is using conversion of strings like ID::A and
-// "$add" for creating IdStrings: Run below SED command on the .cc file and then use for
-// example "meld foo.cc foo.cc.orig" to manually compile errors, if necessary.
-//
-//  sed -i.orig -r 's/"\\\\([a-zA-Z0-9_]+)"/ID(\1)/g; s/"(\$[a-zA-Z0-9_]+)"/ID(\1)/g;' <filename>
-//
-typedef RTLIL::IdString IDMacroHelperFunc();
-
-template <int IdTableIndex> struct IDMacroHelper {
-	static constexpr RTLIL::IdString eval(IDMacroHelperFunc) {
-		return IdTable[IdTableIndex].static_id;
-	}
-};
-template <> struct IDMacroHelper<-1> {
-	static constexpr RTLIL::IdString eval(IDMacroHelperFunc func) {
-		return func();
-	}
-};
-
-#undef ID
-#define ID(_id) \
-		YOSYS_NAMESPACE_PREFIX IDMacroHelper< \
-				YOSYS_NAMESPACE_PREFIX lookup_well_known_id(#_id) \
-		>::eval([]() \
-		-> YOSYS_NAMESPACE_PREFIX RTLIL::IdString { \
-			const char *p = "\\" #_id, *q = p[1] == '$' ? p+1 : p; \
-			static const YOSYS_NAMESPACE_PREFIX RTLIL::IdString id = \
-				YOSYS_NAMESPACE_PREFIX RTLIL::OwningIdString::immortal(q); \
-			return id; \
-        })
-
-namespace RTLIL {
 	extern dict<std::string, std::string> constpad;
 
 	[[deprecated("use StaticCellTypes::categories.is_ff() instead")]]
@@ -811,17 +169,17 @@ namespace RTLIL {
 		return str.substr(1);
 	}
 
-	static inline std::string unescape_id(RTLIL::IdString str) {
-		return str.unescape();
-	}
-
-	static inline const char *id2cstr(RTLIL::IdString str) {
-		return log_id(str);
-	}
-
 	template <typename T> struct sort_by_name {
 		bool operator()(T *a, T *b) const {
 			return a->name < b->name;
+		}
+	};
+
+	// Key comparator for containers of RTLIL object pointers whose iteration
+	// order must not depend on allocation addresses.
+	template<typename T> struct compare_ptr_by_name {
+		bool operator()(const T *a, const T *b) const {
+			return (a == nullptr || b == nullptr) ? (a < b) : (a->name.ref() < b->name.ref());
 		}
 	};
 
@@ -831,11 +189,6 @@ namespace RTLIL {
 		}
 	};
 
-	struct sort_by_id_str {
-		bool operator()(RTLIL::IdString a, RTLIL::IdString b) const {
-			return a.lt_by_name(b);
-		}
-	};
 	struct sort_by_twine_str_expensive {
 		const TwinePool& pool;
 		explicit sort_by_twine_str_expensive(const TwinePool& pool)
@@ -922,7 +275,7 @@ namespace RTLIL {
 	// This iterator-range-pair is used for Design::modules(), Module::wires() and Module::cells().
 	// It maintains a reference counter that is used to make sure that the container is not modified while being iterated over.
 
-	template<typename T, typename Key = RTLIL::IdString>
+	template<typename T, typename Key = TwineRef>
 	struct ObjIterator {
 		using iterator_category = std::forward_iterator_tag;
 		using value_type = T;
@@ -1026,7 +379,7 @@ namespace RTLIL {
 		}
 	};
 
-	template<typename T, typename Key = RTLIL::IdString>
+	template<typename T, typename Key = TwineRef>
 	struct ObjRange
 	{
 		dict<Key, T> *list_p;
@@ -1312,37 +665,36 @@ public:
 struct RTLIL::ObjMeta
 {
 	TwineRef src = Twine::Null;
-	// RTLIL::IdString name;      // used by Module names
 	TwineRef name = Twine::Null;  // used by Wire/Cell names (per-Design twines)
 };
 
 struct RTLIL::AttrObject
 {
-	dict<RTLIL::IdString, RTLIL::Const> attributes;
+	dict<TwineRef, RTLIL::Const> attributes;
 
 	// Pointer to a per-object metadata record in some pool (typically
 	// the owning Design's). Nullable: cleared until first non-null write
 	// of any field (src or name) and reset to null when all fields empty.
 	RTLIL::ObjMeta *meta_ = nullptr;
 
-	bool has_attribute(RTLIL::IdString id) const;
+	bool has_attribute(TwineRef id) const;
 
-	void set_bool_attribute(RTLIL::IdString id, bool value=true);
-	bool get_bool_attribute(RTLIL::IdString id) const;
+	void set_bool_attribute(TwineRef id, bool value=true);
+	bool get_bool_attribute(TwineRef id) const;
 
 	[[deprecated("Use Module::get_blackbox_attribute() instead.")]]
 	bool get_blackbox_attribute(bool ignore_wb=false) const {
 		return get_bool_attribute(ID::blackbox) || (!ignore_wb && get_bool_attribute(ID::whitebox));
 	}
 
-	void set_string_attribute(RTLIL::IdString  id, string value);
-	string get_string_attribute(RTLIL::IdString id) const;
+	void set_string_attribute(TwineRef id, string value);
+	string get_string_attribute(TwineRef id) const;
 
 	// static std::string strpool_attribute_to_str(const pool<string> &data);
-	// void set_strpool_attribute(IdString id, const pool<string> &data);
-	// void add_strpool_attribute(IdString id, const pool<string> &data);
-	// pool<string> get_strpool_attribute(RTLIL::IdString id) const;
-	void transfer_attribute(const AttrObject* from, const IdString& attr) {
+	// void set_strpool_attribute(TwineRef id, const pool<string> &data);
+	// void add_strpool_attribute(TwineRef id, const pool<string> &data);
+	// pool<string> get_strpool_attribute(TwineRef id) const;
+	void transfer_attribute(const AttrObject* from, TwineRef attr) {
 		if (from->has_attribute(attr))
 			attributes[attr] = from->attributes.at(attr);
 	}
@@ -1350,30 +702,26 @@ struct RTLIL::AttrObject
 	void set_hdlname_attribute(const vector<string> &hierarchy);
 	vector<string> get_hdlname_attribute() const;
 
-	void set_intvec_attribute(RTLIL::IdString  id, const vector<int> &data);
-	vector<int> get_intvec_attribute(RTLIL::IdString id) const;
+	void set_intvec_attribute(TwineRef id, const vector<int> &data);
+	vector<int> get_intvec_attribute(TwineRef id) const;
 };
 
 struct RTLIL::NamedObject : public RTLIL::AttrObject
 {
-	RTLIL::IdString name;
+	TwineRef name = Twine::Null;
 };
 
 // CRTP base shared by WireNameMasq, CellNameMasq, and ModuleNameMasq.
 // Derived must define ref(), escaped(), and unescaped(); everything else
-// is derived from those three via operator IdString().
+// is derived from those three via operator TwineRef().
 namespace RTLIL {
 template<typename Derived>
 struct NameMasqBase {
-	operator RTLIL::IdString() const {
-		std::string s = self().escaped();
-		if (s.empty()) return RTLIL::IdString{};
-		return RTLIL::IdString(s);
-	}
+	operator TwineRef() const { return self().ref(); }
 	operator std::string() const {
 		return self().escaped();
 	}
-	bool isPublic() const { return twine_is_public(self().ref()); }
+	bool is_public() const { return self().ref().is_public(); }
 	bool empty() const { return self().ref() == Twine::Null; }
 	std::string str() const { return self().escaped(); }
 	std::string unescape() const { return self().unescaped(); }
@@ -1388,11 +736,9 @@ struct NameMasqBase {
 	size_t size() const { return self().escaped().size(); }
 	bool contains(const char *p) const { return self().escaped().find(p) != std::string::npos; }
 	char operator[](int n) const { return self().escaped()[n]; }
-	bool lt_by_name(RTLIL::IdString rhs) const { return self().escaped() < rhs.str(); }
 	bool lt_by_name(const Derived &rhs) const { return self().escaped() < rhs.escaped(); }
-	bool operator==(RTLIL::IdString rhs) const { return self().escaped() == rhs.str(); }
-	bool operator!=(RTLIL::IdString rhs) const { return self().escaped() != rhs.str(); }
-	bool operator<(RTLIL::IdString rhs) const { return self().escaped() < rhs.str(); }
+	bool operator==(TwineRef rhs) const { return self().ref() == rhs; }
+	bool operator!=(TwineRef rhs) const { return self().ref() != rhs; }
 	bool operator==(const std::string &rhs) const { return self().escaped() == rhs; }
 	bool operator!=(const std::string &rhs) const { return self().escaped() != rhs; }
 	bool operator==(const Derived &rhs) const { return self().ref() == rhs.ref(); }
@@ -1404,16 +750,16 @@ private:
 };
 } // namespace RTLIL
 template<typename Derived>
-inline bool operator==(RTLIL::IdString lhs, const RTLIL::NameMasqBase<Derived> &rhs) {
-	return lhs.str() == static_cast<const Derived &>(rhs).escaped();
+inline bool operator==(TwineRef lhs, const RTLIL::NameMasqBase<Derived> &rhs) {
+	return lhs == static_cast<const Derived &>(rhs).ref();
 }
 template<typename Derived>
-inline bool operator!=(RTLIL::IdString lhs, const RTLIL::NameMasqBase<Derived> &rhs) {
-	return lhs.str() != static_cast<const Derived &>(rhs).escaped();
+inline bool operator!=(TwineRef lhs, const RTLIL::NameMasqBase<Derived> &rhs) {
+	return lhs != static_cast<const Derived &>(rhs).ref();
 }
 
 // Read-only masquerade for Wire::name. Reads materialise the TwineRef in
-// the owning Design's twines pool into a temporary IdString. Writes are
+// the owning Design's twines pool into a temporary TwineRef. Writes are
 // Defined before Wire so it can be used as a [[no_unique_address]] member.
 struct RTLIL::WireNameMasq : RTLIL::NameMasqBase<RTLIL::WireNameMasq> {
 	WireNameMasq() = default;
@@ -1448,12 +794,12 @@ struct RTLIL::CellTypeMasq {
 	CellTypeMasq(CellTypeMasq &&) = delete;
 	CellTypeMasq &operator=(const CellTypeMasq &) = delete;
 	CellTypeMasq &operator=(CellTypeMasq &&) = delete;
-	operator RTLIL::IdString() const;
-	explicit operator TwineRef() const { return ref(); }
+	operator TwineRef() const { return ref(); }
+	operator std::string() const { return escaped(); }
 	TwineRef ref() const;
 	std::string escaped() const;
 	std::string unescaped() const;
-	bool isPublic() const { return twine_is_public(ref()); }
+	bool is_public() const { return ref().is_public(); }
 	bool empty() const { return ref() == Twine::Null; }
 	std::string str() const { return escaped(); } // TODO deprecate
 	std::string unescape() const { return unescaped(); }
@@ -1468,9 +814,6 @@ struct RTLIL::CellTypeMasq {
 	size_t size() const { return str().size(); }
 	bool contains(const char *p) const { return escaped().find(p) != std::string::npos; }
 	char operator[](int n) const { return str()[n]; }
-	bool operator==(RTLIL::IdString rhs) const { return escaped() == rhs.str(); }
-	bool operator!=(RTLIL::IdString rhs) const { return escaped() != rhs.str(); }
-	bool operator<(RTLIL::IdString rhs) const { return escaped() < rhs.str(); }
 	bool operator==(TwineRef rhs) const { return ref() == rhs; }
 	bool operator!=(TwineRef rhs) const { return ref() != rhs; }
 	bool operator==(const std::string &rhs) const { return escaped() == rhs; }
@@ -1479,8 +822,6 @@ struct RTLIL::CellTypeMasq {
 	bool operator!=(const CellTypeMasq &rhs) const { return ref() != rhs.ref(); }
 	[[nodiscard]] Hasher hash_into(Hasher h) const { return ref().hash_into(h); }
 };
-inline bool operator==(RTLIL::IdString lhs, const RTLIL::CellTypeMasq &rhs) { return lhs.str() == rhs.escaped(); }
-inline bool operator!=(RTLIL::IdString lhs, const RTLIL::CellTypeMasq &rhs) { return lhs.str() != rhs.escaped(); }
 inline bool operator==(TwineRef lhs, const RTLIL::CellTypeMasq &rhs) { return lhs == rhs.ref(); }
 inline bool operator!=(TwineRef lhs, const RTLIL::CellTypeMasq &rhs) { return lhs != rhs.ref(); }
 
@@ -2110,7 +1451,7 @@ struct RTLIL::Design
 	std::string obj_name(const RTLIL::AttrObject *obj) const {
 		return (obj->meta_ ? twines.flat_string(obj->meta_->name) : std::string());
 	}
-	// void obj_set_name(RTLIL::AttrObject *obj, RTLIL::IdString name);
+	// void obj_set_name(RTLIL::AttrObject *obj, TwineRef name);
 	// void obj_release_name(RTLIL::AttrObject *obj);
 
 	// Wire/Cell names: stored as TwineRef in twines.
@@ -2128,7 +1469,7 @@ struct RTLIL::Design
 	void adopt_src_from(RTLIL::AttrObject *obj, const RTLIL::AttrObject *source);
 	void adopt_src_from(RTLIL::AttrObject *obj, const RTLIL::AttrObject *source,
 			const TwinePool *src_pool);
-	void absorb_attrs(RTLIL::AttrObject *obj, dict<RTLIL::IdString, RTLIL::Const> &&buf);
+	void absorb_attrs(RTLIL::AttrObject *obj, dict<TwineRef, RTLIL::Const> &&buf);
 
 	// Merge `source`'s src attribute into `target`'s src attribute via the
 	// twine pool. After the call `target` carries the combined "@N" ref.
@@ -2162,15 +1503,15 @@ struct RTLIL::Design
 	std::unique_ptr<define_map_t> verilog_defines;
 
 	std::vector<RTLIL::Selection> selection_stack;
-	dict<RTLIL::IdString, RTLIL::Selection> selection_vars;
+	dict<TwineRef, RTLIL::Selection> selection_vars;
 	TwineRef selected_active_module;
 
 	Design();
 	~Design();
 
 	RTLIL::ObjRange<RTLIL::Module*, TwineRef> modules();
-	// RTLIL::Module *module(IdString name);
-	// const RTLIL::Module *module(IdString name) const;
+	// RTLIL::Module *module(TwineRef name);
+	// const RTLIL::Module *module(TwineRef name) const;
 	RTLIL::Module *module(TwineRef name);
 	const RTLIL::Module *module(TwineRef name) const;
 	RTLIL::Module *top_module() const;
@@ -2363,7 +1704,7 @@ public:
 	// to a design.
 	void adopt_src_from(const RTLIL::AttrObject *source);
 	void transfer_src_attribute(const RTLIL::AttrObject *source) { adopt_src_from(source); }
-	void absorb_attrs(dict<RTLIL::IdString, RTLIL::Const> &&buf);
+	void absorb_attrs(dict<TwineRef, RTLIL::Const> &&buf);
 
 	bool known_driver() const { return driverCell_ != nullptr; }
 
@@ -2415,7 +1756,7 @@ struct RTLIL::Memory : public RTLIL::AttrObject
 	void set_src_attribute(TwineRef src);
 	std::string get_src_attribute() const;
 	void adopt_src_from(const RTLIL::AttrObject *source);
-	void absorb_attrs(dict<RTLIL::IdString, RTLIL::Const> &&buf);
+	void absorb_attrs(dict<TwineRef, RTLIL::Const> &&buf);
 
 	int width, start_offset, size;
 #ifdef YOSYS_ENABLE_PYTHON
@@ -2455,7 +1796,7 @@ public:
 	TwineRef type_impl;
 	[[no_unique_address]] RTLIL::CellTypeMasq type;
 	dict<TwineRef, RTLIL::SigSpec> connections_;
-	dict<RTLIL::IdString, RTLIL::Const> parameters;
+	dict<TwineRef, RTLIL::Const> parameters;
 
 	// Context-aware src helpers. Resolve Design via module->design and
 	// route to the per-Design meta vector; assert the cell is attached.
@@ -2466,7 +1807,7 @@ public:
 	std::string get_src_attribute() const;
 	void adopt_src_from(const RTLIL::AttrObject *source);
 	void transfer_src_attribute(const RTLIL::AttrObject *source) { adopt_src_from(source); }
-	void absorb_attrs(dict<RTLIL::IdString, RTLIL::Const> &&buf);
+	void absorb_attrs(dict<TwineRef, RTLIL::Const> &&buf);
 
 	// access cell ports
 	bool hasPort(TwineRef portname) const;
@@ -2482,10 +1823,10 @@ public:
 	PortDir port_dir(TwineRef portname) const;
 
 	// access cell parameters
-	bool hasParam(RTLIL::IdString paramname) const;
-	void unsetParam(RTLIL::IdString paramname);
-	void setParam(RTLIL::IdString paramname, RTLIL::Const value);
-	const RTLIL::Const &getParam(RTLIL::IdString paramname) const;
+	bool hasParam(TwineRef paramname) const;
+	void unsetParam(TwineRef paramname);
+	void setParam(TwineRef paramname, RTLIL::Const value);
+	const RTLIL::Const &getParam(TwineRef paramname) const;
 
 	void sort();
 	void check();
@@ -2538,7 +1879,7 @@ struct RTLIL::CaseRule : public RTLIL::AttrObject
 	void set_src_attribute(TwineRef src);
 	std::string get_src_attribute() const;
 	void adopt_src_from(const RTLIL::AttrObject *source);
-	void absorb_attrs(dict<RTLIL::IdString, RTLIL::Const> &&buf);
+	void absorb_attrs(dict<TwineRef, RTLIL::Const> &&buf);
 
 	template<typename T> void rewrite_sigspecs(T &functor);
 	template<typename T> void rewrite_sigspecs2(T &functor);
@@ -2567,7 +1908,7 @@ struct RTLIL::SwitchRule : public RTLIL::AttrObject
 	void set_src_attribute(TwineRef src);
 	std::string get_src_attribute() const;
 	void adopt_src_from(const RTLIL::AttrObject *source);
-	void absorb_attrs(dict<RTLIL::IdString, RTLIL::Const> &&buf);
+	void absorb_attrs(dict<TwineRef, RTLIL::Const> &&buf);
 
 	template<typename T> void rewrite_sigspecs(T &functor);
 	template<typename T> void rewrite_sigspecs2(T &functor);
@@ -2579,7 +1920,7 @@ struct RTLIL::MemWriteAction : RTLIL::AttrObject
 	// Back-pointer to the owning module; see CaseRule::module.
 	RTLIL::Module *module = nullptr;
 
-	RTLIL::IdString memid;
+	TwineRef memid;
 	RTLIL::SigSpec address;
 	RTLIL::SigSpec data;
 	RTLIL::SigSpec enable;
@@ -2592,7 +1933,7 @@ struct RTLIL::MemWriteAction : RTLIL::AttrObject
 	void set_src_attribute(TwineRef src);
 	std::string get_src_attribute() const;
 	void adopt_src_from(const RTLIL::AttrObject *source);
-	void absorb_attrs(dict<RTLIL::IdString, RTLIL::Const> &&buf);
+	void absorb_attrs(dict<TwineRef, RTLIL::Const> &&buf);
 };
 
 struct RTLIL::SyncAction
@@ -2641,7 +1982,7 @@ public:
 	void set_src_attribute(TwineRef src);
 	std::string get_src_attribute() const;
 	void adopt_src_from(const RTLIL::AttrObject *source);
-	void absorb_attrs(dict<RTLIL::IdString, RTLIL::Const> &&buf);
+	void absorb_attrs(dict<TwineRef, RTLIL::Const> &&buf);
 
 	template<typename T> void rewrite_sigspecs(T &functor);
 	template<typename T> void rewrite_sigspecs2(T &functor);
@@ -2771,6 +2112,7 @@ public:
 	RTLIL::Cell* addLogicAnd (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
 	RTLIL::Cell* addLogicOr  (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, TwineRef src = Twine::Null);
 
+	RTLIL::Cell* addMux  (TwineRef name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_y, TwineRef src = Twine::Null);
 	RTLIL::Cell* addMux  (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_y, TwineRef src = Twine::Null);
 	RTLIL::Cell* addPmux (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_y, TwineRef src = Twine::Null);
 	RTLIL::Cell* addBmux (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_y, TwineRef src = Twine::Null);
@@ -2790,22 +2132,70 @@ public:
 	RTLIL::Cell* addCover  (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, TwineRef src = Twine::Null);
 	RTLIL::Cell* addEquiv  (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, TwineRef src = Twine::Null);
 
-	RTLIL::Cell* addSr    (Twine &&name, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr, const RTLIL::SigSpec &sig_q, bool set_polarity = true, bool clr_polarity = true, TwineRef src = Twine::Null);
-	RTLIL::Cell* addFf    (Twine &&name, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, TwineRef src = Twine::Null);
-	RTLIL::Cell* addDff   (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_d,   const RTLIL::SigSpec &sig_q, bool clk_polarity = true, TwineRef src = Twine::Null);
-	RTLIL::Cell* addDffe  (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en,  const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool en_polarity = true, TwineRef src = Twine::Null);
-	RTLIL::Cell* addDffsr (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr, RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool set_polarity = true, bool clr_polarity = true, TwineRef src = Twine::Null);
-	RTLIL::Cell* addDffsre (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr, RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool en_polarity = true, bool set_polarity = true, bool clr_polarity = true, TwineRef src = Twine::Null);
-	RTLIL::Cell* addAdff (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_arst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const arst_value, bool clk_polarity = true, bool arst_polarity = true, TwineRef src = Twine::Null);
-	RTLIL::Cell* addAdffe (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_arst,  const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const arst_value, bool clk_polarity = true, bool en_polarity = true, bool arst_polarity = true, TwineRef src = Twine::Null);
-	RTLIL::Cell* addAldff (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_aload, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, const RTLIL::SigSpec &sig_ad, bool clk_polarity = true, bool aload_polarity = true, TwineRef src = Twine::Null);
-	RTLIL::Cell* addAldffe (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_aload,  const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, const RTLIL::SigSpec &sig_ad, bool clk_polarity = true, bool en_polarity = true, bool aload_polarity = true, TwineRef src = Twine::Null);
-	RTLIL::Cell* addSdff (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_srst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const srst_value, bool clk_polarity = true, bool srst_polarity = true, TwineRef src = Twine::Null);
-	RTLIL::Cell* addSdffe (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_srst,  const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const srst_value, bool clk_polarity = true, bool en_polarity = true, bool srst_polarity = true, TwineRef src = Twine::Null);
-	RTLIL::Cell* addSdffce (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_srst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const srst_value, bool clk_polarity = true, bool en_polarity = true, bool srst_polarity = true, TwineRef src = Twine::Null);
-	RTLIL::Cell* addDlatch (Twine &&name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool en_polarity = true, TwineRef src = Twine::Null);
-	RTLIL::Cell* addAdlatch (Twine &&name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_arst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const arst_value, bool en_polarity = true, bool arst_polarity = true, TwineRef src = Twine::Null);
-	RTLIL::Cell* addDlatchsr (Twine &&name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr, RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool en_polarity = true, bool set_polarity = true, bool clr_polarity = true, TwineRef src = Twine::Null);
+	RTLIL::Cell* addSr    (TwineRef name, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr, const RTLIL::SigSpec &sig_q, bool set_polarity = true, bool clr_polarity = true, TwineRef src = Twine::Null);
+
+	RTLIL::Cell* addSr    (Twine &&name, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr, const RTLIL::SigSpec &sig_q, bool set_polarity = true, bool clr_polarity = true, TwineRef src = Twine::Null)
+		{ return addSr(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_set, sig_clr, sig_q, set_polarity, clr_polarity, src); }
+	RTLIL::Cell* addFf    (TwineRef name, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, TwineRef src = Twine::Null);
+
+	RTLIL::Cell* addFf    (Twine &&name, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, TwineRef src = Twine::Null)
+		{ return addFf(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_d, sig_q, src); }
+	RTLIL::Cell* addDff   (TwineRef name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_d,   const RTLIL::SigSpec &sig_q, bool clk_polarity = true, TwineRef src = Twine::Null);
+
+	RTLIL::Cell* addDff   (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_d,   const RTLIL::SigSpec &sig_q, bool clk_polarity = true, TwineRef src = Twine::Null)
+		{ return addDff(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_clk, sig_d, sig_q, clk_polarity, src); }
+	RTLIL::Cell* addDffe  (TwineRef name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en,  const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool en_polarity = true, TwineRef src = Twine::Null);
+
+	RTLIL::Cell* addDffe  (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en,  const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool en_polarity = true, TwineRef src = Twine::Null)
+		{ return addDffe(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_clk, sig_en, sig_d, sig_q, clk_polarity, en_polarity, src); }
+	RTLIL::Cell* addDffsr (TwineRef name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr, RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool set_polarity = true, bool clr_polarity = true, TwineRef src = Twine::Null);
+
+	RTLIL::Cell* addDffsr (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr, RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool set_polarity = true, bool clr_polarity = true, TwineRef src = Twine::Null)
+		{ return addDffsr(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_clk, sig_set, sig_clr, sig_d, sig_q, clk_polarity, set_polarity, clr_polarity, src); }
+	RTLIL::Cell* addDffsre (TwineRef name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr, RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool en_polarity = true, bool set_polarity = true, bool clr_polarity = true, TwineRef src = Twine::Null);
+
+	RTLIL::Cell* addDffsre (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr, RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool en_polarity = true, bool set_polarity = true, bool clr_polarity = true, TwineRef src = Twine::Null)
+		{ return addDffsre(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_clk, sig_en, sig_set, sig_clr, sig_d, sig_q, clk_polarity, en_polarity, set_polarity, clr_polarity, src); }
+	RTLIL::Cell* addAdff (TwineRef name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_arst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const arst_value, bool clk_polarity = true, bool arst_polarity = true, TwineRef src = Twine::Null);
+
+	RTLIL::Cell* addAdff (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_arst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const arst_value, bool clk_polarity = true, bool arst_polarity = true, TwineRef src = Twine::Null)
+		{ return addAdff(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_clk, sig_arst, sig_d, sig_q, arst_value, clk_polarity, arst_polarity, src); }
+	RTLIL::Cell* addAdffe (TwineRef name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_arst,  const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const arst_value, bool clk_polarity = true, bool en_polarity = true, bool arst_polarity = true, TwineRef src = Twine::Null);
+
+	RTLIL::Cell* addAdffe (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_arst,  const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const arst_value, bool clk_polarity = true, bool en_polarity = true, bool arst_polarity = true, TwineRef src = Twine::Null)
+		{ return addAdffe(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_clk, sig_en, sig_arst, sig_d, sig_q, arst_value, clk_polarity, en_polarity, arst_polarity, src); }
+	RTLIL::Cell* addAldff (TwineRef name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_aload, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, const RTLIL::SigSpec &sig_ad, bool clk_polarity = true, bool aload_polarity = true, TwineRef src = Twine::Null);
+
+	RTLIL::Cell* addAldff (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_aload, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, const RTLIL::SigSpec &sig_ad, bool clk_polarity = true, bool aload_polarity = true, TwineRef src = Twine::Null)
+		{ return addAldff(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_clk, sig_aload, sig_d, sig_q, sig_ad, clk_polarity, aload_polarity, src); }
+	RTLIL::Cell* addAldffe (TwineRef name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_aload,  const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, const RTLIL::SigSpec &sig_ad, bool clk_polarity = true, bool en_polarity = true, bool aload_polarity = true, TwineRef src = Twine::Null);
+
+	RTLIL::Cell* addAldffe (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_aload,  const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, const RTLIL::SigSpec &sig_ad, bool clk_polarity = true, bool en_polarity = true, bool aload_polarity = true, TwineRef src = Twine::Null)
+		{ return addAldffe(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_clk, sig_en, sig_aload, sig_d, sig_q, sig_ad, clk_polarity, en_polarity, aload_polarity, src); }
+	RTLIL::Cell* addSdff (TwineRef name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_srst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const srst_value, bool clk_polarity = true, bool srst_polarity = true, TwineRef src = Twine::Null);
+
+	RTLIL::Cell* addSdff (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_srst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const srst_value, bool clk_polarity = true, bool srst_polarity = true, TwineRef src = Twine::Null)
+		{ return addSdff(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_clk, sig_srst, sig_d, sig_q, srst_value, clk_polarity, srst_polarity, src); }
+	RTLIL::Cell* addSdffe (TwineRef name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_srst,  const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const srst_value, bool clk_polarity = true, bool en_polarity = true, bool srst_polarity = true, TwineRef src = Twine::Null);
+
+	RTLIL::Cell* addSdffe (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_srst,  const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const srst_value, bool clk_polarity = true, bool en_polarity = true, bool srst_polarity = true, TwineRef src = Twine::Null)
+		{ return addSdffe(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_clk, sig_en, sig_srst, sig_d, sig_q, srst_value, clk_polarity, en_polarity, srst_polarity, src); }
+	RTLIL::Cell* addSdffce (TwineRef name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_srst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const srst_value, bool clk_polarity = true, bool en_polarity = true, bool srst_polarity = true, TwineRef src = Twine::Null);
+
+	RTLIL::Cell* addSdffce (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_srst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const srst_value, bool clk_polarity = true, bool en_polarity = true, bool srst_polarity = true, TwineRef src = Twine::Null)
+		{ return addSdffce(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_clk, sig_en, sig_srst, sig_d, sig_q, srst_value, clk_polarity, en_polarity, srst_polarity, src); }
+	RTLIL::Cell* addDlatch (TwineRef name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool en_polarity = true, TwineRef src = Twine::Null);
+
+	RTLIL::Cell* addDlatch (Twine &&name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool en_polarity = true, TwineRef src = Twine::Null)
+		{ return addDlatch(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_en, sig_d, sig_q, en_polarity, src); }
+	RTLIL::Cell* addAdlatch (TwineRef name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_arst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const arst_value, bool en_polarity = true, bool arst_polarity = true, TwineRef src = Twine::Null);
+
+	RTLIL::Cell* addAdlatch (Twine &&name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_arst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const arst_value, bool en_polarity = true, bool arst_polarity = true, TwineRef src = Twine::Null)
+		{ return addAdlatch(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_en, sig_arst, sig_d, sig_q, arst_value, en_polarity, arst_polarity, src); }
+	RTLIL::Cell* addDlatchsr (TwineRef name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr, RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool en_polarity = true, bool set_polarity = true, bool clr_polarity = true, TwineRef src = Twine::Null);
+
+	RTLIL::Cell* addDlatchsr (Twine &&name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr, RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool en_polarity = true, bool set_polarity = true, bool clr_polarity = true, TwineRef src = Twine::Null)
+		{ return addDlatchsr(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_en, sig_set, sig_clr, sig_d, sig_q, en_polarity, set_polarity, clr_polarity, src); }
 
 	RTLIL::Cell* addBufGate    (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_y, TwineRef src = Twine::Null);
 	RTLIL::Cell* addNotGate    (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_y, TwineRef src = Twine::Null);
@@ -2824,34 +2214,94 @@ public:
 	RTLIL::Cell* addAoi4Gate   (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, const RTLIL::SigBit &sig_d, const RTLIL::SigBit &sig_y, TwineRef src = Twine::Null);
 	RTLIL::Cell* addOai4Gate   (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, const RTLIL::SigBit &sig_d, const RTLIL::SigBit &sig_y, TwineRef src = Twine::Null);
 
-	RTLIL::Cell* addSrGate     (Twine &&name, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr,
+	RTLIL::Cell* addSrGate     (TwineRef name, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr,
 			const RTLIL::SigSpec &sig_q, bool set_polarity = true, bool clr_polarity = true, TwineRef src = Twine::Null);
-	RTLIL::Cell* addFfGate     (Twine &&name, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, TwineRef src = Twine::Null);
-	RTLIL::Cell* addDffGate    (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, TwineRef src = Twine::Null);
-	RTLIL::Cell* addDffeGate   (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool en_polarity = true, TwineRef src = Twine::Null);
-	RTLIL::Cell* addDffsrGate  (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr,
+
+	RTLIL::Cell* addSrGate     (Twine &&name, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr,
+			const RTLIL::SigSpec &sig_q, bool set_polarity = true, bool clr_polarity = true, TwineRef src = Twine::Null)
+		{ return addSrGate(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_set, sig_clr, sig_q, set_polarity, clr_polarity, src); }
+	RTLIL::Cell* addFfGate     (TwineRef name, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, TwineRef src = Twine::Null);
+
+	RTLIL::Cell* addFfGate     (Twine &&name, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, TwineRef src = Twine::Null)
+		{ return addFfGate(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_d, sig_q, src); }
+	RTLIL::Cell* addDffGate    (TwineRef name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, TwineRef src = Twine::Null);
+
+	RTLIL::Cell* addDffGate    (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, TwineRef src = Twine::Null)
+		{ return addDffGate(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_clk, sig_d, sig_q, clk_polarity, src); }
+	RTLIL::Cell* addDffeGate   (TwineRef name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool en_polarity = true, TwineRef src = Twine::Null);
+
+	RTLIL::Cell* addDffeGate   (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool en_polarity = true, TwineRef src = Twine::Null)
+		{ return addDffeGate(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_clk, sig_en, sig_d, sig_q, clk_polarity, en_polarity, src); }
+	RTLIL::Cell* addDffsrGate  (TwineRef name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr,
 			RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool set_polarity = true, bool clr_polarity = true, TwineRef src = Twine::Null);
-	RTLIL::Cell* addDffsreGate (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr,
+
+	RTLIL::Cell* addDffsrGate  (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr,
+			RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool set_polarity = true, bool clr_polarity = true, TwineRef src = Twine::Null)
+		{ return addDffsrGate(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_clk, sig_set, sig_clr, sig_d, sig_q, clk_polarity, set_polarity, clr_polarity, src); }
+	RTLIL::Cell* addDffsreGate (TwineRef name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr,
 			RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool en_polarity = true, bool set_polarity = true, bool clr_polarity = true, TwineRef src = Twine::Null);
-	RTLIL::Cell* addAdffGate   (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_arst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
+
+	RTLIL::Cell* addDffsreGate (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr,
+			RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool en_polarity = true, bool set_polarity = true, bool clr_polarity = true, TwineRef src = Twine::Null)
+		{ return addDffsreGate(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_clk, sig_en, sig_set, sig_clr, sig_d, sig_q, clk_polarity, en_polarity, set_polarity, clr_polarity, src); }
+	RTLIL::Cell* addAdffGate   (TwineRef name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_arst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
 			bool arst_value = false, bool clk_polarity = true, bool arst_polarity = true, TwineRef src = Twine::Null);
-	RTLIL::Cell* addAdffeGate  (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_arst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
+
+	RTLIL::Cell* addAdffGate   (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_arst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
+			bool arst_value = false, bool clk_polarity = true, bool arst_polarity = true, TwineRef src = Twine::Null)
+		{ return addAdffGate(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_clk, sig_arst, sig_d, sig_q, arst_value, clk_polarity, arst_polarity, src); }
+	RTLIL::Cell* addAdffeGate  (TwineRef name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_arst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
 			bool arst_value = false, bool clk_polarity = true, bool en_polarity = true, bool arst_polarity = true, TwineRef src = Twine::Null);
-	RTLIL::Cell* addAldffGate   (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_aload, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
+
+	RTLIL::Cell* addAdffeGate  (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_arst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
+			bool arst_value = false, bool clk_polarity = true, bool en_polarity = true, bool arst_polarity = true, TwineRef src = Twine::Null)
+		{ return addAdffeGate(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_clk, sig_en, sig_arst, sig_d, sig_q, arst_value, clk_polarity, en_polarity, arst_polarity, src); }
+	RTLIL::Cell* addAldffGate   (TwineRef name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_aload, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
 			const RTLIL::SigSpec &sig_ad, bool clk_polarity = true, bool aload_polarity = true, TwineRef src = Twine::Null);
-	RTLIL::Cell* addAldffeGate  (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_aload, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
+
+	RTLIL::Cell* addAldffGate   (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_aload, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
+			const RTLIL::SigSpec &sig_ad, bool clk_polarity = true, bool aload_polarity = true, TwineRef src = Twine::Null)
+		{ return addAldffGate(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_clk, sig_aload, sig_d, sig_q, sig_ad, clk_polarity, aload_polarity, src); }
+	RTLIL::Cell* addAldffeGate  (TwineRef name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_aload, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
 			const RTLIL::SigSpec &sig_ad, bool clk_polarity = true, bool en_polarity = true, bool aload_polarity = true, TwineRef src = Twine::Null);
-	RTLIL::Cell* addSdffGate   (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_srst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
+
+	RTLIL::Cell* addAldffeGate  (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_aload, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
+			const RTLIL::SigSpec &sig_ad, bool clk_polarity = true, bool en_polarity = true, bool aload_polarity = true, TwineRef src = Twine::Null)
+		{ return addAldffeGate(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_clk, sig_en, sig_aload, sig_d, sig_q, sig_ad, clk_polarity, en_polarity, aload_polarity, src); }
+	RTLIL::Cell* addSdffGate   (TwineRef name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_srst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
 			bool srst_value = false, bool clk_polarity = true, bool srst_polarity = true, TwineRef src = Twine::Null);
+
+	RTLIL::Cell* addSdffGate   (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_srst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
+			bool srst_value = false, bool clk_polarity = true, bool srst_polarity = true, TwineRef src = Twine::Null)
+		{ return addSdffGate(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_clk, sig_srst, sig_d, sig_q, srst_value, clk_polarity, srst_polarity, src); }
+	RTLIL::Cell* addSdffeGate  (TwineRef name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_srst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
+			bool srst_value = false, bool clk_polarity = true, bool en_polarity = true, bool srst_polarity = true, TwineRef src = Twine::Null);
+
 	RTLIL::Cell* addSdffeGate  (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_srst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
+			bool srst_value = false, bool clk_polarity = true, bool en_polarity = true, bool srst_polarity = true, TwineRef src = Twine::Null)
+		{ return addSdffeGate(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_clk, sig_en, sig_srst, sig_d, sig_q, srst_value, clk_polarity, en_polarity, srst_polarity, src); }
+	RTLIL::Cell* addSdffceGate (TwineRef name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_srst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
 			bool srst_value = false, bool clk_polarity = true, bool en_polarity = true, bool srst_polarity = true, TwineRef src = Twine::Null);
+
 	RTLIL::Cell* addSdffceGate (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_srst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
-			bool srst_value = false, bool clk_polarity = true, bool en_polarity = true, bool srst_polarity = true, TwineRef src = Twine::Null);
-	RTLIL::Cell* addDlatchGate (Twine &&name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool en_polarity = true, TwineRef src = Twine::Null);
-	RTLIL::Cell* addAdlatchGate(Twine &&name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_arst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
+			bool srst_value = false, bool clk_polarity = true, bool en_polarity = true, bool srst_polarity = true, TwineRef src = Twine::Null)
+		{ return addSdffceGate(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_clk, sig_en, sig_srst, sig_d, sig_q, srst_value, clk_polarity, en_polarity, srst_polarity, src); }
+	RTLIL::Cell* addDlatchGate (TwineRef name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool en_polarity = true, TwineRef src = Twine::Null);
+
+	RTLIL::Cell* addDlatchGate (Twine &&name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool en_polarity = true, TwineRef src = Twine::Null)
+		{ return addDlatchGate(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_en, sig_d, sig_q, en_polarity, src); }
+	RTLIL::Cell* addAdlatchGate(TwineRef name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_arst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
 			bool arst_value = false, bool en_polarity = true, bool arst_polarity = true, TwineRef src = Twine::Null);
-	RTLIL::Cell* addDlatchsrGate  (Twine &&name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr,
+
+	RTLIL::Cell* addAdlatchGate(Twine &&name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_arst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
+			bool arst_value = false, bool en_polarity = true, bool arst_polarity = true, TwineRef src = Twine::Null)
+		{ return addAdlatchGate(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_en, sig_arst, sig_d, sig_q, arst_value, en_polarity, arst_polarity, src); }
+	RTLIL::Cell* addDlatchsrGate  (TwineRef name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr,
 			RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool en_polarity = true, bool set_polarity = true, bool clr_polarity = true, TwineRef src = Twine::Null);
+
+	RTLIL::Cell* addDlatchsrGate  (Twine &&name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr,
+			RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool en_polarity = true, bool set_polarity = true, bool clr_polarity = true, TwineRef src = Twine::Null)
+		{ return addDlatchsrGate(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_en, sig_set, sig_clr, sig_d, sig_q, en_polarity, set_polarity, clr_polarity, src); }
 
 	// The methods without the add* prefix create a cell and an output signal. They return the newly created output signal.
 
@@ -2929,7 +2379,7 @@ public:
 };
 
 // Zero-size masquerade for Module::name. Same contract as WireNameMasq,
-// plus a write path via operator=(IdString). Shadows NamedObject::name
+// plus a write path via operator=(TwineRef). Shadows NamedObject::name
 // at the Module-instance scope; static_cast<NamedObject*>(module)->name
 // still hits the (now-unused) inline base field. Writing requires
 // module->design to be set first.
@@ -2937,16 +2387,16 @@ struct RTLIL::ModuleNameMasq : RTLIL::NameMasqBase<RTLIL::ModuleNameMasq> {
 	// Copying/moving is forbidden: a ModuleNameMasq derives its identity from
 	// `this` via offsetof(Module, name), so any instance not embedded in a
 	// Module would resolve to garbage. All conversions go through
-	// operator IdString() at the embedded location.
+	// operator TwineRef() at the embedded location.
 	ModuleNameMasq() = default;
 	ModuleNameMasq(const ModuleNameMasq&) = delete;
 	ModuleNameMasq(ModuleNameMasq&&) = delete;
 	operator TwineRef() const;
-	ModuleNameMasq& operator=(RTLIL::IdString id);
+	ModuleNameMasq& operator=(TwineRef id);
 	// Without this, `new_mod->name = src_mod->name` invokes the implicit
-	// copy-assign (no-op) instead of operator=(IdString), so the meta
+	// copy-assign (no-op) instead of operator=(TwineRef), so the meta
 	// never gets written.
-	ModuleNameMasq& operator=(const ModuleNameMasq& other) { return *this = RTLIL::IdString(other); }
+	ModuleNameMasq& operator=(const ModuleNameMasq& other) { return *this = other.ref(); }
 	TwineRef ref() const;
 	std::string escaped() const;
 	std::string unescaped() const;
@@ -2980,8 +2430,8 @@ public:
 	std::vector<RTLIL::SigSig>   connections_;
 	std::vector<RTLIL::Binding*> bindings_;
 
-	idict<RTLIL::IdString> avail_parameters;
-	dict<RTLIL::IdString, RTLIL::Const> parameter_default_values;
+	idict<TwineRef> avail_parameters;
+	dict<TwineRef, RTLIL::Const> parameter_default_values;
 	dict<TwineRef, RTLIL::Memory*> memories;
 	dict<TwineRef, RTLIL::Process*> processes;
 
@@ -2993,14 +2443,14 @@ public:
 	void set_src_attribute(TwineRef src);
 	std::string get_src_attribute() const;
 	void adopt_src_from(const RTLIL::AttrObject *source);
-	void absorb_attrs(dict<RTLIL::IdString, RTLIL::Const> &&buf);
+	void absorb_attrs(dict<TwineRef, RTLIL::Const> &&buf);
 
 	Module();
 	virtual ~Module();
-	virtual TwineRef derive(RTLIL::Design *design, const dict<RTLIL::IdString, RTLIL::Const> &parameters, bool mayfail = false);
-	virtual TwineRef derive(RTLIL::Design *design, const dict<RTLIL::IdString, RTLIL::Const> &parameters, const dict<TwineRef, RTLIL::Module*> &interfaces, const dict<TwineRef, TwineRef> &modports, bool mayfail = false);
+	virtual TwineRef derive(RTLIL::Design *design, const dict<TwineRef, RTLIL::Const> &parameters, bool mayfail = false);
+	virtual TwineRef derive(RTLIL::Design *design, const dict<TwineRef, RTLIL::Const> &parameters, const dict<TwineRef, RTLIL::Module*> &interfaces, const dict<TwineRef, TwineRef> &modports, bool mayfail = false);
 	virtual size_t count_id(TwineRef id);
-	virtual void expand_interfaces(RTLIL::Design *design, const dict<RTLIL::IdString, RTLIL::Module *> &local_interfaces);
+	virtual void expand_interfaces(RTLIL::Design *design, const dict<TwineRef, RTLIL::Module *> &local_interfaces);
 	virtual bool reprocess_if_necessary(RTLIL::Design *design);
 
 	virtual void sort();
@@ -3130,7 +2580,7 @@ public:
 	// CellAdderMixin hook: cells added here are attached, so set src directly.
 	void cell_set_src(RTLIL::Cell *cell, TwineRef src) { cell->set_src_attribute(src); }
 
-	// NEW_ID analog for twine names; see NEW_TWINE in yosys_common.h.
+	// NEW_ID analog for twine names; see NEW_ID in yosys_common.h.
 	TwineRef new_name(const std::string *prefix) {
 		TwineRef pref = design->twines.add(Twine{*prefix});
 		return design->twines.add(Twine{Twine::Suffix{pref, std::to_string(autoidx++)}});
@@ -3303,6 +2753,26 @@ void RTLIL::Process::rewrite_sigspecs2(T &functor)
 }
 
 // The masq accessors below recover their containing Wire/Cell/Module by
+// Prefer these over the pool-free log_id(TwineRef) (which can only render
+// static constids): a masquerade knows the Design its name lives in.
+template<typename Derived>
+inline const char *log_id(const RTLIL::NameMasqBase<Derived> &name) {
+	return log_id_str(static_cast<const Derived &>(name).unescaped());
+}
+inline const char *log_id(const RTLIL::CellTypeMasq &type) {
+	return log_id_str(type.unescaped());
+}
+
+// Uniform way to reach the owning Design of any RTLIL object, so pool-dependent
+// helpers can be written generically over Module/Wire/Cell/Memory/Process.
+namespace RTLIL {
+	inline RTLIL::Design *design_of(const RTLIL::Module *m) { return m ? m->design : nullptr; }
+	inline RTLIL::Design *design_of(const RTLIL::Wire *w) { return w && w->module ? w->module->design : nullptr; }
+	inline RTLIL::Design *design_of(const RTLIL::Cell *c) { return c && c->module ? c->module->design : nullptr; }
+	inline RTLIL::Design *design_of(const RTLIL::Memory *m) { return m && m->module ? m->module->design : nullptr; }
+	inline RTLIL::Design *design_of(const RTLIL::Process *p) { return p && p->module ? p->module->design : nullptr; }
+}
+
 // subtracting offsetof from `this`. Those types are non-standard-layout (base
 // classes + virtuals), so offsetof is conditionally-supported, but it is
 // well-defined on GCC/Clang for these fixed field offsets.
@@ -3376,7 +2846,7 @@ inline std::string RTLIL::CellTypeMasq::escaped() const {
 		return std::string();
 	if (c->module && c->module->design)
 		return c->module->design->twines.str(id);
-	// Static (TW::) refs are pool-independent; assert non-local ref.
+	// Static (ID::) refs are pool-independent; assert non-local ref.
 	log_assert(twine_untag(id) < STATIC_TWINE_END);
 	return TwinePool{}.str(id);
 }
@@ -3391,13 +2861,6 @@ inline std::string RTLIL::CellTypeMasq::unescaped() const {
 		return c->module->design->twines.unescaped_str(id);
 	log_assert(twine_untag(id) < STATIC_TWINE_END);
 	return TwinePool{}.unescaped_str(id);
-}
-
-inline RTLIL::CellTypeMasq::operator RTLIL::IdString() const {
-	std::string s = escaped();
-	if (s.empty())
-		return RTLIL::IdString{};
-	return RTLIL::IdString(s);
 }
 
 inline TwineRef RTLIL::ModuleNameMasq::ref() const {

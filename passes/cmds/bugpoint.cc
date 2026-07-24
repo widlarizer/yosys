@@ -234,7 +234,7 @@ struct BugpointPass : public Pass {
 					if (!wire->port_id)
 						continue;
 
-					if (!stage2 && wire->get_bool_attribute(ID($bugpoint)))
+					if (!stage2 && wire->get_bool_attribute(ID::$bugpoint))
 						continue;
 
 					if (wire->get_bool_attribute(ID::bugpoint_keep))
@@ -306,8 +306,8 @@ struct BugpointPass : public Pass {
 						if (!stage2 && (cell->input(it.first) || cell->output(it.first)) && index++ == seed)
 						{
 							log_header(design, "Trying to expose cell port %s.%s.%s as module port.\n", mod, cell, design->twines.str(it.first).c_str());
-							RTLIL::Wire *wire = mod->addWire(NEW_TWINE, port.size());
-							wire->set_bool_attribute(ID($bugpoint));
+							RTLIL::Wire *wire = mod->addWire(NEW_ID, port.size());
+							wire->set_bool_attribute(ID::$bugpoint);
 							wire->port_input = cell->input(it.first);
 							wire->port_output = cell->output(it.first);
 							cell->unsetPort(it.first);
@@ -399,7 +399,7 @@ struct BugpointPass : public Pass {
 						{
 							if (index++ == seed)
 							{
-								log_header(design, "Trying to remove sync %s memwr %s %s %s %s in %s.%s.\n", log_signal(sy->signal), it->memid.unescape(), log_signal(it->address), log_signal(it->data), log_signal(it->enable), mod, design->twines.str(pr.first).c_str());
+								log_header(design, "Trying to remove sync %s memwr %s %s %s %s in %s.%s.\n", log_signal(sy->signal), design->twines.unescaped_str(it->memid), log_signal(it->address), log_signal(it->data), log_signal(it->enable), mod, design->twines.str(pr.first).c_str());
 								sy->mem_write_actions.erase(it);
 								// Remove the bit for removed action from other actions' priority masks.
 								for (auto it2 = sy->mem_write_actions.begin(); it2 != sy->mem_write_actions.end(); ++it2) {

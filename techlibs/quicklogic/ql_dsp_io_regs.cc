@@ -63,34 +63,34 @@ struct QlDspIORegs : public Pass {
 
 	void ql_dsp_io_regs_pass(RTLIL::Module *module)
 	{
-		static const std::vector<TwineRef> ports2del_mult = {TW::load_acc, TW::subtract, TW::acc_fir, TW::dly_b,
-														TW::saturate_enable, TW::shift_right, TW::round};
-		static const std::vector<TwineRef> ports2del_mult_acc = {TW::acc_fir, TW::dly_b};
+		static const std::vector<TwineRef> ports2del_mult = {ID::load_acc, ID::subtract, ID::acc_fir, ID::dly_b,
+														ID::saturate_enable, ID::shift_right, ID::round};
+		static const std::vector<TwineRef> ports2del_mult_acc = {ID::acc_fir, ID::dly_b};
 
 
 		sigmap.set(module);
 
 		for (auto cell : module->cells()) {
-			if (cell->type != ID(QL_DSP2))
+			if (cell->type != ID::QL_DSP2)
 				continue;
 
 			// If the cell does not have the "is_inferred" attribute set
 			// then don't touch it.
-			if (!cell->get_bool_attribute(ID(is_inferred)))
+			if (!cell->get_bool_attribute(ID::is_inferred))
 				continue;
 
 			// Get DSP configuration
-			for (auto cfg_port : {TW::register_inputs, TW::output_select})
+			for (auto cfg_port : {ID::register_inputs, ID::output_select})
 			if (!cell->hasPort(cfg_port) || !sigmap(cell->getPort(cfg_port)).is_fully_const())
 				log_error("Missing or non-constant '%s' port on DSP cell %s\n",
 						  cell->module->design->twines.str(cfg_port).c_str(), cell);
-			int reg_in_i = sigmap(cell->getPort(TW::register_inputs)).as_int();
-			int out_sel_i = sigmap(cell->getPort(TW::output_select)).as_int();
+			int reg_in_i = sigmap(cell->getPort(ID::register_inputs)).as_int();
+			int out_sel_i = sigmap(cell->getPort(ID::output_select)).as_int();
 
 			// Get the feedback port
-			if (!cell->hasPort(TW::feedback))
+			if (!cell->hasPort(ID::feedback))
 				log_error("Missing 'feedback' port on %s", cell);
-			SigSpec feedback = sigmap(cell->getPort(TW::feedback));
+			SigSpec feedback = sigmap(cell->getPort(ID::feedback));
 
 			// Check the top two bits on 'feedback' to be constant zero.
 			// That's what we are expecting from inference.
@@ -132,7 +132,7 @@ struct QlDspIORegs : public Pass {
 			std::vector<std::string> ports2del;
 
 			if (del_clk)
-				cell->unsetPort(TW::clk);
+				cell->unsetPort(ID::clk);
 
 			switch (out_sel_i) {
 			case 0:

@@ -42,7 +42,7 @@ struct EstimateSta {
 	std::optional<SigBit> clk;
 	bool top_port_endpoints = false;
 
-	dict<std::pair<RTLIL::IdString, dict<RTLIL::IdString, RTLIL::Const>>, Aig> aigs;
+	dict<std::pair<TwineRef, dict<TwineRef, RTLIL::Const>>, Aig> aigs;
 	dict<Cell *, Aig *> cell_aigs;
 
 	std::vector<std::pair<Cell *, SigBit>> launchers;
@@ -64,10 +64,10 @@ struct EstimateSta {
 
 	// we include a discount factor for cells that can be implemented using carry chain logic
 	// and to account for the AIG model not being balanced
-	int cell_type_factor(IdString type)
+	int cell_type_factor(TwineRef type)
 	{
-		if (type.in(TW($gt), TW($ge), TW($lt), TW($le), TW($add), TW($sub),
-					TW($logic_not), TW($reduce_and), TW($reduce_or), TW($eq)))
+		if (type.in(ID::$gt, ID::$ge, ID::$lt, ID::$le, ID::$add, ID::$sub,
+					ID::$logic_not, ID::$reduce_and, ID::$reduce_or, ID::$eq))
 			return 1;
 		else
 			return 2;
@@ -112,11 +112,11 @@ struct EstimateSta {
 			} else if (cell->is_mem_cell()) {
 				// memories handled separately
 				continue;
-			} else if (cell->type == TW($scopeinfo)) {
+			} else if (cell->type == ID::$scopeinfo) {
 				continue;
 			} else {
 				// find or build AIG model of combinational cell
-				auto fingerprint = std::make_pair(RTLIL::IdString(cell->type), cell->parameters);
+				auto fingerprint = std::make_pair(TwineRef(cell->type), cell->parameters);
 				if (!aigs.count(fingerprint)) {
 					aigs.emplace(fingerprint, Aig(cell));
 					if (aigs.at(fingerprint).name.empty()) {
@@ -133,7 +133,7 @@ struct EstimateSta {
 		// since we're now taking reference into `aigs`, we can no longer modify it
 		// and thus have to fill `cell_aigs` in a separate loop
 		for (auto cell : combinational) {
-			auto fingerprint = std::make_pair(RTLIL::IdString(cell->type), cell->parameters);
+			auto fingerprint = std::make_pair(TwineRef(cell->type), cell->parameters);
 			cell_aigs.emplace(cell, &aigs.at(fingerprint));
 		}
 
@@ -326,7 +326,7 @@ struct EstimateSta {
 
 		// finally print the path we found
 		SigPool bits_to_select;
-		pool<IdString> to_select;
+		pool<TwineRef> to_select;
 
 		pool<Cell *> printed;
 		for (auto node : topo.sorted) {
@@ -359,13 +359,13 @@ struct EstimateSta {
 
 		for (auto wire : m->wires()) {
 			if (bits_to_select.check_any(sigmap(wire)))
-				{ RTLIL::IdString wn = wire->name; to_select.insert(wn); }
+				{ TwineRef wn = wire->name; to_select.insert(wn); }
 		}
 
 		if (select) {
 			RTLIL::Selection sel(false);
 			for (auto member : to_select)
-				sel.selected_members[m->meta_->name].insert(m->design->twines.add(Twine{member.str()}));
+				sel.selected_members[m->meta_->name].insert(member);
 			m->design->selection_stack.back() = sel;
 			m->design->selection_stack.back().optimize(m->design);
 		}

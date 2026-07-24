@@ -29,7 +29,7 @@
 USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
-typedef RTLIL::IdString::compare_ptr_by_name<RTLIL::Cell> cell_ptr_cmp;
+typedef RTLIL::compare_ptr_by_name<RTLIL::Cell> cell_ptr_cmp;
 typedef std::pair<RTLIL::SigSpec, RTLIL::Const> ssc_pair_t;
 
 struct ShareWorkerConfig
@@ -88,8 +88,8 @@ struct ShareWorker
 			queue_bits.clear();
 
 			for (auto &pbit : portbits) {
-				if ((pbit.cell->type == TW($mux) || pbit.cell->type == TW($pmux)) && visited_cells.count(pbit.cell) == 0) {
-					pool<RTLIL::SigBit> bits = modwalker.sigmap(pbit.cell->getPort(TW::S)).to_sigbit_pool();
+				if ((pbit.cell->type == ID::$mux || pbit.cell->type == ID::$pmux) && visited_cells.count(pbit.cell) == 0) {
+					pool<RTLIL::SigBit> bits = modwalker.sigmap(pbit.cell->getPort(ID::S)).to_sigbit_pool();
 					terminal_bits.insert(bits.begin(), bits.end());
 					queue_bits.insert(bits.begin(), bits.end());
 					visited_cells.insert(pbit.cell);
@@ -127,7 +127,7 @@ struct ShareWorker
 	static int bits_macc(RTLIL::Cell *c)
 	{
 		Macc m(c);
-		int width = GetSize(c->getPort(TW::Y));
+		int width = GetSize(c->getPort(ID::Y));
 		return bits_macc(m, width);
 	}
 
@@ -206,13 +206,13 @@ struct ShareWorker
 			sig_b2.extend_u0(GetSize(sig_b), p2.is_signed);
 
 			if (supercell_aux && GetSize(sig_a)) {
-				sig_a = module->addWire(NEW_TWINE, GetSize(sig_a));
-				supercell_aux->insert(module->addMux(NEW_TWINE, sig_a2, sig_a1, act, sig_a));
+				sig_a = module->addWire(NEW_ID, GetSize(sig_a));
+				supercell_aux->insert(module->addMux(NEW_ID, sig_a2, sig_a1, act, sig_a));
 			}
 
 			if (supercell_aux && GetSize(sig_b)) {
-				sig_b = module->addWire(NEW_TWINE, GetSize(sig_b));
-				supercell_aux->insert(module->addMux(NEW_TWINE, sig_b2, sig_b1, act, sig_b));
+				sig_b = module->addWire(NEW_ID, GetSize(sig_b));
+				supercell_aux->insert(module->addMux(NEW_ID, sig_b2, sig_b1, act, sig_b));
 			}
 
 			Macc::term_t p;
@@ -241,7 +241,7 @@ struct ShareWorker
 	{
 		Macc m1(c1), m2(c2), supermacc;
 
-		int w1 = GetSize(c1->getPort(TW::Y)), w2 = GetSize(c2->getPort(TW::Y));
+		int w1 = GetSize(c1->getPort(ID::Y)), w2 = GetSize(c2->getPort(ID::Y));
 		int width = max(w1, w2);
 
 		m1.optimize(w1);
@@ -283,13 +283,13 @@ struct ShareWorker
 			RTLIL::SigSpec sig_b = m1.terms[i].in_b;
 
 			if (supercell_aux && GetSize(sig_a)) {
-				sig_a = module->addWire(NEW_TWINE, GetSize(sig_a));
-				supercell_aux->insert(module->addMux(NEW_TWINE, RTLIL::SigSpec(0, GetSize(sig_a)), m1.terms[i].in_a, act, sig_a));
+				sig_a = module->addWire(NEW_ID, GetSize(sig_a));
+				supercell_aux->insert(module->addMux(NEW_ID, RTLIL::SigSpec(0, GetSize(sig_a)), m1.terms[i].in_a, act, sig_a));
 			}
 
 			if (supercell_aux && GetSize(sig_b)) {
-				sig_b = module->addWire(NEW_TWINE, GetSize(sig_b));
-				supercell_aux->insert(module->addMux(NEW_TWINE, RTLIL::SigSpec(0, GetSize(sig_b)), m1.terms[i].in_b, act, sig_b));
+				sig_b = module->addWire(NEW_ID, GetSize(sig_b));
+				supercell_aux->insert(module->addMux(NEW_ID, RTLIL::SigSpec(0, GetSize(sig_b)), m1.terms[i].in_b, act, sig_b));
 			}
 
 			Macc::term_t p;
@@ -306,13 +306,13 @@ struct ShareWorker
 			RTLIL::SigSpec sig_b = m2.terms[i].in_b;
 
 			if (supercell_aux && GetSize(sig_a)) {
-				sig_a = module->addWire(NEW_TWINE, GetSize(sig_a));
-				supercell_aux->insert(module->addMux(NEW_TWINE, m2.terms[i].in_a, RTLIL::SigSpec(0, GetSize(sig_a)), act, sig_a));
+				sig_a = module->addWire(NEW_ID, GetSize(sig_a));
+				supercell_aux->insert(module->addMux(NEW_ID, m2.terms[i].in_a, RTLIL::SigSpec(0, GetSize(sig_a)), act, sig_a));
 			}
 
 			if (supercell_aux && GetSize(sig_b)) {
-				sig_b = module->addWire(NEW_TWINE, GetSize(sig_b));
-				supercell_aux->insert(module->addMux(NEW_TWINE, m2.terms[i].in_b, RTLIL::SigSpec(0, GetSize(sig_b)), act, sig_b));
+				sig_b = module->addWire(NEW_ID, GetSize(sig_b));
+				supercell_aux->insert(module->addMux(NEW_ID, m2.terms[i].in_b, RTLIL::SigSpec(0, GetSize(sig_b)), act, sig_b));
 			}
 
 			Macc::term_t p;
@@ -325,13 +325,13 @@ struct ShareWorker
 
 		if (supercell)
 		{
-			RTLIL::SigSpec sig_y = module->addWire(NEW_TWINE, width);
+			RTLIL::SigSpec sig_y = module->addWire(NEW_ID, width);
 
-			supercell_aux->insert(module->addPos(NEW_TWINE, sig_y, c1->getPort(TW::Y)));
-			supercell_aux->insert(module->addPos(NEW_TWINE, sig_y, c2->getPort(TW::Y)));
+			supercell_aux->insert(module->addPos(NEW_ID, sig_y, c1->getPort(ID::Y)));
+			supercell_aux->insert(module->addPos(NEW_ID, sig_y, c2->getPort(ID::Y)));
 
 			supercell->setParam(ID::Y_WIDTH, width);
-			supercell->setPort(TW::Y, sig_y);
+			supercell->setPort(ID::Y, sig_y);
 
 			supermacc.optimize(width);
 			supermacc.to_cell(supercell);
@@ -362,21 +362,21 @@ struct ShareWorker
 		not_a_muxed_cell:
 				continue;
 
-			if (cell->type.in(TW($memrd), TW($memrd_v2))) {
+			if (cell->type.in(ID::$memrd, ID::$memrd_v2)) {
 				if (cell->parameters.at(ID::CLK_ENABLE).as_bool())
 					continue;
-				if (config.opt_aggressive || !modwalker.sigmap(cell->getPort(TW::ADDR)).is_fully_const())
+				if (config.opt_aggressive || !modwalker.sigmap(cell->getPort(ID::ADDR)).is_fully_const())
 					shareable_cells.insert(cell);
 				continue;
 			}
 
-			if (cell->type.in(TW($mul), TW($div), TW($mod), TW($divfloor), TW($modfloor))) {
+			if (cell->type.in(ID::$mul, ID::$div, ID::$mod, ID::$divfloor, ID::$modfloor)) {
 				if (config.opt_aggressive || cell->parameters.at(ID::Y_WIDTH).as_int() >= 4)
 					shareable_cells.insert(cell);
 				continue;
 			}
 
-			if (cell->type.in(TW($shl), TW($shr), TW($sshl), TW($sshr))) {
+			if (cell->type.in(ID::$shl, ID::$shr, ID::$sshl, ID::$sshr)) {
 				if (config.opt_aggressive || cell->parameters.at(ID::Y_WIDTH).as_int() >= 8)
 					shareable_cells.insert(cell);
 				continue;
@@ -395,7 +395,7 @@ struct ShareWorker
 		if (c1->type != c2->type)
 			return false;
 
-		if (c1->type.in(TW($memrd), TW($memrd_v2)))
+		if (c1->type.in(ID::$memrd, ID::$memrd_v2))
 		{
 			if (c1->parameters.at(ID::MEMID).decode_string() != c2->parameters.at(ID::MEMID).decode_string())
 				return false;
@@ -423,7 +423,7 @@ struct ShareWorker
 			return true;
 		}
 
-		if (config.generic_bin_ops(c1->type_impl) || c1->type == TW($alu))
+		if (config.generic_bin_ops(c1->type_impl) || c1->type == ID::$alu)
 		{
 			if (!config.opt_aggressive)
 			{
@@ -469,7 +469,7 @@ struct ShareWorker
 			return true;
 		}
 
-		if (c1->type == TW($macc))
+		if (c1->type == ID::$macc)
 		{
 			if (!config.opt_aggressive)
 				if (share_macc(c1, c2) > 2 * min(bits_macc(c1), bits_macc(c2))) return false;
@@ -510,11 +510,11 @@ struct ShareWorker
 			if (c1->parameters.at(ID::A_SIGNED).as_bool() != c2->parameters.at(ID::A_SIGNED).as_bool())
 			{
 				RTLIL::Cell *unsigned_cell = c1->parameters.at(ID::A_SIGNED).as_bool() ? c2 : c1;
-				if (unsigned_cell->getPort(TW::A).to_sigbit_vector().back() != RTLIL::State::S0) {
+				if (unsigned_cell->getPort(ID::A).to_sigbit_vector().back() != RTLIL::State::S0) {
 					unsigned_cell->parameters.at(ID::A_WIDTH) = unsigned_cell->parameters.at(ID::A_WIDTH).as_int() + 1;
-					RTLIL::SigSpec new_a = unsigned_cell->getPort(TW::A);
+					RTLIL::SigSpec new_a = unsigned_cell->getPort(ID::A);
 					new_a.append(RTLIL::State::S0);
-					unsigned_cell->setPort(TW::A, new_a);
+					unsigned_cell->setPort(ID::A, new_a);
 				}
 				unsigned_cell->parameters.at(ID::A_SIGNED) = true;
 				unsigned_cell->check();
@@ -523,11 +523,11 @@ struct ShareWorker
 			bool a_signed = c1->parameters.at(ID::A_SIGNED).as_bool();
 			log_assert(a_signed == c2->parameters.at(ID::A_SIGNED).as_bool());
 
-			RTLIL::SigSpec a1 = c1->getPort(TW::A);
-			RTLIL::SigSpec y1 = c1->getPort(TW::Y);
+			RTLIL::SigSpec a1 = c1->getPort(ID::A);
+			RTLIL::SigSpec y1 = c1->getPort(ID::Y);
 
-			RTLIL::SigSpec a2 = c2->getPort(TW::A);
-			RTLIL::SigSpec y2 = c2->getPort(TW::Y);
+			RTLIL::SigSpec a2 = c2->getPort(ID::A);
+			RTLIL::SigSpec y2 = c2->getPort(ID::Y);
 
 			int a_width = max(a1.size(), a2.size());
 			int y_width = max(y1.size(), y2.size());
@@ -535,27 +535,27 @@ struct ShareWorker
 			a1.extend_u0(a_width, a_signed);
 			a2.extend_u0(a_width, a_signed);
 
-			RTLIL::SigSpec a = module->addWire(NEW_TWINE, a_width);
-			supercell_aux.insert(module->addMux(NEW_TWINE, a2, a1, act, a));
+			RTLIL::SigSpec a = module->addWire(NEW_ID, a_width);
+			supercell_aux.insert(module->addMux(NEW_ID, a2, a1, act, a));
 
-			RTLIL::Wire *y = module->addWire(NEW_TWINE, y_width);
+			RTLIL::Wire *y = module->addWire(NEW_ID, y_width);
 
-			RTLIL::Cell *supercell = module->addCell(NEW_TWINE, c1->type_impl);
+			RTLIL::Cell *supercell = module->addCell(NEW_ID, c1->type_impl);
 			supercell->parameters[ID::A_SIGNED] = a_signed;
 			supercell->parameters[ID::A_WIDTH] = a_width;
 			supercell->parameters[ID::Y_WIDTH] = y_width;
-			supercell->setPort(TW::A, a);
-			supercell->setPort(TW::Y, y);
+			supercell->setPort(ID::A, a);
+			supercell->setPort(ID::Y, y);
 
-			supercell_aux.insert(module->addPos(NEW_TWINE, y, y1));
-			supercell_aux.insert(module->addPos(NEW_TWINE, y, y2));
+			supercell_aux.insert(module->addPos(NEW_ID, y, y1));
+			supercell_aux.insert(module->addPos(NEW_ID, y, y2));
 
 			supercell_aux.insert(supercell);
 			merge_cell_src(module, {c1, c2}, {supercell});
 			return supercell;
 		}
 
-		if (config.generic_bin_ops(c1->type_impl) || config.generic_cbin_ops(c1->type_impl) || c1->type_impl == TW($alu))
+		if (config.generic_bin_ops(c1->type_impl) || config.generic_cbin_ops(c1->type_impl) || c1->type_impl == ID::$alu)
 		{
 			bool modified_src_cells = false;
 
@@ -569,9 +569,9 @@ struct ShareWorker
 
 				if (score_flipped < score_unflipped)
 				{
-					RTLIL::SigSpec tmp = c2->getPort(TW::A);
-					c2->setPort(TW::A, c2->getPort(TW::B));
-					c2->setPort(TW::B, tmp);
+					RTLIL::SigSpec tmp = c2->getPort(ID::A);
+					c2->setPort(ID::A, c2->getPort(ID::B));
+					c2->setPort(ID::B, tmp);
 
 					std::swap(c2->parameters.at(ID::A_WIDTH), c2->parameters.at(ID::B_WIDTH));
 					std::swap(c2->parameters.at(ID::A_SIGNED), c2->parameters.at(ID::B_SIGNED));
@@ -583,11 +583,11 @@ struct ShareWorker
 
 			{
 				RTLIL::Cell *unsigned_cell = c1->parameters.at(ID::A_SIGNED).as_bool() ? c2 : c1;
-				if (unsigned_cell->getPort(TW::A).to_sigbit_vector().back() != RTLIL::State::S0) {
+				if (unsigned_cell->getPort(ID::A).to_sigbit_vector().back() != RTLIL::State::S0) {
 					unsigned_cell->parameters.at(ID::A_WIDTH) = unsigned_cell->parameters.at(ID::A_WIDTH).as_int() + 1;
-					RTLIL::SigSpec new_a = unsigned_cell->getPort(TW::A);
+					RTLIL::SigSpec new_a = unsigned_cell->getPort(ID::A);
 					new_a.append(RTLIL::State::S0);
-					unsigned_cell->setPort(TW::A, new_a);
+					unsigned_cell->setPort(ID::A, new_a);
 				}
 				unsigned_cell->parameters.at(ID::A_SIGNED) = true;
 				modified_src_cells = true;
@@ -596,11 +596,11 @@ struct ShareWorker
 			if (c1->parameters.at(ID::B_SIGNED).as_bool() != c2->parameters.at(ID::B_SIGNED).as_bool())
 			{
 				RTLIL::Cell *unsigned_cell = c1->parameters.at(ID::B_SIGNED).as_bool() ? c2 : c1;
-				if (unsigned_cell->getPort(TW::B).to_sigbit_vector().back() != RTLIL::State::S0) {
+				if (unsigned_cell->getPort(ID::B).to_sigbit_vector().back() != RTLIL::State::S0) {
 					unsigned_cell->parameters.at(ID::B_WIDTH) = unsigned_cell->parameters.at(ID::B_WIDTH).as_int() + 1;
-					RTLIL::SigSpec new_b = unsigned_cell->getPort(TW::B);
+					RTLIL::SigSpec new_b = unsigned_cell->getPort(ID::B);
 					new_b.append(RTLIL::State::S0);
-					unsigned_cell->setPort(TW::B, new_b);
+					unsigned_cell->setPort(ID::B, new_b);
 				}
 				unsigned_cell->parameters.at(ID::B_SIGNED) = true;
 				modified_src_cells = true;
@@ -617,22 +617,22 @@ struct ShareWorker
 			log_assert(a_signed == c2->parameters.at(ID::A_SIGNED).as_bool());
 			log_assert(b_signed == c2->parameters.at(ID::B_SIGNED).as_bool());
 
-			if (c1->type == TW($shl) || c1->type == TW($shr) || c1->type == TW($sshl) || c1->type == TW($sshr))
+			if (c1->type == ID::$shl || c1->type == ID::$shr || c1->type == ID::$sshl || c1->type == ID::$sshr)
 				b_signed = false;
 
-			RTLIL::SigSpec a1 = c1->getPort(TW::A);
-			RTLIL::SigSpec b1 = c1->getPort(TW::B);
-			RTLIL::SigSpec y1 = c1->getPort(TW::Y);
+			RTLIL::SigSpec a1 = c1->getPort(ID::A);
+			RTLIL::SigSpec b1 = c1->getPort(ID::B);
+			RTLIL::SigSpec y1 = c1->getPort(ID::Y);
 
-			RTLIL::SigSpec a2 = c2->getPort(TW::A);
-			RTLIL::SigSpec b2 = c2->getPort(TW::B);
-			RTLIL::SigSpec y2 = c2->getPort(TW::Y);
+			RTLIL::SigSpec a2 = c2->getPort(ID::A);
+			RTLIL::SigSpec b2 = c2->getPort(ID::B);
+			RTLIL::SigSpec y2 = c2->getPort(ID::Y);
 
 			int a_width = max(a1.size(), a2.size());
 			int b_width = max(b1.size(), b2.size());
 			int y_width = max(y1.size(), y2.size());
 
-			if (c1->type == TW($shr) && a_signed)
+			if (c1->type == ID::$shr && a_signed)
 			{
 				a_width = max(y_width, a_width);
 
@@ -651,43 +651,43 @@ struct ShareWorker
 			b1.extend_u0(b_width, b_signed);
 			b2.extend_u0(b_width, b_signed);
 
-			RTLIL::SigSpec a = module->addWire(NEW_TWINE, a_width);
-			RTLIL::SigSpec b = module->addWire(NEW_TWINE, b_width);
+			RTLIL::SigSpec a = module->addWire(NEW_ID, a_width);
+			RTLIL::SigSpec b = module->addWire(NEW_ID, b_width);
 
-			supercell_aux.insert(module->addMux(NEW_TWINE, a2, a1, act, a));
-			supercell_aux.insert(module->addMux(NEW_TWINE, b2, b1, act, b));
+			supercell_aux.insert(module->addMux(NEW_ID, a2, a1, act, a));
+			supercell_aux.insert(module->addMux(NEW_ID, b2, b1, act, b));
 
-			RTLIL::Wire *y = module->addWire(NEW_TWINE, y_width);
-			RTLIL::Wire *x = c1->type == TW($alu) ? module->addWire(NEW_TWINE, y_width) : nullptr;
-			RTLIL::Wire *co = c1->type == TW($alu) ? module->addWire(NEW_TWINE, y_width) : nullptr;
+			RTLIL::Wire *y = module->addWire(NEW_ID, y_width);
+			RTLIL::Wire *x = c1->type == ID::$alu ? module->addWire(NEW_ID, y_width) : nullptr;
+			RTLIL::Wire *co = c1->type == ID::$alu ? module->addWire(NEW_ID, y_width) : nullptr;
 
-			RTLIL::Cell *supercell = module->addCell(NEW_TWINE, c1->type_impl);
+			RTLIL::Cell *supercell = module->addCell(NEW_ID, c1->type_impl);
 			supercell->parameters[ID::A_SIGNED] = a_signed;
 			supercell->parameters[ID::B_SIGNED] = b_signed;
 			supercell->parameters[ID::A_WIDTH] = a_width;
 			supercell->parameters[ID::B_WIDTH] = b_width;
 			supercell->parameters[ID::Y_WIDTH] = y_width;
-			supercell->setPort(TW::A, a);
-			supercell->setPort(TW::B, b);
-			supercell->setPort(TW::Y, y);
-			if (c1->type == TW($alu)) {
-				RTLIL::Wire *ci = module->addWire(NEW_TWINE), *bi = module->addWire(NEW_TWINE);
-				supercell_aux.insert(module->addMux(NEW_TWINE, c2->getPort(TW::CI), c1->getPort(TW::CI), act, ci));
-				supercell_aux.insert(module->addMux(NEW_TWINE, c2->getPort(TW::BI), c1->getPort(TW::BI), act, bi));
-				supercell->setPort(TW::CI, ci);
-				supercell->setPort(TW::BI, bi);
-				supercell->setPort(TW::CO, co);
-				supercell->setPort(TW::X, x);
+			supercell->setPort(ID::A, a);
+			supercell->setPort(ID::B, b);
+			supercell->setPort(ID::Y, y);
+			if (c1->type == ID::$alu) {
+				RTLIL::Wire *ci = module->addWire(NEW_ID), *bi = module->addWire(NEW_ID);
+				supercell_aux.insert(module->addMux(NEW_ID, c2->getPort(ID::CI), c1->getPort(ID::CI), act, ci));
+				supercell_aux.insert(module->addMux(NEW_ID, c2->getPort(ID::BI), c1->getPort(ID::BI), act, bi));
+				supercell->setPort(ID::CI, ci);
+				supercell->setPort(ID::BI, bi);
+				supercell->setPort(ID::CO, co);
+				supercell->setPort(ID::X, x);
 			}
 			supercell->check();
 
-			supercell_aux.insert(module->addPos(NEW_TWINE, y, y1));
-			supercell_aux.insert(module->addPos(NEW_TWINE, y, y2));
-			if (c1->type == TW($alu)) {
-				supercell_aux.insert(module->addPos(NEW_TWINE, co, c1->getPort(TW::CO)));
-				supercell_aux.insert(module->addPos(NEW_TWINE, co, c2->getPort(TW::CO)));
-				supercell_aux.insert(module->addPos(NEW_TWINE, x, c1->getPort(TW::X)));
-				supercell_aux.insert(module->addPos(NEW_TWINE, x, c2->getPort(TW::X)));
+			supercell_aux.insert(module->addPos(NEW_ID, y, y1));
+			supercell_aux.insert(module->addPos(NEW_ID, y, y2));
+			if (c1->type == ID::$alu) {
+				supercell_aux.insert(module->addPos(NEW_ID, co, c1->getPort(ID::CO)));
+				supercell_aux.insert(module->addPos(NEW_ID, co, c2->getPort(ID::CO)));
+				supercell_aux.insert(module->addPos(NEW_ID, x, c1->getPort(ID::X)));
+				supercell_aux.insert(module->addPos(NEW_ID, x, c2->getPort(ID::X)));
 			}
 
 			supercell_aux.insert(supercell);
@@ -695,9 +695,9 @@ struct ShareWorker
 			return supercell;
 		}
 
-		if (c1->type == TW($macc))
+		if (c1->type == ID::$macc)
 		{
-			RTLIL::Cell *supercell = module->addCell(NEW_TWINE, c1->type_impl);
+			RTLIL::Cell *supercell = module->addCell(NEW_ID, c1->type_impl);
 			supercell_aux.insert(supercell);
 			share_macc(c1, c2, act, supercell, &supercell_aux);
 			supercell->check();
@@ -705,19 +705,19 @@ struct ShareWorker
 			return supercell;
 		}
 
-		if (c1->type.in(TW($memrd), TW($memrd_v2)))
+		if (c1->type.in(ID::$memrd, ID::$memrd_v2))
 		{
-			RTLIL::Cell *supercell = module->addCell(NEW_TWINE, c1);
+			RTLIL::Cell *supercell = module->addCell(NEW_ID, c1);
 			module->design->merge_src(supercell, c2);
-			RTLIL::SigSpec addr1 = c1->getPort(TW::ADDR);
-			RTLIL::SigSpec addr2 = c2->getPort(TW::ADDR);
+			RTLIL::SigSpec addr1 = c1->getPort(ID::ADDR);
+			RTLIL::SigSpec addr2 = c2->getPort(ID::ADDR);
 			if (GetSize(addr1) < GetSize(addr2))
 				addr1.extend_u0(GetSize(addr2));
 			else
 				addr2.extend_u0(GetSize(addr1));
-			supercell->setPort(TW::ADDR, addr1 != addr2 ? module->Mux(NEW_TWINE, addr2, addr1, act) : addr1);
+			supercell->setPort(ID::ADDR, addr1 != addr2 ? module->Mux(NEW_ID, addr2, addr1, act) : addr1);
 			supercell->parameters[ID::ABITS] = RTLIL::Const(GetSize(addr1));
-			supercell_aux.insert(module->addPos(NEW_TWINE, supercell->getPort(TW::DATA), c2->getPort(TW::DATA)));
+			supercell_aux.insert(module->addPos(NEW_ID, supercell->getPort(ID::DATA), c2->getPort(ID::DATA)));
 			supercell_aux.insert(supercell);
 			return supercell;
 		}
@@ -748,8 +748,8 @@ struct ShareWorker
 		modwalker.get_consumers(pbits, modwalker.cell_outputs[cell]);
 
 		for (auto &bit : pbits) {
-			if ((bit.cell->type == TW($mux) || bit.cell->type == TW($pmux)) && bit.port == TW::S)
-				forbidden_controls_cache[cell].insert(bit.cell->getPort(TW::S).extract(bit.offset, 1));
+			if ((bit.cell->type == ID::$mux || bit.cell->type == ID::$pmux) && bit.port == ID::S)
+				forbidden_controls_cache[cell].insert(bit.cell->getPort(ID::S).extract(bit.offset, 1));
 			consumer_cells.insert(bit.cell);
 		}
 
@@ -896,7 +896,7 @@ struct ShareWorker
 			}
 			for (auto &pbit : modwalker.signal_consumers[bit]) {
 				log_assert(StaticCellTypes::Compat::internals_nomem_noff(pbit.cell->type_impl));
-				if ((pbit.cell->type == TW($mux) || pbit.cell->type == TW($pmux)) && (pbit.port == TW::A || pbit.port == TW::B))
+				if ((pbit.cell->type == ID::$mux || pbit.cell->type == ID::$pmux) && (pbit.port == ID::A || pbit.port == ID::B))
 					driven_data_muxes.insert(pbit.cell);
 				else
 					driven_cells.insert(pbit.cell);
@@ -913,9 +913,9 @@ struct ShareWorker
 			std::set<int> used_in_b_parts;
 
 			int width = c->parameters.at(ID::WIDTH).as_int();
-			std::vector<RTLIL::SigBit> sig_a = modwalker.sigmap(c->getPort(TW::A));
-			std::vector<RTLIL::SigBit> sig_b = modwalker.sigmap(c->getPort(TW::B));
-			std::vector<RTLIL::SigBit> sig_s = modwalker.sigmap(c->getPort(TW::S));
+			std::vector<RTLIL::SigBit> sig_a = modwalker.sigmap(c->getPort(ID::A));
+			std::vector<RTLIL::SigBit> sig_b = modwalker.sigmap(c->getPort(ID::B));
+			std::vector<RTLIL::SigBit> sig_s = modwalker.sigmap(c->getPort(ID::S));
 
 			for (auto &bit : sig_a)
 				if (cell_out_bits.count(bit))
@@ -1063,18 +1063,18 @@ struct ShareWorker
 
 	RTLIL::SigSpec make_cell_activation_logic(const pool<ssc_pair_t> &activation_patterns, pool<RTLIL::Cell*> &supercell_aux)
 	{
-		RTLIL::Wire *all_cases_wire = module->addWire(NEW_TWINE, 0);
+		RTLIL::Wire *all_cases_wire = module->addWire(NEW_ID, 0);
 
 		for (auto &p : activation_patterns) {
 			all_cases_wire->width++;
-			supercell_aux.insert(module->addEq(NEW_TWINE, p.first, p.second, RTLIL::SigSpec(all_cases_wire, all_cases_wire->width - 1)));
+			supercell_aux.insert(module->addEq(NEW_ID, p.first, p.second, RTLIL::SigSpec(all_cases_wire, all_cases_wire->width - 1)));
 		}
 
 		if (all_cases_wire->width == 1)
 			return all_cases_wire;
 
-		RTLIL::Wire *result_wire = module->addWire(NEW_TWINE);
-		supercell_aux.insert(module->addReduceOr(NEW_TWINE, all_cases_wire, result_wire));
+		RTLIL::Wire *result_wire = module->addWire(NEW_ID);
+		supercell_aux.insert(module->addReduceOr(NEW_ID, all_cases_wire, result_wire));
 		return result_wire;
 	}
 
@@ -1536,45 +1536,45 @@ struct SharePass : public Pass {
 		config.opt_aggressive = false;
 		config.opt_fast = false;
 
-		config.generic_uni_ops.set_id(TW::$not);
-		// config.generic_uni_ops.set_id(TW::$pos);
-		config.generic_uni_ops.set_id(TW::$neg);
+		config.generic_uni_ops.set_id(ID::$not);
+		// config.generic_uni_ops.set_id(ID::$pos);
+		config.generic_uni_ops.set_id(ID::$neg);
 
-		config.generic_cbin_ops.set_id(TW::$and);
-		config.generic_cbin_ops.set_id(TW::$or);
-		config.generic_cbin_ops.set_id(TW::$xor);
-		config.generic_cbin_ops.set_id(TW::$xnor);
+		config.generic_cbin_ops.set_id(ID::$and);
+		config.generic_cbin_ops.set_id(ID::$or);
+		config.generic_cbin_ops.set_id(ID::$xor);
+		config.generic_cbin_ops.set_id(ID::$xnor);
 
-		config.generic_bin_ops.set_id(TW::$shl);
-		config.generic_bin_ops.set_id(TW::$shr);
-		config.generic_bin_ops.set_id(TW::$sshl);
-		config.generic_bin_ops.set_id(TW::$sshr);
+		config.generic_bin_ops.set_id(ID::$shl);
+		config.generic_bin_ops.set_id(ID::$shr);
+		config.generic_bin_ops.set_id(ID::$sshl);
+		config.generic_bin_ops.set_id(ID::$sshr);
 
-		config.generic_bin_ops.set_id(TW::$lt);
-		config.generic_bin_ops.set_id(TW::$le);
-		config.generic_bin_ops.set_id(TW::$eq);
-		config.generic_bin_ops.set_id(TW::$ne);
-		config.generic_bin_ops.set_id(TW::$eqx);
-		config.generic_bin_ops.set_id(TW::$nex);
-		config.generic_bin_ops.set_id(TW::$ge);
-		config.generic_bin_ops.set_id(TW::$gt);
+		config.generic_bin_ops.set_id(ID::$lt);
+		config.generic_bin_ops.set_id(ID::$le);
+		config.generic_bin_ops.set_id(ID::$eq);
+		config.generic_bin_ops.set_id(ID::$ne);
+		config.generic_bin_ops.set_id(ID::$eqx);
+		config.generic_bin_ops.set_id(ID::$nex);
+		config.generic_bin_ops.set_id(ID::$ge);
+		config.generic_bin_ops.set_id(ID::$gt);
 
-		config.generic_cbin_ops.set_id(TW::$add);
-		config.generic_cbin_ops.set_id(TW::$mul);
+		config.generic_cbin_ops.set_id(ID::$add);
+		config.generic_cbin_ops.set_id(ID::$mul);
 
-		config.generic_bin_ops.set_id(TW::$sub);
-		config.generic_bin_ops.set_id(TW::$div);
-		config.generic_bin_ops.set_id(TW::$mod);
-		config.generic_bin_ops.set_id(TW::$divfloor);
-		config.generic_bin_ops.set_id(TW::$modfloor);
-		// config.generic_bin_ops.set_id(TW::$pow);
+		config.generic_bin_ops.set_id(ID::$sub);
+		config.generic_bin_ops.set_id(ID::$div);
+		config.generic_bin_ops.set_id(ID::$mod);
+		config.generic_bin_ops.set_id(ID::$divfloor);
+		config.generic_bin_ops.set_id(ID::$modfloor);
+		// config.generic_bin_ops.set_id(ID::$pow);
 
-		config.generic_uni_ops.set_id(TW::$logic_not);
-		config.generic_cbin_ops.set_id(TW::$logic_and);
-		config.generic_cbin_ops.set_id(TW::$logic_or);
+		config.generic_uni_ops.set_id(ID::$logic_not);
+		config.generic_cbin_ops.set_id(ID::$logic_and);
+		config.generic_cbin_ops.set_id(ID::$logic_or);
 
-		config.generic_other_ops.set_id(TW::$alu);
-		config.generic_other_ops.set_id(TW::$macc);
+		config.generic_other_ops.set_id(ID::$alu);
+		config.generic_other_ops.set_id(ID::$macc);
 
 		log_header(design, "Executing SHARE pass (SAT-based resource sharing).\n");
 

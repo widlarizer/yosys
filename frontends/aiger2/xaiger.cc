@@ -223,7 +223,7 @@ struct Xaiger2Frontend : public Frontend {
 							for (int j = 0; j < port->width; j++) {
 								if (conn[j].wire && conn[j].wire->port_output) {
 									std::string cell_name_str = cell->name.unescaped();
-									const char *port_id_str_part = RTLIL::IdString(port_id_str).isPublic() ? port_id_str.c_str() + 1 : port_id_str.c_str();
+									const char *port_id_str_part = port_id_str[0] == '\\' ? port_id_str.c_str() + 1 : port_id_str.c_str();
 									auto new_wire_name = module->uniquify(design->twines.add(Twine{stringf("$box$%s$%s$%d", cell_name_str.c_str(), port_id_str_part, j)}));
 									conn[j] = module->addWire(new_wire_name);
 								}

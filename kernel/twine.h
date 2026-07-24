@@ -47,6 +47,9 @@ struct TwineRef {
 	constexpr TwineRef& operator++() { ++value; return *this; }
 	constexpr TwineRef  operator++(int) { return TwineRef(value++); }
 
+	// A ref is "empty" when it names nothing at all.
+	constexpr bool empty() const { return value == kNull; }
+
 	constexpr bool is_public() const { return value != kNull && (value & kPublicBit); }
 	constexpr bool is_local()  const { return value != kNull && (value & kLocalBit); }
 
@@ -76,7 +79,7 @@ enum : short {
 	STATIC_TWINE_END
 };
 
-struct TW {
+struct ID {
 // Static ids are name handles: non-'$' constids were '\'-escaped publics,
 // so their handles carry TWINE_PUBLIC_BIT baked in at compile time.
 #define X(N) static constexpr TwineRef N = (#N)[0] == '$' ? TwineRef(IDX_##N) : (TwineRef(IDX_##N) | TWINE_PUBLIC_BIT);
@@ -108,7 +111,7 @@ struct TW {
 	}
 };
 
-#define TW(id) ((size_t)std::integral_constant<int, lookup_well_known_id(#id)>::value)
+// #define ID(id) ((size_t)std::integral_constant<int, lookup_well_known_id(#id)>::value)
 
 struct Twine {
 	static constexpr TwineRef Null = std::numeric_limits<size_t>::max();
@@ -135,7 +138,7 @@ struct Twine {
 				std::vector<TwineRef>,
 				// "suffix", deduplicates shared prefixes
 				Suffix,
-				// transient suffix constructed with NEW_TWINE and NEW_TWINE_SUFFIX
+				// transient suffix constructed with NEW_ID and NEW_ID_SUFFIX
 				// turned into a regular Suffix when added to a TwinePool
 				AutoSuffix> data;
 

@@ -41,11 +41,11 @@ namespace AST
 	class Binding : public RTLIL::Binding
 	{
 	public:
-		Binding(RTLIL::IdString  target_type,
-		        RTLIL::IdString  target_name,
+		Binding(TwineRef  target_type,
+		        TwineRef  target_name,
 		        const AstNode   &cell);
 
-		std::string describe() const override;
+		std::string describe(const RTLIL::Design *design) const override;
 
 	private:
 		// The syntax-level representation of the cell to be bound.

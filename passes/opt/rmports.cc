@@ -50,7 +50,7 @@ struct RmportsPassPass : public Pass {
 		extra_args(args, argidx, design);
 
 		// The set of ports we removed
-		dict<IdString, pool<IdString>> removed_ports;
+		dict<TwineRef, pool<TwineRef>> removed_ports;
 
 		// Find all of the unused ports, and remove them from that module
 		auto modules = design->selected_modules();
@@ -62,7 +62,7 @@ struct RmportsPassPass : public Pass {
 			CleanupModule(mod, removed_ports);
 	}
 
-	void CleanupModule(Module *module, dict<IdString, pool<IdString>> &removed_ports)
+	void CleanupModule(Module *module, dict<TwineRef, pool<TwineRef>> &removed_ports)
 	{
 		log("Removing now-unused cell ports in module %s\n", module->name);
 
@@ -76,13 +76,13 @@ struct RmportsPassPass : public Pass {
 			for(auto p : ports_to_remove)
 			{
 				log("  Removing port \"%s\" from instance \"%s\"\n",
-					p.c_str(), cell->type);
-				cell->unsetPort(cell->module->design->twines.add(std::string{p.str()}));
+					module->design->twines.str(p).c_str(), cell->type);
+				cell->unsetPort(p);
 			}
 		}
 	}
 
-	void ScanModule(Module* module, dict<IdString, pool<IdString>> &removed_ports)
+	void ScanModule(Module* module, dict<TwineRef, pool<TwineRef>> &removed_ports)
 	{
 		log("Finding unconnected ports in module %s\n", module->name);
 
@@ -149,7 +149,7 @@ struct RmportsPassPass : public Pass {
 		for(auto port : unused_ports)
 		{
 			log("  removing unused port %s\n", module->design->twines.unescaped_str(port).data());
-			IdString port_id(std::string(module->design->twines.str(port)));
+			TwineRef port_id = port;
 			removed_ports[module->name].insert(port_id);
 
 			// Remove from ports list

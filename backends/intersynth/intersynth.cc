@@ -177,13 +177,13 @@ struct IntersynthBackend : public Backend {
 					}
 				}
 				for (auto &param : cell->parameters) {
-					celltype_code += stringf(" cfg:%d %s", int(param.second.size()), RTLIL::unescape_id(param.first));
+					celltype_code += stringf(" cfg:%d %s", int(param.second.size()), module->design->twines.unescaped_str(param.first));
 					if (param.second.size() != 32) {
-						node_code += stringf(" %s '", RTLIL::unescape_id(param.first));
+						node_code += stringf(" %s '", module->design->twines.unescaped_str(param.first));
 						for (int i = param.second.size()-1; i >= 0; i--)
 							node_code += param.second[i] == State::S1 ? "1" : "0";
 					} else
-						node_code += stringf(" %s 0x%x", RTLIL::unescape_id(param.first), param.second.as_int());
+						node_code += stringf(" %s 0x%x", module->design->twines.unescaped_str(param.first), param.second.as_int());
 				}
 
 				celltypes_code.insert(celltype_code + "\n");

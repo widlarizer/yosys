@@ -32,9 +32,9 @@ static SigSpec or_generator(Module *module, const SigSpec &sig)
 	case 1:
 		return sig;
 	case 2:
-		return module->Or(NEW_TWINE, sig[0], sig[1]);
+		return module->Or(NEW_ID, sig[0], sig[1]);
 	default:
-		return module->ReduceOr(NEW_TWINE, sig);
+		return module->ReduceOr(NEW_ID, sig);
 	}
 }
 
@@ -62,7 +62,7 @@ static SigSpec recursive_mux_generator(Module *module, const SigSpec &sig_data, 
 	left_or = or_generator(module, left_or);
 	sig_or.append(left_or);
 
-	return module->Mux(NEW_TWINE, right_result, left_result, left_or);
+	return module->Mux(NEW_ID, right_result, left_result, left_or);
 }
 
 struct PmuxtreePass : public Pass {
@@ -89,21 +89,21 @@ struct PmuxtreePass : public Pass {
 		for (auto module : design->selected_modules())
 		for (auto cell : module->selected_cells())
 		{
-			if (cell->type != TW($pmux))
+			if (cell->type != ID::$pmux)
 				continue;
 
-			SigSpec sig_data = cell->getPort(TW::B);
-			SigSpec sig_sel = cell->getPort(TW::S);
+			SigSpec sig_data = cell->getPort(ID::B);
+			SigSpec sig_sel = cell->getPort(ID::S);
 
-			if (!cell->getPort(TW::A).is_fully_undef()) {
-				sig_data.append(cell->getPort(TW::A));
-				SigSpec sig_sel_or = module->ReduceOr(NEW_TWINE, sig_sel);
-				sig_sel.append(module->Not(NEW_TWINE, sig_sel_or));
+			if (!cell->getPort(ID::A).is_fully_undef()) {
+				sig_data.append(cell->getPort(ID::A));
+				SigSpec sig_sel_or = module->ReduceOr(NEW_ID, sig_sel);
+				sig_sel.append(module->Not(NEW_ID, sig_sel_or));
 			}
 
 			SigSpec result, result_or;
 			result = recursive_mux_generator(module, sig_data, sig_sel, result_or);
-			module->connect(cell->getPort(TW::Y), result);
+			module->connect(cell->getPort(ID::Y), result);
 			module->remove(cell);
 		}
 	}

@@ -97,22 +97,22 @@ struct ExtractinvPass : public Pass {
 				auto it = cell_wire->attributes.find(ID::invertible_pin);
 				if (it == cell_wire->attributes.end())
 					continue;
-				IdString param_name = RTLIL::escape_id(it->second.decode_string());
+				TwineRef param_name = design->twines.add(RTLIL::escape_id(it->second.decode_string()));
 				auto it2 = cell->parameters.find(param_name);
 				// Inversion not used -- skip.
 				if (it2 == cell->parameters.end())
 					continue;
 				SigSpec sig = port.second;
 				if (it2->second.size() != sig.size())
-					log_error("The inversion parameter needs to be the same width as the port (%s.%s port %s parameter %s)", module->name.unescaped(), cell->type.unescaped(), design->twines.unescaped_str(port.first), RTLIL::unescape_id(param_name));
+					log_error("The inversion parameter needs to be the same width as the port (%s.%s port %s parameter %s)", module->name.unescaped(), cell->type.unescaped(), design->twines.unescaped_str(port.first), design->twines.unescaped_str(param_name));
 				RTLIL::Const invmask = it2->second;
 				cell->parameters.erase(param_name);
 				if (invmask.is_fully_zero())
 					continue;
-				Wire *iwire = module->addWire(NEW_TWINE, sig.size());
+				Wire *iwire = module->addWire(NEW_ID, sig.size());
 				for (int i = 0; i < sig.size(); i++)
 					if (invmask[i] == State::S1) {
-						RTLIL::Cell *icell = module->addCell(NEW_TWINE, inv_celltype_ref);
+						RTLIL::Cell *icell = module->addCell(NEW_ID, inv_celltype_ref);
 						icell->setPort(inv_portname_ref, SigSpec(iwire, i));
 						icell->setPort(inv_portname2_ref, sig[i]);
 						log("Inserting %s on %s.%s.%s[%d].\n", inv_celltype, module, cell->type.unescaped(), design->twines.unescaped_str(port.first), i);

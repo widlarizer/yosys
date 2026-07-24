@@ -68,13 +68,13 @@ public:
 	{
 		for (const auto &it : a->attributes) {
 			if (b->attributes.count(it.first) == 0)
-				return "missing attribute " + std::string(it.first.unescape()) + " in second design";
+				return "missing attribute " + std::string(mod_a->design->twines.unescaped_str(it.first)) + " in second design";
 			if (it.second != b->attributes.at(it.first))
-				return "attribute " + std::string(it.first.unescape()) + " mismatch: " + log_const(it.second) + " != " + log_const(b->attributes.at(it.first));
+				return "attribute " + std::string(mod_a->design->twines.unescaped_str(it.first)) + " mismatch: " + log_const(it.second) + " != " + log_const(b->attributes.at(it.first));
 		}
 		for (const auto &it : b->attributes)
 			if (a->attributes.count(it.first) == 0)
-				return "missing attribute " + std::string(it.first.unescape()) + " in first design";
+				return "missing attribute " + std::string(mod_a->design->twines.unescaped_str(it.first)) + " in first design";
 		return "";
 	}
 
@@ -135,20 +135,20 @@ public:
 	{
 		if (a->name != b->name)
 			return "name mismatch: " + std::string(a->name.unescape()) + " != " + b->name.unescape();
-		if (a->type != b->type)
+		if (a->type.ref() != b->type.ref())
 			return "type mismatch: " + std::string(a->type.unescape()) + " != " + b->type.unescape();
 		if (std::string mismatch = compare_attributes(a, b); !mismatch.empty())
 			return mismatch;
 
 		for (const auto &it : a->parameters) {
 			if (b->parameters.count(it.first) == 0)
-				return "parameter mismatch: missing parameter " + std::string(it.first.unescape()) + " in second design";
+				return "parameter mismatch: missing parameter " + std::string(mod_a->design->twines.unescaped_str(it.first)) + " in second design";
 			if (it.second != b->parameters.at(it.first))
-				return "parameter mismatch: " + std::string(it.first.unescape()) + " mismatch: " + log_const(it.second) + " != " + log_const(b->parameters.at(it.first));
+				return "parameter mismatch: " + std::string(mod_a->design->twines.unescaped_str(it.first)) + " mismatch: " + log_const(it.second) + " != " + log_const(b->parameters.at(it.first));
 		}
 		for (const auto &it : b->parameters)
 			if (a->parameters.count(it.first) == 0)
-				return "parameter mismatch: missing parameter " + std::string(it.first.unescape()) + " in first design";
+				return "parameter mismatch: missing parameter " + std::string(mod_a->design->twines.unescaped_str(it.first)) + " in first design";
 
 		for (const auto &it : a->connections()) {
 			if (b->connections().count(it.first) == 0)
@@ -255,7 +255,7 @@ public:
 			const auto &ma = a->mem_write_actions[i];
 			const auto &mb = b->mem_write_actions[i];
 			if (ma.memid != mb.memid)
-				return "mem_write_actions " + std::to_string(i) + " memid mismatch: " + ma.memid.unescape() + " != " + mb.memid.unescape();
+				return "mem_write_actions " + std::to_string(i) + " memid mismatch: " + mod_a->design->twines.unescaped_str(ma.memid) + " != " + mod_b->design->twines.unescaped_str(mb.memid);
 			if (!compare_sigspec(ma.address, mb.address))
 				return "mem_write_actions " + std::to_string(i) + " address mismatch: " + log_signal(ma.address) + " != " + log_signal(mb.address);
 			if (!compare_sigspec(ma.data, mb.data))

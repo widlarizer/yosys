@@ -69,12 +69,12 @@ struct GraphNode {
 		return replaced = replaced->get();
 	}
 
-	pool<IdString> names_;
+	pool<TwineRef> names_;
 	dict<int, uint8_t> tags_;
 	pool<GraphNode*> upstream_;
 	pool<GraphNode*> downstream_;
 
-	pool<IdString> &names() { return get()->names_; }
+	pool<TwineRef> &names() { return get()->names_; }
 	dict<int, uint8_t> &tags() { return get()->tags_; }
 	pool<GraphNode*> &upstream() { return get()->upstream_; }
 	pool<GraphNode*> &downstream() { return get()->downstream_; }
@@ -287,7 +287,7 @@ struct Graph {
 
 		for (auto wire : module->selected_wires())
 		{
-			if (!wire->name.isPublic()) continue;
+			if (!wire->name.is_public()) continue;
 			auto g = new GraphNode;
 			g->terminal = true;
 			g->names().insert(wire->name);
@@ -313,7 +313,7 @@ struct Graph {
 				continue;
 
 			for (auto wire : module->wires()) {
-				if (!wire->name.isPublic()) continue;
+				if (!wire->name.is_public()) continue;
 				if (!grp.second.selected_member(module->meta_->name, wire->name.ref())) continue;
 				for (auto bit : sigmap(wire)) {
 					auto it = wire_nodes.find(bit);
@@ -703,13 +703,11 @@ struct VizWorker
 
 	void update_attrs()
 	{
-		IdString vg_id("\\vg");
+		TwineRef vg_id = module->design->twines.add(std::string("\\vg"));
 		for (auto c : module->cells())
 			c->attributes.erase(vg_id);
-		TwineSearch search(&module->design->twines);
 		for (auto g : graph.nodes) {
-			for (auto name : g->names()) {
-				TwineRef ref = search.find(name.str());
+			for (auto ref : g->names()) {
 				auto w = module->wire(ref);
 				auto c = module->cell(ref);
 				if (w) w->attributes[vg_id] = g->index;
@@ -736,7 +734,7 @@ struct VizWorker
 			buffer.emplace_back();
 
 			for (auto name : g->names())
-				buffer.back().push_back(name.unescape());
+				buffer.back().push_back(module->design->twines.unescaped_str(name));
 
 			std::sort(buffer.back().begin(), buffer.back().end());
 			std::sort(buffer.begin(), buffer.end());

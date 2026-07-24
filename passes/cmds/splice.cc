@@ -38,8 +38,8 @@ struct SpliceWorker
 	bool no_outputs;
 	bool do_wires;
 
-	std::set<RTLIL::IdString> ports;
-	std::set<RTLIL::IdString> no_ports;
+	std::set<TwineRef> ports;
+	std::set<TwineRef> no_ports;
 
 	CellTypes ct;
 	SigMap sigmap;
@@ -75,13 +75,13 @@ struct SpliceWorker
 		RTLIL::SigSpec new_sig = sig;
 
 		if (sig_a.size() != sig.size()) {
-			RTLIL::Cell *cell = module->addCell(NEW_TWINE, TW::$slice);
+			RTLIL::Cell *cell = module->addCell(NEW_ID, ID::$slice);
 			cell->parameters[ID::OFFSET] = offset;
 			cell->parameters[ID::A_WIDTH] = sig_a.size();
 			cell->parameters[ID::Y_WIDTH] = sig.size();
-			cell->setPort(TW::A, sig_a);
-			cell->setPort(TW::Y, module->addWire(NEW_TWINE, sig.size()));
-			new_sig = cell->getPort(TW::Y);
+			cell->setPort(ID::A, sig_a);
+			cell->setPort(ID::Y, module->addWire(NEW_ID, sig.size()));
+			new_sig = cell->getPort(ID::Y);
 		}
 
 		sliced_signals_cache[sig] = new_sig;
@@ -132,13 +132,13 @@ struct SpliceWorker
 		RTLIL::SigSpec new_sig = get_sliced_signal(chunks.front());
 		for (size_t i = 1; i < chunks.size(); i++) {
 			RTLIL::SigSpec sig2 = get_sliced_signal(chunks[i]);
-			RTLIL::Cell *cell = module->addCell(NEW_TWINE, TW::$concat);
+			RTLIL::Cell *cell = module->addCell(NEW_ID, ID::$concat);
 			cell->parameters[ID::A_WIDTH] = new_sig.size();
 			cell->parameters[ID::B_WIDTH] = sig2.size();
-			cell->setPort(TW::A, new_sig);
-			cell->setPort(TW::B, sig2);
-			cell->setPort(TW::Y, module->addWire(NEW_TWINE, new_sig.size() + sig2.size()));
-			new_sig = cell->getPort(TW::Y);
+			cell->setPort(ID::A, new_sig);
+			cell->setPort(ID::B, sig2);
+			cell->setPort(ID::Y, module->addWire(NEW_ID, new_sig.size() + sig2.size()));
+			new_sig = cell->getPort(ID::Y);
 		}
 
 		spliced_signals_cache[sig] = new_sig;
@@ -190,9 +190,9 @@ struct SpliceWorker
 				continue;
 			for (auto &conn : cell->connections_)
 				if (ct.cell_input(cell->type.ref(), conn.first)) {
-					if (ports.size() > 0 && !ports.count(RTLIL::IdString(design->twines.str(conn.first))))
+					if (ports.size() > 0 && !ports.count(conn.first))
 						continue;
-					if (no_ports.size() > 0 && no_ports.count(RTLIL::IdString(design->twines.str(conn.first))))
+					if (no_ports.size() > 0 && no_ports.count(conn.first))
 						continue;
 					RTLIL::SigSpec sig = sigmap(conn.second);
 					if (!sel_by_cell) {
@@ -211,7 +211,7 @@ struct SpliceWorker
 		std::vector<Wire*> mod_wires = module->wires();
 
 		for (auto wire : mod_wires)
-			if ((!no_outputs && wire->port_output) || (do_wires && wire->name.isPublic())) {
+			if ((!no_outputs && wire->port_output) || (do_wires && wire->name.is_public())) {
 				if (!design->selected(module, wire))
 					continue;
 				RTLIL::SigSpec sig = sigmap(wire);
@@ -232,7 +232,7 @@ struct SpliceWorker
 		for (auto &it : rework_wires)
 		{
 			TwineRef orig_name = it.first->name.ref();
-			module->rename(it.first, design->twines.add(NEW_TWINE));
+			module->rename(it.first, design->twines.add(NEW_ID));
 
 			RTLIL::Wire *new_port = module->addWire(orig_name, it.first);
 			it.first->port_id = 0;
@@ -294,7 +294,7 @@ struct SplicePass : public Pass {
 		bool sel_any_bit = false;
 		bool no_outputs = false;
 		bool do_wires = false;
-		std::set<RTLIL::IdString> ports, no_ports;
+		std::set<TwineRef> ports, no_ports;
 
 		size_t argidx;
 		for (argidx = 1; argidx < args.size(); argidx++) {
@@ -319,12 +319,12 @@ struct SplicePass : public Pass {
 				continue;
 			}
 			if (args[argidx] == "-port" && argidx+1 < args.size()) {
-				ports.insert(RTLIL::escape_id(args[++argidx]));
+				ports.insert(design->twines.add(RTLIL::escape_id(args[++argidx])));
 				no_outputs = true;
 				continue;
 			}
 			if (args[argidx] == "-no_port" && argidx+1 < args.size()) {
-				no_ports.insert(RTLIL::escape_id(args[++argidx]));
+				no_ports.insert(design->twines.add(RTLIL::escape_id(args[++argidx])));
 				continue;
 			}
 			break;

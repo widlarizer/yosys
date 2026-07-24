@@ -24,8 +24,8 @@ YOSYS_NAMESPACE_BEGIN
 
 using namespace AST_INTERNAL;
 
-AST::Binding::Binding(RTLIL::IdString  target_type,
-                      RTLIL::IdString  target_name,
+AST::Binding::Binding(TwineRef  target_type,
+                      TwineRef  target_name,
                       const AstNode   &cell)
 	: RTLIL::Binding(target_type, target_name),
 	  ast_node(cell.clone())
@@ -34,14 +34,14 @@ AST::Binding::Binding(RTLIL::IdString  target_type,
 }
 
 std::string
-AST::Binding::describe() const
+AST::Binding::describe(const RTLIL::Design *design) const
 {
 	std::ostringstream oss;
 	oss << "directive to bind " << ast_node->str
-	    << " to " << target_name.str();
+	    << " to " << design->twines.str(target_name);
 	if (!target_type.empty())
 		oss << " (target type: "
-		    << target_type.str()
+		    << design->twines.str(target_type)
 		    << ")";
 	return oss.str();
 }

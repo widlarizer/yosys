@@ -28,7 +28,7 @@ template <typename I, typename Filter> void ModuleHdlnameIndex::index_items(I be
 
 		if (!filter(item))
 			continue;
-		std::vector<IdString> path = parse_hdlname(item);
+		std::vector<TwineRef> path = parse_hdlname(item);
 		if (!path.empty())
 			lookup.emplace(item, tree.insert(path, item));
 	}
@@ -55,7 +55,7 @@ void ModuleHdlnameIndex::index_cells()
 void ModuleHdlnameIndex::index_scopeinfo_cells()
 {
 	auto cells = module->cells();
-	index_items(cells.begin(), cells.end(), [](Cell *cell) { return cell->type == TW($scopeinfo); });
+	index_items(cells.begin(), cells.end(), [](Cell *cell) { return cell->type == ID::$scopeinfo; });
 }
 
 std::vector<std::string> ModuleHdlnameIndex::scope_sources(Cursor cursor)
@@ -69,7 +69,7 @@ std::vector<std::string> ModuleHdlnameIndex::scope_sources(Cursor cursor)
 			continue;
 		}
 		Cell *cell = cursor.entry().cell();
-		if (cell == nullptr || cell->type != TW($scopeinfo)) {
+		if (cell == nullptr || cell->type != ID::$scopeinfo) {
 			result.push_back("");
 			result.push_back("");
 			continue;
@@ -97,31 +97,41 @@ static const char *attr_prefix(ScopeinfoAttrs attrs)
 	}
 }
 
-bool scopeinfo_has_attribute(const RTLIL::Cell *scopeinfo, ScopeinfoAttrs attrs, RTLIL::IdString id)
+bool scopeinfo_has_attribute(const RTLIL::Cell *scopeinfo, ScopeinfoAttrs attrs, TwineRef id)
 {
-	log_assert(scopeinfo->type == TW($scopeinfo));
-	return scopeinfo->has_attribute(attr_prefix(attrs) + RTLIL::unescape_id(id));
+	log_assert(scopeinfo->type == ID::$scopeinfo);
+	TwinePool &twines = scopeinfo->module->design->twines;
+	TwineRef key = twines.find(attr_prefix(attrs) + twines.unescaped_str(id));
+	return key != Twine::Null && scopeinfo->has_attribute(key);
 }
 
-RTLIL::Const scopeinfo_get_attribute(const RTLIL::Cell *scopeinfo, ScopeinfoAttrs attrs, RTLIL::IdString id)
+RTLIL::Const scopeinfo_get_attribute(const RTLIL::Cell *scopeinfo, ScopeinfoAttrs attrs, TwineRef id)
 {
-	log_assert(scopeinfo->type == TW($scopeinfo));
-	auto found = scopeinfo->attributes.find(attr_prefix(attrs) + RTLIL::unescape_id(id));
+	log_assert(scopeinfo->type == ID::$scopeinfo);
+	TwinePool &twines = scopeinfo->module->design->twines;
+	TwineRef key = twines.find(attr_prefix(attrs) + twines.unescaped_str(id));
+	if (key == Twine::Null)
+		return RTLIL::Const();
+	auto found = scopeinfo->attributes.find(key);
 	if (found == scopeinfo->attributes.end())
 		return RTLIL::Const();
 	return found->second;
 }
 
-dict<RTLIL::IdString, RTLIL::Const> scopeinfo_attributes(const RTLIL::Cell *scopeinfo, ScopeinfoAttrs attrs)
+dict<TwineRef, RTLIL::Const> scopeinfo_attributes(const RTLIL::Cell *scopeinfo, ScopeinfoAttrs attrs)
 {
-	dict<RTLIL::IdString, RTLIL::Const> attributes;
+	dict<TwineRef, RTLIL::Const> attributes;
 
 	const char *prefix = attr_prefix(attrs);
-	int prefix_len = strlen(prefix);
+	size_t prefix_len = strlen(prefix);
+	TwinePool &twines = scopeinfo->module->design->twines;
 
-	for (auto const &entry : scopeinfo->attributes)
-		if (entry.first.begins_with(prefix))
-			attributes.emplace(RTLIL::escape_id(entry.first.c_str() + prefix_len), entry.second);
+	for (auto const &entry : scopeinfo->attributes) {
+		std::string name = twines.str(entry.first);
+		if (name.compare(0, prefix_len, prefix) != 0)
+			continue;
+		attributes.emplace(twines.add(RTLIL::escape_id(name.substr(prefix_len))), entry.second);
+	}
 
 	return attributes;
 }

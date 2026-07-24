@@ -28,17 +28,18 @@ USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
 struct cell_mapping {
-	IdString cell_name;
+	// Escaped liberty cell name; the library is read without a Design.
+	std::string cell_name;
 	std::map<std::string, char> ports;
 };
-static std::map<RTLIL::IdString, cell_mapping> cell_mappings;
+static std::map<TwineRef, cell_mapping> cell_mappings;
 
-static void logmap(IdString dff)
+static void logmap(TwineRef dff)
 {
 	if (cell_mappings.count(dff) == 0) {
-		log("    unmapped dff cell: %s\n", dff);
+		log("    unmapped dff cell: %s\n", ID::str(dff));
 	} else {
-		log("    %s %s (", cell_mappings[dff].cell_name, dff.substr(1));
+		log("    %s %s (", cell_mappings[dff].cell_name, ID::str(dff).substr(1));
 		bool first = true;
 		for (auto &port : cell_mappings[dff].ports) {
 			char arg[3] = { port.second, 0, 0 };
@@ -55,31 +56,31 @@ static void logmap(IdString dff)
 
 static void logmap_all()
 {
-	logmap(ID($_DFF_N_));
-	logmap(ID($_DFF_P_));
+	logmap(ID::$_DFF_N_);
+	logmap(ID::$_DFF_P_);
 
-	logmap(ID($_DFF_NN0_));
-	logmap(ID($_DFF_NN1_));
-	logmap(ID($_DFF_NP0_));
-	logmap(ID($_DFF_NP1_));
-	logmap(ID($_DFF_PN0_));
-	logmap(ID($_DFF_PN1_));
-	logmap(ID($_DFF_PP0_));
-	logmap(ID($_DFF_PP1_));
+	logmap(ID::$_DFF_NN0_);
+	logmap(ID::$_DFF_NN1_);
+	logmap(ID::$_DFF_NP0_);
+	logmap(ID::$_DFF_NP1_);
+	logmap(ID::$_DFF_PN0_);
+	logmap(ID::$_DFF_PN1_);
+	logmap(ID::$_DFF_PP0_);
+	logmap(ID::$_DFF_PP1_);
 
-	logmap(ID($_DFFE_NN_));
-	logmap(ID($_DFFE_NP_));
-	logmap(ID($_DFFE_PN_));
-	logmap(ID($_DFFE_PP_));
+	logmap(ID::$_DFFE_NN_);
+	logmap(ID::$_DFFE_NP_);
+	logmap(ID::$_DFFE_PN_);
+	logmap(ID::$_DFFE_PP_);
 
-	logmap(ID($_DFFSR_NNN_));
-	logmap(ID($_DFFSR_NNP_));
-	logmap(ID($_DFFSR_NPN_));
-	logmap(ID($_DFFSR_NPP_));
-	logmap(ID($_DFFSR_PNN_));
-	logmap(ID($_DFFSR_PNP_));
-	logmap(ID($_DFFSR_PPN_));
-	logmap(ID($_DFFSR_PPP_));
+	logmap(ID::$_DFFSR_NNN_);
+	logmap(ID::$_DFFSR_NNP_);
+	logmap(ID::$_DFFSR_NPN_);
+	logmap(ID::$_DFFSR_NPP_);
+	logmap(ID::$_DFFSR_PNN_);
+	logmap(ID::$_DFFSR_PNP_);
+	logmap(ID::$_DFFSR_PPN_);
+	logmap(ID::$_DFFSR_PPP_);
 }
 
 static bool parse_next_state(const LibertyAst *cell, const LibertyAst *attr, std::string &data_name, bool &data_not_inverted, std::string &enable_name, bool &enable_not_inverted)
@@ -234,7 +235,7 @@ static bool parse_pin(const LibertyAst *cell, const LibertyAst *attr, std::strin
 	return false;
 }
 
-static void find_cell(std::vector<const LibertyAst *> cells, IdString cell_type, bool clkpol, bool has_reset, bool rstpol, bool rstval, bool has_enable, bool enapol, std::vector<std::string> &dont_use_cells)
+static void find_cell(std::vector<const LibertyAst *> cells, TwineRef cell_type, bool clkpol, bool has_reset, bool rstpol, bool rstval, bool has_enable, bool enapol, std::vector<std::string> &dont_use_cells)
 {
 	const LibertyAst *best_cell = nullptr;
 	std::map<std::string, char> best_cell_ports;
@@ -356,13 +357,13 @@ static void find_cell(std::vector<const LibertyAst *> cells, IdString cell_type,
 
 	if (best_cell != nullptr) {
 		log("  cell %s (%sinv, pins=%d, area=%.2f) is a direct match for cell type %s.\n",
-				best_cell->args[0].c_str(), best_cell_noninv ? "non" : "", best_cell_pins, best_cell_area, cell_type.c_str());
+				best_cell->args[0].c_str(), best_cell_noninv ? "non" : "", best_cell_pins, best_cell_area, ID::str(cell_type));
 		cell_mappings[cell_type].cell_name = RTLIL::escape_id(best_cell->args[0]);
 		cell_mappings[cell_type].ports = best_cell_ports;
 	}
 }
 
-static void find_cell_sr(std::vector<const LibertyAst *> cells, IdString cell_type, bool clkpol, bool setpol, bool clrpol, bool has_enable, bool enapol, std::vector<std::string> &dont_use_cells)
+static void find_cell_sr(std::vector<const LibertyAst *> cells, TwineRef cell_type, bool clkpol, bool setpol, bool clrpol, bool has_enable, bool enapol, std::vector<std::string> &dont_use_cells)
 {
 	const LibertyAst *best_cell = nullptr;
 	std::map<std::string, char> best_cell_ports;
@@ -488,7 +489,7 @@ static void find_cell_sr(std::vector<const LibertyAst *> cells, IdString cell_ty
 
 	if (best_cell != nullptr) {
 		log("  cell %s (%sinv, pins=%d, area=%.2f) is a direct match for cell type %s.\n",
-				best_cell->args[0].c_str(), best_cell_noninv ? "non" : "", best_cell_pins, best_cell_area, cell_type.c_str());
+				best_cell->args[0].c_str(), best_cell_noninv ? "non" : "", best_cell_pins, best_cell_area, ID::str(cell_type));
 		cell_mappings[cell_type].cell_name = RTLIL::escape_id(best_cell->args[0]);
 		cell_mappings[cell_type].ports = best_cell_ports;
 	}
@@ -505,8 +506,8 @@ static void dfflibmap(RTLIL::Design *design, RTLIL::Module *module)
 	for (auto cell : module->cells()) {
 		if (design->selected(module, cell) && cell_mappings.count(cell->type) > 0)
 			cell_list.push_back(cell);
-		if (cell->type.in(TwineRef{TW($_NOT_)}))
-			notmap[sigmap(cell->getPort(TW::A))].insert(cell);
+		if (cell->type.in(TwineRef{ID::$_NOT_}))
+			notmap[sigmap(cell->getPort(ID::A))].insert(cell);
 	}
 
 	auto &twines = module->design->twines;
@@ -515,15 +516,15 @@ static void dfflibmap(RTLIL::Design *design, RTLIL::Module *module)
 	std::map<std::string, int> stats;
 	for (auto cell : cell_list)
 	{
-		IdString cell_type = cell->type;
-		RTLIL::IdString cell_name(cell->name);
+		TwineRef cell_type = cell->type;
+		TwineRef cell_name(cell->name);
 		auto cell_connections = cell->connections();
 		std::string src = cell->get_src_attribute();
 
 		module->remove(cell);
 
 		cell_mapping &cm = cell_mappings[cell_type];
-		RTLIL::Cell *new_cell = module->addCell(twines.add(std::string{cell_name.str()}), twines.add(std::string{cm.cell_name.str()}));
+		RTLIL::Cell *new_cell = module->addCell(cell_name, twines.add(std::string(cm.cell_name)));
 
 		new_cell->set_src_attribute(twines.add(Twine{src}));
 
@@ -540,31 +541,31 @@ static void dfflibmap(RTLIL::Design *design, RTLIL::Module *module)
 			} else
 			if (port.second == 'q') {
 				RTLIL::SigSpec old_sig = cell_connections[conn_key(char(port.second - ('a' - 'A')))];
-				sig = module->addWire(NEW_TWINE, GetSize(old_sig));
+				sig = module->addWire(NEW_ID, GetSize(old_sig));
 				if (has_q && has_qn) {
 					for (auto &it : notmap[sigmap(old_sig)]) {
-						module->connect(it->getPort(TW::Y), sig);
-						it->setPort(TW::Y, module->addWire(NEW_TWINE, GetSize(old_sig)));
+						module->connect(it->getPort(ID::Y), sig);
+						it->setPort(ID::Y, module->addWire(NEW_ID, GetSize(old_sig)));
 					}
 				} else {
-					module->addNotGate(NEW_TWINE, sig, old_sig);
+					module->addNotGate(NEW_ID, sig, old_sig);
 				}
 			} else
 			if ('a' <= port.second && port.second <= 'z') {
 				sig = cell_connections[conn_key(char(port.second - ('a' - 'A')))];
-				sig = module->NotGate(NEW_TWINE, sig);
+				sig = module->NotGate(NEW_ID, sig);
 			} else
 			if (port.second == '0' || port.second == '1') {
 				sig = RTLIL::SigSpec(port.second == '0' ? 0 : 1, 1);
 			} else
 			if (port.second == 0) {
-				sig = module->addWire(NEW_TWINE);
+				sig = module->addWire(NEW_ID);
 			} else
 				log_abort();
 			new_cell->setPort(twines.add(std::string{"\\" + port.first}), sig);
 		}
 
-		stats[stringf("%s cells to %s cells", cell_type.c_str(), new_cell->type.unescape())]++;
+		stats[stringf("%s cells to %s cells", ID::str(cell_type), new_cell->type.unescape())]++;
 	}
 
 	for (auto &stat: stats)
@@ -664,31 +665,31 @@ struct DfflibmapPass : public Pass {
 			delete f;
 		}
 
-		find_cell(merged.cells, ID($_DFF_N_), false, false, false, false, false, false, dont_use_cells);
-		find_cell(merged.cells, ID($_DFF_P_), true, false, false, false, false, false, dont_use_cells);
+		find_cell(merged.cells, ID::$_DFF_N_, false, false, false, false, false, false, dont_use_cells);
+		find_cell(merged.cells, ID::$_DFF_P_, true, false, false, false, false, false, dont_use_cells);
 
-		find_cell(merged.cells, ID($_DFF_NN0_), false, true, false, false, false, false, dont_use_cells);
-		find_cell(merged.cells, ID($_DFF_NN1_), false, true, false, true, false, false, dont_use_cells);
-		find_cell(merged.cells, ID($_DFF_NP0_), false, true, true, false, false, false, dont_use_cells);
-		find_cell(merged.cells, ID($_DFF_NP1_), false, true, true, true, false, false, dont_use_cells);
-		find_cell(merged.cells, ID($_DFF_PN0_), true, true, false, false, false, false, dont_use_cells);
-		find_cell(merged.cells, ID($_DFF_PN1_), true, true, false, true, false, false, dont_use_cells);
-		find_cell(merged.cells, ID($_DFF_PP0_), true, true, true, false, false, false, dont_use_cells);
-		find_cell(merged.cells, ID($_DFF_PP1_), true, true, true, true, false, false, dont_use_cells);
+		find_cell(merged.cells, ID::$_DFF_NN0_, false, true, false, false, false, false, dont_use_cells);
+		find_cell(merged.cells, ID::$_DFF_NN1_, false, true, false, true, false, false, dont_use_cells);
+		find_cell(merged.cells, ID::$_DFF_NP0_, false, true, true, false, false, false, dont_use_cells);
+		find_cell(merged.cells, ID::$_DFF_NP1_, false, true, true, true, false, false, dont_use_cells);
+		find_cell(merged.cells, ID::$_DFF_PN0_, true, true, false, false, false, false, dont_use_cells);
+		find_cell(merged.cells, ID::$_DFF_PN1_, true, true, false, true, false, false, dont_use_cells);
+		find_cell(merged.cells, ID::$_DFF_PP0_, true, true, true, false, false, false, dont_use_cells);
+		find_cell(merged.cells, ID::$_DFF_PP1_, true, true, true, true, false, false, dont_use_cells);
 
-		find_cell(merged.cells, ID($_DFFE_NN_), false, false, false, false, true, false, dont_use_cells);
-		find_cell(merged.cells, ID($_DFFE_NP_), false, false, false, false, true, true, dont_use_cells);
-		find_cell(merged.cells, ID($_DFFE_PN_), true, false, false, false, true, false, dont_use_cells);
-		find_cell(merged.cells, ID($_DFFE_PP_), true, false, false, false, true, true, dont_use_cells);
+		find_cell(merged.cells, ID::$_DFFE_NN_, false, false, false, false, true, false, dont_use_cells);
+		find_cell(merged.cells, ID::$_DFFE_NP_, false, false, false, false, true, true, dont_use_cells);
+		find_cell(merged.cells, ID::$_DFFE_PN_, true, false, false, false, true, false, dont_use_cells);
+		find_cell(merged.cells, ID::$_DFFE_PP_, true, false, false, false, true, true, dont_use_cells);
 
-		find_cell_sr(merged.cells, ID($_DFFSR_NNN_), false, false, false, false, false, dont_use_cells);
-		find_cell_sr(merged.cells, ID($_DFFSR_NNP_), false, false, true, false, false, dont_use_cells);
-		find_cell_sr(merged.cells, ID($_DFFSR_NPN_), false, true, false, false, false, dont_use_cells);
-		find_cell_sr(merged.cells, ID($_DFFSR_NPP_), false, true, true, false, false, dont_use_cells);
-		find_cell_sr(merged.cells, ID($_DFFSR_PNN_), true, false, false, false, false, dont_use_cells);
-		find_cell_sr(merged.cells, ID($_DFFSR_PNP_), true, false, true, false, false, dont_use_cells);
-		find_cell_sr(merged.cells, ID($_DFFSR_PPN_), true, true, false, false, false, dont_use_cells);
-		find_cell_sr(merged.cells, ID($_DFFSR_PPP_), true, true, true, false, false, dont_use_cells);
+		find_cell_sr(merged.cells, ID::$_DFFSR_NNN_, false, false, false, false, false, dont_use_cells);
+		find_cell_sr(merged.cells, ID::$_DFFSR_NNP_, false, false, true, false, false, dont_use_cells);
+		find_cell_sr(merged.cells, ID::$_DFFSR_NPN_, false, true, false, false, false, dont_use_cells);
+		find_cell_sr(merged.cells, ID::$_DFFSR_NPP_, false, true, true, false, false, dont_use_cells);
+		find_cell_sr(merged.cells, ID::$_DFFSR_PNN_, true, false, false, false, false, dont_use_cells);
+		find_cell_sr(merged.cells, ID::$_DFFSR_PNP_, true, false, true, false, false, dont_use_cells);
+		find_cell_sr(merged.cells, ID::$_DFFSR_PPN_, true, true, false, false, false, dont_use_cells);
+		find_cell_sr(merged.cells, ID::$_DFFSR_PPP_, true, true, true, false, false, dont_use_cells);
 
 		log("  final dff cell mappings:\n");
 		logmap_all();
@@ -696,7 +697,7 @@ struct DfflibmapPass : public Pass {
 		if (!map_only_mode) {
 			std::string dfflegalize_cmd = "dfflegalize";
 			for (auto it : cell_mappings)
-				dfflegalize_cmd += stringf(" -cell %s 01", it.first);
+				dfflegalize_cmd += stringf(" -cell %s 01", ID::str(it.first));
 			dfflegalize_cmd += " t:$_DFF* t:$_SDFF*";
 			if (info_mode) {
 				log("dfflegalize command line: %s\n", dfflegalize_cmd);

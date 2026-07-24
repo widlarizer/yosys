@@ -66,12 +66,12 @@ struct LatticeGsrPass : public Pass {
 
 			for (auto cell : module->selected_cells())
 			{
-				if (cell->type != ID(GSR) && cell->type != ID(SGSR))
+				if (cell->type != ID::GSR && cell->type != ID::SGSR)
 					continue;
 				if (found_gsr)
 					log_error("Found more than one GSR or SGSR cell in module %s.\n", module);
 				found_gsr = true;
-				SigSpec sig_gsr = cell->getPort(TW::GSR);
+				SigSpec sig_gsr = cell->getPort(ID::GSR);
 				if (GetSize(sig_gsr) < 1)
 					log_error("GSR cell %s has disconnected GSR input.\n", cell);
 				gsr = sigmap(sig_gsr[0]);
@@ -81,13 +81,13 @@ struct LatticeGsrPass : public Pass {
 
 			for (auto cell : module->selected_cells())
 			{
-				if (!cell->hasParam(ID(GSR)) || cell->getParam(ID(GSR)).decode_string() != "AUTO")
+				if (!cell->hasParam(ID::GSR) || cell->getParam(ID::GSR).decode_string() != "AUTO")
 					continue;
 
 				bool gsren = found_gsr;
-				if (cell->get_bool_attribute(ID(nogsr)))
+				if (cell->get_bool_attribute(ID::nogsr))
 					gsren = false;
-				cell->setParam(ID(GSR), gsren ? Const("ENABLED") : Const("DISABLED"));
+				cell->setParam(ID::GSR, gsren ? Const("ENABLED") : Const("DISABLED"));
 
 			}
 
@@ -100,9 +100,9 @@ struct LatticeGsrPass : public Pass {
 			log_debug("GSR net in module %s is %s.\n", module, log_signal(gsr));
 			for (auto cell : module->selected_cells())
 			{
-				if (cell->type != TW($_NOT_))
+				if (cell->type != ID::$_NOT_)
 					continue;
-				SigSpec sig_a = cell->getPort(TW::A), sig_y = cell->getPort(TW::Y);
+				SigSpec sig_a = cell->getPort(ID::A), sig_y = cell->getPort(ID::Y);
 				if (GetSize(sig_a) < 1 || GetSize(sig_y) < 1)
 					continue;
 				SigBit a = sigmap(sig_a[0]);
@@ -112,20 +112,20 @@ struct LatticeGsrPass : public Pass {
 
 			for (auto cell : module->selected_cells())
 			{
-				if (cell->type != ID(TRELLIS_FF))
+				if (cell->type != ID::TRELLIS_FF)
 					continue;
-				if (cell->getParam(ID(GSR)).decode_string() != "ENABLED")
+				if (cell->getParam(ID::GSR).decode_string() != "ENABLED")
 					continue;
-				if (cell->getParam(ID(SRMODE)).decode_string() != "ASYNC")
+				if (cell->getParam(ID::SRMODE).decode_string() != "ASYNC")
 					continue;
-				SigSpec sig_lsr = cell->getPort(TW::LSR);
+				SigSpec sig_lsr = cell->getPort(ID::LSR);
 				if (GetSize(sig_lsr) < 1)
 					continue;
 				SigBit lsr = sigmap(sig_lsr[0]);
 				if (!inverted_gsr.count(lsr))
 					continue;
-				cell->setParam(ID(SRMODE), Const("LSR_OVER_CE"));
-				cell->unsetPort(TW::LSR);
+				cell->setParam(ID::SRMODE, Const("LSR_OVER_CE"));
+				cell->unsetPort(ID::LSR);
 			}
 
 		}

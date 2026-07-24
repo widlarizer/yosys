@@ -46,7 +46,7 @@ struct RTLILFrontendWorker {
 	std::string_view line;
 
 	RTLIL::Module *current_module;
-	dict<RTLIL::IdString, RTLIL::Const> attrbuf;
+	dict<TwineRef, RTLIL::Const> attrbuf;
 
 	TwineRef pending_src = Twine::Null;
 	std::vector<std::vector<RTLIL::SwitchRule*>*> switch_stack;
@@ -337,12 +337,12 @@ struct RTLILFrontendWorker {
 		return val;
 	}
 
-	RTLIL::Wire *legalize_wire(RTLIL::IdString id)
+	RTLIL::Wire *legalize_wire(TwineRef id)
 	{
 		int wires_size = current_module->wires_size();
 		if (wires_size == 0)
 			error("No wires found for legalization");
-		int hash = hash_ops<RTLIL::IdString>::hash(id).yield();
+		int hash = hash_ops<TwineRef>::hash(id).yield();
 		RTLIL::Wire *wire = current_module->wire_at(abs(hash % wires_size));
 		log("Legalizing wire `%s' to `%s'.\n", log_id(id), design->twines.unescaped_str(wire->name.ref()));
 		return wire;
@@ -363,7 +363,7 @@ struct RTLILFrontendWorker {
 			RTLIL::Wire *wire = current_module->wire(ref);
 			if (wire == nullptr) {
 				if (flag_legalize)
-					wire = legalize_wire(RTLIL::IdString(design->twines.str(ref)));
+					wire = legalize_wire(ref);
 				else
 					error("Wire %s not found.", design->twines.str(ref).c_str());
 			}
@@ -372,15 +372,15 @@ struct RTLILFrontendWorker {
 			// We could add a special path for parsing IdStrings that must already exist,
 			// as here.
 			// We don't need to addref/release in this case.
-			std::optional<RTLIL::IdString> id = try_parse_id();
+			std::optional<std::string> id = try_parse_id();
 			if (id.has_value()) {
-				std::string s = id->str();
+				const std::string &s = *id;
 				bool pub = !s.empty() && s[0] == '\\';
 				TwineRef ref = twine_tag(design->twines.find(Twine{pub ? s.substr(1) : s}), pub);
 				RTLIL::Wire *wire = current_module->wire(ref);
 				if (wire == nullptr) {
 					if (flag_legalize)
-						wire = legalize_wire(*id);
+						wire = legalize_wire(design->twines.add(std::string(*id)));
 					else {
 						for (auto wire : current_module->wires())
 							design->twines.dump(wire->meta_->name);
@@ -524,7 +524,7 @@ struct RTLILFrontendWorker {
 
 	void parse_attribute()
 	{
-		RTLIL::IdString id = parse_id();
+		TwineRef id = design->twines.add(parse_id());
 		RTLIL::Const c = parse_const();
 		if (id == RTLIL::ID::src && (c.flags & RTLIL::CONST_FLAG_STRING)) {
 			std::string raw = c.decode_string();
@@ -692,7 +692,7 @@ struct RTLILFrontendWorker {
 
 	void parse_parameter()
 	{
-		RTLIL::IdString id = parse_id();
+		TwineRef id = design->twines.add(parse_id());
 		current_module->avail_parameters(id);
 		if (try_parse_eol())
 			return;
@@ -832,13 +832,13 @@ struct RTLILFrontendWorker {
 
 	void legalize_width_parameter(RTLIL::Cell *cell, TwineRef port_name)
 	{
-		std::string width_param_name = design->twines.str(port_name) + "_WIDTH";
-		if (cell->parameters.count(RTLIL::IdString(width_param_name)) == 0)
+		TwineRef width_param = design->twines.find(design->twines.str(port_name) + "_WIDTH");
+		if (width_param == Twine::Null || cell->parameters.count(width_param) == 0)
 			return;
-		RTLIL::Const &param = cell->parameters.at(RTLIL::IdString(width_param_name));
+		RTLIL::Const &param = cell->parameters.at(width_param);
 		if (param.as_int() != 0)
 			return;
-		cell->parameters[RTLIL::IdString(width_param_name)] = RTLIL::Const(cell->getPort(port_name).size());
+		cell->parameters[width_param] = RTLIL::Const(cell->getPort(port_name).size());
 	}
 
 	void parse_cell()
@@ -878,7 +878,7 @@ struct RTLILFrontendWorker {
 				} else if (try_parse_keyword("unsized")) {
 					is_unsized = true;
 				}
-				RTLIL::IdString param_name = parse_id();
+				TwineRef param_name = design->twines.add(parse_id());
 				RTLIL::Const val = parse_const();
 				if (is_signed)
 					val.flags |= RTLIL::CONST_FLAG_SIGNED;
@@ -1061,7 +1061,7 @@ struct RTLILFrontendWorker {
 				act.module = current_module;
 				design->absorb_attrs(&act, std::move(attrbuf));
 				flush_src(&act);
-				act.memid = parse_id();
+				act.memid = design->twines.add(parse_id());
 				act.address = parse_sigspec();
 				act.data = parse_sigspec();
 				act.enable = parse_sigspec();

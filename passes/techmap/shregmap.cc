@@ -72,22 +72,22 @@ struct ShregmapTechGreenpak4 : ShregmapTech
 
 	bool fixup(Cell *cell, dict<int, SigBit> &taps)
 	{
-		auto D = cell->getPort(TW::D);
-		auto C = cell->getPort(TW::C);
+		auto D = cell->getPort(ID::D);
+		auto C = cell->getPort(ID::C);
 
-		auto newcell = cell->module->addCell(NEW_TWINE, TW::GP_SHREG);
-		newcell->setPort(TW::nRST, State::S1);
-		newcell->setPort(TW::CLK, C);
-		newcell->setPort(TW::IN, D);
+		auto newcell = cell->module->addCell(NEW_ID, ID::GP_SHREG);
+		newcell->setPort(ID::nRST, State::S1);
+		newcell->setPort(ID::CLK, C);
+		newcell->setPort(ID::IN, D);
 
 		int i = 0;
 		for (auto tap : taps) {
-			newcell->setPort(i ? TW::OUTB : TW::OUTA, tap.second);
-			newcell->setParam(i ? ID(OUTB_TAP) : ID(OUTA_TAP), tap.first + 1);
+			newcell->setPort(i ? ID::OUTB : ID::OUTA, tap.second);
+			newcell->setParam(i ? ID::OUTB_TAP : ID::OUTA_TAP, tap.first + 1);
 			i++;
 		}
 
-		cell->setParam(ID(OUTA_INVERT), 0);
+		cell->setParam(ID::OUTA_INVERT, 0);
 		return false;
 	}
 };
@@ -142,7 +142,7 @@ struct ShregmapWorker
 						// so that it can be identified as another chain
 						// (omitting this common flop)
 						// Link: https://github.com/YosysHQ/yosys/pull/1085
-						Wire *wire = module->addWire(NEW_TWINE);
+						Wire *wire = module->addWire(NEW_ID);
 						module->connect(wire, d_bit);
 						sigmap.add(wire, d_bit);
 						sigbit_chain_next.insert(std::make_pair(wire, cell));
@@ -319,17 +319,17 @@ struct ShregmapWorker
 				int param_clkpol = -1;
 				int param_enpol = 2;
 
-				if (first_cell->type == TW($_DFF_N_)) param_clkpol = 0;
-				if (first_cell->type == TW($_DFF_P_)) param_clkpol = 1;
+				if (first_cell->type == ID::$_DFF_N_) param_clkpol = 0;
+				if (first_cell->type == ID::$_DFF_P_) param_clkpol = 1;
 
-				if (first_cell->type == TW($_DFFE_NN_)) param_clkpol = 0, param_enpol = 0;
-				if (first_cell->type == TW($_DFFE_NP_)) param_clkpol = 0, param_enpol = 1;
-				if (first_cell->type == TW($_DFFE_PN_)) param_clkpol = 1, param_enpol = 0;
-				if (first_cell->type == TW($_DFFE_PP_)) param_clkpol = 1, param_enpol = 1;
+				if (first_cell->type == ID::$_DFFE_NN_) param_clkpol = 0, param_enpol = 0;
+				if (first_cell->type == ID::$_DFFE_NP_) param_clkpol = 0, param_enpol = 1;
+				if (first_cell->type == ID::$_DFFE_PN_) param_clkpol = 1, param_enpol = 0;
+				if (first_cell->type == ID::$_DFFE_PP_) param_clkpol = 1, param_enpol = 1;
 
 				log_assert(param_clkpol >= 0);
-				first_cell->setParam(ID(CLKPOL), param_clkpol);
-				if (opts.ffe) first_cell->setParam(ID(ENPOL), param_enpol);
+				first_cell->setParam(ID::CLKPOL, param_clkpol);
+				if (opts.ffe) first_cell->setParam(ID::ENPOL, param_enpol);
 			}
 
 			first_cell->type_impl = first_cell->module->design->twines.add(Twine{shreg_cell_type_str});
@@ -519,19 +519,19 @@ struct ShregmapPass : public Pass {
 			bool en_neg = enpol == "neg" || enpol == "any" || enpol == "any_or_none";
 
 			if (clk_pos && en_none)
-				opts.ffcells[TW($_DFF_P_)] = make_pair(TW::D, TW::Q);
+				opts.ffcells[ID::$_DFF_P_] = make_pair(ID::D, ID::Q);
 			if (clk_neg && en_none)
-				opts.ffcells[TW($_DFF_N_)] = make_pair(TW::D, TW::Q);
+				opts.ffcells[ID::$_DFF_N_] = make_pair(ID::D, ID::Q);
 
 			if (clk_pos && en_pos)
-				opts.ffcells[TW($_DFFE_PP_)] = make_pair(TW::D, TW::Q);
+				opts.ffcells[ID::$_DFFE_PP_] = make_pair(ID::D, ID::Q);
 			if (clk_pos && en_neg)
-				opts.ffcells[TW($_DFFE_PN_)] = make_pair(TW::D, TW::Q);
+				opts.ffcells[ID::$_DFFE_PN_] = make_pair(ID::D, ID::Q);
 
 			if (clk_neg && en_pos)
-				opts.ffcells[TW($_DFFE_NP_)] = make_pair(TW::D, TW::Q);
+				opts.ffcells[ID::$_DFFE_NP_] = make_pair(ID::D, ID::Q);
 			if (clk_neg && en_neg)
-				opts.ffcells[TW($_DFFE_NN_)] = make_pair(TW::D, TW::Q);
+				opts.ffcells[ID::$_DFFE_NN_] = make_pair(ID::D, ID::Q);
 
 			if (en_pos || en_neg)
 				opts.ffe = true;

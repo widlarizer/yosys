@@ -33,15 +33,15 @@ static void run_ice40_braminit(Module *module)
 		uint16_t mem[256];
 
 		/* Only consider cells we're interested in */
-		if (cell->type != ID(SB_RAM40_4K) &&
-		    cell->type != ID(SB_RAM40_4KNR) &&
-		    cell->type != ID(SB_RAM40_4KNW) &&
-		    cell->type != ID(SB_RAM40_4KNRNW))
+		if (cell->type != ID::SB_RAM40_4K &&
+		    cell->type != ID::SB_RAM40_4KNR &&
+		    cell->type != ID::SB_RAM40_4KNW &&
+		    cell->type != ID::SB_RAM40_4KNRNW)
 			continue;
-		if (!cell->hasParam(ID(INIT_FILE)))
+		if (!cell->hasParam(ID::INIT_FILE))
 			continue;
-		std::string init_file = cell->getParam(ID(INIT_FILE)).decode_string();
-		cell->unsetParam(ID(INIT_FILE));
+		std::string init_file = cell->getParam(ID::INIT_FILE).decode_string();
+		cell->unsetParam(ID::INIT_FILE);
 		if (init_file == "")
 			continue;
 
@@ -121,7 +121,7 @@ static void run_ice40_braminit(Module *module)
 			std::string val = "";
 			for (int j=15; j>=0; j--)
 				val += std::bitset<16>(mem[i*16+j]).to_string();
-			cell->setParam("\\INIT_" + std::string(1, hex[i]), RTLIL::Const::from_string(val));
+			cell->setParam(cell->module->design->twines.add("\\INIT_" + std::string(1, hex[i])), RTLIL::Const::from_string(val));
 		}
 	}
 }

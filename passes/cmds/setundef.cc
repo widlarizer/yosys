@@ -347,9 +347,9 @@ struct SetundefPass : public Pass {
 					for (auto &c : sig.chunks()) {
 						RTLIL::SigSpec bits;
 						if (worker.next_bit_mode == MODE_ANYSEQ)
-							bits = module->Anyseq(NEW_TWINE, c.width);
+							bits = module->Anyseq(NEW_ID, c.width);
 						else if (worker.next_bit_mode == MODE_ANYCONST)
-							bits = module->Anyconst(NEW_TWINE, c.width);
+							bits = module->Anyconst(NEW_ID, c.width);
 						else
 							for (int i = 0; i < c.width; i++)
 								bits.append(worker.next_bit());
@@ -371,13 +371,13 @@ struct SetundefPass : public Pass {
 
 					bool cell_selected = design->selected(module, cell);
    	 			bool wire_selected = false;
-					for (auto bit : sigmap(cell->getPort(TW::Q)))
+					for (auto bit : sigmap(cell->getPort(ID::Q)))
 						if (bit.wire && design->selected(module, bit.wire))
 							wire_selected = true;
 					if (!cell_selected && !wire_selected)
 						continue;
 
-					for (auto bit : sigmap(cell->getPort(TW::Q)))
+					for (auto bit : sigmap(cell->getPort(ID::Q)))
 						ffbits.insert(bit);
 				}
 
@@ -547,9 +547,9 @@ struct SetundefPass : public Pass {
 
 						if (width > 0) {
 							if (worker.next_bit_mode == MODE_ANYSEQ)
-								sig.replace(cursor, module->Anyseq(NEW_TWINE, width));
+								sig.replace(cursor, module->Anyseq(NEW_ID, width));
 							else
-								sig.replace(cursor, module->Anyconst(NEW_TWINE, width));
+								sig.replace(cursor, module->Anyconst(NEW_ID, width));
 							cursor += width;
 						} else {
 							cursor++;

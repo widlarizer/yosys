@@ -115,7 +115,7 @@ struct FlattenWorker
 	std::string separator = ".";
 
 	template<class T>
-	void map_attributes(RTLIL::Cell *cell, T *object, IdString orig_object_name)
+	void map_attributes(RTLIL::Cell *cell, T *object, const std::string &orig_object_name)
 	{
 		if (!create_scopeinfo && object->has_attribute(ID::src))
 			cell->module->design->merge_src(object, cell);
@@ -123,11 +123,11 @@ struct FlattenWorker
 		// Preserve original names via the hdlname attribute, but only for objects with a fully public name.
 		// If the '-scopename' option is used, also preserve the containing scope of private objects if their scope is fully public.
 		if (cell->name[0] == '\\') {
-			if (object->has_attribute(ID::hdlname) || orig_object_name[0] == '\\') {
+			if (object->has_attribute(ID::hdlname) || (!orig_object_name.empty() && orig_object_name[0] == '\\')) {
 				std::string new_hdlname;
 
 				if (cell->has_attribute(ID::hdlname)) {
-					new_hdlname = cell->get_string_attribute(ID(hdlname));
+					new_hdlname = cell->get_string_attribute(ID::hdlname);
 				} else {
 					log_assert(!cell->name.empty());
 					new_hdlname = cell->name.unescaped();
@@ -135,27 +135,27 @@ struct FlattenWorker
 				new_hdlname += ' ';
 
 				if (object->has_attribute(ID::hdlname)) {
-					new_hdlname += object->get_string_attribute(ID(hdlname));
+					new_hdlname += object->get_string_attribute(ID::hdlname);
 				} else {
 					log_assert(!orig_object_name.empty());
-					new_hdlname += orig_object_name.c_str() + 1;
+					new_hdlname += orig_object_name.substr(1);
 				}
-				object->set_string_attribute(ID(hdlname), new_hdlname);
-			} else if (object->has_attribute(ID(scopename))) {
+				object->set_string_attribute(ID::hdlname, new_hdlname);
+			} else if (object->has_attribute(ID::scopename)) {
 				std::string new_scopename;
 
 				if (cell->has_attribute(ID::hdlname)) {
-					new_scopename = cell->get_string_attribute(ID(hdlname));
+					new_scopename = cell->get_string_attribute(ID::hdlname);
 				} else {
 					log_assert(!cell->name.empty());
 					new_scopename = cell->name.unescaped();
 				}
 				new_scopename += ' ';
-				new_scopename += object->get_string_attribute(ID(scopename));
-				object->set_string_attribute(ID(scopename), new_scopename);
+				new_scopename += object->get_string_attribute(ID::scopename);
+				object->set_string_attribute(ID::scopename, new_scopename);
 			} else if (create_scopename) {
 				log_assert(!cell->name.empty());
-				object->set_string_attribute(ID(scopename), cell->name.unescaped());
+				object->set_string_attribute(ID::scopename, cell->name.unescaped());
 			}
 		}
 	}
@@ -206,7 +206,7 @@ struct FlattenWorker
 				new_wire->port_id = false;
 			}
 
-			map_attributes(cell, new_wire, tpl_wire->name);
+			map_attributes(cell, new_wire, std::string(tpl_wire->name));
 			wire_map[tpl_wire] = new_wire;
 			design->select(module, new_wire);
 		}
@@ -216,7 +216,7 @@ struct FlattenWorker
 			map_attributes(cell, new_proc, design->twines.str(tpl_proc_it.second->meta_->name));
 			for (auto new_proc_sync : new_proc->syncs)
 				for (auto &memwr_action : new_proc_sync->mem_write_actions) {
-					memwr_action.memid = design->twines.str(memory_map.at(memwr_action.memid.str()));
+					memwr_action.memid = memory_map.at(design->twines.str(memwr_action.memid));
 				}
 			auto rewriter = [&](RTLIL::SigSpec &sig) { map_sigspec(wire_map, sig); };
 			new_proc->rewrite_sigspecs(rewriter);
@@ -225,13 +225,13 @@ struct FlattenWorker
 
 		for (auto tpl_cell : tpl->cells()) {
 			RTLIL::Cell *new_cell = module->addCell(make_name(tpl_cell->name.ref()), tpl_cell);
-			map_attributes(cell, new_cell, tpl_cell->name);
+			map_attributes(cell, new_cell, std::string(tpl_cell->name));
 			if (new_cell->has_memid()) {
-				IdString memid = new_cell->getParam(ID::MEMID).decode_string();
-				new_cell->setParam(ID::MEMID, Const(design->twines.str(memory_map.at(memid.str()))));
+				std::string memid = new_cell->getParam(ID::MEMID).decode_string();
+				new_cell->setParam(ID::MEMID, Const(design->twines.str(memory_map.at(memid))));
 			} else if (new_cell->is_mem_cell()) {
-				IdString memid = new_cell->getParam(ID::MEMID).decode_string();
-				new_cell->setParam(ID::MEMID, Const(concat_name(cell, memid.str(), separator)));
+				std::string memid = new_cell->getParam(ID::MEMID).decode_string();
+				new_cell->setParam(ID::MEMID, Const(concat_name(cell, memid, separator)));
 			}
 			auto rewriter = [&](RTLIL::SigSpec &sig) { map_sigspec(wire_map, sig); };
 			new_cell->rewrite_sigspecs(rewriter);
@@ -315,12 +315,12 @@ struct FlattenWorker
 		}
 
 		RTLIL::Cell *scopeinfo = nullptr;
-		RTLIL::IdString cell_name = cell->name;
+		TwineRef cell_name = cell->name;
 
-		if (create_scopeinfo && cell_name.isPublic())
+		if (create_scopeinfo && cell_name.is_public())
 		{
 			// The $scopeinfo's name will be changed below after removing the flattened cell
-			scopeinfo = module->addCell(NEW_TWINE, TW($scopeinfo));
+			scopeinfo = module->addCell(NEW_ID, ID::$scopeinfo);
 			scopeinfo->setParam(ID::TYPE, RTLIL::Const("module"));
 
 			for (auto const &attr : cell->attributes)
@@ -328,25 +328,25 @@ struct FlattenWorker
 				if (attr.first == ID::hdlname)
 					scopeinfo->attributes.insert(attr);
 				else
-					scopeinfo->attributes.emplace(stringf("\\cell_%s", RTLIL::unescape_id(attr.first).c_str()), attr.second);
+					scopeinfo->attributes.emplace(design->twines.add(stringf("\\cell_%s", design->twines.unescaped_str(attr.first))), attr.second);
 			}
 			// src lives outside cell->attributes after the typed-src
 			// hand so `a:cell_src` selectors keep working.
 			if (cell->src_id() != Twine::Null)
-				scopeinfo->attributes.emplace(ID(cell_src), RTLIL::Const(cell->get_src_attribute()));
+				scopeinfo->attributes.emplace(design->twines.add(std::string("\\cell_src")), RTLIL::Const(cell->get_src_attribute()));
 
 			for (auto const &attr : tpl->attributes)
-				scopeinfo->attributes.emplace(stringf("\\module_%s", RTLIL::unescape_id(attr.first).c_str()), attr.second);
+				scopeinfo->attributes.emplace(design->twines.add(stringf("\\module_%s", design->twines.unescaped_str(attr.first))), attr.second);
 			if (tpl->src_id() != Twine::Null)
-				scopeinfo->attributes.emplace(ID(module_src), RTLIL::Const(tpl->get_src_attribute()));
+				scopeinfo->attributes.emplace(design->twines.add(std::string("\\module_src")), RTLIL::Const(tpl->get_src_attribute()));
 
-			scopeinfo->attributes.emplace(ID(module), RTLIL::Const(design->twines.str(tpl->meta_->name).substr(1)));
+			scopeinfo->attributes.emplace(ID::module, RTLIL::Const(design->twines.str(tpl->meta_->name).substr(1)));
 		}
 
 		module->remove(cell);
 
 		if (scopeinfo != nullptr)
-			module->rename(scopeinfo, design->twines.add(cell_name.str()));
+			module->rename(scopeinfo, cell_name);
 	}
 
 	void flatten_module(RTLIL::Design *design, RTLIL::Module *module, pool<RTLIL::Module*> &used_modules, const std::string &separator)

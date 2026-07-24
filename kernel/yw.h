@@ -25,10 +25,12 @@
 
 YOSYS_NAMESPACE_BEGIN
 
-struct IdPath : public std::vector<RTLIL::IdString>
+// Witness files carry names as plain text and have no TwinePool behind them,
+// so a path is a vector of escaped name strings rather than of TwineRefs.
+struct IdPath : public std::vector<std::string>
 {
 	template<typename... T>
-	IdPath(T&&... args) : std::vector<RTLIL::IdString>(std::forward<T>(args)...) { }
+	IdPath(T&&... args) : std::vector<std::string>(std::forward<T>(args)...) { }
 	IdPath prefix() const { return {begin(), end() - !empty()}; }
 	std::string str() const;
 
@@ -36,7 +38,7 @@ struct IdPath : public std::vector<RTLIL::IdString>
 	bool get_address(int &addr) const;
 
 	[[nodiscard]] Hasher hash_into(Hasher h) const {
-		h.eat(static_cast<const std::vector<RTLIL::IdString>&&>(*this));
+		h.eat(static_cast<const std::vector<std::string>&&>(*this));
 		return h;
 	}
 };
@@ -57,7 +59,7 @@ void witness_hierarchy(RTLIL::Module *module, D data, T callback);
 
 template<class T> static std::vector<std::string> witness_path(T *obj) {
 	std::vector<std::string> path;
-	if (obj->name.isPublic()) {
+	if (obj->name.is_public()) {
 		auto hdlname = obj->get_string_attribute(ID::hdlname);
 		for (auto token : split_tokens(hdlname))
 			path.push_back("\\" + token);
@@ -109,7 +111,7 @@ void witness_hierarchy_recursion(IdPath &path, int hdlname_mode, RTLIL::Module *
 		auto hdlname = hdlname_mode < 0 ? std::vector<std::string>() : wire->get_hdlname_attribute();
 		for (auto item : hdlname)
 			path.push_back("\\" + item);
-		if (hdlname.size() == 1 && path.back() == wire->name)
+		if (hdlname.size() == 1 && wire->name == path.back())
 			hdlname.clear();
 		if (!hdlname.empty())
 			callback(const_path, WitnessHierarchyItem(module, wire), data);
@@ -130,7 +132,7 @@ void witness_hierarchy_recursion(IdPath &path, int hdlname_mode, RTLIL::Module *
 		auto hdlname = hdlname_mode < 0 ? std::vector<std::string>() : cell->get_hdlname_attribute();
 		for (auto item : hdlname)
 			path.push_back("\\" + item);
-		if (hdlname.size() == 1 && path.back() == cell->name)
+		if (hdlname.size() == 1 && cell->name == path.back())
 			hdlname.clear();
 		if (!hdlname.empty()) {
 			D child_data = callback(const_path, WitnessHierarchyItem(module, cell), data);
@@ -152,7 +154,7 @@ void witness_hierarchy_recursion(IdPath &path, int hdlname_mode, RTLIL::Module *
 			hdlname = mem.cell->get_hdlname_attribute();
 		for (auto item : hdlname)
 			path.push_back("\\" + item);
-		if (hdlname.size() == 1 && path.back() == mem.cell->name)
+		if (hdlname.size() == 1 && mem.cell->name == path.back())
 			hdlname.clear();
 		if (!hdlname.empty()) {
 			callback(const_path, WitnessHierarchyItem(module, &mem), data);
@@ -160,7 +162,7 @@ void witness_hierarchy_recursion(IdPath &path, int hdlname_mode, RTLIL::Module *
 		path.resize(path_size);
 
 		if (hdlname.empty() || hdlname_mode <= 0) {
-			path.push_back(mem.memid);
+			path.push_back(module->design->twines.str(mem.memid));
 			callback(const_path, WitnessHierarchyItem(module, &mem), data);
 			path.pop_back();
 

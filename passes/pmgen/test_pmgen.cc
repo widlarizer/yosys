@@ -40,16 +40,16 @@ void reduce_chain(test_pmgen_pm &pm)
 	log("Found chain of length %d (%s):\n", GetSize(ud.longest_chain), pm.module->design->twines.unescaped_str(st.first->type_impl));
 
 	SigSpec A;
-	SigSpec Y = ud.longest_chain.front().first->getPort(TW::Y);
+	SigSpec Y = ud.longest_chain.front().first->getPort(ID::Y);
 	auto last_cell = ud.longest_chain.back().first;
 
 	for (auto it : ud.longest_chain) {
 		auto cell = it.first;
 		if (cell == last_cell) {
-			A.append(cell->getPort(TW::A));
-			A.append(cell->getPort(TW::B));
+			A.append(cell->getPort(ID::A));
+			A.append(cell->getPort(ID::B));
 		} else {
-			A.append(cell->getPort(it.second == TW::A ? TW::B : TW::A));
+			A.append(cell->getPort(it.second == ID::A ? ID::B : ID::A));
 		}
 		log("    %s\n", cell);
 		pm.autoremove(cell);
@@ -57,12 +57,12 @@ void reduce_chain(test_pmgen_pm &pm)
 
 	Cell *c;
 
-	if (last_cell->type == TW($_AND_))
-		c = pm.module->addReduceAnd(NEW_TWINE, A, Y);
-	else if (last_cell->type == TW($_OR_))
-		c = pm.module->addReduceOr(NEW_TWINE, A, Y);
-	else if (last_cell->type == TW($_XOR_))
-		c = pm.module->addReduceXor(NEW_TWINE, A, Y);
+	if (last_cell->type == ID::$_AND_)
+		c = pm.module->addReduceAnd(NEW_ID, A, Y);
+	else if (last_cell->type == ID::$_OR_)
+		c = pm.module->addReduceOr(NEW_ID, A, Y);
+	else if (last_cell->type == ID::$_XOR_)
+		c = pm.module->addReduceXor(NEW_ID, A, Y);
 	else
 		log_abort();
 
@@ -78,7 +78,7 @@ void reduce_tree(test_pmgen_pm &pm)
 		return;
 
 	SigSpec A = ud.leaves;
-	SigSpec Y = st.first->getPort(TW::Y);
+	SigSpec Y = st.first->getPort(ID::Y);
 	pm.autoremove(st.first);
 
 	log("Found %s tree with %d leaves for %s (%s).\n", pm.module->design->twines.unescaped_str(st.first->type_impl),
@@ -86,12 +86,12 @@ void reduce_tree(test_pmgen_pm &pm)
 
 	Cell *c;
 
-	if (st.first->type == TW($_AND_))
-		c = pm.module->addReduceAnd(NEW_TWINE, A, Y);
-	else if (st.first->type == TW($_OR_))
-		c = pm.module->addReduceOr(NEW_TWINE, A, Y);
-	else if (st.first->type == TW($_XOR_))
-		c = pm.module->addReduceXor(NEW_TWINE, A, Y);
+	if (st.first->type == ID::$_AND_)
+		c = pm.module->addReduceAnd(NEW_ID, A, Y);
+	else if (st.first->type == ID::$_OR_)
+		c = pm.module->addReduceOr(NEW_ID, A, Y);
+	else if (st.first->type == ID::$_XOR_)
+		c = pm.module->addReduceXor(NEW_ID, A, Y);
 	else
 		log_abort();
 
@@ -102,17 +102,17 @@ void opt_eqpmux(test_pmgen_pm &pm)
 {
 	auto &st = pm.st_eqpmux;
 
-	SigSpec Y = st.pmux->getPort(TW::Y);
+	SigSpec Y = st.pmux->getPort(ID::Y);
 	int width = GetSize(Y);
 
-	SigSpec EQ = st.pmux->getPort(TW::B).extract(st.pmux_slice_eq*width, width);
-	SigSpec NE = st.pmux->getPort(TW::B).extract(st.pmux_slice_ne*width, width);
+	SigSpec EQ = st.pmux->getPort(ID::B).extract(st.pmux_slice_eq*width, width);
+	SigSpec NE = st.pmux->getPort(ID::B).extract(st.pmux_slice_ne*width, width);
 
 	log("Found eqpmux circuit driving %s (eq=%s, ne=%s, pmux=%s).\n",
 			log_signal(Y), st.eq, st.ne, st.pmux);
 
 	pm.autoremove(st.pmux);
-	Cell *c = pm.module->addMux(NEW_TWINE, NE, EQ, st.eq->getPort(TW::Y), Y);
+	Cell *c = pm.module->addMux(NEW_ID, NE, EQ, st.eq->getPort(ID::Y), Y);
 	log("    -> %s (%s)\n", c, pm.module->design->twines.unescaped_str(c->type_impl));
 }
 

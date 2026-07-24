@@ -31,11 +31,11 @@ struct EquivPurgeWorker
 
 	EquivPurgeWorker(Module *module) : module(module), sigmap(module), name_cnt(0) { }
 
-	SigSpec make_output(SigSpec sig, IdString cellname)
+	SigSpec make_output(SigSpec sig, TwineRef cellname)
 	{
 		if (sig.is_wire()) {
 			Wire *wire = sig.as_wire();
-			if (wire->name.isPublic()) {
+			if (wire->name.is_public()) {
 				if (!wire->port_output) {
 					log("  Module output: %s (%s)\n", log_signal(wire), log_id(cellname));
 					wire->port_output = true;
@@ -63,12 +63,12 @@ struct EquivPurgeWorker
 	{
 		if (sig.is_wire()) {
 			Wire *wire = sig.as_wire();
-			if (wire->name.isPublic()) {
+			if (wire->name.is_public()) {
 				if (!wire->port_output) {
 					log("  Module input: %s\n", log_signal(wire));
 					wire->port_input = true;
 				}
-				return module->addWire(NEW_TWINE, GetSize(sig));
+				return module->addWire(NEW_ID, GetSize(sig));
 			}
 		}
 
@@ -83,7 +83,7 @@ struct EquivPurgeWorker
 			wire->port_input = true;
 			module->connect(sig, wire);
 			log("  Module input: %s (%s)\n", log_signal(wire), log_signal(sig));
-			return module->addWire(NEW_TWINE, GetSize(sig));
+			return module->addWire(NEW_ID, GetSize(sig));
 		}
 	}
 
@@ -104,7 +104,7 @@ struct EquivPurgeWorker
 
 		for (auto cell : module->cells())
 		{
-			if (cell->type != TW($equiv)) {
+			if (cell->type != ID::$equiv) {
 				for (auto &port : cell->connections()) {
 					if (cell->input(port.first))
 						for (auto bit : sigmap(port.second))
@@ -116,9 +116,9 @@ struct EquivPurgeWorker
 				continue;
 			}
 
-			SigSpec sig_a = sigmap(cell->getPort(TW::A));
-			SigSpec sig_b = sigmap(cell->getPort(TW::B));
-			SigSpec sig_y = sigmap(cell->getPort(TW::Y));
+			SigSpec sig_a = sigmap(cell->getPort(ID::A));
+			SigSpec sig_b = sigmap(cell->getPort(ID::B));
+			SigSpec sig_y = sigmap(cell->getPort(ID::Y));
 
 			if (sig_a == sig_b)
 				continue;
@@ -132,7 +132,7 @@ struct EquivPurgeWorker
 			for (auto bit : sig_y)
 				visited.insert(bit);
 
-			cell->setPort(TW::Y, make_output(sig_y, cell->name));
+			cell->setPort(ID::Y, make_output(sig_y, cell->name));
 		}
 
 		SigSpec srcsig;
@@ -169,8 +169,8 @@ struct EquivPurgeWorker
 				rewrite_sigmap.add(chunk, make_input(chunk));
 
 		for (auto cell : module->cells())
-			if (cell->type == TW($equiv))
-				cell->setPort(TW::Y, rewrite_sigmap(sigmap(cell->getPort(TW::Y))));
+			if (cell->type == ID::$equiv)
+				cell->setPort(ID::Y, rewrite_sigmap(sigmap(cell->getPort(ID::Y))));
 
 		module->fixup_ports();
 	}

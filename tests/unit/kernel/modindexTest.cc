@@ -41,7 +41,7 @@ TEST(ModIndexDeleteTest, has)
     mi.reload_module();
     mi.dump_db();
     Wire* a = m->addWire(d->twines.add(std::string{"\\a"}));
-    not_->setPort(TW::A, a);
+    not_->setPort(ID::A, a);
     EXPECT_TRUE(mi.ok());
 }
 

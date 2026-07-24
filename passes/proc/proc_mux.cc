@@ -240,7 +240,7 @@ struct MuxGenCtx {
 			else
 			{
 				// create compare cell
-				RTLIL::Cell *eq_cell = mod->addCell(mod->design->twines.add(std::string{stringf("%s_CMP%d", sstr.str(), cmp_wire->width)}), ifxmode ? TW($eqx) : TW($eq));
+				RTLIL::Cell *eq_cell = mod->addCell(mod->design->twines.add(std::string{stringf("%s_CMP%d", sstr.str(), cmp_wire->width)}), ifxmode ? ID::$eqx : ID::$eq);
 				apply_attrs(eq_cell, sw, cs);
 				std::vector<TwineRef> eq_sources;
 				if (sw->signal_src != Twine::Null)
@@ -257,9 +257,9 @@ struct MuxGenCtx {
 				eq_cell->parameters[ID::B_WIDTH] = RTLIL::Const(comp.size());
 				eq_cell->parameters[ID::Y_WIDTH] = RTLIL::Const(1);
 
-				eq_cell->setPort(TW::A, sig);
-				eq_cell->setPort(TW::B, comp);
-				eq_cell->setPort(TW::Y, RTLIL::SigSpec(cmp_wire, cmp_wire->width++));
+				eq_cell->setPort(ID::A, sig);
+				eq_cell->setPort(ID::B, comp);
+				eq_cell->setPort(ID::Y, RTLIL::SigSpec(cmp_wire, cmp_wire->width++));
 			}
 		}
 
@@ -273,7 +273,7 @@ struct MuxGenCtx {
 			ctrl_wire = mod->addWire(mod->design->twines.add(std::string{sstr.str() + "_CTRL"}));
 
 			// reduce cmp vector to one logic signal
-			RTLIL::Cell *any_cell = mod->addCell(mod->design->twines.add(std::string{sstr.str() + "_ANY"}), TW($reduce_or));
+			RTLIL::Cell *any_cell = mod->addCell(mod->design->twines.add(std::string{sstr.str() + "_ANY"}), ID::$reduce_or);
 			apply_attrs(any_cell, sw, cs);
 			if (cs->compare_src != Twine::Null)
 				any_cell->set_src_attribute(cs->compare_src);
@@ -282,8 +282,8 @@ struct MuxGenCtx {
 			any_cell->parameters[ID::A_WIDTH] = RTLIL::Const(cmp_wire->width);
 			any_cell->parameters[ID::Y_WIDTH] = RTLIL::Const(1);
 
-			any_cell->setPort(TW::A, cmp_wire);
-			any_cell->setPort(TW::Y, RTLIL::SigSpec(ctrl_wire));
+			any_cell->setPort(ID::A, cmp_wire);
+			any_cell->setPort(ID::Y, RTLIL::SigSpec(ctrl_wire));
 		}
 
 		return RTLIL::SigSpec(ctrl_wire);
@@ -309,13 +309,13 @@ struct MuxGenCtx {
 		RTLIL::Wire *result_wire = mod->addWire(mod->design->twines.add(std::string{sstr.str() + "_Y"}), when_signal.size());
 
 		// create the multiplexer itself
-		RTLIL::Cell *mux_cell = mod->addCell(mod->design->twines.add(std::string{sstr.str()}), TW($mux));
+		RTLIL::Cell *mux_cell = mod->addCell(mod->design->twines.add(std::string{sstr.str()}), ID::$mux);
 
 		mux_cell->parameters[ID::WIDTH] = RTLIL::Const(when_signal.size());
-		mux_cell->setPort(TW::A, else_signal);
-		mux_cell->setPort(TW::B, when_signal);
-		mux_cell->setPort(TW::S, ctrl_sig);
-		mux_cell->setPort(TW::Y, RTLIL::SigSpec(result_wire));
+		mux_cell->setPort(ID::A, else_signal);
+		mux_cell->setPort(ID::B, when_signal);
+		mux_cell->setPort(ID::S, ctrl_sig);
+		mux_cell->setPort(ID::Y, RTLIL::SigSpec(result_wire));
 		apply_attrs(mux_cell, sw, cs);
 
 		source_mapper.try_map_into(snippet_sources, current_snippet, cs);
@@ -326,26 +326,26 @@ struct MuxGenCtx {
 
 	void append_pmux(RTLIL::SigSpec when_signal) {
 		log_assert(last_mux_cell != NULL);
-		log_assert(when_signal.size() == last_mux_cell->getPort(TW::A).size());
+		log_assert(when_signal.size() == last_mux_cell->getPort(ID::A).size());
 
-		if (when_signal == last_mux_cell->getPort(TW::A)) {
+		if (when_signal == last_mux_cell->getPort(ID::A)) {
 			// when_signal already covered by the default value at port A
 			return;
 		}
 
 		RTLIL::SigSpec ctrl_sig = gen_cmp();
 		log_assert(ctrl_sig.size() == 1);
-		last_mux_cell->type_impl = TW::$pmux;
+		last_mux_cell->type_impl = ID::$pmux;
 
-		RTLIL::SigSpec new_s = last_mux_cell->getPort(TW::S);
+		RTLIL::SigSpec new_s = last_mux_cell->getPort(ID::S);
 		new_s.append(ctrl_sig);
-		last_mux_cell->setPort(TW::S, new_s);
+		last_mux_cell->setPort(ID::S, new_s);
 
-		RTLIL::SigSpec new_b = last_mux_cell->getPort(TW::B);
+		RTLIL::SigSpec new_b = last_mux_cell->getPort(ID::B);
 		new_b.append(when_signal);
-		last_mux_cell->setPort(TW::B, new_b);
+		last_mux_cell->setPort(ID::B, new_b);
 
-		last_mux_cell->parameters[ID::S_WIDTH] = last_mux_cell->getPort(TW::S).size();
+		last_mux_cell->parameters[ID::S_WIDTH] = last_mux_cell->getPort(ID::S).size();
 
 		source_mapper.try_map_into(snippet_sources, current_snippet, cs);
 	}
@@ -524,8 +524,8 @@ RTLIL::SigSpec signal_to_mux_tree(MuxTreeContext ctx)
 				std::vector<TwineRef> refs(case_sources.begin(), case_sources.end());
 				mux->set_src_attribute(mux->module->design->twines.concat(std::span<const TwineRef>{refs}));
 			}
-			log_assert(mux->getPort(TW::Y).is_wire());
-			mux->getPort(TW::Y).as_wire()->transfer_src_attribute(mux);
+			log_assert(mux->getPort(ID::Y).is_wire());
+			mux->getPort(ID::Y).as_wire()->transfer_src_attribute(mux);
 		}
 	}
 

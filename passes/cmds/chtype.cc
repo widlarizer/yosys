@@ -22,26 +22,26 @@
 USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
-static void publish(RTLIL::IdString& id) {
-	if (id.begins_with("$")) {
-		log_debug("publishing %s\n", id.c_str());
-		id = "\\" + id.str();
-		log_debug("published %s\n", id.c_str());
-	}
+// Internal ("$...") names become public ("\\$...") ones.
+static TwineRef publish(TwinePool &twines, TwineRef id) {
+	std::string name = twines.str(id);
+	if (!name.starts_with("$"))
+		return id;
+	log_debug("publishing %s\n", name.c_str());
+	TwineRef published = twines.add("\\" + name);
+	log_debug("published %s\n", twines.str(published).c_str());
+	return published;
 }
 
 static void publish_design(RTLIL::Design* design) {
 	auto saved_modules = design->modules_;
 	design->modules_.clear();
 	for (auto& [name, mod] : saved_modules) {
-		RTLIL::IdString new_name = RTLIL::IdString(design->twines.str(mod->meta_->name));
-		publish(new_name);
-		design->modules_[mod->meta_->name] = mod;
-		for (auto* cell : mod->cells()) {
-			IdString ct = cell->type;
-			if (ct.begins_with("$"))
-				cell->type_impl = cell->module->design->twines.add(std::string{"\\" + ct.str()});
-		}
+		TwineRef new_name = publish(design->twines, mod->meta_->name);
+		mod->meta_->name = new_name;
+		design->modules_[new_name] = mod;
+		for (auto* cell : mod->cells())
+			cell->type_impl = publish(design->twines, cell->type);
 	}
 }
 
@@ -69,20 +69,20 @@ struct ChtypePass : public Pass {
 	}
 	void execute(std::vector<std::string> args, RTLIL::Design *design) override
 	{
-		IdString set_type;
-		dict<IdString, IdString> map_types;
+		TwineRef set_type;
+		dict<TwineRef, TwineRef> map_types;
 		bool publish_mode = false;
 
 		size_t argidx;
 		for (argidx = 1; argidx < args.size(); argidx++)
 		{
-			if (set_type == IdString() && args[argidx] == "-set" && argidx+1 < args.size()) {
-				set_type = RTLIL::escape_id(args[++argidx]);
+			if (set_type == TwineRef() && args[argidx] == "-set" && argidx+1 < args.size()) {
+				set_type = design->twines.add(RTLIL::escape_id(args[++argidx]));
 				continue;
 			}
 			if (args[argidx] == "-map" && argidx+2 < args.size()) {
-				IdString old_type = RTLIL::escape_id(args[++argidx]);
-				IdString new_type = RTLIL::escape_id(args[++argidx]);
+				TwineRef old_type = design->twines.add(RTLIL::escape_id(args[++argidx]));
+				TwineRef new_type = design->twines.add(RTLIL::escape_id(args[++argidx]));
 				map_types[old_type] = new_type;
 				continue;
 			}
@@ -102,12 +102,12 @@ struct ChtypePass : public Pass {
 			for (auto cell : module->selected_cells())
 			{
 				if (map_types.count(cell->type)) {
-					cell->type_impl = cell->module->design->twines.add(std::string{map_types.at(cell->type).str()});
+					cell->type_impl = map_types.at(cell->type);
 					continue;
 				}
 
-				if (set_type != IdString()) {
-					cell->type_impl = cell->module->design->twines.add(std::string{set_type.str()});
+				if (set_type != TwineRef()) {
+					cell->type_impl = set_type;
 					continue;
 				}
 			}

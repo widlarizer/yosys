@@ -58,7 +58,6 @@ void try_collect_garbage()
 	if (!GarbageCollectionGuard::is_enabled() || !garbage_collection_requested)
 		return;
 	garbage_collection_requested = false;
-	RTLIL::OwningIdString::collect_garbage();
 	for (auto &[idx, design] : *RTLIL::Design::get_all_designs())
 		design->gc_twines();
 }
@@ -127,7 +126,6 @@ Pass::pre_post_exec_state_t Pass::pre_execute()
 
 void Pass::post_execute(Pass::pre_post_exec_state_t state)
 {
-	IdString::checkpoint();
 	log_suppressed();
 
 	int64_t time_ns = PerformanceTimer::query() - state.begin_ns;
@@ -996,7 +994,7 @@ struct HelpPass : public Pass {
 		for (auto it : StaticCellTypes::builder.cells) {
 			if (!StaticCellTypes::categories.is_known(it.type))
 				continue;
-			auto name = TW::str(it.type);
+			auto name = ID::str(it.type);
 			if (cell_help_messages.contains(name)) {
 				auto cell_help = cell_help_messages.get(name);
 				groups[cell_help.group].emplace_back(name);
@@ -1034,10 +1032,10 @@ struct HelpPass : public Pass {
 			json.name("code"); json.value(ch.code);
 			vector<string> inputs, outputs;
 			for (auto &input : ct.inputs)
-				inputs.push_back(TW::str(input));
+				inputs.push_back(ID::str(input));
 			json.name("inputs"); json.value(inputs);
 			for (auto &output : ct.outputs)
-				outputs.push_back(TW::str(output));
+				outputs.push_back(ID::str(output));
 			json.name("outputs"); json.value(outputs);
 			vector<string> properties;
 			// CellType properties

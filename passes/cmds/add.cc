@@ -44,10 +44,10 @@ static void add_formal(RTLIL::Module *module, const std::string &celltype, const
 	}
 	else {
 		TwineRef _type = module->design->twines.add(Twine{"$" + celltype});
-		RTLIL::Cell *formal_cell = module->addCell(NEW_TWINE, _type);
-		formal_cell->setPort(TW::A, wire);
+		RTLIL::Cell *formal_cell = module->addCell(NEW_ID, _type);
+		formal_cell->setPort(ID::A, wire);
 		if(enable_name == "") {
-			formal_cell->setPort(TW::EN, State::S1);
+			formal_cell->setPort(ID::EN, State::S1);
 			log("Added $%s cell for wire \"%s.%s\"\n", celltype, log_id(module), name);
 		}
 		else {
@@ -55,7 +55,7 @@ static void add_formal(RTLIL::Module *module, const std::string &celltype, const
 			if(enable_wire == nullptr)
 				log_error("Could not find enable wire with name \"%s\".\n", enable_name);
 
-			formal_cell->setPort(TW::EN, enable_wire);
+			formal_cell->setPort(ID::EN, enable_wire);
 			log("Added $%s cell for wire \"%s.%s\" enabled by wire \"%s.%s\".\n", celltype, log_id(module), name, log_id(module), enable_name);
 		}
 	}

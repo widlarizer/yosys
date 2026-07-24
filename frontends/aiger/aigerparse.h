@@ -29,7 +29,7 @@ struct AigerReader
 {
     RTLIL::Design *design;
     std::istream &f;
-    RTLIL::IdString clk_name;
+    TwineRef clk_name;
     RTLIL::Module *module;
     std::string map_filename;
     const int aiger_autoidx;
@@ -47,7 +47,7 @@ struct AigerReader
     std::vector<int> mergeability, initial_state;
     dict<unsigned, RTLIL::Wire*> aiger_wires;
 
-    AigerReader(RTLIL::Design *design, std::istream &f, RTLIL::IdString module_name, RTLIL::IdString clk_name, std::string map_filename);
+    AigerReader(RTLIL::Design *design, std::istream &f, TwineRef module_name, TwineRef clk_name, std::string map_filename);
     void parse_aiger();
     void parse_xaiger();
     void parse_aiger_ascii();

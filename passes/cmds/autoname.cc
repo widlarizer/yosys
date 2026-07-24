@@ -52,8 +52,8 @@ struct cost {
 // as neighbors. This means that the equivalent of `assign $w1 = \w2;` won't lead
 // to $w1 being renamed.
 struct Edge {
-	// Cell port name at which the wire connects to the cell
-	IdString port;
+	// Cell port name at which the wire connects to the cell (unescaped text)
+	std::string port;
 	int cell;
 	int wire;
 	bool cell_is_output;
@@ -92,8 +92,8 @@ struct node {
 	bool decided = false;
 
 	// cell->name / wire->name are distinct masquerade types under twines;
-	// materialise a plain IdString (by value) for the naming logic.
-	IdString name() const { return cell ? IdString(cell->name) : IdString(wire->name); }
+	// materialise a plain TwineRef (by value) for the naming logic.
+	TwineRef name() const { return cell ? TwineRef(cell->name) : TwineRef(wire->name); }
 };
 
 // Decides the order of exploring neighbors
@@ -144,7 +144,7 @@ struct ModuleAutonamer
 					if (!seen_in_this_port.insert(bit.wire).second)
 						continue;
 					Edge edge{
-						.port = module->design->twines.str(conn.first),
+						.port = module->design->twines.unescaped_str(conn.first),
 						.cell = ci,
 						.wire = wi,
 						.cell_is_output = cell_is_output,
@@ -160,12 +160,12 @@ struct ModuleAutonamer
 
 		// Resolve selection before renaming
 		for (auto &nd : nodes) {
-			IdString name = nd.name();
+			std::string name = module->design->twines.str(nd.name());
 			nd.selected = nd.cell ? module->selected(nd.cell) : module->selected(nd.wire);
 			nd.is_public = (name[0] != '$');
 			nd.renameable = !nd.is_public && (nd.cell || nd.wire->port_id == 0);
 			if (nd.is_public)
-				nd.name_length = name.str().size();
+				nd.name_length = name.size();
 		}
 
 		// Only possible once every fanout is known
@@ -180,8 +180,8 @@ struct ModuleAutonamer
 		if (!nd.renameable || nd.decided)
 			return;
 		string suffix = nd.cell
-			? stringf("_%s_%s", nd.cell->type.unescape(), edge.port.unescape())
-			: stringf("_%s", edge.port.unescape());
+			? stringf("_%s_%s", nd.cell->type.unescape(), edge.port)
+			: stringf("_%s", edge.port);
 		cost c{edge.score, nodes[from].name_length + suffix.length(), edge_pos};
 		if (c >= nd.c)
 			return;
@@ -224,8 +224,10 @@ struct ModuleAutonamer
 	void append_name(int n, string &out)
 	{
 		const node &nd = nodes[n];
-		if (nd.is_public || nd.selected)
-			return nd.name().append_to(&out);
+		if (nd.is_public || nd.selected) {
+			out += module->design->twines.str(nd.name());
+			return;
+		}
 		append_name(nd.from_node, out);
 		out += nd.suffix;
 	}

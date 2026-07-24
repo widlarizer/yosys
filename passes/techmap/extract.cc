@@ -33,14 +33,14 @@ class SubCircuitSolver : public SubCircuit::Solver
 {
 public:
 	bool ignore_parameters;
-	std::set<std::pair<RTLIL::IdString, RTLIL::IdString>> ignored_parameters;
-	std::set<RTLIL::IdString> cell_attr, wire_attr;
+	std::set<std::pair<TwineRef, TwineRef>> ignored_parameters;
+	std::set<TwineRef> cell_attr, wire_attr;
 
 	SubCircuitSolver() : ignore_parameters(false)
 	{
 	}
 
-	bool compareAttributes(const std::set<RTLIL::IdString> &attr, const dict<RTLIL::IdString, RTLIL::Const> &needleAttr, const dict<RTLIL::IdString, RTLIL::Const> &haystackAttr)
+	bool compareAttributes(const std::set<TwineRef> &attr, const dict<TwineRef, RTLIL::Const> &needleAttr, const dict<TwineRef, RTLIL::Const> &haystackAttr)
 	{
 		for (auto &it : attr) {
 			size_t nc = needleAttr.count(it), hc = haystackAttr.count(it);
@@ -50,9 +50,10 @@ public:
 		return true;
 	}
 
-	RTLIL::Const unified_param(RTLIL::IdString cell_type, RTLIL::IdString param, RTLIL::Const value)
+	RTLIL::Const unified_param(TwineRef cell_type, TwineRef param, RTLIL::Const value)
 	{
-		if (!cell_type.begins_with("$") || cell_type.begins_with("$_"))
+		std::string type_str = ID::str(cell_type);
+		if (!type_str.starts_with("$") || type_str.starts_with("$_"))
 			return value;
 
 	#define param_bool(_n) if (param == _n) return value.as_bool();
@@ -104,12 +105,12 @@ public:
 		}
 
 		if (!ignore_parameters) {
-			std::map<RTLIL::IdString, RTLIL::Const> needle_param, haystack_param;
+			std::map<TwineRef, RTLIL::Const> needle_param, haystack_param;
 			for (auto &it : needleCell->parameters)
-				if (!ignored_parameters.count(std::pair<RTLIL::IdString, RTLIL::IdString>(needleCell->type, it.first)))
+				if (!ignored_parameters.count(std::pair<TwineRef, TwineRef>(needleCell->type, it.first)))
 					needle_param[it.first] = unified_param(needleCell->type, it.first, it.second);
 			for (auto &it : haystackCell->parameters)
-				if (!ignored_parameters.count(std::pair<RTLIL::IdString, RTLIL::IdString>(haystackCell->type, it.first)))
+				if (!ignored_parameters.count(std::pair<TwineRef, TwineRef>(haystackCell->type, it.first)))
 					haystack_param[it.first] = unified_param(haystackCell->type, it.first, it.second);
 			if (needle_param != haystack_param)
 				return false;
@@ -122,7 +123,7 @@ public:
 		{
 			RTLIL::Wire *lastNeedleWire = nullptr;
 			RTLIL::Wire *lastHaystackWire = nullptr;
-			dict<RTLIL::IdString, RTLIL::Const> emptyAttr;
+			dict<TwineRef, RTLIL::Const> emptyAttr;
 
 			for (auto &conn : needleCell->connections())
 			{
@@ -149,7 +150,7 @@ struct bit_ref_t {
 };
 
 bool module2graph(SubCircuit::Graph &graph, RTLIL::Module *mod, bool constports, RTLIL::Design *sel = nullptr,
-		int max_fanout = -1, std::set<std::pair<RTLIL::IdString, RTLIL::IdString>> *split = nullptr)
+		int max_fanout = -1, std::set<std::pair<std::string, std::string>> *split = nullptr)
 {
 	SigMap sigmap(mod);
 	std::map<RTLIL::SigBit, bit_ref_t> sig_bit_ref;
@@ -209,7 +210,7 @@ bool module2graph(SubCircuit::Graph &graph, RTLIL::Module *mod, bool constports,
 		{
 			graph.createPort(cell->name.str(), tw.str(conn.first), conn.second.size());
 
-			if (split && split->count(std::pair<RTLIL::IdString, RTLIL::IdString>(IdString(cell->type.str()), IdString(tw.str(conn.first)))) > 0)
+			if (split && split->count(std::pair<std::string, std::string>(cell->type.str(), tw.str(conn.first))) > 0)
 				continue;
 
 			RTLIL::SigSpec conn_sig = conn.second;
@@ -457,7 +458,7 @@ struct ExtractPass : public Pass {
 		int mine_min_freq = 10;
 		int mine_limit_mod = -1;
 		int mine_max_fanout = -1;
-		std::set<std::pair<RTLIL::IdString, RTLIL::IdString>> mine_split;
+		std::set<std::pair<std::string, std::string>> mine_split;
 
 		size_t argidx;
 		for (argidx = 1; argidx < args.size(); argidx++) {
@@ -488,7 +489,7 @@ struct ExtractPass : public Pass {
 				continue;
 			}
 			if (args[argidx] == "-mine_split" && argidx+2 < args.size()) {
-				mine_split.insert(std::pair<RTLIL::IdString, RTLIL::IdString>(RTLIL::escape_id(args[argidx+1]), RTLIL::escape_id(args[argidx+2])));
+				mine_split.insert(std::pair<std::string, std::string>(RTLIL::escape_id(args[argidx+1]), RTLIL::escape_id(args[argidx+2])));
 				argidx += 2;
 				continue;
 			}
@@ -545,11 +546,11 @@ struct ExtractPass : public Pass {
 				continue;
 			}
 			if (args[argidx] == "-cell_attr" && argidx+1 < args.size()) {
-				solver.cell_attr.insert(RTLIL::escape_id(args[++argidx]));
+				solver.cell_attr.insert(design->twines.add(RTLIL::escape_id(args[++argidx])));
 				continue;
 			}
 			if (args[argidx] == "-wire_attr" && argidx+1 < args.size()) {
-				solver.wire_attr.insert(RTLIL::escape_id(args[++argidx]));
+				solver.wire_attr.insert(design->twines.add(RTLIL::escape_id(args[++argidx])));
 				continue;
 			}
 			if (args[argidx] == "-ignore_parameters") {
@@ -557,7 +558,7 @@ struct ExtractPass : public Pass {
 				continue;
 			}
 			if (args[argidx] == "-ignore_param" && argidx+2 < args.size()) {
-				solver.ignored_parameters.insert(std::pair<RTLIL::IdString, RTLIL::IdString>(RTLIL::escape_id(args[argidx+1]), RTLIL::escape_id(args[argidx+2])));
+				solver.ignored_parameters.insert(std::pair<TwineRef, TwineRef>(design->twines.add(RTLIL::escape_id(args[argidx+1])), design->twines.add(RTLIL::escape_id(args[argidx+2]))));
 				argidx += 2;
 				continue;
 			}

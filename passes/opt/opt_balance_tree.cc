@@ -48,10 +48,10 @@ struct OptBalanceTreeWorker {
 
 		// Calculate the "natural" output width for this operation
 		int natural_width;
-		if (cell_type == TW($add)) {
+		if (cell_type == ID::$add) {
 			// Addition produces max(A_WIDTH, B_WIDTH) + 1 (for carry bit)
 			natural_width = std::max(a_width, b_width) + 1;
-		} else if (cell_type == TW($mul)) {
+		} else if (cell_type == ID::$mul) {
 			// Multiplication produces A_WIDTH + B_WIDTH
 			natural_width = a_width + b_width;
 		} else {
@@ -77,7 +77,7 @@ struct OptBalanceTreeWorker {
 		// Base case: if we have two sources, create a single cell
 		if (sources.size() == 2) {
 			// Create a new cell of the same type
-			Cell* new_cell = module->addCell(NEW_TWINE, cell_type);
+			Cell* new_cell = module->addCell(NEW_ID, cell_type);
 			
 			// Copy attributes and src from reference cell
 			new_cell->attributes = cell->attributes;
@@ -85,16 +85,16 @@ struct OptBalanceTreeWorker {
 
 			// Create output wire
 			int out_width = cell->getParam(ID::Y_WIDTH).as_int();
-			if (cell_type == TW($add))
+			if (cell_type == ID::$add)
 				out_width = max(sources[0].size(), sources[1].size()) + 1;
-			else if (cell_type == TW($mul))
+			else if (cell_type == ID::$mul)
 				out_width = sources[0].size() + sources[1].size();
-			Wire* out_wire = module->addWire(NEW_TWINE, out_width);
+			Wire* out_wire = module->addWire(NEW_ID, out_width);
 			
 			// Connect ports and fix up parameters
-			new_cell->setPort(TW::A, sources[0]);
-			new_cell->setPort(TW::B, sources[1]);
-			new_cell->setPort(TW::Y, out_wire);
+			new_cell->setPort(ID::A, sources[0]);
+			new_cell->setPort(ID::B, sources[1]);
+			new_cell->setPort(ID::Y, out_wire);
 			new_cell->fixup_parameters();
 			new_cell->setParam(ID::A_SIGNED, cell->getParam(ID::A_SIGNED));
 			new_cell->setParam(ID::B_SIGNED, cell->getParam(ID::B_SIGNED));
@@ -113,23 +113,23 @@ struct OptBalanceTreeWorker {
 		SigSpec right_tree = create_balanced_tree(right_sources, cell_type, cell);
 
 		// Create a cell to combine the two subtrees
-		Cell* new_cell = module->addCell(NEW_TWINE, cell_type);
+		Cell* new_cell = module->addCell(NEW_ID, cell_type);
 		
 		// Copy attributes from reference cell
 		new_cell->attributes = cell->attributes;
 
 		// Create output wire
 		int out_width = cell->getParam(ID::Y_WIDTH).as_int();
-		if (cell_type == TW($add))
+		if (cell_type == ID::$add)
 			out_width = max(left_tree.size(), right_tree.size()) + 1;
-		else if (cell_type == TW($mul))
+		else if (cell_type == ID::$mul)
 			out_width = left_tree.size() + right_tree.size();
-		Wire* out_wire = module->addWire(NEW_TWINE, out_width);
+		Wire* out_wire = module->addWire(NEW_ID, out_width);
 		
 		// Connect ports and fix up parameters
-		new_cell->setPort(TW::A, left_tree);
-		new_cell->setPort(TW::B, right_tree);
-		new_cell->setPort(TW::Y, out_wire);
+		new_cell->setPort(ID::A, left_tree);
+		new_cell->setPort(ID::B, right_tree);
+		new_cell->setPort(ID::Y, out_wire);
 		new_cell->fixup_parameters();
 		new_cell->setParam(ID::A_SIGNED, cell->getParam(ID::A_SIGNED));
 		new_cell->setParam(ID::B_SIGNED, cell->getParam(ID::B_SIGNED));
@@ -186,7 +186,7 @@ struct OptBalanceTreeWorker {
 
 				// BFS, following all chains until they hit a cell of a different type
 				// Pick the longest one
-				auto y = sigmap(cell->getPort(TW::Y));
+				auto y = sigmap(cell->getPort(ID::Y));
 				pool<Cell*> sinks;
 				pool<Cell*> current_loads = sig_to_sink[y];
 				pool<Cell*> next_loads;
@@ -203,7 +203,7 @@ struct OptBalanceTreeWorker {
 							continue;
 						}
 
-						auto xy = sigmap(x->getPort(TW::Y));
+						auto xy = sigmap(x->getPort(ID::Y));
 
 						// If this signal drives a port, add it to the sinks
 						// (even though it may not be the end of a chain)
@@ -257,7 +257,7 @@ struct OptBalanceTreeWorker {
 						Cell* x = bfs_queue.front();
 						bfs_queue.pop_front();
 
-						for (TwineRef port: {TW::A, TW::B}) {
+						for (TwineRef port: {ID::A, ID::B}) {
 							auto sig = sigmap(x->getPort(port));
 							Cell* drv = sig_to_driver[sig];
 							bool drv_ok = drv && is_right_type(drv, cell_type);
@@ -272,7 +272,7 @@ struct OptBalanceTreeWorker {
 								bfs_queue.push_back(drv);
 							} else {
 								sources[sig]++;
-								signeds[sig] = x->getParam(port == TW::A ? ID::A_SIGNED : ID::B_SIGNED).as_bool();
+								signeds[sig] = x->getParam(port == ID::A ? ID::A_SIGNED : ID::B_SIGNED).as_bool();
 							}
 						}
 					}
@@ -301,7 +301,7 @@ struct OptBalanceTreeWorker {
 						SigSpec tree_output = create_balanced_tree(source_signals, cell_type, head_cell);
 
 						// Connect the tree output to the head cell's output
-						SigSpec head_output = sigmap(head_cell->getPort(TW::Y));
+						SigSpec head_output = sigmap(head_cell->getPort(ID::Y));
 						int connect_width = std::min(head_output.size(), tree_output.size());
 						module->connect(head_output.extract(0, connect_width), tree_output.extract(0, connect_width));
 						if (head_output.size() > tree_output.size()) {
@@ -345,14 +345,14 @@ struct OptBalanceTreePass : public Pass {
 
 		// Handle arguments
 		size_t argidx;
-		vector<TwineRef> cell_types = {TwineRef{TW($and)}, TwineRef{TW($or)}, TwineRef{TW($xor)}, TwineRef{TW($add)}, TwineRef{TW($mul)}};
+		vector<TwineRef> cell_types = {TwineRef{ID::$and}, TwineRef{ID::$or}, TwineRef{ID::$xor}, TwineRef{ID::$add}, TwineRef{ID::$mul}};
 		for (argidx = 1; argidx < args.size(); argidx++) {
 			if (args[argidx] == "-arith") {
-				cell_types = {TwineRef{TW($add)}, TwineRef{TW($mul)}};
+				cell_types = {TwineRef{ID::$add}, TwineRef{ID::$mul}};
 				continue;
 			}
 			if (args[argidx] == "-logic") {
-				cell_types = {TwineRef{TW($and)}, TwineRef{TW($or)}, TwineRef{TW($xor)}};
+				cell_types = {TwineRef{ID::$and}, TwineRef{ID::$or}, TwineRef{ID::$xor}};
 				continue;
 			}
 			break;

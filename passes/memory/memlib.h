@@ -140,7 +140,9 @@ struct RamClock {
 };
 
 struct Ram {
-	IdString id;
+	// Escaped cell-type name; the library is parsed without a Design, so it
+	// is interned at use time.
+	std::string id;
 	RamKind kind;
 	dict<std::string, Const> options;
 	std::vector<PortGroup> port_groups;

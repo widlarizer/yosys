@@ -47,7 +47,7 @@ struct ContextData {
 	std::string unused_outputs;
 };
 
-std::optional<std::string> format_with_params(std::string fmt, const dict<IdString, Const> &parameters,
+std::optional<std::string> format_with_params(const TwinePool &twines, std::string fmt, const dict<TwineRef, Const> &parameters,
 								  const ContextData &context)
 {
 	std::stringstream result;
@@ -68,9 +68,10 @@ std::optional<std::string> format_with_params(std::string fmt, const dict<IdStri
 			if (param_name == "%unused") {
 				result << context.unused_outputs;
 			} else {
-				auto id = RTLIL::escape_id(std::string(beg, it));
-				if (!parameters.count(id)) {
-					log("Parameter %s referenced in format string '%s' not found\n", id, fmt);
+				auto name = RTLIL::escape_id(std::string(beg, it));
+				TwineRef id = twines.find(name);
+				if (id == Twine::Null || !parameters.count(id)) {
+					log("Parameter %s referenced in format string '%s' not found\n", name, fmt);
 					return {};
 				}
 
@@ -160,10 +161,10 @@ struct WrapcellPass : Pass {
 		log_header(d, "Executing WRAPCELL pass. (wrap selected cells)\n");
 
 		struct AttrRule {
-			IdString name;
+			TwineRef name;
 			std::string value_fmt;
 
-			AttrRule(IdString name, std::string value_fmt)
+			AttrRule(TwineRef name, std::string value_fmt)
 				: name(name), value_fmt(value_fmt) {}
 		};
 		std::vector<AttrRule> attributes;
@@ -172,9 +173,9 @@ struct WrapcellPass : Pass {
 		size_t argidx;
 		for (argidx = 1; argidx < args.size(); argidx++) {
 			if (args[argidx] == "-setattr" && argidx+1 < args.size()) {
-				attributes.emplace_back(RTLIL::escape_id(args[++argidx]), "");
+				attributes.emplace_back(d->twines.add(RTLIL::escape_id(args[++argidx])), "");
 			} else if (args[argidx] == "-formatattr" && argidx+2 < args.size()) {
-				IdString id = RTLIL::escape_id(args[++argidx]);
+				TwineRef id = d->twines.add(RTLIL::escape_id(args[++argidx]));
 				attributes.emplace_back(id, args[++argidx]);
 			} else if (args[argidx] == "-name" && argidx+1 < args.size()) {
 				name_fmt = args[++argidx];
@@ -233,13 +234,12 @@ struct WrapcellPass : Pass {
 						context.unused_outputs += "_" + module->design->twines.unescaped_str(chunk.format(cell));
 				}
 
-				std::optional<std::string> unescaped_name = format_with_params(name_fmt, cell->parameters, context);
+				std::optional<std::string> unescaped_name = format_with_params(d->twines, name_fmt, cell->parameters, context);
 				if (!unescaped_name)
 					log_error("Formatting error when processing cell '%s' in module '%s'\n",
 							  cell, module);
 
-				IdString name = RTLIL::escape_id(unescaped_name.value());
-				name_ref = d->twines.add(std::string{name.str()});
+				name_ref = d->twines.add(RTLIL::escape_id(unescaped_name.value()));
 				if (d->module(name_ref))
 					goto replace_cell;
 
@@ -274,7 +274,7 @@ struct WrapcellPass : Pass {
 					if (rule.value_fmt.empty()) {
 						subm->set_bool_attribute(rule.name);
 					} else {
-						std::optional<std::string> value = format_with_params(rule.value_fmt, cell->parameters, context);
+						std::optional<std::string> value = format_with_params(d->twines, rule.value_fmt, cell->parameters, context);
 
 						if (!value)
 							log_error("Formatting error when processing cell '%s' in module '%s'\n",

@@ -265,21 +265,21 @@ struct ClkbufmapPass : public Pass {
 						bool is_input = wire->port_input && !inpad_celltype.empty() && module->get_bool_attribute(ID::top);
 						if (!buf_celltype.empty() && (!is_input || buffer_inputs)) {
 							log("Inserting %s on %s.%s[%d].\n", buf_celltype, module, wire, i);
-							cell = module->addCell(NEW_TWINE, buf_celltype_ref);
-							iwire = module->addWire(NEW_TWINE);
+							cell = module->addCell(NEW_ID, buf_celltype_ref);
+							iwire = module->addWire(NEW_ID);
 							cell->setPort(buf_portname_ref, mapped_wire_bit);
 							cell->setPort(buf_portname2_ref, iwire);
 						}
 						if (is_input) {
 							log("Inserting %s on %s.%s[%d].\n", inpad_celltype, module, wire, i);
-							RTLIL::Cell *cell2 = module->addCell(NEW_TWINE, inpad_celltype_ref);
+							RTLIL::Cell *cell2 = module->addCell(NEW_ID, inpad_celltype_ref);
 							if (iwire) {
 								cell2->setPort(inpad_portname_ref, iwire);
 							} else {
 								cell2->setPort(inpad_portname_ref, mapped_wire_bit);
 								cell = cell2;
 							}
-							iwire = module->addWire(NEW_TWINE);
+							iwire = module->addWire(NEW_ID);
 							cell2->setPort(inpad_portname2_ref, iwire);
 						}
 						if (iwire)
@@ -298,7 +298,7 @@ struct ClkbufmapPass : public Pass {
 				if (!input_bits.empty()) {
 					// This is an input port and some buffers were inserted -- we need
 					// to create a new input wire and transfer attributes.
-					Wire *new_wire = module->addWire(NEW_TWINE, wire);
+					Wire *new_wire = module->addWire(NEW_ID, wire);
 
 					for (int i = 0; i < wire->width; i++) {
 						SigBit wire_bit(wire, i);

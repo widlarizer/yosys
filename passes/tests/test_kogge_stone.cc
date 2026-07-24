@@ -8,32 +8,32 @@ static void build_lcu_adder(Module *module, SigSpec a, SigSpec b, SigSpec y)
 {
 	int width = GetSize(y);
 
-	SigSpec p = module->Xor(NEW_TWINE, a, b);
-	SigSpec g = module->And(NEW_TWINE, a, b);
+	SigSpec p = module->Xor(NEW_ID, a, b);
+	SigSpec g = module->And(NEW_ID, a, b);
 
-	SigSpec co = module->addWire(NEW_TWINE, width);
-	Cell *lcu = module->addCell(NEW_TWINE, TW($lcu));
+	SigSpec co = module->addWire(NEW_ID, width);
+	Cell *lcu = module->addCell(NEW_ID, ID::$lcu);
 	lcu->setParam(ID::WIDTH, width);
-	lcu->setPort(TW::P, p);
-	lcu->setPort(TW::G, g);
-	lcu->setPort(TW::CI, State::S0);
-	lcu->setPort(TW::CO, co);
+	lcu->setPort(ID::P, p);
+	lcu->setPort(ID::G, g);
+	lcu->setPort(ID::CI, State::S0);
+	lcu->setPort(ID::CO, co);
 
 	SigSpec carry_in;
 	carry_in.append(State::S0);
 	carry_in.append(co.extract(0, width - 1));
-	module->addXor(NEW_TWINE, p, carry_in, y);
+	module->addXor(NEW_ID, p, carry_in, y);
 }
 
-static Module *make_module(Design *design, IdString name, int width)
+static Module *make_module(Design *design, TwineRef name, int width)
 {
-	Module *module = design->addModule(design->twines.add(std::string{name.str()}));
+	Module *module = design->addModule(name);
 
-	Wire *a = module->addWire(TW::a, width);
+	Wire *a = module->addWire(ID::a, width);
 	a->port_input = true;
-	Wire *b = module->addWire(TW::b, width);
+	Wire *b = module->addWire(ID::b, width);
 	b->port_input = true;
-	Wire *y = module->addWire(TW::y, width);
+	Wire *y = module->addWire(ID::y, width);
 	y->port_output = true;
 	module->fixup_ports();
 
@@ -64,8 +64,8 @@ struct TestKoggeStonePass : public Pass {
 	void execute(std::vector<std::string> args, Design *design) override
 	{
 		int width = 16;
-		IdString gold_name = ID(gold);
-		IdString gate_name = ID(gate);
+		TwineRef gold_name = ID::gold;
+		TwineRef gate_name = ID::gate;
 
 		size_t argidx;
 		for (argidx = 1; argidx < args.size(); argidx++) {
@@ -74,11 +74,11 @@ struct TestKoggeStonePass : public Pass {
 				continue;
 			}
 			if (args[argidx] == "-gold" && argidx + 1 < args.size()) {
-				gold_name = RTLIL::escape_id(args[++argidx]);
+				gold_name = design->twines.add(RTLIL::escape_id(args[++argidx]));
 				continue;
 			}
 			if (args[argidx] == "-gate" && argidx + 1 < args.size()) {
-				gate_name = RTLIL::escape_id(args[++argidx]);
+				gate_name = design->twines.add(RTLIL::escape_id(args[++argidx]));
 				continue;
 			}
 			break;
@@ -91,10 +91,10 @@ struct TestKoggeStonePass : public Pass {
 		log_header(design, "Executing TEST_KOGGE_STONE pass (width=%d).\n", width);
 
 		Module *gold = make_module(design, gold_name, width);
-		build_lcu_adder(gold, gold->wire(TW::a), gold->wire(TW::b), gold->wire(TW::y));
+		build_lcu_adder(gold, gold->wire(ID::a), gold->wire(ID::b), gold->wire(ID::y));
 
 		Module *gate = make_module(design, gate_name, width);
-		CompressorTree::emit_kogge_stone(gate, gate->wire(TW::a), gate->wire(TW::b), gate->wire(TW::y));
+		CompressorTree::emit_kogge_stone(gate, gate->wire(ID::a), gate->wire(ID::b), gate->wire(ID::y));
 	}
 } TestKoggeStonePass;
 

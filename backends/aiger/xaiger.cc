@@ -86,7 +86,7 @@ struct XAigerWriter
 					continue;
 				for (int j = i; j < next_loop_check; ++j) {
 					report_bit = bit2aig_stack[j];
-					if (report_bit.is_wire() && report_bit.wire->name.isPublic())
+					if (report_bit.is_wire() && report_bit.wire->name.is_public())
 						break;
 				}
 				log_error("Found combinatorial logic loop while processing signal %s.\n", log_signal(report_bit));
@@ -132,7 +132,7 @@ struct XAigerWriter
 
 		// promote public wires
 		for (auto wire : module->wires())
-			if (wire->name.isPublic())
+			if (wire->name.is_public())
 				sigmap.add(wire);
 
 		// promote input wires
@@ -188,21 +188,21 @@ struct XAigerWriter
 
 		for (auto cell : module->cells()) {
 			if (!cell->has_keep_attr()) {
-				if (cell->type == TW($_NOT_))
+				if (cell->type == ID::$_NOT_)
 				{
-					SigBit A = sigmap(cell->getPort(TW::A).as_bit());
-					SigBit Y = sigmap(cell->getPort(TW::Y).as_bit());
+					SigBit A = sigmap(cell->getPort(ID::A).as_bit());
+					SigBit Y = sigmap(cell->getPort(ID::Y).as_bit());
 					unused_bits.erase(A);
 					undriven_bits.erase(Y);
 					not_map[Y] = A;
 					continue;
 				}
 
-				if (cell->type == TW($_AND_))
+				if (cell->type == ID::$_AND_)
 				{
-					SigBit A = sigmap(cell->getPort(TW::A).as_bit());
-					SigBit B = sigmap(cell->getPort(TW::B).as_bit());
-					SigBit Y = sigmap(cell->getPort(TW::Y).as_bit());
+					SigBit A = sigmap(cell->getPort(ID::A).as_bit());
+					SigBit B = sigmap(cell->getPort(ID::B).as_bit());
+					SigBit Y = sigmap(cell->getPort(ID::Y).as_bit());
 					unused_bits.erase(A);
 					unused_bits.erase(B);
 					undriven_bits.erase(Y);
@@ -210,10 +210,10 @@ struct XAigerWriter
 					continue;
 				}
 
-				if (dff_mode && cell->type.in(TW($_DFF_N_), TW($_DFF_P_)) && !cell->get_bool_attribute(ID::abc9_keep))
+				if (dff_mode && cell->type.in(ID::$_DFF_N_, ID::$_DFF_P_) && !cell->get_bool_attribute(ID::abc9_keep))
 				{
-					SigBit D = sigmap(cell->getPort(TW::D).as_bit());
-					SigBit Q = sigmap(cell->getPort(TW::Q).as_bit());
+					SigBit D = sigmap(cell->getPort(ID::D).as_bit());
+					SigBit Q = sigmap(cell->getPort(ID::Q).as_bit());
 					unused_bits.erase(D);
 					undriven_bits.erase(Q);
 					alias_map[Q] = D;
@@ -221,7 +221,7 @@ struct XAigerWriter
 					continue;
 				}
 
-				if (cell->type.in(TW($specify2), TW($specify3), TW($specrule)))
+				if (cell->type.in(ID::$specify2, ID::$specify3, ID::$specrule))
 					continue;
 			}
 
@@ -287,7 +287,7 @@ struct XAigerWriter
 				auto is_input = (port_wire && port_wire->port_input) || !cell_known || cell->input(c.first);
 				auto is_output = (port_wire && port_wire->port_output) || !cell_known || cell->output(c.first);
 				if (!is_input && !is_output)
-					log_error("Connection '%s' on cell '%s' (type '%s') not recognised!\n", RTLIL::IdString(design->twines.str(c.first)).unescape(), cell, cell->type.unescape());
+					log_error("Connection '%s' on cell '%s' (type '%s') not recognised!\n", module->design->twines.unescaped_str(c.first), cell, cell->type.unescape());
 
 				if (is_input)
 					for (auto b : c.second) {
@@ -308,7 +308,7 @@ struct XAigerWriter
 			//log_warning("Unsupported cell type: %s (%s)\n", cell->type.unescaped(), cell);
 		}
 
-		dict<IdString, std::vector<TwineRef>> box_ports;
+		dict<TwineRef, std::vector<TwineRef>> box_ports;
 		for (auto cell : box_list) {
 			log_assert(cell);
 
@@ -412,7 +412,7 @@ struct XAigerWriter
 		}
 
 		for (auto cell : ff_list) {
-			const SigBit &q = sigmap(cell->getPort(TW::Q));
+			const SigBit &q = sigmap(cell->getPort(ID::Q));
 			aig_m++, aig_i++;
 			log_assert(!aig_map.count(q));
 			aig_map[q] = 2*aig_m;
@@ -460,7 +460,7 @@ struct XAigerWriter
 		}
 
 		for (auto cell : ff_list) {
-			const SigBit &d = sigmap(cell->getPort(TW::D));
+			const SigBit &d = sigmap(cell->getPort(ID::D));
 			aig_o++;
 			aig_outputs.push_back(aig_map.at(d));
 		}
@@ -559,7 +559,7 @@ struct XAigerWriter
 		//	write_o_buffer(0);
 
 		if (!box_list.empty() || !ff_list.empty()) {
-			dict<IdString, std::tuple<int,int,int>> cell_cache;
+			dict<TwineRef, std::tuple<int,int,int>> cell_cache;
 
 			int box_count = 0;
 			for (auto cell : box_list) {
@@ -604,10 +604,10 @@ struct XAigerWriter
 
 			dict<SigSpec, int> clk_to_mergeability;
 			for (const auto cell : ff_list) {
-				const SigBit &d = sigmap(cell->getPort(TW::D));
-				const SigBit &q = sigmap(cell->getPort(TW::Q));
+				const SigBit &d = sigmap(cell->getPort(ID::D));
+				const SigBit &q = sigmap(cell->getPort(ID::Q));
 
-				SigSpec clk_and_pol{sigmap(cell->getPort(TW::C)), cell->type[6] == 'P' ? State::S1 : State::S0};
+				SigSpec clk_and_pol{sigmap(cell->getPort(ID::C)), cell->type[6] == 'P' ? State::S1 : State::S0};
 				auto r = clk_to_mergeability.insert(std::make_pair(clk_and_pol, clk_to_mergeability.size()+1));
 				int mergeability = r.first->second;
 				log_assert(mergeability > 0);
@@ -646,7 +646,7 @@ struct XAigerWriter
 			else
 				holes_design = nullptr;
 			RTLIL::Module *holes_module = holes_design ?
-					holes_design->module(holes_design->twines.add(std::string{module->name.str()})) : nullptr;
+					holes_design->module(module->name) : nullptr;
 			if (holes_module) {
 				std::stringstream a_buffer;
 				XAigerWriter writer(holes_module, false /* dff_mode */);

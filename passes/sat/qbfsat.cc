@@ -47,11 +47,11 @@ pool<std::string> validate_design_and_get_inputs(RTLIL::Module *module, bool ass
 			found_1bit_output = true;
 	}
 	for (auto cell : module->cells()) {
-		if (cell->type == TW($allconst))
+		if (cell->type == ID::$allconst)
 			found_input = true;
-		if (cell->type == TW($anyconst))
+		if (cell->type == ID::$anyconst)
 			found_hole = true;
-		if (cell->type.in("$assert", "$assume"))
+		if (cell->type.in(ID::$assert, ID::$assume))
 			found_assert_assume = true;
 	}
 	if (!found_input)
@@ -74,7 +74,7 @@ void specialize_from_file(RTLIL::Module *module, const std::string &file) {
 	dict<RTLIL::SigBit, RTLIL::State> hole_assignments;
 
 	for (auto cell : module->cells())
-		if (cell->type == TW($anyconst))
+		if (cell->type == ID::$anyconst)
 			anyconst_loc_to_cell[module->design->src_leaves(cell)] = cell;
 
 	std::ifstream fin(file.c_str());
@@ -112,7 +112,7 @@ void specialize_from_file(RTLIL::Module *module, const std::string &file) {
 				log_cmd_error("cannot find matching wire name or $anyconst cell location for hole spec \"%s\"\n", buf);
 
 			RTLIL::Cell *hole_cell = hole_cell_it->second;
-			hole_sigbit = hole_cell->getPort(TW::Y)[hole_bit];
+			hole_sigbit = hole_cell->getPort(ID::Y)[hole_bit];
 		}
 		hole_assignments[hole_sigbit] = hole_value;
 	}
@@ -132,7 +132,7 @@ void specialize(RTLIL::Module *module, const QbfSolutionType &sol, bool quiet = 
 	auto hole_loc_idx_to_sigbit = sol.get_hole_loc_idx_sigbit_map(module);
 	pool<RTLIL::Cell *> anyconsts_to_remove;
 	for (auto cell : module->cells())
-		if (cell->type == TW($anyconst))
+		if (cell->type == ID::$anyconst)
 			if (hole_loc_idx_to_sigbit.find(std::make_pair(module->design->src_leaves(cell), 0)) != hole_loc_idx_to_sigbit.end())
 				anyconsts_to_remove.insert(cell);
 	for (auto cell : anyconsts_to_remove)
@@ -165,9 +165,9 @@ void allconstify_inputs(RTLIL::Module *module, const pool<std::string> &input_wi
 		RTLIL::Wire *input = module->wire(search.find(n));
 		log_assert(input != nullptr);
 
-		RTLIL::Cell *allconst = module->addCell(Twine{"$allconst$" + n}, TW($allconst));
-		allconst->setParam(ID(WIDTH), input->width);
-		allconst->setPort(TW::Y, input);
+		RTLIL::Cell *allconst = module->addCell(Twine{"$allconst$" + n}, ID::$allconst);
+		allconst->setParam(ID::WIDTH, input->width);
+		allconst->setPort(ID::Y, input);
 		allconst->adopt_src_from(input);
 		input->port_input = false;
 		log("Replaced input %s with $allconst cell.\n", n);
@@ -272,14 +272,14 @@ QbfSolutionType qbf_solve(RTLIL::Module *mod, const QbfSolveOptions &opt) {
 
 	//Find the wire to be optimized, if any:
 	for (auto wire : module->wires()) {
-		if (wire->get_bool_attribute("\\maximize") || wire->get_bool_attribute("\\minimize")) {
+		if (wire->get_bool_attribute(ID::maximize) || wire->get_bool_attribute(ID::minimize)) {
 			wire_to_optimize_name = wire->name.ref();
-			maximize = wire->get_bool_attribute("\\maximize");
+			maximize = wire->get_bool_attribute(ID::maximize);
 			if (opt.nooptimize) {
 				if (maximize)
-					wire->set_bool_attribute("\\maximize", false);
+					wire->set_bool_attribute(ID::maximize, false);
 				else
-					wire->set_bool_attribute("\\minimize", false);
+					wire->set_bool_attribute(ID::minimize, false);
 			}
 		}
 	}
@@ -314,8 +314,8 @@ QbfSolutionType qbf_solve(RTLIL::Module *mod, const QbfSolveOptions &opt) {
 
 			if (cur_thresh != 0) {
 				//Add thresholding logic (but not on the initial run when we don't have a sense of where to start):
-				RTLIL::SigSpec comparator = maximize? module->Ge(NEW_TWINE, module->wire(wire_to_optimize_name), RTLIL::Const(cur_thresh), false)
-				                                    : module->Le(NEW_TWINE, module->wire(wire_to_optimize_name), RTLIL::Const(cur_thresh), false);
+				RTLIL::SigSpec comparator = maximize? module->Ge(NEW_ID, module->wire(wire_to_optimize_name), RTLIL::Const(cur_thresh), false)
+				                                    : module->Le(NEW_ID, module->wire(wire_to_optimize_name), RTLIL::Const(cur_thresh), false);
 
 				module->addAssume(Twine{design->twines.str(wire_to_optimize_name) + "__threshold"}, comparator, RTLIL::Const(1, 1));
 				log("Trying to solve with %s %s %d.\n", design->twines.str(wire_to_optimize_name), (maximize? ">=" : "<="), cur_thresh);

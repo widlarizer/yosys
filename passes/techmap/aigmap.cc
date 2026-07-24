@@ -77,10 +77,10 @@ struct AigmapPass : public Pass {
 			{
 				Aig aig(cell);
 
-				if (cell->type.in(TW($_AND_), TW($_NOT_)))
+				if (cell->type.in(ID::$_AND_, ID::$_NOT_))
 					aig.name.clear();
 
-				if (nand_mode && cell->type == TW($_NAND_))
+				if (nand_mode && cell->type == ID::$_NAND_)
 					aig.name.clear();
 
 				if (aig.name.empty()) {
@@ -108,8 +108,8 @@ struct AigmapPass : public Pass {
 						SigBit A = sigs.at(node.left_parent);
 						SigBit B = sigs.at(node.right_parent);
 						if (nand_mode && node.inverter) {
-							bit = module->addWire(NEW_TWINE);
-							auto gate = module->addNandGate(NEW_TWINE, A, B, bit);
+							bit = module->addWire(NEW_ID);
+							auto gate = module->addNandGate(NEW_ID, A, B, bit);
 							if (select_mode)
 								new_sel.insert(gate->name.ref());
 
@@ -119,8 +119,8 @@ struct AigmapPass : public Pass {
 							if (and_cache.count(key))
 								bit = and_cache.at(key);
 							else {
-								bit = module->addWire(NEW_TWINE);
-								auto gate = module->addAndGate(NEW_TWINE, A, B, bit);
+								bit = module->addWire(NEW_ID);
+								auto gate = module->addAndGate(NEW_ID, A, B, bit);
 								if (select_mode)
 									new_sel.insert(gate->name.ref());
 							}
@@ -128,8 +128,8 @@ struct AigmapPass : public Pass {
 					}
 
 					if (node.inverter) {
-						SigBit new_bit = module->addWire(NEW_TWINE);
-						auto gate = module->addNotGate(NEW_TWINE, bit, new_bit);
+						SigBit new_bit = module->addWire(NEW_ID);
+						auto gate = module->addNotGate(NEW_ID, bit, new_bit);
 						bit = new_bit;
 						if (select_mode)
 							new_sel.insert(gate->name.ref());

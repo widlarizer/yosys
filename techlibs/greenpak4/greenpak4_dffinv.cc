@@ -44,26 +44,26 @@ void invert_gp_dff(Cell *cell, bool invert_input)
 
 		if (cell_type_r && cell_type_s)
 		{
-			Const srmode = cell->getParam(ID(SRMODE));
+			Const srmode = cell->getParam(ID::SRMODE);
 			if (GetSize(srmode) >= 1) {
 				if (srmode[0] == State::S0)
 					srmode.set(0, State::S1);
 				else if (srmode[0] == State::S1)
 					srmode.set(0, State::S0);
-				cell->setParam(ID(SRMODE), srmode);
+				cell->setParam(ID::SRMODE, srmode);
 			}
 		}
 		else
 		{
 			if (cell_type_r) {
-				cell->setPort(TW::nSET, cell->getPort(TW::nRST));
-				cell->unsetPort(TW::nRST);
+				cell->setPort(ID::nSET, cell->getPort(ID::nRST));
+				cell->unsetPort(ID::nRST);
 				cell_type_r = false;
 				cell_type_s = true;
 			} else
 			if (cell_type_s) {
-				cell->setPort(TW::nRST, cell->getPort(TW::nSET));
-				cell->unsetPort(TW::nSET);
+				cell->setPort(ID::nRST, cell->getPort(ID::nSET));
+				cell->unsetPort(ID::nSET);
 				cell_type_r = true;
 				cell_type_s = false;
 			}
@@ -71,12 +71,12 @@ void invert_gp_dff(Cell *cell, bool invert_input)
 	}
 
 	if (cell_type_i) {
-		cell->setPort(TW::Q, cell->getPort(TW::nQ));
-		cell->unsetPort(TW::nQ);
+		cell->setPort(ID::Q, cell->getPort(ID::nQ));
+		cell->unsetPort(ID::nQ);
 		cell_type_i = false;
 	} else {
-		cell->setPort(TW::nQ, cell->getPort(TW::Q));
-		cell->unsetPort(TW::Q);
+		cell->setPort(ID::nQ, cell->getPort(ID::Q));
+		cell->unsetPort(ID::Q);
 		cell_type_i = true;
 	}
 
@@ -114,24 +114,24 @@ struct Greenpak4DffInvPass : public Pass {
 		}
 		extra_args(args, argidx, design);
 
-		pool<IdString> gp_dff_types;
-		gp_dff_types.insert(ID(GP_DFF));
-		gp_dff_types.insert(ID(GP_DFFI));
-		gp_dff_types.insert(ID(GP_DFFR));
-		gp_dff_types.insert(ID(GP_DFFRI));
-		gp_dff_types.insert(ID(GP_DFFS));
-		gp_dff_types.insert(ID(GP_DFFSI));
-		gp_dff_types.insert(ID(GP_DFFSR));
-		gp_dff_types.insert(ID(GP_DFFSRI));
+		pool<TwineRef> gp_dff_types;
+		gp_dff_types.insert(ID::GP_DFF);
+		gp_dff_types.insert(ID::GP_DFFI);
+		gp_dff_types.insert(ID::GP_DFFR);
+		gp_dff_types.insert(ID::GP_DFFRI);
+		gp_dff_types.insert(ID::GP_DFFS);
+		gp_dff_types.insert(ID::GP_DFFSI);
+		gp_dff_types.insert(ID::GP_DFFSR);
+		gp_dff_types.insert(ID::GP_DFFSRI);
 
-		gp_dff_types.insert(ID(GP_DLATCH));
-		gp_dff_types.insert(ID(GP_DLATCHI));
-		gp_dff_types.insert(ID(GP_DLATCHR));
-		gp_dff_types.insert(ID(GP_DLATCHRI));
-		gp_dff_types.insert(ID(GP_DLATCHS));
-		gp_dff_types.insert(ID(GP_DLATCHSI));
-		gp_dff_types.insert(ID(GP_DLATCHSR));
-		gp_dff_types.insert(ID(GP_DLATCHSRI));
+		gp_dff_types.insert(ID::GP_DLATCH);
+		gp_dff_types.insert(ID::GP_DLATCHI);
+		gp_dff_types.insert(ID::GP_DLATCHR);
+		gp_dff_types.insert(ID::GP_DLATCHRI);
+		gp_dff_types.insert(ID::GP_DLATCHS);
+		gp_dff_types.insert(ID::GP_DLATCHSI);
+		gp_dff_types.insert(ID::GP_DLATCHSR);
+		gp_dff_types.insert(ID::GP_DLATCHSRI);
 
 		for (auto module : design->selected_modules())
 		{
@@ -163,9 +163,9 @@ struct Greenpak4DffInvPass : public Pass {
 					continue;
 				}
 
-				if (cell->type == ID(GP_INV)) {
-					SigBit in_bit = sigmap(cell->getPort(TW::IN));
-					SigBit out_bit = sigmap(cell->getPort(TW::OUT));
+				if (cell->type == ID::GP_INV) {
+					SigBit in_bit = sigmap(cell->getPort(ID::IN));
+					SigBit out_bit = sigmap(cell->getPort(ID::OUT));
 					inv_in2out[in_bit] = out_bit;
 					inv_out2in[out_bit] = in_bit;
 					inv_in2cell[in_bit] = cell;
@@ -175,15 +175,15 @@ struct Greenpak4DffInvPass : public Pass {
 
 			for (auto cell : dff_cells)
 			{
-				SigBit d_bit = sigmap(cell->getPort(TW::D));
-				SigBit q_bit = sigmap(cell->hasPort(TW::Q) ? cell->getPort(TW::Q) : cell->getPort(TW::nQ));
+				SigBit d_bit = sigmap(cell->getPort(ID::D));
+				SigBit q_bit = sigmap(cell->hasPort(ID::Q) ? cell->getPort(ID::Q) : cell->getPort(ID::nQ));
 
 				while (inv_out2in.count(d_bit))
 				{
 					sig_use_cnt[d_bit]--;
 					invert_gp_dff(cell, true);
 					d_bit = inv_out2in.at(d_bit);
-					cell->setPort(TW::D, d_bit);
+					cell->setPort(ID::D, d_bit);
 					sig_use_cnt[d_bit]++;
 				}
 
@@ -197,10 +197,10 @@ struct Greenpak4DffInvPass : public Pass {
 					inv_in2cell.erase(q_bit);
 
 					invert_gp_dff(cell, false);
-					if (cell->hasPort(TW::Q))
-						cell->setPort(TW::Q, new_q_bit);
+					if (cell->hasPort(ID::Q))
+						cell->setPort(ID::Q, new_q_bit);
 					else
-						cell->setPort(TW::nQ, new_q_bit);
+						cell->setPort(ID::nQ, new_q_bit);
 				}
 			}
 		}

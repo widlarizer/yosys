@@ -144,7 +144,7 @@ struct FfData : FfTypeData {
 	Module *module;
 	FfInitVals *initvals;
 	Cell *cell;
-	IdString name;
+	TwineRef name;
 	// The FF output.
 	SigSpec sig_q;
 	// The sync data input, present if has_clk or has_gclk.
@@ -169,14 +169,14 @@ struct FfData : FfTypeData {
 	Const val_init;
 	// The FF data width in bits.
 	int width;
-	dict<IdString, Const> attributes;
+	dict<TwineRef, Const> attributes;
 	// Stashed src across construction → emit. Refcount-managed so the
 	// source cell's pool slot survives if the cell itself is removed
 	// before emit() runs. Null when the source cell had no src (default
 	// TwineRef() is index 0, a valid constid, so it must be Null here).
 	TwineRef src_twine = Twine::Null;
 
-	FfData(Module *module = nullptr, FfInitVals *initvals = nullptr, IdString name = IdString()) : module(module), initvals(initvals), cell(nullptr), name(name) {
+	FfData(Module *module = nullptr, FfInitVals *initvals = nullptr, TwineRef name = TwineRef()) : module(module), initvals(initvals), cell(nullptr), name(name) {
 		width = 0;
 		pol_clk = false;
 		pol_aload = false;
@@ -186,6 +186,11 @@ struct FfData : FfTypeData {
 		pol_clr = false;
 		pol_set = false;
 	}
+
+	// Convenience: intern a fresh name (NEW_ID and friends) into the
+	// module's design pool, so callers don't have to spell that out.
+	FfData(Module *module, FfInitVals *initvals, Twine &&name)
+			: FfData(module, initvals, module->design->twines.add(std::move(name))) {}
 
 	FfData(FfInitVals *initvals, Cell *cell_);
 
@@ -237,7 +242,7 @@ struct FfData : FfTypeData {
 
 struct FfDataSigMapped : public FfData {
 	const SigMapView& sigmap;
-	FfDataSigMapped(const SigMapView& map, Module *module, FfInitVals *initvals = nullptr, IdString name = IdString()) : FfData(module, initvals, name), sigmap(map) {}
+	FfDataSigMapped(const SigMapView& map, Module *module, FfInitVals *initvals = nullptr, TwineRef name = TwineRef()) : FfData(module, initvals, name), sigmap(map) {}
 
 	void remap() {
 		sigmap(sig_q);

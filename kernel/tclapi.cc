@@ -284,24 +284,26 @@ static int tcl_get_attr(ClientData, Tcl_Interp *interp, int argc, const char *ar
 	if (!obj)
 		ERROR("object not found")
 
+	TwineRef attr_twine = search.find(attr_id);
+
 	if (string_flag) {
-		Tcl_SetObjResult(interp, Tcl_NewStringObj(obj->get_string_attribute(attr_id).c_str(), -1));
+		Tcl_SetObjResult(interp, Tcl_NewStringObj(obj->get_string_attribute(attr_twine).c_str(), -1));
 	} else if (int_flag || uint_flag || sint_flag) {
-		if (!obj->has_attribute(attr_id))
+		if (!obj->has_attribute(attr_twine))
 			ERROR("attribute missing (required for -int)");
-		RTLIL::Const &value = obj->attributes.at(attr_id);
+		RTLIL::Const &value = obj->attributes.at(attr_twine);
 
 		mp_int value_mp;
 		if (!const_to_mp_int(value, &value_mp, sint_flag, uint_flag))
 			ERROR("bignum manipulation failed");
 		Tcl_SetObjResult(interp, Tcl_NewBignumObj(&value_mp));
 	} else if (bool_flag) {
-		Tcl_SetObjResult(interp, Tcl_NewBooleanObj(obj->get_bool_attribute(attr_id)));
+		Tcl_SetObjResult(interp, Tcl_NewBooleanObj(obj->get_bool_attribute(attr_twine)));
 	} else {
-		if (!obj->has_attribute(attr_id))
+		if (!obj->has_attribute(attr_twine))
 			ERROR("attribute missing (required unless -bool or -string)")
 
-		Tcl_SetObjResult(interp, Tcl_NewStringObj(obj->attributes.at(attr_id).as_string().c_str(), -1));
+		Tcl_SetObjResult(interp, Tcl_NewStringObj(obj->attributes.at(attr_twine).as_string().c_str(), -1));
 	}
 
 	return TCL_OK;
@@ -350,7 +352,7 @@ static int tcl_has_attr(ClientData, Tcl_Interp *interp, int argc, const char *ar
 	if (!obj)
 		ERROR("object not found")
 
-	Tcl_SetObjResult(interp, Tcl_NewStringObj(std::to_string(obj->has_attribute(attr_id)).c_str(), -1));
+	Tcl_SetObjResult(interp, Tcl_NewStringObj(std::to_string(obj->has_attribute(search.find(attr_id))).c_str(), -1));
 	return TCL_OK;
 }
 
@@ -406,8 +408,10 @@ static int tcl_set_attr(ClientData, Tcl_Interp *interp, int objc, Tcl_Obj *const
 	if (!obj)
 		ERROR("object not found")
 
+	TwineRef attr_twine = yosys_design->twines.add(std::string(attr_id));
+
 	if (string_flag) {
-		obj->set_string_attribute(attr_id, Tcl_GetString(objv[i++]));
+		obj->set_string_attribute(attr_twine, Tcl_GetString(objv[i++]));
 	} else if (sint_flag || uint_flag) {
 		RTLIL::Const const_;
 		mp_int value_mp;
@@ -427,15 +431,15 @@ static int tcl_set_attr(ClientData, Tcl_Interp *interp, int objc, Tcl_Obj *const
 				const_.extu(32);
 		}
 
-		obj->attributes[attr_id] = const_;
+		obj->attributes[attr_twine] = const_;
 	} else if (bool_flag) {
-		obj->set_bool_attribute(attr_id, atoi(Tcl_GetString(objv[i++])) != 0);
+		obj->set_bool_attribute(attr_twine, atoi(Tcl_GetString(objv[i++])) != 0);
 	} else if (true_flag) {
-		obj->set_bool_attribute(attr_id, true);
+		obj->set_bool_attribute(attr_twine, true);
 	} else if (false_flag) {
-		obj->set_bool_attribute(attr_id, false);
+		obj->set_bool_attribute(attr_twine, false);
 	} else {
-		obj->attributes[attr_id] = Const::from_string(std::string(Tcl_GetString(objv[i++])));
+		obj->attributes[attr_twine] = Const::from_string(std::string(Tcl_GetString(objv[i++])));
 	}
 
 	return TCL_OK;
@@ -474,10 +478,11 @@ static int tcl_get_param(ClientData, Tcl_Interp *interp, int argc, const char *a
 	if (!cell)
 		ERROR("object not found")
 
-	if (!cell->hasParam(param_id))
+	TwineRef param_twine = search.find(param_id);
+	if (!cell->hasParam(param_twine))
 		ERROR("parameter missing")
 
-	const RTLIL::Const &value = cell->getParam(param_id);
+	const RTLIL::Const &value = cell->getParam(param_twine);
 
 	if (string_flag) {
 		Tcl_SetObjResult(interp, Tcl_NewStringObj(value.decode_string().c_str(), -1));
@@ -523,8 +528,10 @@ static int tcl_set_param(ClientData, Tcl_Interp *interp, int objc, Tcl_Obj *cons
 	if (!cell)
 		ERROR("object not found")
 
+	TwineRef param_twine = yosys_design->twines.add(std::string(param_id));
+
 	if (string_flag) {
-		cell->setParam(param_id, Const(std::string(Tcl_GetString(objv[i++]))));
+		cell->setParam(param_twine, Const(std::string(Tcl_GetString(objv[i++]))));
 	} else if (sint_flag || uint_flag) {
 		RTLIL::Const const_;
 		mp_int value_mp;
@@ -544,9 +551,9 @@ static int tcl_set_param(ClientData, Tcl_Interp *interp, int objc, Tcl_Obj *cons
 				const_.extu(32);
 		}
 
-		cell->setParam(param_id, const_);
+		cell->setParam(param_twine, const_);
 	} else {
-		cell->setParam(param_id, Const::from_string(std::string(Tcl_GetString(objv[i++]))));
+		cell->setParam(param_twine, Const::from_string(std::string(Tcl_GetString(objv[i++]))));
 	}
 	return TCL_OK;
 }
@@ -583,7 +590,7 @@ int yosys_tcl_interp_init(Tcl_Interp *interp)
 	// pack
 
 	// Note (dev jf 24-12-02): Make log_id escape everything that’s not a valid
-	// verilog identifier before adding any tcl API that returns IdString values
+	// verilog identifier before adding any tcl API that returns TwineRef values
 	// to avoid -option injection
 
 	return TCL_OK ;

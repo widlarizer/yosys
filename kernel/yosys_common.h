@@ -200,7 +200,6 @@ struct shared_str {
 };
 
 namespace RTLIL {
-	struct IdString;
 	struct Const;
 	struct SigBit;
 	struct SigSpec;
@@ -216,15 +215,12 @@ namespace RTLIL {
 	enum State : unsigned char;
 
 	typedef std::pair<SigSpec, SigSpec> SigSig;
-
-	namespace ID {}
 }
 
 namespace AST {
 	struct AstNode;
 }
 
-using RTLIL::IdString;
 using RTLIL::Const;
 using RTLIL::SigBit;
 using RTLIL::SigSpec;
@@ -298,28 +294,17 @@ extern int yosys_xtrace;
 extern bool yosys_write_versions;
 
 const std::string *create_id_prefix(std::string_view file, int line, std::string_view func);
-RTLIL::IdString new_id_suffix(std::string_view file, int line, std::string_view func, std::string_view suffix);
 
 #define NEW_ID \
-	YOSYS_NAMESPACE_PREFIX RTLIL::IdString::new_autoidx_with_prefix([](std::string_view func) -> const std::string * { \
-		static std::unique_ptr<const std::string> prefix(YOSYS_NAMESPACE_PREFIX create_id_prefix(__FILE__, __LINE__, func)); \
-		return prefix.get(); \
-	}(__FUNCTION__))
-#define NEW_ID_SUFFIX(suffix) \
-	YOSYS_NAMESPACE_PREFIX new_id_suffix(__FILE__, __LINE__, __FUNCTION__, suffix)
-#define NEW_TWINE \
 	YOSYS_NAMESPACE_PREFIX Twine{YOSYS_NAMESPACE_PREFIX Twine::AutoSuffix{[](std::string_view func) -> const std::string * { \
 		static std::unique_ptr<const std::string> prefix(YOSYS_NAMESPACE_PREFIX create_id_prefix(__FILE__, __LINE__, func)); \
 		return prefix.get(); \
 	}(__FUNCTION__), std::to_string(YOSYS_NAMESPACE_PREFIX autoidx++)}}
-#define NEW_TWINE_SUFFIX(suffix) \
+#define NEW_ID_SUFFIX(suffix) \
 	YOSYS_NAMESPACE_PREFIX Twine{YOSYS_NAMESPACE_PREFIX Twine::AutoSuffix{[](std::string_view func) -> const std::string * { \
 		static std::unique_ptr<const std::string> prefix(YOSYS_NAMESPACE_PREFIX create_id_prefix(__FILE__, __LINE__, func)); \
 		return prefix.get(); \
 	}(__FUNCTION__), std::string(suffix) + "$" + std::to_string(YOSYS_NAMESPACE_PREFIX autoidx++)}}
-
-namespace ID = RTLIL::ID;
-
 
 YOSYS_NAMESPACE_END
 

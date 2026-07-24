@@ -110,7 +110,7 @@ struct FmcombineWorker
 
 		for (auto cell : original->cells()) {
 			if (design->module(cell->type_impl) == nullptr) {
-				if (opts.anyeq && cell->type.in(TW($anyseq), TW($anyconst))) {
+				if (opts.anyeq && cell->type.in(ID::$anyseq, ID::$anyconst)) {
 					Cell *gold = import_prim_cell(cell, "_gold");
 					for (auto &conn : cell->connections())
 						module->connect(import_sig(conn.second, "_gate"), gold->getPort(conn.first));
@@ -119,11 +119,11 @@ struct FmcombineWorker
 					Cell *gate = import_prim_cell(cell, "_gate");
 					if (opts.initeq) {
 						if (cell->is_builtin_ff()) {
-							SigSpec gold_q = gold->getPort(TW::Q);
-							SigSpec gate_q = gate->getPort(TW::Q);
-							SigSpec en = module->Initstate(NEW_TWINE);
-							SigSpec eq = module->Eq(NEW_TWINE, gold_q, gate_q);
-							module->addAssume(NEW_TWINE, eq, en);
+							SigSpec gold_q = gold->getPort(ID::Q);
+							SigSpec gate_q = gate->getPort(ID::Q);
+							SigSpec en = module->Initstate(NEW_ID);
+							SigSpec eq = module->Eq(NEW_ID, gold_q, gate_q);
+							module->addAssume(NEW_ID, eq, en);
 						}
 					}
 				}
@@ -163,7 +163,7 @@ struct FmcombineWorker
 
 				SigSpec A = import_sig(conn.second, "_gold");
 				SigSpec B = import_sig(conn.second, "_gate");
-				SigBit EQ = module->Eq(NEW_TWINE, A, B);
+				SigBit EQ = module->Eq(NEW_ID, A, B);
 
 				for (auto bit : sigmap({A, B}))
 					data_bit_to_eq_net[bit] = EQ;
@@ -205,7 +205,7 @@ struct FmcombineWorker
 
 				if (GetSize(antecedent) > 1) {
 					if (reduce_db.count(antecedent) == 0)
-						reduce_db[antecedent] = module->ReduceAnd(NEW_TWINE, antecedent);
+						reduce_db[antecedent] = module->ReduceAnd(NEW_ID, antecedent);
 					antecedent = reduce_db.at(antecedent);
 				}
 
@@ -214,22 +214,22 @@ struct FmcombineWorker
 
 				if (GetSize(consequent) > 1) {
 					if (reduce_db.count(consequent) == 0)
-						reduce_db[consequent] = module->ReduceAnd(NEW_TWINE, consequent);
+						reduce_db[consequent] = module->ReduceAnd(NEW_ID, consequent);
 					consequent = reduce_db.at(consequent);
 				}
 
 				if (opts.fwd)
-					module->addAssume(NEW_TWINE, consequent, antecedent);
+					module->addAssume(NEW_ID, consequent, antecedent);
 
 				if (opts.bwd)
 				{
 					if (invert_db.count(antecedent) == 0)
-						invert_db[antecedent] = module->Not(NEW_TWINE, antecedent);
+						invert_db[antecedent] = module->Not(NEW_ID, antecedent);
 
 					if (invert_db.count(consequent) == 0)
-						invert_db[consequent] = module->Not(NEW_TWINE, consequent);
+						invert_db[consequent] = module->Not(NEW_ID, consequent);
 
-					module->addAssume(NEW_TWINE, invert_db.at(antecedent), invert_db.at(consequent));
+					module->addAssume(NEW_ID, invert_db.at(antecedent), invert_db.at(consequent));
 				}
 			}
 		}

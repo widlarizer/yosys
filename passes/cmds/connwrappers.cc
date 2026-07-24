@@ -33,8 +33,10 @@ struct ConnwrappersWorker
 		bool is_signed;
 	};
 
-	std::set<RTLIL::IdString> decl_celltypes;
-	std::map<std::pair<RTLIL::IdString, RTLIL::IdString>, portdecl_t> decls;
+	// Declarations come from the command line, ahead of any Design, so they
+	// are keyed by escaped name text and resolved per module in work().
+	std::set<std::string> decl_celltypes;
+	std::map<std::pair<std::string, std::string>, portdecl_t> decls;
 
 	void add_port(std::string celltype, std::string portname, std::string widthparam, std::string signparam)
 	{
@@ -77,22 +79,24 @@ struct ConnwrappersWorker
 
 			for (auto &conn : cell->connections())
 			{
-				std::pair<RTLIL::IdString, RTLIL::IdString> key(cell->type, RTLIL::IdString(cell->module->design->twines.str(conn.first)));
+				std::pair<std::string, std::string> key(cell->type, module->design->twines.str(conn.first));
 
 				if (!decls.count(key))
 					continue;
 
 				portdecl_t &decl = decls.at(key);
 
-				if (!cell->parameters.count(decl.widthparam))
+				TwineRef widthparam = module->design->twines.find(decl.widthparam);
+				if (widthparam == Twine::Null || !cell->parameters.count(widthparam))
 					continue;
 
-				if (!decl.signparam.empty() && !cell->parameters.count(decl.signparam))
+				TwineRef signparam = decl.signparam.empty() ? Twine::Null : module->design->twines.find(decl.signparam);
+				if (!decl.signparam.empty() && (signparam == Twine::Null || !cell->parameters.count(signparam)))
 					continue;
 
-				int inner_width = cell->parameters.at(decl.widthparam).as_int();
+				int inner_width = cell->parameters.at(widthparam).as_int();
 				int outer_width = conn.second.size();
-				bool is_signed = decl.signparam.empty() ? decl.is_signed : cell->parameters.at(decl.signparam).as_bool();
+				bool is_signed = decl.signparam.empty() ? decl.is_signed : cell->parameters.at(signparam).as_bool();
 
 				if (inner_width >= outer_width)
 					continue;

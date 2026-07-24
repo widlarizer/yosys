@@ -50,7 +50,7 @@ std::string kiss_convert_signal(const RTLIL::SigSpec &sig) {
  * @param cell pointer to the FSM cell which should be exported.
  */
 void write_kiss2(struct RTLIL::Module *module, struct RTLIL::Cell *cell, std::string filename, bool origenc) {
-	dict<RTLIL::IdString, RTLIL::Const>::iterator attr_it;
+	dict<TwineRef, RTLIL::Const>::iterator attr_it;
 	FsmData fsm_data;
 	FsmData::transition_t tr;
 	std::ofstream kiss_file;
@@ -145,7 +145,7 @@ struct FsmExportPass : public Pass {
 	}
 	void execute(std::vector<std::string> args, RTLIL::Design *design) override
 	{
-		dict<RTLIL::IdString, RTLIL::Const>::iterator attr_it;
+		dict<TwineRef, RTLIL::Const>::iterator attr_it;
 		std::string arg;
 		bool flag_noauto = false;
 		std::string filename;
@@ -175,7 +175,7 @@ struct FsmExportPass : public Pass {
 
 		for (auto mod : design->selected_modules())
 			for (auto cell : mod->selected_cells())
-				if (cell->type == TW($fsm)) {
+				if (cell->type == ID::$fsm) {
 					attr_it = cell->attributes.find(ID::fsm_export);
 					if (!flag_noauto || (attr_it != cell->attributes.end())) {
 						write_kiss2(mod, cell, filename, flag_origenc);

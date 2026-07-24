@@ -121,10 +121,10 @@ namespace Functional {
 		mux,
 		// constant(a: Const[N]): bit[N] = a
 		constant,
-		// input(a: IdString): any
+		// input(a: TwineRef): any
 		// returns the current value of the input with the specified name
 		input,
-		// state(a: IdString): any
+		// state(a: TwineRef): any
 		// returns the current value of the state variable with the specified name
 		state,
 		// memory_read(memory: memory[addr_width, data_width], addr: bit[addr_width]): bit[data_width] = memory[addr]
@@ -257,20 +257,20 @@ namespace Functional {
 		void topological_sort();
 		void forward_buf();
 		IRInput const& input(TwineRef name, TwineRef kind) const { return _inputs.at({name, kind}); }
-		IRInput const& input(TwineRef name) const { return input(name, TW($input)); }
+		IRInput const& input(TwineRef name) const { return input(name, ID::$input); }
 		IROutput const& output(TwineRef name, TwineRef kind) const { return _outputs.at({name, kind}); }
-		IROutput const& output(TwineRef name) const { return output(name, TW($output)); }
+		IROutput const& output(TwineRef name) const { return output(name, ID::$output); }
 		IRState const& state(TwineRef name, TwineRef kind) const { return _states.at({name, kind}); }
-		IRState const& state(TwineRef name) const { return state(name, TW($state)); }
+		IRState const& state(TwineRef name) const { return state(name, ID::$state); }
 		bool has_input(TwineRef name, TwineRef kind) const { return _inputs.count({name, kind}); }
 		bool has_output(TwineRef name, TwineRef kind) const { return _outputs.count({name, kind}); }
 		bool has_state(TwineRef name, TwineRef kind) const { return _states.count({name, kind}); }
 		vector<IRInput const*> inputs(TwineRef kind) const;
-		vector<IRInput const*> inputs() const { return inputs(TW($input)); }
+		vector<IRInput const*> inputs() const { return inputs(ID::$input); }
 		vector<IROutput const*> outputs(TwineRef kind) const;
-		vector<IROutput const*> outputs() const { return outputs(TW($output)); }
+		vector<IROutput const*> outputs() const { return outputs(ID::$output); }
 		vector<IRState const*> states(TwineRef kind) const;
-		vector<IRState const*> states() const { return states(TW($state)); }
+		vector<IRState const*> states() const { return states(ID::$state); }
 		vector<IRInput const*> all_inputs() const;
 		vector<IROutput const*> all_outputs() const;
 		vector<IRState const*> all_states() const;

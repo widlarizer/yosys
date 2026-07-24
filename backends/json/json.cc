@@ -74,11 +74,6 @@ struct JsonWriter
 		return newstr + "\"";
 	}
 
-	string get_name(IdString name)
-	{
-		return get_string(RTLIL::unescape_id(name));
-	}
-
 	string get_name(TwineRef name)
 	{
 		return get_string(design->twines.unescaped_str(name));
@@ -135,7 +130,7 @@ struct JsonWriter
 		}
 	}
 
-	void write_parameters(const dict<IdString, Const> &parameters, bool for_module=false, const RTLIL::AttrObject *src_obj=nullptr)
+	void write_parameters(const dict<TwineRef, Const> &parameters, bool for_module=false, const RTLIL::AttrObject *src_obj=nullptr)
 	{
 		bool first = true;
 		if (src_obj && design && design->obj_src_id(src_obj) != Twine::Null) {
@@ -203,7 +198,7 @@ struct JsonWriter
 		for (auto c : module->cells()) {
 			if (use_selection && !module->selected(c))
 				continue;
-			if (!scopeinfo_mode && c->type == TW($scopeinfo))
+			if (!scopeinfo_mode && c->type == ID::$scopeinfo)
 				continue;
 			f << stringf("%s\n", first ? "" : ",");
 			f << stringf("        %s: {\n", get_name(c->name));

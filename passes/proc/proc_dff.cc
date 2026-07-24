@@ -85,16 +85,16 @@ void gen_dffsr_complex(RTLIL::Module *mod, RTLIL::SigSpec sig_d, RTLIL::SigSpec 
 	for (auto it = async_rules.crbegin(); it != async_rules.crend(); it++)
 	{
 		const auto& [sync_value, rule] = *it;
-		const auto pos_trig = rule->type == RTLIL::SyncType::ST1 ? rule->signal : mod->Not(NEW_TWINE, rule->signal);
+		const auto pos_trig = rule->type == RTLIL::SyncType::ST1 ? rule->signal : mod->Not(NEW_ID, rule->signal);
 
 		// If pos_trig is true, we have priority at this point in the tree so
 		// set a bit if sync_value has a set bit. Otherwise, defer to the rest
 		// of the priority tree
-		sig_sr_set = mod->Mux(NEW_TWINE, sig_sr_set, sync_value, pos_trig);
+		sig_sr_set = mod->Mux(NEW_ID, sig_sr_set, sync_value, pos_trig);
 
 		// Same deal with clear bit
-		const auto sync_value_inv = mod->Not(NEW_TWINE, sync_value);
-		sig_sr_clr = mod->Mux(NEW_TWINE, sig_sr_clr, sync_value_inv, pos_trig);
+		const auto sync_value_inv = mod->Not(NEW_ID, sync_value);
+		sig_sr_clr = mod->Mux(NEW_ID, sig_sr_clr, sync_value_inv, pos_trig);
 	}
 
 	std::stringstream sstr;
@@ -115,7 +115,7 @@ void gen_aldff(RTLIL::Module *mod, RTLIL::SigSpec sig_in, RTLIL::SigSpec sig_set
 	std::stringstream sstr;
 	sstr << "$procdff$" << (autoidx++);
 
-	RTLIL::Cell *cell = mod->addCell(mod->design->twines.add(std::string{sstr.str()}), TW($aldff));
+	RTLIL::Cell *cell = mod->addCell(mod->design->twines.add(std::string{sstr.str()}), ID::$aldff);
 	cell->attributes = proc->attributes;
 	transfer_wire_sources(sig_out, cell);
 	cell->module->design->merge_src(cell, proc);
@@ -123,11 +123,11 @@ void gen_aldff(RTLIL::Module *mod, RTLIL::SigSpec sig_in, RTLIL::SigSpec sig_set
 	cell->parameters[ID::WIDTH] = RTLIL::Const(sig_in.size());
 	cell->parameters[ID::ALOAD_POLARITY] = RTLIL::Const(set_polarity, 1);
 	cell->parameters[ID::CLK_POLARITY] = RTLIL::Const(clk_polarity, 1);
-	cell->setPort(TW::D, sig_in);
-	cell->setPort(TW::Q, sig_out);
-	cell->setPort(TW::AD, sig_set);
-	cell->setPort(TW::CLK, clk);
-	cell->setPort(TW::ALOAD, set);
+	cell->setPort(ID::D, sig_in);
+	cell->setPort(ID::Q, sig_out);
+	cell->setPort(ID::AD, sig_set);
+	cell->setPort(ID::CLK, clk);
+	cell->setPort(ID::ALOAD, set);
 
 	log("  created %s cell `%s' with %s edge clock and %s level non-const reset.\n", log_id(cell->type), log_id(cell),
 			clk_polarity ? "positive" : "negative", set_polarity ? "positive" : "negative");
@@ -139,7 +139,7 @@ void gen_dff(RTLIL::Module *mod, RTLIL::SigSpec sig_in, RTLIL::Const val_rst, RT
 	std::stringstream sstr;
 	sstr << "$procdff$" << (autoidx++);
 
-	RTLIL::Cell *cell = mod->addCell(mod->design->twines.add(std::string{sstr.str()}), clk.empty() ? TW($ff) : arst ? TW($adff) : TW($dff));
+	RTLIL::Cell *cell = mod->addCell(mod->design->twines.add(std::string{sstr.str()}), clk.empty() ? ID::$ff : arst ? ID::$adff : ID::$dff);
 	cell->attributes = proc->attributes;
 	transfer_wire_sources(sig_out, cell);
 	cell->module->design->merge_src(cell, proc);
@@ -153,12 +153,12 @@ void gen_dff(RTLIL::Module *mod, RTLIL::SigSpec sig_in, RTLIL::Const val_rst, RT
 		cell->parameters[ID::CLK_POLARITY] = RTLIL::Const(clk_polarity, 1);
 	}
 
-	cell->setPort(TW::D, sig_in);
-	cell->setPort(TW::Q, sig_out);
+	cell->setPort(ID::D, sig_in);
+	cell->setPort(ID::Q, sig_out);
 	if (arst)
-		cell->setPort(TW::ARST, *arst);
+		cell->setPort(ID::ARST, *arst);
 	if (!clk.empty())
-		cell->setPort(TW::CLK, clk);
+		cell->setPort(ID::CLK, clk);
 
 	if (!clk.empty())
 		log("  created %s cell `%s' with %s edge clock", log_id(cell->type), log_id(cell), clk_polarity ? "positive" : "negative");
@@ -257,12 +257,12 @@ void proc_dff(RTLIL::Module *mod, RTLIL::Process *proc, ConstEval &ce)
 			// (with appropriate negation)
 			RTLIL::SigSpec triggers;
 			for (const auto &[_, it] : async_rules)
-				triggers.append(it->type == RTLIL::SyncType::ST1 ? it->signal : mod->Not(NEW_TWINE, it->signal));
+				triggers.append(it->type == RTLIL::SyncType::ST1 ? it->signal : mod->Not(NEW_ID, it->signal));
 
 			// Put this into the dummy sync rule so it can be treated the same
 			// as ones coming from the module
 			single_async_rule.type = RTLIL::SyncType::ST1;
-			single_async_rule.signal = mod->ReduceOr(NEW_TWINE, triggers);
+			single_async_rule.signal = mod->ReduceOr(NEW_ID, triggers);
 			single_async_rule.actions.push_back({sig, rstval, Twine::Null});
 
 			// Replace existing rules with this new rule
@@ -279,9 +279,9 @@ void proc_dff(RTLIL::Module *mod, RTLIL::Process *proc, ConstEval &ce)
 		if (async_rules.size() == 1 && async_rules.front().first == sig) {
 			const auto& [_, rule] = async_rules.front();
 			if (rule->type == RTLIL::SyncType::ST1)
-				insig = mod->Mux(NEW_TWINE, insig, sig, rule->signal);
+				insig = mod->Mux(NEW_ID, insig, sig, rule->signal);
 			else
-				insig = mod->Mux(NEW_TWINE, sig, insig, rule->signal);
+				insig = mod->Mux(NEW_ID, sig, insig, rule->signal);
 
 			async_rules.clear();
 		}

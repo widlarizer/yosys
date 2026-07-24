@@ -48,8 +48,8 @@ struct ShowWorker
 	CellTypes ct;
 
 	vector<shared_str> dot_escape_store;
-	std::map<RTLIL::IdString, int> dot_id2num_store;
-	std::map<RTLIL::IdString, int> autonames;
+	std::map<TwineRef, int> dot_id2num_store;
+	std::map<std::string, int> autonames;
 	int single_idx_count;
 
 	struct net_conn { std::set<std::pair<std::string, int>> in, out; std::string color; };
@@ -74,7 +74,7 @@ struct ShowWorker
 	const std::vector<std::pair<std::string, RTLIL::Selection>> &label_selections;
 
 	std::map<RTLIL::Const, int> colorattr_cache;
-	RTLIL::IdString colorattr;
+	TwineRef colorattr;
 
 
 	static uint32_t xorshift32(uint32_t x) {
@@ -148,9 +148,8 @@ struct ShowWorker
 		return "";
 	}
 
-	std::string findColor(IdString member_name)
+	std::string findColor(TwineRef member_ref)
 	{
-		TwineRef member_ref = search.find(member_name.str());
 		for (auto &s : color_selections)
 			if (member_ref && s.second.selected_member(module->meta_->name, member_ref)) {
 				return stringf("color=\"%s\", fontcolor=\"%s\"", s.first, s.first);
@@ -228,7 +227,7 @@ struct ShowWorker
 		return dot_escape_store.back().c_str();
 	}
 
-	int id2num(RTLIL::IdString id)
+	int id2num(TwineRef id)
 	{
 		if (dot_id2num_store.count(id) > 0)
 			return dot_id2num_store[id];
@@ -438,7 +437,7 @@ struct ShowWorker
 			if (wire->port_input || wire->port_output)
 				shape = "octagon";
 			const bool is_borderless = (shape == "plaintext") || (shape == "plain") || (shape == "none");
-			if (wire->name.isPublic()) {
+			if (wire->name.is_public()) {
 				std::string src_href;
 				if (href && wire->has_attribute(ID::src) > 0)
 					src_href = stringf(", href=\"%s\" ", escape(wire->get_src_attribute()));
@@ -472,29 +471,32 @@ struct ShowWorker
 
 		for (auto cell : module->selected_cells())
 		{
-			std::vector<RTLIL::IdString> in_ports, out_ports;
+			std::vector<TwineRef> in_ports, out_ports;
 			std::vector<std::string> in_label_pieces, out_label_pieces;
 
 			for (auto &conn : cell->connections()) {
 				if (!ct.cell_output(cell->type.ref(), conn.first))
-					in_ports.push_back(RTLIL::IdString(design->twines.str(conn.first)));
+					in_ports.push_back(conn.first);
 				else
-					out_ports.push_back(RTLIL::IdString(design->twines.str(conn.first)));
+					out_ports.push_back(conn.first);
 			}
 
-			std::sort(in_ports.begin(), in_ports.end(), RTLIL::sort_by_id_str());
-			std::sort(out_ports.begin(), out_ports.end(), RTLIL::sort_by_id_str());
+			std::sort(in_ports.begin(), in_ports.end(), RTLIL::sort_by_twine_str_expensive(design->twines));
+			std::sort(out_ports.begin(), out_ports.end(), RTLIL::sort_by_twine_str_expensive(design->twines));
 
 			for (auto &p : in_ports) {
-				bool signed_suffix = genSignedLabels && cell->hasParam(p.str() + "_SIGNED")
-									 && cell->getParam(p.str() + "_SIGNED").as_bool();
+				std::string p_str = design->twines.str(p);
+				TwineRef signed_param = design->twines.find(p_str + "_SIGNED");
+				bool signed_suffix = genSignedLabels && signed_param != Twine::Null
+									 && cell->hasParam(signed_param)
+									 && cell->getParam(signed_param).as_bool();
 
-				in_label_pieces.push_back(stringf("<p%d> %s%s", id2num(p), escape(p.str()),
+				in_label_pieces.push_back(stringf("<p%d> %s%s", id2num(p), escape(p_str),
 										  signed_suffix ? "*" : ""));
 			}
 
 			for (auto &p : out_ports)
-				out_label_pieces.push_back(stringf("<p%d> %s", id2num(p), escape(p.str())));
+				out_label_pieces.push_back(stringf("<p%d> %s", id2num(p), escape(design->twines.str(p))));
 
 			std::string in_label = join_label_pieces(in_label_pieces);
 			std::string out_label = join_label_pieces(out_label_pieces);
@@ -505,7 +507,7 @@ struct ShowWorker
 
 			std::string code;
 			for (auto &conn : cell->connections()) {
-				code += gen_portbox(stringf("c%d:p%d", id2num(cell->name), id2num(RTLIL::IdString(design->twines.str(conn.first)))),
+				code += gen_portbox(stringf("c%d:p%d", id2num(cell->name), id2num(conn.first)),
 						conn.second, ct.cell_output(cell->type.ref(), conn.first));
 			}
 
@@ -557,7 +559,7 @@ struct ShowWorker
 			std::string proc_src = design->twines.unescaped_str(it.first);
 			if (proc->has_attribute(ID::src) > 0)
 				proc_src = proc->get_src_attribute();
-			fprintf(f, "p%d [shape=box, style=rounded, label=\"PROC %s\\n%s\", %s];\n", pidx, findLabel(proc_name_str), proc_src.c_str(), findColor(RTLIL::IdString(proc_name_str)).c_str());
+			fprintf(f, "p%d [shape=box, style=rounded, label=\"PROC %s\\n%s\", %s];\n", pidx, findLabel(proc_name_str), proc_src.c_str(), findColor(it.first).c_str());
 		}
 
 		for (auto &conn : module->connections())
@@ -628,7 +630,7 @@ struct ShowWorker
 	ShowWorker(FILE *f, RTLIL::Design *design, std::vector<RTLIL::Design*> &libs, uint32_t colorSeed, bool genWidthLabels,
 			const std::string wireshape, bool genSignedLabels, bool stretchIO, bool enumerateIds, bool abbreviateIds, bool notitle, bool href,
 			const std::vector<std::pair<std::string, RTLIL::Selection>> &color_selections,
-			const std::vector<std::pair<std::string, RTLIL::Selection>> &label_selections, RTLIL::IdString colorattr) :
+			const std::vector<std::pair<std::string, RTLIL::Selection>> &label_selections, TwineRef colorattr) :
 			f(f), design(design), search(&design->twines), currentColor(colorSeed), genWidthLabels(genWidthLabels), wireshape(wireshape),
 			genSignedLabels(genSignedLabels), stretchIO(stretchIO), enumerateIds(enumerateIds), abbreviateIds(abbreviateIds),
 			notitle(notitle), href(href), color_selections(color_selections), label_selections(label_selections), colorattr(colorattr)
@@ -797,7 +799,7 @@ struct ShowPass : public Pass {
 		bool flag_href = false;
 		bool custom_prefix = false;
 		std::string background = "&";
-		RTLIL::IdString colorattr;
+		TwineRef colorattr;
 
 		size_t argidx;
 		for (argidx = 1; argidx < args.size(); argidx++)
@@ -841,7 +843,7 @@ struct ShowPass : public Pass {
 				continue;
 			}
 			if (arg == "-colorattr" && argidx+1 < args.size()) {
-				colorattr = RTLIL::escape_id(args[++argidx]);
+				colorattr = design->twines.add(RTLIL::escape_id(args[++argidx]));
 				continue;
 			}
 			if (arg == "-format" && argidx+1 < args.size()) {

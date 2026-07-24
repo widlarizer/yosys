@@ -440,7 +440,7 @@ void mutate_list(Design *design, const mutate_opts_t &opts, const string &filena
 		dict<SigBit, int> bit_user_cnt;
 
 		for (auto wire : module->wires()) {
-			if (wire->name.isPublic() && wire->has_attribute(ID::src))
+			if (wire->name.is_public() && wire->has_attribute(ID::src))
 				sigmap.add(wire);
 		}
 
@@ -469,7 +469,7 @@ void mutate_list(Design *design, const mutate_opts_t &opts, const string &filena
 				}
 
 				if (!bit.wire->name[0] != !sigbit.wire->name[0]) {
-					if (bit.wire->name.isPublic())
+					if (bit.wire->name.is_public())
 						sigmap.add(bit);
 					continue;
 				}
@@ -494,7 +494,7 @@ void mutate_list(Design *design, const mutate_opts_t &opts, const string &filena
 						entry.src.insert(s);
 
 					SigBit bit = sigmap(conn.second[i]);
-					if (bit.wire && bit.wire->name.isPublic() && (cell->output(conn.first) || bit_user_cnt[bit] == 1)) {
+					if (bit.wire && bit.wire->name.is_public() && (cell->output(conn.first) || bit_user_cnt[bit] == 1)) {
 						for (auto &s : design->src_leaves(bit.wire))
 							entry.src.insert(s);
 						entry.wire = bit.wire->name.ref();
@@ -629,7 +629,7 @@ SigBit mutate_ctrl(Module *module, const mutate_opts_t &opts)
 		return State::S1;
 
 	SigSpec sig = mutate_ctrl_sig(module, opts.ctrl_name, opts.ctrl_width);
-	return module->Eq(NEW_TWINE, sig, Const(opts.ctrl_value, GetSize(sig)));
+	return module->Eq(NEW_ID, sig, Const(opts.ctrl_value, GetSize(sig)));
 }
 
 SigSpec mutate_ctrl_mux(Module *module, const mutate_opts_t &opts, SigSpec unchanged_sig, SigSpec changed_sig)
@@ -639,7 +639,7 @@ SigSpec mutate_ctrl_mux(Module *module, const mutate_opts_t &opts, SigSpec uncha
 		return unchanged_sig;
 	if (ctrl_bit == State::S1)
 		return changed_sig;
-	return module->Mux(NEW_TWINE, unchanged_sig, changed_sig, ctrl_bit);
+	return module->Mux(NEW_ID, unchanged_sig, changed_sig, ctrl_bit);
 }
 
 void mutate_inv(Design *design, const mutate_opts_t &opts)
@@ -653,14 +653,14 @@ void mutate_inv(Design *design, const mutate_opts_t &opts)
 	if (cell->input(opts.port))
 	{
 		log("Add input inverter at %s.%s.%s[%d].\n", module, cell, design->twines.unescaped_str(opts.port), opts.portbit);
-		SigBit outbit = module->Not(NEW_TWINE, bit);
+		SigBit outbit = module->Not(NEW_ID, bit);
 		bit = mutate_ctrl_mux(module, opts, bit, outbit);
 	}
 	else
 	{
 		log("Add output inverter at %s.%s.%s[%d].\n", module, cell, design->twines.unescaped_str(opts.port), opts.portbit);
-		SigBit inbit = module->addWire(NEW_TWINE);
-		SigBit outbit = module->Not(NEW_TWINE, inbit);
+		SigBit inbit = module->addWire(NEW_ID);
+		SigBit outbit = module->Not(NEW_ID, inbit);
 		module->connect(bit, mutate_ctrl_mux(module, opts, inbit, outbit));
 		bit = inbit;
 	}
@@ -687,7 +687,7 @@ void mutate_const(Design *design, const mutate_opts_t &opts, bool one)
 	else
 	{
 		log("Add output constant %d at %s.%s.%s[%d].\n", one ? 1 : 0, module, cell, design->twines.unescaped_str(opts.port), opts.portbit);
-		SigBit inbit = module->addWire(NEW_TWINE);
+		SigBit inbit = module->addWire(NEW_ID);
 		SigBit outbit = one ? State::S1 : State::S0;
 		module->connect(bit, mutate_ctrl_mux(module, opts, inbit, outbit));
 		bit = inbit;
@@ -710,14 +710,14 @@ void mutate_cnot(Design *design, const mutate_opts_t &opts, bool one)
 	if (cell->input(opts.port))
 	{
 		log("Add input cnot%d at %s.%s.%s[%d,%d].\n", one ? 1 : 0, module, cell, design->twines.unescaped_str(opts.port), opts.portbit, opts.ctrlbit);
-		SigBit outbit = one ? module->Xor(NEW_TWINE, bit, ctrl) : module->Xnor(NEW_TWINE, bit, ctrl);
+		SigBit outbit = one ? module->Xor(NEW_ID, bit, ctrl) : module->Xnor(NEW_ID, bit, ctrl);
 		bit = mutate_ctrl_mux(module, opts, bit, outbit);
 	}
 	else
 	{
 		log("Add output cnot%d at %s.%s.%s[%d,%d].\n", one ? 1 : 0, module, cell, design->twines.unescaped_str(opts.port), opts.portbit, opts.ctrlbit);
-		SigBit inbit = module->addWire(NEW_TWINE);
-		SigBit outbit = one ? module->Xor(NEW_TWINE, inbit, ctrl) : module->Xnor(NEW_TWINE, inbit, ctrl);
+		SigBit inbit = module->addWire(NEW_ID);
+		SigBit outbit = one ? module->Xor(NEW_ID, inbit, ctrl) : module->Xnor(NEW_ID, inbit, ctrl);
 		module->connect(bit, mutate_ctrl_mux(module, opts, inbit, outbit));
 		bit = inbit;
 	}

@@ -216,7 +216,7 @@ struct EdifBackend : public Backend {
 
 			for (auto cell : module->cells())
 			{
-				if (cell->type == TW($scopeinfo))
+				if (cell->type == ID::$scopeinfo)
 					continue;
 
 				if (design->module(cell->type_impl) == nullptr || design->module(cell->type_impl)->get_blackbox_attribute()) {
@@ -293,7 +293,7 @@ struct EdifBackend : public Backend {
 					int b[2];
 					b[upto ? 0 : 1] = start;
 					b[upto ? 1 : 0] = start+width-1;
-					*f << stringf("          (port (array %s %d) (direction %s))\n", EDIF_DEFR(IdString(port_str), port_rename, b[0], b[1]), width, dir);
+					*f << stringf("          (port (array %s %d) (direction %s))\n", edif_names(RTLIL::unescape_id(port_str), true, port_rename, b[0], b[1]), width, dir);
 				}
 			}
 			*f << stringf("        )\n");
@@ -336,11 +336,12 @@ struct EdifBackend : public Backend {
 		*f << stringf("    (edifLevel 0)\n");
 		*f << stringf("    (technology (numberDefinition))\n");
 
-		auto add_prop = [&](IdString name, Const val) {
+		auto add_prop = [&](TwineRef name_ref, Const val) {
+			std::string name = design->twines.unescaped_str(name_ref);
 			if ((val.flags & RTLIL::CONST_FLAG_STRING) != 0)
-				*f << stringf("\n            (property %s (string \"%s\"))", EDIF_DEF(name), val.decode_string());
+				*f << stringf("\n            (property %s (string \"%s\"))", EDIF_DEF_STR(name), val.decode_string());
 			else if (val.size() <= 32 && RTLIL::SigSpec(val).is_fully_def())
-				*f << stringf("\n            (property %s (integer %u))", EDIF_DEF(name), val.as_int());
+				*f << stringf("\n            (property %s (integer %u))", EDIF_DEF_STR(name), val.as_int());
 			else {
 				std::string hex_string = "";
 				for (auto i = 0; i < val.size(); i += 4) {
@@ -352,7 +353,7 @@ struct EdifBackend : public Backend {
 					char digit_str[2] = { "0123456789abcdef"[digit_value], 0 };
 					hex_string = std::string(digit_str) + hex_string;
 				}
-				*f << stringf("\n            (property %s (string \"%d'h%s\"))", EDIF_DEF(name), GetSize(val), hex_string);
+				*f << stringf("\n            (property %s (string \"%d'h%s\"))", EDIF_DEF_STR(name), GetSize(val), hex_string);
 			}
 		};
 		for (auto module : sorted_modules)
@@ -398,8 +399,8 @@ struct EdifBackend : public Backend {
 					}
 
 					{
-						int c1 = w1->name.isPublic();
-						int c2 = w2->name.isPublic();
+						int c1 = w1->name.is_public();
+						int c2 = w2->name.is_public();
 
 						if (c1 > c2) goto promote;
 						if (c1 < c2) goto nopromote;

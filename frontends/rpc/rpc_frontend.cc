@@ -115,7 +115,7 @@ struct RpcServer {
 		return modules;
 	}
 
-	std::pair<std::string, std::string> derive_module(const std::string &module, const dict<RTLIL::IdString, RTLIL::Const> &parameters) {
+	std::pair<std::string, std::string> derive_module(const RTLIL::Design *design, const std::string &module, const dict<TwineRef, RTLIL::Const> &parameters) {
 		Json::object json_parameters;
 		for (auto &param : parameters) {
 			std::string type, value;
@@ -130,7 +130,7 @@ struct RpcServer {
 				value = param.second.as_string();
 			} else
 				log_cmd_error("Unserializable constant flags 0x%x\n", param.second.flags);
-			json_parameters[param.first.str()] = Json::object {
+			json_parameters[design->twines.str(param.first)] = Json::object {
 				{ "type", type },
 				{ "value", value },
 			};
@@ -157,7 +157,7 @@ struct RpcServer {
 struct RpcModule : RTLIL::Module {
 	std::shared_ptr<RpcServer> server;
 
-	TwineRef derive(RTLIL::Design *design, const dict<RTLIL::IdString, RTLIL::Const> &parameters, bool /*mayfail*/) override {
+	TwineRef derive(RTLIL::Design *design, const dict<TwineRef, RTLIL::Const> &parameters, bool /*mayfail*/) override {
 		std::string stripped_name = design->twines.str(meta_->name);
 		if (stripped_name.compare(0, 9, "$abstract") == 0)
 			stripped_name = stripped_name.substr(9);
@@ -167,8 +167,8 @@ struct RpcModule : RTLIL::Module {
 
 		std::string parameter_info;
 		for (auto &param : parameters) {
-			log("Parameter %s = %s\n", param.first, log_signal(RTLIL::SigSpec(param.second)));
-			parameter_info += stringf("%s=%s", param.first, log_signal(RTLIL::SigSpec(param.second)));
+			log("Parameter %s = %s\n", log_id(design, param.first), log_signal(RTLIL::SigSpec(param.second)));
+			parameter_info += stringf("%s=%s", log_id(design, param.first), log_signal(RTLIL::SigSpec(param.second)));
 		}
 
 		std::string derived_name;
@@ -184,7 +184,7 @@ struct RpcModule : RTLIL::Module {
 			log("Found cached RTLIL representation for module `%s'.\n", derived_name);
 		} else {
 			std::string command, input;
-			std::tie(command, input) = server->derive_module(stripped_name.substr(1), parameters);
+			std::tie(command, input) = server->derive_module(design, stripped_name.substr(1), parameters);
 
 			std::istringstream input_stream(input);
 			RTLIL::Design *derived_design = new RTLIL::Design;
@@ -215,11 +215,11 @@ struct RpcModule : RTLIL::Module {
 
 				log("Importing `%s' as `%s'.\n", derived_design->twines.str(module.first), mangled_name);
 
-				RTLIL::IdString original_name = RTLIL::IdString(derived_design->twines.str(module.first));
+				TwineRef original_name = module.first;
 				RTLIL::Module *t = module.second->clone(design, design->twines.add(Twine{mangled_name}));
 				t->attributes.erase(ID::top);
 				if (!t->has_attribute(ID::hdlname))
-					t->set_string_attribute(ID::hdlname, original_name.str());
+					t->set_string_attribute(ID::hdlname, design->twines.str(original_name));
 			}
 
 			delete derived_design;

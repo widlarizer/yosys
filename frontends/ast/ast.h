@@ -183,9 +183,13 @@ namespace AST
 		// the list of child nodes for this node
 		std::vector<std::unique_ptr<AstNode>> children;
 
-		// the list of attributes assigned to this node
-		std::map<RTLIL::IdString, std::unique_ptr<AstNode>> attributes;
-		bool get_bool_attribute(RTLIL::IdString id);
+		// The list of attributes assigned to this node. The AST exists before
+		// any Design does, so attribute names are escaped text, not TwineRefs.
+		std::map<std::string, std::unique_ptr<AstNode>> attributes;
+		bool get_bool_attribute(const std::string &id);
+		// Convenience for the constid (ID::) handles the AST checks against;
+		// those carry their own name, so no TwinePool is needed.
+		bool get_bool_attribute(TwineRef id) { return get_bool_attribute(ID::str(id)); }
 
 		// node content - most of it is unused in most node types
 		std::string str;
@@ -356,10 +360,14 @@ namespace AST
 		// to evaluate widths of dynamic ranges)
 		std::unique_ptr<AstNode> clone_at_zero();
 
-		void set_attribute(RTLIL::IdString key, std::unique_ptr<AstNode> node)
+		void set_attribute(const std::string &key, std::unique_ptr<AstNode> node)
 		{
 			node->set_in_param_flag(true);
 			attributes[key] = std::move(node);
+		}
+		void set_attribute(TwineRef key, std::unique_ptr<AstNode> node)
+		{
+			set_attribute(ID::str(key), std::move(node));
 		}
 
 		// helper to set in_lvalue/in_param flags from the hierarchy context (the actual flag
@@ -396,10 +404,10 @@ namespace AST
 	struct AstModule : RTLIL::Module {
 		std::unique_ptr<AstNode> ast;
 		bool nolatches, nomeminit, nomem2reg, mem2reg, noblackbox, lib, nowb, noopt, icells, pwires, autowire;
-		TwineRef derive(RTLIL::Design *design, const dict<RTLIL::IdString, RTLIL::Const> &parameters, bool mayfail) override;
-		TwineRef derive(RTLIL::Design *design, const dict<RTLIL::IdString, RTLIL::Const> &parameters, const dict<TwineRef, RTLIL::Module*> &interfaces, const dict<TwineRef, TwineRef> &modports, bool mayfail) override;
-		std::string derive_common(RTLIL::Design *design, const dict<RTLIL::IdString, RTLIL::Const> &parameters, std::unique_ptr<AstNode>* new_ast_out, bool quiet = false);
-		void expand_interfaces(RTLIL::Design *design, const dict<RTLIL::IdString, RTLIL::Module *> &local_interfaces) override;
+		TwineRef derive(RTLIL::Design *design, const dict<TwineRef, RTLIL::Const> &parameters, bool mayfail) override;
+		TwineRef derive(RTLIL::Design *design, const dict<TwineRef, RTLIL::Const> &parameters, const dict<TwineRef, RTLIL::Module*> &interfaces, const dict<TwineRef, TwineRef> &modports, bool mayfail) override;
+		std::string derive_common(RTLIL::Design *design, const dict<TwineRef, RTLIL::Const> &parameters, std::unique_ptr<AstNode>* new_ast_out, bool quiet = false);
+		void expand_interfaces(RTLIL::Design *design, const dict<TwineRef, RTLIL::Module *> &local_interfaces) override;
 		bool reprocess_if_necessary(RTLIL::Design *design) override;
 		RTLIL::Module *clone() const override;
 		RTLIL::Module *clone(RTLIL::Design *dst, bool src_id_verbatim = false) const override;
@@ -437,7 +445,7 @@ namespace AST
 
 	// generate standard $paramod... derived module name; parameters should be
 	// in the order they are declared in the instantiated module
-	std::string derived_module_name(std::string stripped_name, const std::vector<std::pair<RTLIL::IdString, RTLIL::Const>> &parameters);
+	std::string derived_module_name(std::string stripped_name, const std::vector<std::pair<std::string, RTLIL::Const>> &parameters);
 
 	// used to provide simplify() access to the current design for looking up
 	// modules, ports, wires, etc.

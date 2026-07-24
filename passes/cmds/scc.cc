@@ -117,7 +117,7 @@ struct SccWorker
 			for (auto mod : design->modules())
 				if (mod->get_blackbox_attribute(false))
 					for (auto cell : mod->cells())
-						if (cell->type == TW($specify2))
+						if (cell->type == ID::$specify2)
 						{
 							specifyCells.setup_module(mod);
 							break;
@@ -149,17 +149,17 @@ struct SccWorker
 				// Use specify rules of the type `(X => Y) = NN` to look for asynchronous paths in boxes.
 				for (auto subcell : design->module(cell->type_impl)->cells())
 				{
-					if (subcell->type != TW($specify2))
+					if (subcell->type != ID::$specify2)
 						continue;
 
-					for (auto bit : subcell->getPort(TW::SRC))
+					for (auto bit : subcell->getPort(ID::SRC))
 					{
 						if (!bit.wire || !cell->hasPort(bit.wire->meta_->name))
 							continue;
 						inputSignals.append(sigmap(cell->getPort(bit.wire->meta_->name)));
 					}
 
-					for (auto bit : subcell->getPort(TW::DST))
+					for (auto bit : subcell->getPort(ID::DST))
 					{
 						if (!bit.wire || !cell->hasPort(bit.wire->meta_->name))
 							continue;
@@ -356,7 +356,7 @@ struct SccPass : public Pass {
 				{
 					for (auto attr : setAttr)
 					{
-						IdString attr_name(RTLIL::escape_id(attr.first));
+						TwineRef attr_name = design->twines.add(RTLIL::escape_id(attr.first));
 						string attr_valstr = attr.second;
 						string index = stringf("%d", scc_counter);
 

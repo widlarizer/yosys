@@ -640,10 +640,6 @@ int main(int argc, char **argv)
 				timedat.insert(make_tuple(pass_ns, it.second->call_counter, it.first));
 			}
 		{
-			auto gc_ns = RTLIL::OwningIdString::garbage_collection_ns() + 1;
-			total_ns += gc_ns;
-			timedat.insert(make_tuple(gc_ns,
-					RTLIL::OwningIdString::garbage_collection_count(), "id_gc"));
 			total_ns += twine_gc_ns;
 			timedat.insert(make_tuple(twine_gc_ns, twine_gc_count, "twine_gc"));
 		}

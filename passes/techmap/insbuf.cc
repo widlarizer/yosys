@@ -44,7 +44,7 @@ struct InsbufPass : public Pass {
 	{
 		log_header(design, "Executing INSBUF pass (insert buffer cells for connected wires).\n");
 
-		TwineRef celltype = TW($_BUF_), in_portname = TW::A, out_portname = TW::Y;
+		TwineRef celltype = ID::$_BUF_, in_portname = ID::A, out_portname = ID::Y;
 		bool chain_mode = false;
 
 		size_t argidx;
@@ -94,7 +94,7 @@ struct InsbufPass : public Pass {
 						sigmap.add(outbit);
 					}
 
-					Cell *cell = module->addCell(NEW_TWINE, celltype);
+					Cell *cell = module->addCell(NEW_ID, celltype);
 					cell->setPort(in_portname, rhs);
 					cell->setPort(out_portname, lhs);
 

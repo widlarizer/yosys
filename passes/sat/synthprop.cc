@@ -37,7 +37,7 @@ struct SynthPropWorker
 	// pointer to main design
 	RTLIL::Design *design;
 
-	RTLIL::IdString top_name;
+	TwineRef top_name;
 
 	RTLIL::Module *module;
 
@@ -45,14 +45,14 @@ struct SynthPropWorker
 
 	bool or_outputs;
 
-	IdString port_name;
+	TwineRef port_name;
 
-	IdString reset_name;
+	TwineRef reset_name;
 
 	bool reset_pol;
 
 	// basic contrcutor
-	SynthPropWorker(RTLIL::Design *design) : design(design), or_outputs(false), port_name(RTLIL::escape_id("assertions")) {}
+	SynthPropWorker(RTLIL::Design *design) : design(design), or_outputs(false), port_name(design->twines.add(std::string("\\assertions"))) {}
 
 	void tracing(RTLIL::Module *mod, int depth, TrackingData &tracing_data, std::string hier_path);
 	void run();
@@ -64,7 +64,7 @@ void SynthPropWorker::tracing(RTLIL::Module *mod, int depth, TrackingData &traci
 	tracing_data[mod] = TrackingItem();
 	int cnt = 0;
 	for (auto cell : mod->cells()) {
-		if (cell->type == TW($assert)) {
+		if (cell->type == ID::$assert) {
 			log("%*sFound assert %s..\n", 2*(depth+1), "", cell);
 			tracing_data[mod].assertion_cells.emplace(cell);
 			if (!or_outputs) {
@@ -95,7 +95,7 @@ void SynthPropWorker::run()
 	TrackingData tracing_data;
 	tracing(module, 0, tracing_data, design->twines.unescaped_str(module->name));
 
-	TwineRef port_ref = design->twines.add(std::string{port_name.str()});
+	TwineRef port_ref = port_name;
 
 	for (auto &data : tracing_data) {
 		if (data.second.names.size() == 0) continue;
@@ -109,16 +109,16 @@ void SynthPropWorker::run()
 		int num = 0;
 		RTLIL::Wire *port_wire = data.first->wire(port_ref);
 		if (!reset_name.empty() && data.first == module) {
-			port_wire = data.first->addWire(NEW_TWINE, data.second.names.size());
+			port_wire = data.first->addWire(NEW_ID, data.second.names.size());
 			output = port_wire;
 		}
 		pool<Wire*> connected;
 		for (auto cell : data.second.assertion_cells) {
-			if (cell->type == TW($assert)) {
-				RTLIL::Wire *neg_wire = data.first->addWire(NEW_TWINE);
-				RTLIL::Wire *result_wire = data.first->addWire(NEW_TWINE);
-				data.first->addNot(NEW_TWINE, cell->getPort(TW::A), neg_wire);
-				data.first->addAnd(NEW_TWINE, cell->getPort(TW::EN), neg_wire, result_wire);
+			if (cell->type == ID::$assert) {
+				RTLIL::Wire *neg_wire = data.first->addWire(NEW_ID);
+				RTLIL::Wire *result_wire = data.first->addWire(NEW_ID);
+				data.first->addNot(NEW_ID, cell->getPort(ID::A), neg_wire);
+				data.first->addAnd(NEW_ID, cell->getPort(ID::EN), neg_wire, result_wire);
 				if (!or_outputs) {
 					data.first->connect(SigBit(port_wire,num), result_wire);
 				} else {
@@ -134,7 +134,7 @@ void SynthPropWorker::run()
 					if (!or_outputs) {
 						cell->setPort(port_ref, SigChunk(port_wire, num, tracing_data[submod].names.size()));
 					} else {
-						RTLIL::Wire *result_wire = data.first->addWire(NEW_TWINE);
+						RTLIL::Wire *result_wire = data.first->addWire(NEW_ID);
 						cell->setPort(port_ref, result_wire);
 						connected.emplace(result_wire);
 					}
@@ -148,8 +148,8 @@ void SynthPropWorker::run()
 				if (!prev_wire) {
 					prev_wire = wire;
 				} else {
-					RTLIL::Wire *result = data.first->addWire(NEW_TWINE);
-					data.first->addOr(NEW_TWINE, prev_wire, wire, result);
+					RTLIL::Wire *result = data.first->addWire(NEW_ID);
+					data.first->addOr(NEW_ID, prev_wire, wire, result);
 					prev_wire = result;
 				}
 			}
@@ -163,10 +163,10 @@ void SynthPropWorker::run()
 	if (!reset_name.empty()) {
 		int width = tracing_data[module].names.size();		
 		TwineSearch search(&design->twines);
-		SigSpec reset = module->wire(search.find(reset_name.str()));
+		SigSpec reset = module->wire(reset_name);
 		reset.extend_u0(width, true);
 
-		module->addDlatchsr(NEW_TWINE, State::S1, Const(State::S0,width), reset, output, module->wire(port_ref), true, true, reset_pol);
+		module->addDlatchsr(NEW_ID, State::S1, Const(State::S0,width), reset, output, module->wire(port_ref), true, true, reset_pol);
 	}
 
 	if (!map_file.empty()) {
@@ -227,7 +227,7 @@ struct SyntProperties : public Pass {
 		for (argidx = 1; argidx < args.size(); argidx++)
 		{
 			if (args[argidx] == "-name" && argidx+1 < args.size()) {
-				worker.port_name = RTLIL::escape_id(args[++argidx]);
+				worker.port_name = design->twines.add(RTLIL::escape_id(args[++argidx]));
 				continue;
 			}
 			if (args[argidx] == "-map" && argidx+1 < args.size()) {
@@ -235,12 +235,12 @@ struct SyntProperties : public Pass {
 				continue;
 			}
 			if (args[argidx] == "-reset" && argidx+1 < args.size()) {
-				worker.reset_name = RTLIL::escape_id(args[++argidx]);
+				worker.reset_name = design->twines.add(RTLIL::escape_id(args[++argidx]));
 				worker.reset_pol = true;
 				continue;
 			}
 			if (args[argidx] == "-resetn" && argidx+1 < args.size()) {
-				worker.reset_name = RTLIL::escape_id(args[++argidx]);
+				worker.reset_name = design->twines.add(RTLIL::escape_id(args[++argidx]));
 				worker.reset_pol = false;
 				continue;
 			}
@@ -259,7 +259,7 @@ struct SyntProperties : public Pass {
 			log_cmd_error("Can't find top module in current design!\n");
 
 		TwineSearch search(&design->twines);
-		auto *reset = top->wire(search.find(worker.reset_name.str()));
+		auto *reset = top->wire(worker.reset_name);
 		if (!worker.reset_name.empty() && reset == nullptr)
 			log_cmd_error("Can't find reset line in current design!\n");
 

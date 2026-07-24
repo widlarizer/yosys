@@ -59,7 +59,7 @@ struct StaWorker
 	{
 		TimingInfo timing;
 
-		pool<IdString> unrecognised_cells;
+		pool<TwineRef> unrecognised_cells;
 
 		for (auto cell : module->cells())
 		{

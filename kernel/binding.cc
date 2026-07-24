@@ -21,8 +21,8 @@
 
 YOSYS_NAMESPACE_BEGIN
 
-RTLIL::Binding::Binding(RTLIL::IdString target_type,
-                        RTLIL::IdString target_name)
+RTLIL::Binding::Binding(TwineRef target_type,
+                        TwineRef target_name)
 	: target_type(target_type), target_name(target_name)
 {}
 

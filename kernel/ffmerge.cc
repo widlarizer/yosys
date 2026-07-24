@@ -29,7 +29,7 @@ bool FfMergeHelper::is_output_unused(RTLIL::SigSpec sig) {
 }
 
 bool FfMergeHelper::find_output_ff(RTLIL::SigSpec sig, FfData &ff, pool<std::pair<Cell *, int>> &bits) {
-	ff = FfData(module, initvals, NEW_ID);
+	ff = FfData(module, initvals, module->design->twines.add(NEW_ID));
 	sigmap->apply(sig);
 
 	bool found = false;
@@ -157,7 +157,7 @@ bool FfMergeHelper::find_output_ff(RTLIL::SigSpec sig, FfData &ff, pool<std::pai
 }
 
 bool FfMergeHelper::find_input_ff(RTLIL::SigSpec sig, FfData &ff, pool<std::pair<Cell *, int>> &bits) {
-	ff = FfData(module, initvals, NEW_ID);
+	ff = FfData(module, initvals, module->design->twines.add(NEW_ID));
 	sigmap->apply(sig);
 
 	bool found = false;
@@ -298,12 +298,12 @@ void FfMergeHelper::remove_output_ff(const pool<std::pair<Cell *, int>> &bits) {
 	for (auto &it : bits) {
 		Cell *cell = it.first;
 		int idx = it.second;
-		SigSpec q = cell->getPort(TW::Q);
+		SigSpec q = cell->getPort(ID::Q);
 		initvals->remove_init(q[idx]);
 		dff_driver.erase((*sigmap)(q[idx]));
 		q[idx] = module->addWire(Twine{stringf("$ffmerge_disconnected$%d", autoidx++)});
-		cell->setPort(TW::Q, q);
-		initvals->set_init(cell->getPort(TW::Q), (*initvals)(q));
+		cell->setPort(ID::Q, q);
+		initvals->set_init(cell->getPort(ID::Q), (*initvals)(q));
 	}
 }
 
@@ -311,8 +311,8 @@ void FfMergeHelper::mark_input_ff(const pool<std::pair<Cell *, int>> &bits) {
 	for (auto &it : bits) {
 		Cell *cell = it.first;
 		int idx = it.second;
-		if (cell->hasPort(TW::D)) {
-			SigSpec d = cell->getPort(TW::D);
+		if (cell->hasPort(ID::D)) {
+			SigSpec d = cell->getPort(ID::D);
 			// The user count was already at least 1
 			// (for the D port).  Bump it as it is now connected
 			// to the merged-to cell as well.  This suffices for
@@ -337,12 +337,12 @@ void FfMergeHelper::set(FfInitVals *initvals_, RTLIL::Module *module_)
 
 	for (auto cell : module->cells()) {
 		if (cell->is_builtin_ff()) {
-			if (cell->hasPort(TW::D)) {
-				SigSpec d = (*sigmap)(cell->getPort(TW::D));
+			if (cell->hasPort(ID::D)) {
+				SigSpec d = (*sigmap)(cell->getPort(ID::D));
 				for (int i = 0; i < GetSize(d); i++)
 					dff_sink[d[i]].insert(std::make_pair(cell, i));
 			}
-			SigSpec q = (*sigmap)(cell->getPort(TW::Q));
+			SigSpec q = (*sigmap)(cell->getPort(ID::Q));
 			for (int i = 0; i < GetSize(q); i++)
 				dff_driver[q[i]] = std::make_pair(cell, i);
 		}

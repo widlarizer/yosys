@@ -27,7 +27,7 @@ PRIVATE_NAMESPACE_BEGIN
 std::vector<Module*> order_modules(Design *design, std::vector<Module *> modules)
 {
 	std::set<Module *> modules_set(modules.begin(), modules.end());
-	using Order = IdString::compare_ptr_by_name<RTLIL::Module>;
+	using Order = RTLIL::compare_ptr_by_name<RTLIL::Module>;
 	TopoSort<Module*, Order> sort;
 
 	for (auto m : modules) {
@@ -143,7 +143,7 @@ struct AbcNewPass : public ScriptPass {
 				for (auto mod : active_design->selected_whole_modules_warn()) {
 					if (mod->get_bool_attribute(ID::abc9_box)) {
 						mod->set_bool_attribute(ID::abc9_box, false);
-						mod->set_bool_attribute(ID(abc9_deferred_box), true);
+						mod->set_bool_attribute(ID::abc9_deferred_box, true);
 					}
 				}
 			}
@@ -184,10 +184,10 @@ struct AbcNewPass : public ScriptPass {
 				}
 
 				std::string script_save;
-				if (!help_mode && mod->has_attribute(ID(abc9_script))) {
+				if (!help_mode && mod->has_attribute(ID::abc9_script)) {
 					script_save = active_design->scratchpad_get_string("abc9.script");
 					active_design->scratchpad_set_string("abc9.script",
-						mod->get_string_attribute(ID(abc9_script)));
+						mod->get_string_attribute(ID::abc9_script));
 				}
 
 				run(stringf("  abc9_ops -write_box %s/input.box", tmpdir));
@@ -195,7 +195,7 @@ struct AbcNewPass : public ScriptPass {
 				run(stringf("  abc9_exe %s -cwd %s -box %s/input.box", exe_options, tmpdir, tmpdir));
 				run(stringf("  read_xaiger2 -sc_mapping -module_name %s -map2 %s/input.map2 %s/output.aig",
 							modname.c_str(), tmpdir.c_str(), tmpdir.c_str()));
-				if (!help_mode && mod->has_attribute(ID(abc9_script))) {
+				if (!help_mode && mod->has_attribute(ID::abc9_script)) {
 					if (script_save.empty())
 						active_design->scratchpad_unset("abc9.script");
 					else
@@ -206,8 +206,8 @@ struct AbcNewPass : public ScriptPass {
 					active_design->selection().selected_modules.clear();
 					log_pop();
 
-					if (mod->get_bool_attribute(ID(abc9_deferred_box))) {
-						mod->set_bool_attribute(ID(abc9_deferred_box), false);
+					if (mod->get_bool_attribute(ID::abc9_deferred_box)) {
+						mod->set_bool_attribute(ID::abc9_deferred_box, false);
 						mod->set_bool_attribute(ID::abc9_box, true);
 						Pass::call_on_module(active_design, mod, "portarcs -draw -write");
 						run("abc9_ops -prep_box");

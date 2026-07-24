@@ -118,7 +118,7 @@ struct SubmodWorker
 		RTLIL::Module *new_mod = design->addModule(design->twines.add(std::string{submod.full_name}));
 		int auto_name_counter = 1;
 
-		std::set<RTLIL::IdString> all_wire_names;
+		std::set<std::string> all_wire_names;
 		for (auto &it : wire_flags) {
 			all_wire_names.insert(it.first->name);
 		}
@@ -205,7 +205,7 @@ struct SubmodWorker
 		ct.setup_module(new_mod);
 
 		for (RTLIL::Cell *cell : submod.cells) {
-			RTLIL::Cell *new_cell = new_mod->addCell(design->twines.add(std::string{cell->name.str()}), cell);
+			RTLIL::Cell *new_cell = new_mod->addCell(cell->name, cell);
 			for (auto &conn : new_cell->connections_)
 				for (auto &bit : conn.second)
 					if (bit.wire != nullptr) {
@@ -231,12 +231,12 @@ struct SubmodWorker
 							auto &b = old_sig[i];
 							// Prevents "ERROR: Mismatch in directionality ..." when flattening
 							if (!b.wire)
-								b = module->addWire(NEW_TWINE);
+								b = module->addWire(NEW_ID);
 							// Prevents "Warning: multiple conflicting drivers ..."
 							else if (!it.second.is_int_driven[i])
-								b = module->addWire(NEW_TWINE);
+								b = module->addWire(NEW_ID);
 						}
-					new_cell->setPort(design->twines.add(std::string{new_wire->name.str()}), old_sig);
+					new_cell->setPort(new_wire->name, old_sig);
 				}
 			}
 		}

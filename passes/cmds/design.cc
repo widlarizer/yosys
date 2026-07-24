@@ -257,7 +257,7 @@ struct DesignPass : public Pass {
 			TwineRef as_name_ref = copy_to_design->twines.add(std::string{prefix});
 
 			pool<Module*> queue;
-			dict<IdString, IdString> done;
+			dict<TwineRef, TwineRef> done;
 
 			if (copy_to_design->module(as_name_ref) != nullptr)
 				copy_to_design->remove(copy_to_design->module(as_name_ref));
@@ -273,7 +273,7 @@ struct DesignPass : public Pass {
 				t->attributes.erase(ID::top);
 
 				queue.insert(t);
-				done[RTLIL::escape_id(copy_from_design->twines.str(mod->meta_->name))] = prefix;
+				done[mod->meta_->name] = as_name_ref;
 			}
 
 			while (!queue.empty() && copy_from_design)
@@ -303,10 +303,10 @@ struct DesignPass : public Pass {
 						t->attributes.erase(ID::top);
 
 						queue.insert(t);
-						done[cell->type] = trg_name;
+						done[cell->type] = trg_ref;
 					}
 
-					cell->type_impl = cell->module->design->twines.add(std::string{done.at(cell->type).str()});
+					cell->type_impl = done.at(cell->type);
 				}
 			}
 		}

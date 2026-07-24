@@ -55,7 +55,7 @@ struct SplitcellsWorker
 		}
 
 		for (auto wire : module->wires()) {
-			if (!wire->name.isPublic()) continue;
+			if (!wire->name.is_public()) continue;
 			SigSpec sig(sigmap(wire));
 			for (int i = 0; i < GetSize(sig); i++) {
 				SigBit bit(sig[i]);
@@ -68,18 +68,18 @@ struct SplitcellsWorker
 
 	int split(Cell *cell, const std::string &format)
 	{
-		if (cell->type.in("$and", "$mux", "$not", "$or", "$pmux", "$xnor", "$xor"))
+		if (cell->type.in(ID::$and, ID::$mux, ID::$not, ID::$or, ID::$pmux, ID::$xnor, ID::$xor))
 		{
-			SigSpec outsig = sigmap(cell->getPort(TW::Y));
+			SigSpec outsig = sigmap(cell->getPort(ID::Y));
 			if (GetSize(outsig) <= 1) return 0;
 
 			std::vector<int> slices;
 			slices.push_back(0);
 
 			int width = GetSize(outsig);
-			width = std::min(width, GetSize(cell->getPort(TW::A)));
-			if (cell->hasPort(TW::B))
-				width = std::min(width, GetSize(cell->getPort(TW::B)));
+			width = std::min(width, GetSize(cell->getPort(ID::A)));
+			if (cell->hasPort(ID::B))
+				width = std::min(width, GetSize(cell->getPort(ID::B)));
 
 			for (int i = 1; i < width; i++) {
 				auto &last_users = bit_users_db[outsig[slices.back()]];
@@ -111,36 +111,36 @@ struct SplitcellsWorker
 					return new_sig;
 				};
 
-				slice->setPort(TW::A, slice_signal(slice->getPort(TW::A)));
+				slice->setPort(ID::A, slice_signal(slice->getPort(ID::A)));
 				if (slice->hasParam(ID::A_WIDTH))
-					slice->setParam(ID::A_WIDTH, GetSize(slice->getPort(TW::A)));
+					slice->setParam(ID::A_WIDTH, GetSize(slice->getPort(ID::A)));
 
-				if (slice->hasPort(TW::B)) {
-					slice->setPort(TW::B, slice_signal(slice->getPort(TW::B)));
+				if (slice->hasPort(ID::B)) {
+					slice->setPort(ID::B, slice_signal(slice->getPort(ID::B)));
 					if (slice->hasParam(ID::B_WIDTH))
-						slice->setParam(ID::B_WIDTH, GetSize(slice->getPort(TW::B)));
+						slice->setParam(ID::B_WIDTH, GetSize(slice->getPort(ID::B)));
 				}
 
-				slice->setPort(TW::Y, slice_signal(slice->getPort(TW::Y)));
+				slice->setPort(ID::Y, slice_signal(slice->getPort(ID::Y)));
 				if (slice->hasParam(ID::Y_WIDTH))
-					slice->setParam(ID::Y_WIDTH, GetSize(slice->getPort(TW::Y)));
+					slice->setParam(ID::Y_WIDTH, GetSize(slice->getPort(ID::Y)));
 				if (slice->hasParam(ID::WIDTH))
-					slice->setParam(ID::WIDTH, GetSize(slice->getPort(TW::Y)));
+					slice->setParam(ID::WIDTH, GetSize(slice->getPort(ID::Y)));
 
-				log("  slice %d: %s => %s\n", i, module->design->twines.str(slice_name).c_str(), log_signal(slice->getPort(TW::Y)));
+				log("  slice %d: %s => %s\n", i, module->design->twines.str(slice_name).c_str(), log_signal(slice->getPort(ID::Y)));
 			}
 
 			module->remove(cell);
 			return GetSize(slices)-1;
 		}
 
-		if (cell->type.in("$ff", "$dff", "$dffe", "$dffsr", "$dffsre", "$adff", "$adffe", "$aldff", "$aldffe",
-				"$sdff", "$sdffce", "$sdffe", "$dlatch", "$dlatchsr", "$adlatch"))
+		if (cell->type.in(ID::$ff, ID::$dff, ID::$dffe, ID::$dffsr, ID::$dffsre, ID::$adff, ID::$adffe, ID::$aldff, ID::$aldffe,
+				ID::$sdff, ID::$sdffce, ID::$sdffe, ID::$dlatch, ID::$dlatchsr, ID::$adlatch))
 		{
-			auto splitports = {TW::D, TW::Q, TW::AD, TW::SET, TW::CLR};
+			auto splitports = {ID::D, ID::Q, ID::AD, ID::SET, ID::CLR};
 			auto splitparams = {ID::ARST_VALUE, ID::SRST_VALUE};
 
-			SigSpec outsig = sigmap(cell->getPort(TW::Q));
+			SigSpec outsig = sigmap(cell->getPort(ID::Q));
 			if (GetSize(outsig) <= 1) return 0;
 			int width = GetSize(outsig);
 
@@ -178,7 +178,7 @@ struct SplitcellsWorker
 					}
 				}
 
-				for (IdString paramname : splitparams) {
+				for (TwineRef paramname : splitparams) {
 					if (slice->hasParam(paramname)) {
 						Const val = slice->getParam(paramname);
 						val = val.extract(slice_lsb, slice_msb-slice_lsb+1);
@@ -186,9 +186,9 @@ struct SplitcellsWorker
 					}
 				}
 
-				slice->setParam(ID::WIDTH, GetSize(slice->getPort(TW::Q)));
+				slice->setParam(ID::WIDTH, GetSize(slice->getPort(ID::Q)));
 
-				log("  slice %d: %s => %s\n", i, twines.str(slice_name), log_signal(slice->getPort(TW::Q)));
+				log("  slice %d: %s => %s\n", i, twines.str(slice_name), log_signal(slice->getPort(ID::Q)));
 			}
 
 			module->remove(cell);
