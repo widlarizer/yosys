@@ -706,12 +706,6 @@ struct RTLIL::NamedObject : public RTLIL::AttrObject
 	IdString name = Twine::Null;
 };
 
-// The name/type masquerades that keep `wire->name`, `cell->type` and
-// `module->name` working on top of IdString storage. Part one: the class
-// definitions, needed before Wire/Cell/Memory/Process/Module embed them as
-// [[no_unique_address]] members. Part two (the accessor bodies) is pulled in
-// near the end of this header, once Design and Module are complete.
-#define RTLIL_TWINE_COMPAT_DECLS
 #include "kernel/rtlil_twine_compat.h"
 
 struct RTLIL::SigChunk
