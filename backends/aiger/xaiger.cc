@@ -646,7 +646,7 @@ struct XAigerWriter
 			else
 				holes_design = nullptr;
 			RTLIL::Module *holes_module = holes_design ?
-					holes_design->module(module->name) : nullptr;
+					holes_design->module(holes_design->twines.copy_from(design->twines, module->name)) : nullptr;
 			if (holes_module) {
 				std::stringstream a_buffer;
 				XAigerWriter writer(holes_module, false /* dff_mode */);
