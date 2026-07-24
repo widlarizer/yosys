@@ -52,7 +52,7 @@ bool consider_cell(RTLIL::Design *design, std::set<IdString> &dff_cells, RTLIL::
 {
 	if (cell->name[0] == '$' || dff_cells.count(cell->name.ref()))
 		return false;
-	if (cell->type[0] == '\\' && (design->module(cell->type_impl) == nullptr))
+	if (cell->type[0] == '\\' && (design->module(cell->type) == nullptr))
 		return false;
 	return true;
 }
@@ -624,9 +624,9 @@ struct ExposePass : public Pass {
 							continue;
 					}
 
-					if (design->module(cell->type_impl) != nullptr)
+					if (design->module(cell->type) != nullptr)
 					{
-						RTLIL::Module *mod = design->module(cell->type_impl);
+						RTLIL::Module *mod = design->module(cell->type);
 
 						for (auto p : mod->wires())
 						{
@@ -639,7 +639,7 @@ struct ExposePass : public Pass {
 							if (p->port_output)
 								w->port_input = true;
 
-							log("New module port: %s/%s (%s)\n", module, w, cell->type.unescaped());
+							log("New module port: %s/%s (%s)\n", module, w, cell->type.unescape());
 
 							RTLIL::SigSpec sig;
 							if (cell->hasPort(p->name.ref()))
@@ -661,7 +661,7 @@ struct ExposePass : public Pass {
 							if (ct.cell_output(cell->type_impl, it.first))
 								w->port_input = true;
 
-							log("New module port: %s/%s (%s)\n", module, w, cell->type.unescaped());
+							log("New module port: %s/%s (%s)\n", module, w, cell->type.unescape());
 
 							if (w->port_input)
 								module->connect(RTLIL::SigSig(it.second, w));
@@ -674,7 +674,7 @@ struct ExposePass : public Pass {
 				}
 
 				for (auto cell : delete_cells) {
-					log("Removing cell: %s/%s (%s)\n", module, cell, cell->type.unescaped());
+					log("Removing cell: %s/%s (%s)\n", module, cell, cell->type.unescape());
 					module->remove(cell);
 				}
 			}

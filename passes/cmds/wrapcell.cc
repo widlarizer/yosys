@@ -214,7 +214,7 @@ struct WrapcellPass : Pass {
 
 				if (!ct.cell_known(cell->type_impl))
 					log_error("Non-internal cell type '%s' on cell '%s' in module '%s' unsupported\n",
-							  cell->type.unescaped(), cell, module);
+							  cell->type.unescape(), cell, module);
 
 				std::vector<std::pair<IdString, int>> unused_outputs, used_outputs;
 				for (auto conn : cell->connections()) {

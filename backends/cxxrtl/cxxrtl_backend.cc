@@ -224,7 +224,7 @@ bool is_effectful_cell(IdString type)
 
 bool is_cxxrtl_blackbox_cell(const RTLIL::Cell *cell)
 {
-	RTLIL::Module *cell_module = cell->module->design->module(cell->type_impl);
+	RTLIL::Module *cell_module = cell->module->design->module(cell->type);
 	log_assert(cell_module != nullptr);
 	return cell_module->get_bool_attribute(ID(cxxrtl_blackbox));
 }
@@ -261,7 +261,7 @@ CxxrtlPortType cxxrtl_port_type(RTLIL::Module *module, IdString port)
 
 CxxrtlPortType cxxrtl_port_type(const RTLIL::Cell *cell, IdString port)
 {
-	RTLIL::Module *cell_module = cell->module->design->module(cell->type_impl);
+	RTLIL::Module *cell_module = cell->module->design->module(cell->type);
 	if (cell_module == nullptr || !cell_module->get_bool_attribute(ID(cxxrtl_blackbox)))
 		return CxxrtlPortType::UNKNOWN;
 	return cxxrtl_port_type(cell_module, port);
@@ -901,7 +901,7 @@ struct CxxrtlWorker {
 
 	std::string template_args(const RTLIL::Cell *cell)
 	{
-		RTLIL::Module *cell_module = cell->module->design->module(cell->type_impl);
+		RTLIL::Module *cell_module = cell->module->design->module(cell->type);
 		log_assert(cell_module != nullptr);
 		if (!cell_module->get_bool_attribute(ID(cxxrtl_blackbox)))
 			return "";
@@ -1542,7 +1542,7 @@ struct CxxrtlWorker {
 			const char *access = is_cxxrtl_blackbox_cell(cell) ? "->" : ".";
 			for (auto conn : cell->connections())
 				if (cell->input(conn.first)) {
-					RTLIL::Module *cell_module = cell->module->design->module(cell->type_impl);
+					RTLIL::Module *cell_module = cell->module->design->module(cell->type);
 					log_assert(cell_module != nullptr && cell_module->wire(conn.first));
 					RTLIL::Wire *cell_module_wire = cell_module->wire(conn.first);
 					f << indent << mangle(cell) << access << mangle_wire_name(conn.first);
@@ -2167,7 +2167,7 @@ struct CxxrtlWorker {
 				if (is_internal_cell(cell->type))
 					continue;
 				f << indent << mangle(cell);
-				RTLIL::Module *cell_module = module->design->module(cell->type_impl);
+				RTLIL::Module *cell_module = module->design->module(cell->type);
 				if (cell_module->get_bool_attribute(ID(cxxrtl_blackbox))) {
 					f << "->reset();\n";
 				} else {
@@ -2702,7 +2702,7 @@ struct CxxrtlWorker {
 					if (is_internal_cell(cell->type))
 						continue;
 					dump_attrs(cell);
-					RTLIL::Module *cell_module = module->design->module(cell->type_impl);
+					RTLIL::Module *cell_module = module->design->module(cell->type);
 					log_assert(cell_module != nullptr);
 					if (cell_module->get_bool_attribute(ID(cxxrtl_blackbox))) {
 						f << indent << "std::unique_ptr<" << mangle(cell_module) << template_args(cell) << "> ";
@@ -2820,7 +2820,7 @@ struct CxxrtlWorker {
 			for (auto cell : module->cells()) {
 				if (is_internal_cell(cell->type) || is_cxxrtl_blackbox_cell(cell))
 					continue;
-				RTLIL::Module *cell_module = design->module(cell->type_impl);
+				RTLIL::Module *cell_module = design->module(cell->type);
 				log_assert(cell_module != nullptr);
 				topo_design.edge(cell_module, module);
 			}
@@ -3012,11 +3012,11 @@ struct CxxrtlWorker {
 				if (cell->is_mem_cell())
 					continue;
 
-				RTLIL::Module *cell_module = design->module(cell->type_impl);
+				RTLIL::Module *cell_module = design->module(cell->type);
 				if (cell_module &&
 				    cell_module->get_blackbox_attribute() &&
 				    !cell_module->get_bool_attribute(ID(cxxrtl_blackbox)))
-					log_cmd_error("External blackbox cell `%s' is not marked as a CXXRTL blackbox.\n", cell->type.unescaped());
+					log_cmd_error("External blackbox cell `%s' is not marked as a CXXRTL blackbox.\n", cell->type.unescape());
 
 				if (cell_module &&
 				    cell_module->get_bool_attribute(ID(cxxrtl_blackbox)) &&

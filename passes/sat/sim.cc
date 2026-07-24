@@ -316,7 +316,7 @@ struct SimInstance
 
 		for (auto cell : module->cells())
 		{
-			Module *mod = module->design->module(cell->type_impl);
+			Module *mod = module->design->module(cell->type);
 
 			if (mod != nullptr) {
 				dirty_children.insert(new SimInstance(shared, scope + "." + cell->name.unescape(), mod, cell, this));
@@ -577,7 +577,7 @@ struct SimInstance
 			if (has_y) sig_y = cell->getPort(ID::Y);
 
 			if (shared->debug)
-				log("[%s] eval %s (%s)\n", hiername(), cell, cell->type.unescaped());
+				log("[%s] eval %s (%s)\n", hiername(), cell, cell->type.unescape());
 
 			bool err = false;
 			RTLIL::Const eval_state;
@@ -597,7 +597,7 @@ struct SimInstance
 				err = true;
 
 			if (err)
-				log_warning("Unsupported evaluable cell type: %s (%s.%s)\n", cell->type.unescaped(), module, cell);
+				log_warning("Unsupported evaluable cell type: %s (%s.%s)\n", cell->type.unescape(), module, cell);
 			else
 				set_state(sig_y, eval_state);
 			return;
@@ -609,7 +609,7 @@ struct SimInstance
 		if (cell->type == ID::$connect)
 			return;
 
-		log_error("Unsupported cell type: %s (%s.%s)\n", cell->type.unescaped(), module, cell);
+		log_error("Unsupported cell type: %s (%s.%s)\n", cell->type.unescape(), module, cell);
 	}
 
 	void update_memory(IdString id) {
@@ -1261,7 +1261,7 @@ struct SimInstance
 
 				issue_count++;
 				any_undriven_found = true;
-				std::string wire_name = scope + "." + wire->name.unescaped();
+				std::string wire_name = scope + "." + wire->name.unescape();
 				log_warning("Input trace contains undriven signal `%s` (%s).\n", wire_name.c_str(), log_signal(undriven));
 			}
 		}

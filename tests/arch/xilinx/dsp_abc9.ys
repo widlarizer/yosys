@@ -1,4 +1,4 @@
-logger -nowarn "Yosys has only limited support for tri-state logic at the moment\. .*"
+logger -nowarn "Yosys has only limited support for tri-state logic at the moment\."
 logger -nowarn "Ignoring boxed module .*\."
 
 read_verilog <<EOT

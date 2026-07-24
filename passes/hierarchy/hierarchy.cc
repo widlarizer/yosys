@@ -46,12 +46,12 @@ void generate(RTLIL::Design *design, const std::vector<std::string> &celltypes, 
 	for (auto mod : design->modules())
 	for (auto cell : mod->cells())
 	{
-		if (design->module(cell->type_impl) != nullptr)
+		if (design->module(cell->type) != nullptr)
 			continue;
 		if (cell->type.begins_with("$") && !cell->type.begins_with("$__"))
 			continue;
 		for (auto &pattern : celltypes)
-			if (patmatch(pattern.c_str(), cell->type.unescaped().c_str()))
+			if (patmatch(pattern.c_str(), cell->type.unescape().c_str()))
 				found_celltypes.insert(cell->type);
 	}
 
@@ -510,7 +510,7 @@ bool expand_module(RTLIL::Design *design, RTLIL::Module *module, bool flag_check
 		dict<IdString, RTLIL::Module*> interfaces_by_name;
 		dict<IdString, IdString> modports_by_name;
 
-		RTLIL::Module *mod = design->module(cell->type_impl);
+		RTLIL::Module *mod = design->module(cell->type);
 		if (!mod)
 		{
 			mod = get_module(*design, *cell, *module, flag_check || flag_simcheck || flag_smtcheck, libdirs);
@@ -579,7 +579,7 @@ bool expand_module(RTLIL::Design *design, RTLIL::Module *module, bool flag_check
 			// an interface instance:
 			if (mod->get_bool_attribute(ID::is_interface) && cell->get_bool_attribute(ID::module_not_derived)) {
 				cell->set_bool_attribute(ID::is_interface);
-				RTLIL::Module *derived_module = design->module(cell->type_impl);
+				RTLIL::Module *derived_module = design->module(cell->type);
 				if_expander.interfaces_in_module[cell->name] = derived_module;
 				did_something = true;
 			}
@@ -608,10 +608,10 @@ bool expand_module(RTLIL::Design *design, RTLIL::Module *module, bool flag_check
 		RTLIL::Cell *cell = it.first;
 		int idx = it.second.first, num = it.second.second;
 
-		if (design->module(cell->type_impl) == nullptr)
-			log_error("Array cell `%s.%s' of unknown type `%s'.\n", module, cell, cell->type.unescaped());
+		if (design->module(cell->type) == nullptr)
+			log_error("Array cell `%s.%s' of unknown type `%s'.\n", module, cell, cell->type.unescape());
 
-		RTLIL::Module *mod = design->module(cell->type_impl);
+		RTLIL::Module *mod = design->module(cell->type);
 
 		for (auto &conn : cell->connections_) {
 			int conn_size = conn.second.size();
@@ -1243,13 +1243,13 @@ struct HierarchyPass : public Pass {
 
 			for (auto mod : design->modules())
 			for (auto cell : mod->cells()) {
-				RTLIL::Module *cell_mod = design->module(cell->type_impl);
+				RTLIL::Module *cell_mod = design->module(cell->type);
 				if (cell_mod == nullptr)
 					continue;
 				for (auto &conn : cell->connections()) {
 					std::string conn_name = design->twines.str(conn.first);
 					if (!conn_name.empty() && conn_name[0] == '$' && '0' <= conn_name[1] && conn_name[1] <= '9') {
-						pos_mods.insert(design->module(cell->type_impl));
+						pos_mods.insert(design->module(cell->type));
 						pos_work.push_back(std::pair<RTLIL::Module*,RTLIL::Cell*>(mod, cell));
 						break;
 					}
@@ -1261,7 +1261,7 @@ struct HierarchyPass : public Pass {
 					if (read_id_num(*design, p.first, &id)) {
 						if (id <= 0 || id > GetSize(cell_mod->avail_parameters)) {
 							log("  Failed to map positional parameter %d of cell %s.%s (%s).\n",
-									id, mod, cell, cell->type.unescaped());
+									id, mod, cell, cell->type.unescape());
 						} else {
 							params_rename.insert(std::make_pair(p.first, cell_mod->avail_parameters[id - 1]));
 						}
@@ -1283,15 +1283,15 @@ struct HierarchyPass : public Pass {
 				RTLIL::Module *module = work.first;
 				RTLIL::Cell *cell = work.second;
 				log("Mapping positional arguments of cell %s.%s (%s).\n",
-						module, cell, cell->type.unescaped());
+						module, cell, cell->type.unescape());
 				dict<IdString, RTLIL::SigSpec> new_connections_twine;
 				for (auto &conn : cell->connections()) {
 					int id;
 					if (read_id_num(*design, conn.first, &id)) {
-						std::pair<RTLIL::Module*,int> key(design->module(cell->type_impl), id);
+						std::pair<RTLIL::Module*,int> key(design->module(cell->type), id);
 						if (pos_map.count(key) == 0) {
 							log("  Failed to map positional argument %d of cell %s.%s (%s).\n",
-									id, module, cell, cell->type.unescaped());
+									id, module, cell, cell->type.unescape());
 							new_connections_twine[conn.first] = conn.second;
 						} else
 							new_connections_twine[pos_map.at(key)] = conn.second;
@@ -1321,11 +1321,11 @@ struct HierarchyPass : public Pass {
 			{
 				if (!cell->get_bool_attribute(ID::wildcard_port_conns))
 					continue;
-				Module *m = design->module(cell->type_impl);
+				Module *m = design->module(cell->type);
 
 				if (m == nullptr)
 					log_error("Cell %s.%s (%s) has implicit port connections but the module it instantiates is unknown.\n",
-							module, cell, cell->type.unescaped());
+							module, cell, cell->type.unescape());
 
 				// Need accurate port widths for error checking; so must derive blackboxes with dynamic port widths
 				if (m->get_blackbox_attribute() && !cell->parameters.empty() && m->get_bool_attribute(ID::dynports)) {
@@ -1354,11 +1354,11 @@ struct HierarchyPass : public Pass {
 
 					if (parent_wire == nullptr)
 						log_error("No matching wire for implicit port connection `%s' of cell %s.%s (%s).\n",
-								wire, module, cell, cell->type.unescaped());
+								wire, module, cell, cell->type.unescape());
 					if (parent_wire->width != wire->width)
 						log_error("Width mismatch between wire (%d bits) and port (%d bits) for implicit port connection `%s' of cell %s.%s (%s).\n",
 								parent_wire->width, wire->width,
-								wire, module, cell, cell->type.unescaped());
+								wire, module, cell, cell->type.unescape());
 					cell->setPort(wire->meta_->name, parent_wire);
 				}
 				cell->attributes.erase(ID::wildcard_port_conns);
@@ -1510,7 +1510,7 @@ struct HierarchyPass : public Pass {
 
 			for (auto cell : module->cells())
 			{
-				Module *m = design->module(cell->type_impl);
+				Module *m = design->module(cell->type);
 
 				if (m == nullptr)
 					continue;
@@ -1576,7 +1576,7 @@ struct HierarchyPass : public Pass {
 
 					if (w->port_output && !w->port_input && sig.has_const())
 						log_error("Output port %s.%s.%s (%s) is connected to constants: %s\n",
-								module, cell, design->twines.str(conn.first).data(), cell->type.unescaped(), log_signal(sig));
+								module, cell, design->twines.str(conn.first).data(), cell->type.unescape(), log_signal(sig));
 				}
 			}
 		}

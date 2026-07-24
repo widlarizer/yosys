@@ -63,9 +63,9 @@ struct QlDspIORegs : public Pass {
 
 	void ql_dsp_io_regs_pass(RTLIL::Module *module)
 	{
-		static const std::vector<IdString> ports2del_mult = {ID::load_acc, ID::subtract, ID::acc_fir, ID::dly_b,
+		static const std::vector<IdString> ports2del_mult = {ID(load_acc), ID(subtract), ID(acc_fir), ID(dly_b),
 														ID(saturate_enable), ID(shift_right), ID(round)};
-		static const std::vector<IdString> ports2del_mult_acc = {ID::acc_fir, ID::dly_b};
+		static const std::vector<IdString> ports2del_mult_acc = {ID(acc_fir), ID(dly_b)};
 
 
 		sigmap.set(module);
@@ -127,7 +127,7 @@ struct QlDspIORegs : public Pass {
 			}
 
 			// Set new type name
-			cell->type_impl = cell->module->design->twines.add(std::string{new_type});
+			cell->type_impl = module->design->twines.add(std::string{new_type});
 
 			std::vector<std::string> ports2del;
 

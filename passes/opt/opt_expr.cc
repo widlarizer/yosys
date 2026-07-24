@@ -292,7 +292,7 @@ bool group_cell_inputs(RTLIL::Module *module, RTLIL::Cell *cell, bool commutativ
 					new_a.replace(dict<SigBit,SigBit>{{State::Sx, State::S1}, {State::Sz, State::S1}}, &new_b);
 				else log_abort();
 			}
-			log_debug("  Direct Connection: %s (%s with %s)\n", log_signal(new_b), cell->type.unescaped(), log_signal(new_a));
+			log_debug("  Direct Connection: %s (%s with %s)\n", log_signal(new_b), cell->type.unescape(), log_signal(new_a));
 			// new_y becomes new_b directly: rewrite any bit_map entries pointing at new_y bits.
 			dict<SigBit, SigBit> remap;
 			for (int j = 0; j < group_size; j++)
@@ -335,7 +335,7 @@ bool group_cell_inputs(RTLIL::Module *module, RTLIL::Cell *cell, bool commutativ
 				}
 			}
 			if (!undef_y.empty()) {
-				log_debug("  Direct Connection: %s (%s with %s)\n", log_signal(undef_b), cell->type.unescaped(), log_signal(undef_a));
+				log_debug("  Direct Connection: %s (%s with %s)\n", log_signal(undef_b), cell->type.unescape(), log_signal(undef_a));
 				dict<SigBit, SigBit> remap;
 				for (int j = 0; j < GetSize(undef_y); j++)
 					remap[undef_y[j]] = undef_b[j];
@@ -413,7 +413,7 @@ void handle_polarity_inv(Cell *cell, IdString port, IdString param, const SigMap
 		SigBit new_sig = assign_map(*inv_a);
 		auto& twines = cell->module->design->twines;
 		log_debug("Inverting %s of %s cell `%s' in module `%s': %s -> %s\n",
-				twines.unescaped_str(port), cell->type.unescaped(), cell, cell->module,
+				twines.unescaped_str(port), cell->type.unescape(), cell, cell->module,
 				log_signal(sig), log_signal(new_sig));
 		cell->setPort(port, new_sig);
 		cell->setParam(param, !cell->getParam(param).as_bool());
@@ -446,7 +446,7 @@ void handle_clkpol_celltype_swap(Cell *cell, string type1, string type2, IdStrin
 		if (auto inv_a = get_inverted_raw(sig, inv_drivers)) {
 			SigSpec new_sig = assign_map(*inv_a);
 			log_debug("Inverting %s of %s cell `%s' in module `%s': %s -> %s\n",
-					twines.unescaped_str(port), cell->type.unescaped(), cell, cell->module,
+					twines.unescaped_str(port), cell->type.unescape(), cell, cell->module,
 					log_signal(sig), log_signal(new_sig));
 			cell->setPort(port, new_sig);
 			cell->type_impl = cell->module->design->twines.add(std::string{cell->type == type1 ? type2 : type1});
@@ -1051,7 +1051,7 @@ void replace_const_cells(RTLIL::Design *design, RTLIL::Module *module, bool cons
 						break;
 				}
 				if (i > 0) {
-					log_debug("Stripping %d LSB bits of %s cell %s in module %s.\n", i, cell->type.unescaped(), cell, module);
+					log_debug("Stripping %d LSB bits of %s cell %s in module %s.\n", i, cell->type.unescape(), cell, module);
 					SigSpec new_a = sig_a.extract_end(i);
 					SigSpec new_b = sig_b.extract_end(i);
 					if (new_a.empty() && is_signed)
@@ -1107,7 +1107,7 @@ void replace_const_cells(RTLIL::Design *design, RTLIL::Module *module, bool cons
 						break;
 				}
 				if (i > 0) {
-					log_debug("Stripping %d LSB bits of %s cell %s in module %s.\n", i, cell->type.unescaped(), cell, module);
+					log_debug("Stripping %d LSB bits of %s cell %s in module %s.\n", i, cell->type.unescape(), cell, module);
 					SigSpec new_a = sig_a.extract_end(i);
 					SigSpec new_b = sig_b.extract_end(i);
 					if (new_a.empty() && is_signed)
@@ -1185,7 +1185,7 @@ skip_fine_alu:
 
 		if (cell->type.in(ID::$_MUX_, ID::$mux)) {
 			if (auto inv_a = get_inverted(cell->getPort(ID::S), assign_map, inv_drivers)) {
-				log_debug("Optimizing away select inverter for %s cell `%s' in module `%s'.\n", cell->type.unescaped(), cell, module);
+				log_debug("Optimizing away select inverter for %s cell `%s' in module `%s'.\n", cell->type.unescape(), cell, module);
 				RTLIL::SigSpec tmp = cell->getPort(ID::A);
 				cell->setPort(ID::A, cell->getPort(ID::B));
 				cell->setPort(ID::B, tmp);
@@ -1372,7 +1372,7 @@ skip_fine_alu:
 					RTLIL::SigSpec input = b;
 					ACTION_DO(ID::Y, cell->getPort(ID::A));
 				} else {
-					log_debug("Replacing %s cell `%s' in module `%s' with inverter.\n", cell->type.unescaped(), cell, module);
+					log_debug("Replacing %s cell `%s' in module `%s' with inverter.\n", cell->type.unescape(), cell, module);
 					cell->parameters.erase(ID::B_WIDTH);
 					cell->parameters.erase(ID::B_SIGNED);
 					cell->unsetPort(ID::B);
@@ -1386,7 +1386,7 @@ skip_fine_alu:
 		if (cell->type.in(ID($eq), ID($ne)) &&
 				(assign_map(cell->getPort(ID::A)).is_fully_zero() || assign_map(cell->getPort(ID::B)).is_fully_zero()))
 		{
-			log_debug("Replacing %s cell `%s' in module `%s' with %s.\n", cell->type.unescaped(), cell,
+			log_debug("Replacing %s cell `%s' in module `%s' with %s.\n", cell->type.unescape(), cell,
 					module, cell->type == ID::$eq ? "$logic_not" : "$reduce_bool");
 			if (assign_map(cell->getPort(ID::A)).is_fully_zero()) {
 				cell->setPort(ID::A, cell->getPort(ID::B));
@@ -1578,7 +1578,7 @@ skip_identity:
 
 		if (mux_bool && cell->type.in(ID($mux), ID($_MUX_)) &&
 				cell->getPort(ID::A) == State::S1 && cell->getPort(ID::B) == State::S0) {
-			log_debug("Replacing %s cell `%s' in module `%s' with inverter.\n", cell->type.unescaped(), cell, module);
+			log_debug("Replacing %s cell `%s' in module `%s' with inverter.\n", cell->type.unescape(), cell, module);
 			cell->setPort(ID::A, cell->getPort(ID::S));
 			cell->unsetPort(ID::B);
 			cell->unsetPort(ID::S);
@@ -1596,7 +1596,7 @@ skip_identity:
 		}
 
 		if (consume_x && mux_bool && cell->type.in(ID($mux), ID($_MUX_)) && cell->getPort(ID::A) == State::S0) {
-			log_debug("Replacing %s cell `%s' in module `%s' with and-gate.\n", cell->type.unescaped(), cell, module);
+			log_debug("Replacing %s cell `%s' in module `%s' with and-gate.\n", cell->type.unescape(), cell, module);
 			cell->setPort(ID::A, cell->getPort(ID::S));
 			cell->unsetPort(ID::S);
 			if (cell->type == ID($mux)) {
@@ -1615,7 +1615,7 @@ skip_identity:
 		}
 
 		if (consume_x && mux_bool && cell->type.in(ID($mux), ID($_MUX_)) && cell->getPort(ID::B) == State::S1) {
-			log_debug("Replacing %s cell `%s' in module `%s' with or-gate.\n", cell->type.unescaped(), cell, module);
+			log_debug("Replacing %s cell `%s' in module `%s' with or-gate.\n", cell->type.unescape(), cell, module);
 			cell->setPort(ID::B, cell->getPort(ID::S));
 			cell->unsetPort(ID::S);
 			if (cell->type == ID($mux)) {
@@ -1668,7 +1668,7 @@ skip_identity:
 			}
 			if (cell->getPort(ID::S).size() != new_s.size()) {
 				log_debug("Optimized away %d select inputs of %s cell `%s' in module `%s'.\n",
-						GetSize(cell->getPort(ID::S)) - GetSize(new_s), cell->type.unescaped(), cell, module);
+						GetSize(cell->getPort(ID::S)) - GetSize(new_s), cell->type.unescape(), cell, module);
 				cell->setPort(ID::A, new_a);
 				cell->setPort(ID::B, new_b);
 				cell->setPort(ID::S, new_s);
@@ -2252,7 +2252,7 @@ skip_alu_split:
 			if (redundant_bits)
 			{
 				log_debug("Removed %d redundant input bits from %s cell `%s' in module `%s'.\n",
-						redundant_bits, cell->type.unescaped(), cell, module);
+						redundant_bits, cell->type.unescape(), cell, module);
 
 				cell->setPort(ID::A, sig_a);
 				cell->setPort(ID::B, sig_b);

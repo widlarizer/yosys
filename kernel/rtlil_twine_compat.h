@@ -13,7 +13,7 @@ namespace RTLIL {
 }
 
 // CRTP base shared by WireNameMasq, CellNameMasq, and ModuleNameMasq.
-// Derived must define ref(), escaped(), and unescaped(); everything else
+// Derived must define ref(), escaped(), and unescape(); everything else
 // is derived from those three via operator IdString().
 namespace RTLIL {
 template<typename Derived>
@@ -25,7 +25,7 @@ struct NameMasqBase {
 	bool isPublic() const { return self().ref().isPublic(); }
 	bool empty() const { return self().ref() == Twine::Null; }
 	std::string str() const { return self().escaped(); }
-	std::string unescape() const { return self().unescaped(); }
+	std::string unescape() const { return self().unescape(); }
 	bool begins_with(const char *s) const { return str().starts_with(s); }
 	bool ends_with(const char *s) const { return str().ends_with(s); }
 	template <typename... Ts> bool in(Ts &&...args) const {
@@ -77,7 +77,7 @@ struct RTLIL::ObjNameMasq : RTLIL::NameMasqBase<RTLIL::ObjNameMasq<Owner>> {
 	bool isPublic() const { return ref().isPublic(); }
 	// Escaped form ('\'-prefixed when public) / bare content.
 	std::string escaped() const;
-	std::string unescaped() const;
+	std::string unescape() const;
 	// Raw write of the backing meta_->name, for code that used to assign
 	// `obj->name` directly. Like writing meta_->name by hand, this does *not*
 	// reindex the owning Module's wires_/cells_ dicts: use Module::rename() to
@@ -103,11 +103,10 @@ struct RTLIL::CellTypeMasq {
 	operator std::string() const { return escaped(); }
 	IdString ref() const;
 	std::string escaped() const;
-	std::string unescaped() const;
+	std::string unescape() const;
 	bool isPublic() const { return ref().isPublic(); }
 	bool empty() const { return ref() == Twine::Null; }
 	std::string str() const { return escaped(); } // TODO deprecate
-	std::string unescape() const { return unescaped(); }
 	bool begins_with(const char *s) const { return str().starts_with(s); }
 	bool ends_with(const char *s) const { return str().ends_with(s); }
 	template <typename... Ts> bool in(Ts &&...args) const {
@@ -161,7 +160,7 @@ struct RTLIL::ModuleNameMasq : RTLIL::NameMasqBase<RTLIL::ModuleNameMasq> {
 	ModuleNameMasq& operator=(ModuleNameMasq&& other) { return *this = other.ref(); }
 	IdString ref() const;
 	std::string escaped() const;
-	std::string unescaped() const;
+	std::string unescape() const;
 private:
 	const RTLIL::Module *owner() const;
 	RTLIL::Module *owner();
@@ -213,7 +212,7 @@ inline std::string RTLIL::ObjNameMasq<Owner>::escaped() const {
 }
 
 template<typename Owner>
-inline std::string RTLIL::ObjNameMasq<Owner>::unescaped() const {
+inline std::string RTLIL::ObjNameMasq<Owner>::unescape() const {
 	const Owner *o = owner();
 	IdString id = ref();
 	if (id == Twine::Null)
@@ -258,7 +257,7 @@ inline std::string RTLIL::CellTypeMasq::escaped() const {
 	return TwinePool{}.str(id);
 }
 
-inline std::string RTLIL::CellTypeMasq::unescaped() const {
+inline std::string RTLIL::CellTypeMasq::unescape() const {
 	const RTLIL::Cell *c = owner();
 	IdString id = c->type_impl;
 	if (id == Twine::Null)
@@ -299,7 +298,7 @@ inline std::string RTLIL::ModuleNameMasq::escaped() const {
 	return m->design->twines.str(id);
 }
 
-inline std::string RTLIL::ModuleNameMasq::unescaped() const {
+inline std::string RTLIL::ModuleNameMasq::unescape() const {
 	const RTLIL::Module *m = owner();
 	IdString id = ref();
 	if (id == Twine::Null)
@@ -326,10 +325,10 @@ inline RTLIL::ModuleNameMasq::operator IdString() const { return ref(); }
 // static constids): a masquerade knows the Design its name lives in.
 template<typename Derived>
 inline const char *log_id(const RTLIL::NameMasqBase<Derived> &name) {
-	return log_id_str(static_cast<const Derived &>(name).unescaped());
+	return log_id_str(static_cast<const Derived &>(name).unescape());
 }
 inline const char *log_id(const RTLIL::CellTypeMasq &type) {
-	return log_id_str(type.unescaped());
+	return log_id_str(type.unescape());
 }
 
 #endif // RTLIL_TWINE_COMPAT_H

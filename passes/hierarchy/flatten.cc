@@ -130,7 +130,7 @@ struct FlattenWorker
 					new_hdlname = cell->get_string_attribute(ID(hdlname));
 				} else {
 					log_assert(!cell->name.empty());
-					new_hdlname = cell->name.unescaped();
+					new_hdlname = cell->name.unescape();
 				}
 				new_hdlname += ' ';
 
@@ -148,14 +148,14 @@ struct FlattenWorker
 					new_scopename = cell->get_string_attribute(ID(hdlname));
 				} else {
 					log_assert(!cell->name.empty());
-					new_scopename = cell->name.unescaped();
+					new_scopename = cell->name.unescape();
 				}
 				new_scopename += ' ';
 				new_scopename += object->get_string_attribute(ID(scopename));
 				object->set_string_attribute(ID(scopename), new_scopename);
 			} else if (create_scopename) {
 				log_assert(!cell->name.empty());
-				object->set_string_attribute(ID::scopename, cell->name.unescaped());
+				object->set_string_attribute(ID::scopename, cell->name.unescape());
 			}
 		}
 	}
@@ -384,7 +384,7 @@ struct FlattenWorker
 				continue;
 			}
 
-			log_debug("Flattening %s.%s (%s).\n", module, cell, cell->type.unescaped());
+			log_debug("Flattening %s.%s (%s).\n", module, cell, cell->type.unescape());
 			// If a design is fully selected and has a top module defined, topological sorting ensures that all cells
 			// added during flattening are black boxes, and flattening is finished in one pass. However, when flattening
 			// individual modules, this isn't the case, and the newly added cells might have to be flattened further.
@@ -488,7 +488,7 @@ struct FlattenPass : public Pass {
 		while (!worklist.empty()) {
 			RTLIL::Module *module = worklist.pop();
 			for (auto cell : module->selected_cells()) {
-				RTLIL::Module *tpl = design->module(cell->type_impl);
+				RTLIL::Module *tpl = design->module(cell->type);
 				if (tpl != nullptr) {
                                         if (!topo_modules.has_node(tpl))
 						worklist.insert(tpl);

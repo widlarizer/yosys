@@ -104,14 +104,14 @@ struct WreduceWorker
 			sig_removed.append(bits_removed[i]);
 
 		if (GetSize(bits_removed) == GetSize(sig_y)) {
-			log("Removed cell %s.%s (%s).\n", module, cell, cell->type.unescaped());
+			log("Removed cell %s.%s (%s).\n", module, cell, cell->type.unescape());
 			module->connect(sig_y, sig_removed);
 			module->remove(cell);
 			return;
 		}
 
 		log("Removed top %d bits (of %d) from mux cell %s.%s (%s).\n",
-				GetSize(sig_removed), GetSize(sig_y), module, cell, cell->type.unescaped());
+				GetSize(sig_removed), GetSize(sig_y), module, cell, cell->type.unescape());
 
 		int n_removed = GetSize(sig_removed);
 		int n_kept = GetSize(sig_y) - GetSize(sig_removed);
@@ -211,13 +211,13 @@ struct WreduceWorker
 			return;
 
 		if (GetSize(sig_q) == 0) {
-			log("Removed cell %s.%s (%s).\n", module, cell, cell->type.unescaped());
+			log("Removed cell %s.%s (%s).\n", module, cell, cell->type.unescape());
 			module->remove(cell);
 			return;
 		}
 
 		log("Removed top %d bits (of %d) from FF cell %s.%s (%s).\n", width_before - GetSize(sig_q), width_before,
-				module, cell, cell->type.unescaped());
+				module, cell, cell->type.unescape());
 
 		for (auto bit : sig_d)
 			work_queue_bits.insert(bit);
@@ -267,7 +267,7 @@ struct WreduceWorker
 
 		if (bits_removed) {
 			log("Removed top %d bits (of %d) from port %c of cell %s.%s (%s).\n",
-					bits_removed, GetSize(sig) + bits_removed, port, module, cell, cell->type.unescaped());
+					bits_removed, GetSize(sig) + bits_removed, port, module, cell, cell->type.unescape());
 			// SigSpec sig = mi.sigmap(cell->getPort(twines.add(std::string{stringf("\\%c", port)})));
 			cell->setPort(twines.add(std::string{stringf("\\%c", port)}), sig);
 			did_something = true;
@@ -341,7 +341,7 @@ struct WreduceWorker
 
 			if (!port_a_signed && !port_b_signed && signed_cost < unsigned_cost) {
 				log("Converting cell %s.%s (%s) from unsigned to signed.\n",
-						module, cell, cell->type.unescaped());
+						module, cell, cell->type.unescape());
 				cell->setParam(ID::A_SIGNED, 1);
 				cell->setParam(ID::B_SIGNED, 1);
 				port_a_signed = true;
@@ -349,7 +349,7 @@ struct WreduceWorker
 				did_something = true;
 			} else if (port_a_signed && port_b_signed && unsigned_cost < signed_cost) {
 				log("Converting cell %s.%s (%s) from signed to unsigned.\n",
-						module, cell, cell->type.unescaped());
+						module, cell, cell->type.unescape());
 				cell->setParam(ID::A_SIGNED, 0);
 				cell->setParam(ID::B_SIGNED, 0);
 				port_a_signed = false;
@@ -369,7 +369,7 @@ struct WreduceWorker
 			if (GetSize(sig_a) > 0 && sig_a[GetSize(sig_a)-1] == State::S0 &&
 					GetSize(sig_b) > 0 && sig_b[GetSize(sig_b)-1] == State::S0) {
 				log("Converting cell %s.%s (%s) from signed to unsigned.\n",
-						module, cell, cell->type.unescaped());
+						module, cell, cell->type.unescape());
 				cell->setParam(ID::A_SIGNED, 0);
 				cell->setParam(ID::B_SIGNED, 0);
 				port_a_signed = false;
@@ -382,7 +382,7 @@ struct WreduceWorker
 			SigSpec sig_a = mi.sigmap(cell->getPort(ID::A));
 			if (GetSize(sig_a) > 0 && sig_a[GetSize(sig_a)-1] == State::S0) {
 				log("Converting cell %s.%s (%s) from signed to unsigned.\n",
-						module, cell, cell->type.unescaped());
+						module, cell, cell->type.unescape());
 				cell->setParam(ID::A_SIGNED, 0);
 				port_a_signed = false;
 				did_something = true;
@@ -441,14 +441,14 @@ struct WreduceWorker
 		}
 
 		if (GetSize(sig) == 0) {
-			log("Removed cell %s.%s (%s).\n", module, cell, cell->type.unescaped());
+			log("Removed cell %s.%s (%s).\n", module, cell, cell->type.unescape());
 			module->remove(cell);
 			return;
 		}
 
 		if (bits_removed) {
 			log("Removed top %d bits (of %d) from port Y of cell %s.%s (%s).\n",
-					bits_removed, GetSize(sig) + bits_removed, module, cell, cell->type.unescaped());
+					bits_removed, GetSize(sig) + bits_removed, module, cell, cell->type.unescape());
 			cell->setPort(ID::Y, sig);
 			did_something = true;
 		}

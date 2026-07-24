@@ -157,12 +157,12 @@ bool module2graph(SubCircuit::Graph &graph, RTLIL::Module *mod, bool constports,
 	auto &tw = mod->design->twines;
 
 	if (sel && !sel->selected(mod)) {
-		log("  Skipping module %s as it is not selected.\n", mod->name.unescaped());
+		log("  Skipping module %s as it is not selected.\n", mod->name.unescape());
 		return false;
 	}
 
 	if (mod->processes.size() > 0) {
-		log("  Skipping module %s as it contains unprocessed processes.\n", mod->name.unescaped());
+		log("  Skipping module %s as it contains unprocessed processes.\n", mod->name.unescape());
 		return false;
 	}
 
@@ -697,12 +697,12 @@ struct ExtractPass : public Pass {
 			for (auto &result: results)
 			{
 				log("\nFrequent SubCircuit with %d nodes and %d matches:\n", int(result.nodes.size()), result.totalMatchesAfterLimits);
-				log("  primary match in %s:", haystack_map.at(result.graphId)->name.unescaped());
+				log("  primary match in %s:", haystack_map.at(result.graphId)->name.unescape());
 				for (auto &node : result.nodes)
 					log(" %s", RTLIL::unescape_id(node.nodeId));
 				log("\n");
 				for (auto &it : result.matchesPerGraph)
-					log("  matches in %s: %d\n", haystack_map.at(it.first)->name.unescaped(), it.second);
+					log("  matches in %s: %d\n", haystack_map.at(it.first)->name.unescape(), it.second);
 
 				RTLIL::Module *mod = haystack_map.at(result.graphId);
 				std::set<RTLIL::Cell*> cells;
@@ -721,7 +721,7 @@ struct ExtractPass : public Pass {
 							wires.insert(chunk.wire);
 				}
 
-				RTLIL::Module *newMod = map->addModule(map->twines.add(stringf("\\needle%05d_%s_%dx", needleCounter++, haystack_map.at(result.graphId)->name.unescaped(), result.totalMatchesAfterLimits)));
+				RTLIL::Module *newMod = map->addModule(map->twines.add(stringf("\\needle%05d_%s_%dx", needleCounter++, haystack_map.at(result.graphId)->name.unescape(), result.totalMatchesAfterLimits)));
 
 				for (auto wire : wires) {
 					RTLIL::Wire *newWire = newMod->addWire(Twine{wire->name.unescape()}, wire->width);

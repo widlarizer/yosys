@@ -350,9 +350,9 @@ struct CheckPass : public Pass {
 			pool<Cell *> coarsened_cells;
 			for (auto cell : module->cells())
 			{
-				if (mapped && cell->type.begins_with("$") && design->module(cell->type_impl) == nullptr) {
+				if (mapped && cell->type.begins_with("$") && design->module(cell->type) == nullptr) {
 					if (allow_tbuf && cell->type == ID($_TBUF_)) goto cell_allowed;
-					log_warning("Cell %s.%s is an unmapped internal cell of type %s.\n", module, cell, cell->type.unescaped());
+					log_warning("Cell %s.%s is an unmapped internal cell of type %s.\n", module, cell, cell->type.unescape());
 					counter++;
 				cell_allowed:;
 				}
@@ -404,7 +404,7 @@ struct CheckPass : public Pass {
 						wire_drivers_count[bit]++;
 						if (output && (bit.wire || !input))
 							wire_drivers[bit].push_back(stringf("port %s[%d] of cell %s (%s)", cell->module->design->twines.str(conn.first).c_str(), i,
-																cell, cell->type.unescaped()));
+																cell, cell->type.unescape()));
 						if (output)
 							driver_cells[bit] = cell;
 					}

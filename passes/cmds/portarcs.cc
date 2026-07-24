@@ -128,7 +128,7 @@ struct PortarcsPass : Pass {
 				if (!cell->type.in(ID($buf), ID($input_port), ID($connect), ID($tribuf))) {
 					auto tdata = tinfo.find(cell->type);
 					if (tdata == tinfo.end())
-						log_cmd_error("Missing timing data for module '%s'.\n", cell->type.unescaped());
+						log_cmd_error("Missing timing data for module '%s'.\n", cell->type.unescape());
 					for (auto [edge, delay] : tdata->second.comb) {
 						auto from = edge.first.get_connection(cell);
 						auto to = edge.second.get_connection(cell);

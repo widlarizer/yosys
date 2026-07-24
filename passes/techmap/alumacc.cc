@@ -156,7 +156,7 @@ struct AlumaccWorker
 			if (!cell->type.in(ID($pos), ID($neg), ID($add), ID($sub), ID($mul)))
 				continue;
 
-			log("  creating $macc model for %s (%s).\n", cell, cell->type.unescaped());
+			log("  creating $macc model for %s (%s).\n", cell, cell->type.unescape());
 
 			maccnode_t *n = new maccnode_t;
 			Macc::term_t new_term;
@@ -412,7 +412,7 @@ struct AlumaccWorker
 
 		for (auto cell : lge_cells)
 		{
-			log("  creating $alu model for %s (%s):", cell, cell->type.unescaped());
+			log("  creating $alu model for %s (%s):", cell, cell->type.unescape());
 
 			bool cmp_less = cell->type.in(ID($lt), ID($le));
 			bool cmp_equal = cell->type.in(ID($le), ID($ge));
@@ -484,7 +484,7 @@ struct AlumaccWorker
 			}
 
 			if (n != nullptr) {
-				log("  creating $alu model for %s (%s): merged with %s.\n", cell, cell->type.unescaped(), n->cells.front());
+				log("  creating $alu model for %s (%s): merged with %s.\n", cell, cell->type.unescape(), n->cells.front());
 				n->cells.push_back(cell);
 				n->cmp.push_back(std::make_tuple(false, false, cmp_equal, !cmp_equal, false, Y));
 			}

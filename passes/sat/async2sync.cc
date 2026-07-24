@@ -147,7 +147,7 @@ struct Async2syncPass : public Pass {
 						ff.unmap_ce_srst();
 
 						log("Replacing %s.%s (%s): SET=%s, CLR=%s, D=%s, Q=%s\n",
-								module, cell, cell->type.unescaped(),
+								module, cell, cell->type.unescape(),
 								log_signal(ff.sig_set), log_signal(ff.sig_clr), log_signal(ff.sig_d), log_signal(ff.sig_q));
 
 						initvals.remove_init(ff.sig_q);
@@ -245,7 +245,7 @@ struct Async2syncPass : public Pass {
 						ff.unmap_srst();
 
 						log("Replacing %s.%s (%s): ARST=%s, D=%s, Q=%s\n",
-								module, cell, cell->type.unescaped(),
+								module, cell, cell->type.unescape(),
 								log_signal(ff.sig_arst), log_signal(ff.sig_d), log_signal(ff.sig_q));
 
 						initvals.remove_init(ff.sig_q);
@@ -279,7 +279,7 @@ struct Async2syncPass : public Pass {
 				{
 					// Latch.
 					log("Replacing %s.%s (%s): EN=%s, D=%s, Q=%s\n",
-							module, cell, cell->type.unescaped(),
+							module, cell, cell->type.unescape(),
 							log_signal(ff.sig_aload), log_signal(ff.sig_ad), log_signal(ff.sig_q));
 
 					initvals.remove_init(ff.sig_q);

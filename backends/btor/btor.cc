@@ -120,7 +120,7 @@ struct BtorWorker
 	template<typename T>
 	string getinfo(T *obj, bool srcsym = false)
 	{
-		string infostr = obj->name.unescaped();
+		string infostr = obj->name.unescape();
 		if (!srcsym && !print_internal_names && infostr[0] == '$') return "";
 		if (obj->has_attribute(ID::src)) {
 			string src = module && module->design ? module->design->get_src_attribute(obj) : std::string();
@@ -734,7 +734,7 @@ struct BtorWorker
 				Wire *w = sig_q.as_wire();
 				if (w->port_id == 0) {
 					statewires.insert(w);
-					symbol = w->name.unescaped();
+					symbol = w->name.unescape();
 				}
 			}
 

@@ -193,7 +193,7 @@ struct MuxpackWorker
 	{
 		for (auto cell : candidate_cells)
 		{
-			log_debug("Considering %s (%s)\n", cell, cell->type.unescaped());
+			log_debug("Considering %s (%s)\n", cell, cell->type.unescape());
 
 			SigSpec a_sig = sigmap(cell->getPort(ID::A));
 			if (cell->type == ID($mux)) {

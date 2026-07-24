@@ -92,7 +92,7 @@ void check(RTLIL::Design *design, bool dff_mode)
 		};
 		for (auto module : design->selected_modules())
 			for (auto cell : module->cells()) {
-				auto inst_module = design->module(cell->type_impl);
+				auto inst_module = design->module(cell->type);
 				if (!inst_module)
 					continue;
 				IdString derived_type;
@@ -154,7 +154,7 @@ void prep_hier(RTLIL::Design *design, bool dff_mode)
 
 	for (auto module : design->selected_modules())
 		for (auto cell : module->cells()) {
-			auto inst_module = design->module(cell->type_impl);
+			auto inst_module = design->module(cell->type);
 			if (!inst_module)
 				continue;
 			IdString derived_type;
@@ -279,7 +279,7 @@ void prep_bypass(RTLIL::Design *design)
 		for (auto cell : module->cells()) {
 			if (!processed.insert(cell->type).second)
 				continue;
-			auto inst_module = design->module(cell->type_impl);
+			auto inst_module = design->module(cell->type);
 			if (!inst_module)
 				continue;
 			if (!inst_module->get_bool_attribute(ID::abc9_bypass))
@@ -462,7 +462,7 @@ void prep_dff(RTLIL::Design *design)
 		for (auto cell : module->cells()) {
 			if (modules_sel.selected_whole_module(cell->type))
 				continue;
-			auto inst_module = design->module(cell->type_impl);
+			auto inst_module = design->module(cell->type);
 			if (!inst_module)
 				continue;
 			if (!inst_module->get_bool_attribute(ID::abc9_flop))
@@ -474,7 +474,7 @@ void prep_dff(RTLIL::Design *design)
 				// be instantiating the derived module which will have had any parameters constant-propagated.
 				// This task is expected to be performed by `abc9_ops -prep_hier`, but it looks like it failed to do so for this design.
 				// Please file a bug report!
-				log_error("Not expecting parameters on cell '%s' instantiating module '%s' marked (* abc9_flop *)\n", cell->name.unescape(), cell->type.unescaped());
+				log_error("Not expecting parameters on cell '%s' instantiating module '%s' marked (* abc9_flop *)\n", cell->name.unescape(), cell->type.unescape());
 			}
 			modules_sel.select(inst_module);
 		}
@@ -579,7 +579,7 @@ void break_scc(RTLIL::Module *module)
 		if (it == cell->attributes.end())
 			continue;
 		scc_cells.insert(cell);
-		auto inst_module = design->module(cell->type_impl);
+		auto inst_module = design->module(cell->type);
 		if (inst_module && inst_module->has_attribute(ID::abc9_bypass))
 			ids_seen.insert(it->second);
 	}
@@ -633,7 +633,7 @@ void prep_delays(RTLIL::Design *design, bool dff_mode)
 				continue;
 			log_assert(!cell->type.begins_with("$paramod$__ABC9_DELAY\\DELAY="));
 
-			RTLIL::Module* inst_module = design->module(cell->type_impl);
+			RTLIL::Module* inst_module = design->module(cell->type);
 			if (!inst_module)
 				continue;
 			if (!inst_module->get_blackbox_attribute())
@@ -665,14 +665,14 @@ void prep_delays(RTLIL::Design *design, bool dff_mode)
 	log_assert(delay_module);
 	for (auto cell : cells) {
 		auto module = cell->module;
-		auto inst_module = design->module(cell->type_impl);
+		auto inst_module = design->module(cell->type);
 		log_assert(inst_module);
 
 		for (auto &i : timing.at(cell->type).required) {
 			auto port_wire = inst_module->wire(i.first.name);
 			if (!port_wire)
 				log_error("Port %s in cell %s (type %s) from module %s does not actually exist",
-						design->twines.unescaped_str(i.first.name), cell, cell->type.unescaped(), module);
+						design->twines.unescaped_str(i.first.name), cell, cell->type.unescape(), module);
 			log_assert(port_wire->port_input);
 
 			auto d = i.second.first;
@@ -728,7 +728,7 @@ void prep_xaiger(RTLIL::Module *module, bool dff)
 		if (cell->has_keep_attr())
 			continue;
 
-		auto inst_module = design->module(cell->type_impl);
+		auto inst_module = design->module(cell->type);
 		bool abc9_flop = inst_module && inst_module->get_bool_attribute(ID::abc9_flop);
 		if (abc9_flop && !dff)
 			continue;
@@ -773,7 +773,7 @@ void prep_xaiger(RTLIL::Module *module, bool dff)
 			if (cell->has_keep_attr())
 				continue;
 
-			auto inst_module = design->module(cell->type_impl);
+			auto inst_module = design->module(cell->type);
 			bool abc9_flop = inst_module && inst_module->get_bool_attribute(ID::abc9_flop);
 			if (abc9_flop && !dff)
 				continue;
@@ -823,7 +823,7 @@ void prep_xaiger(RTLIL::Module *module, bool dff)
 					continue;
 				auto cell = module->cell(refof(cell_name));
 				log_assert(cell);
-				auto inst_module = design->module(cell->type_impl);
+				auto inst_module = design->module(cell->type);
 				if (inst_module && inst_module->get_bool_attribute(ID::abc9_box))
 					continue;
 				for (auto &c : cell->connections_) {
@@ -857,7 +857,7 @@ void prep_xaiger(RTLIL::Module *module, bool dff)
 			for (auto cell_name : it) {
 				auto cell = module->cell(refof(cell_name));
 				log_assert(cell);
-				log("\t%s (%s @ %s)\n", cell, cell->type.unescaped(), cell->get_src_attribute());
+				log("\t%s (%s @ %s)\n", cell, cell->type.unescape(), cell->get_src_attribute());
 			}
 		}
 	}
@@ -881,7 +881,7 @@ void prep_xaiger(RTLIL::Module *module, bool dff)
 		RTLIL::Cell *cell = module->cell(refof(cell_name));
 		log_assert(cell);
 
-		RTLIL::Module* box_module = design->module(cell->type_impl);
+		RTLIL::Module* box_module = design->module(cell->type);
 		if (!box_module)
 			continue;
 		if (!box_module->get_bool_attribute(ID::abc9_box))
@@ -892,7 +892,7 @@ void prep_xaiger(RTLIL::Module *module, bool dff)
 			// be instantiating the derived module which will have had any parameters constant-propagated.
 			// This task is expected to be performed by `abc9_ops -prep_hier`, but it looks like it failed to do so for this design.
 			// Please file a bug report!
-			log_error("Not expecting parameters on cell '%s' instantiating module '%s' marked (* abc9_box *)\n", design->twines.unescaped_str(refof(cell_name)), cell->type.unescaped());
+			log_error("Not expecting parameters on cell '%s' instantiating module '%s' marked (* abc9_box *)\n", design->twines.unescaped_str(refof(cell_name)), cell->type.unescape());
 		}
 		log_assert(box_module->get_blackbox_attribute());
 

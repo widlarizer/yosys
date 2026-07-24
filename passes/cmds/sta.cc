@@ -63,15 +63,15 @@ struct StaWorker
 
 		for (auto cell : module->cells())
 		{
-			Module *inst_module = design->module(cell->type_impl);
+			Module *inst_module = design->module(cell->type);
 			if (!inst_module) {
 				if (unrecognised_cells.insert(cell->type).second)
-					log_warning("Cell type '%s' not recognised! Ignoring.\n", cell->type.unescaped());
+					log_warning("Cell type '%s' not recognised! Ignoring.\n", cell->type.unescape());
 				continue;
 			}
 
 			if (!inst_module->get_blackbox_attribute()) {
-				log_warning("Cell type '%s' is not a black- nor white-box! Ignoring.\n", cell->type.unescaped());
+				log_warning("Cell type '%s' is not a black- nor white-box! Ignoring.\n", cell->type.unescape());
 				continue;
 			}
 
@@ -82,7 +82,7 @@ struct StaWorker
 			if (!timing.count(derived_type)) {
 				auto &t = timing.setup_module(inst_module);
 				if (t.has_inputs && t.comb.empty() && t.arrival.empty() && t.required.empty())
-					log_warning("Module '%s' has no timing arcs!\n", cell->type.unescaped());
+					log_warning("Module '%s' has no timing arcs!\n", cell->type.unescape());
 			}
 
 			auto &t = timing.at(derived_type);

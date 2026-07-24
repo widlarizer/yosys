@@ -112,10 +112,10 @@ TEST(TwinePublicityTest, WireNameMasquerade)
 	EXPECT_TRUE(pub->name.isPublic());
 	EXPECT_FALSE(priv->name.isPublic());
 	EXPECT_EQ(pub->name.escaped(), "\\sig");
-	EXPECT_EQ(pub->name.unescaped(), "sig");
+	EXPECT_EQ(pub->name.unescape(), "sig");
 	EXPECT_EQ(pub->name.str(), "\\sig");
 	EXPECT_EQ(priv->name.escaped(), "$sig");
-	EXPECT_EQ(priv->name.unescaped(), "$sig");
+	EXPECT_EQ(priv->name.unescape(), "$sig");
 
 	// Distinct dict keys despite shared content.
 	EXPECT_NE(pub, priv);

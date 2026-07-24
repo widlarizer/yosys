@@ -609,7 +609,7 @@ void counter_worker(
 	}
 
 	//Get new cell name
-	string countname = string("$COUNTx$") + extract.rwire->name.unescaped();
+	string countname = string("$COUNTx$") + extract.rwire->name.unescape();
 
 	//Wipe all of the old connections to the ALU
 	cell->unsetPort(ID::A);

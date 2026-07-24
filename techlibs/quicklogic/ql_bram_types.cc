@@ -155,7 +155,7 @@ struct QlBramTypesPass : public Pass {
 				}
 
 				cell->type_impl = cell->module->design->twines.add(std::string{RTLIL::escape_id(type)});
-				log_debug("Changed type of memory cell %s to %s\n", cell->module->design->twines.str(cell->meta_->name), cell->type.unescaped());
+				log_debug("Changed type of memory cell %s to %s\n", cell->module->design->twines.str(cell->meta_->name), cell->type.unescape());
 			}
 	}
 

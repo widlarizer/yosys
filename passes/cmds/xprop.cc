@@ -467,7 +467,7 @@ struct XpropWorker
 			return;
 		}
 
-		log_warning("Unhandled cell %s (%s) during maybe-x marking\n", cell, cell->type.unescaped());
+		log_warning("Unhandled cell %s (%s) during maybe-x marking\n", cell, cell->type.unescape());
 		mark_outputs_maybe_x(cell);
 	}
 
@@ -862,7 +862,7 @@ struct XpropWorker
 
 			if ((ff.has_clk || ff.has_gclk) && !ff.has_ce && !ff.has_aload && !ff.has_srst && !ff.has_arst && !ff.has_sr) {
 				if (ff.has_clk && maybe_x(ff.sig_clk)) {
-					log_warning("Only non-x CLK inputs are currently supported for %s (%s)\n", cell, cell->type.unescaped());
+					log_warning("Only non-x CLK inputs are currently supported for %s (%s)\n", cell, cell->type.unescape());
 				} else {
 					auto init_q = ff.val_init;
 					auto init_q_is_1 = init_q;
@@ -907,7 +907,7 @@ struct XpropWorker
 					return;
 				}
 			} else {
-				log_warning("Unhandled FF-cell %s (%s), consider running clk2fflogic, async2sync and/or dffunmap\n", cell, cell->type.unescaped());
+				log_warning("Unhandled FF-cell %s (%s), consider running clk2fflogic, async2sync and/or dffunmap\n", cell, cell->type.unescape());
 			}
 		}
 
@@ -964,9 +964,9 @@ struct XpropWorker
 			log("Running 'demuxmap' preserves x-propagation and can be run before 'xprop'.\n");
 
 		if (options.required)
-			log_error("Unhandled cell %s (%s)\n", cell, cell->type.unescaped());
+			log_error("Unhandled cell %s (%s)\n", cell, cell->type.unescape());
 		else
-			log_warning("Unhandled cell %s (%s)\n", cell, cell->type.unescaped());
+			log_warning("Unhandled cell %s (%s)\n", cell, cell->type.unescape());
 	}
 
 	void split_ports()

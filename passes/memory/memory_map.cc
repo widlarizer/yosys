@@ -269,7 +269,7 @@ struct MemoryMapWorker
 				if (formal && mem.packed && mem.cell->name.isPublic()) {
 					auto hdlname = mem.cell->get_hdlname_attribute();
 					if (hdlname.empty())
-						hdlname.push_back(mem.cell->name.unescaped());
+						hdlname.push_back(mem.cell->name.unescape());
 					hdlname.push_back(stringf("[%d]", addr));
 					w_out->set_hdlname_attribute(hdlname);
 				}

@@ -58,10 +58,10 @@ struct ThresholdHierarchyKeeping {
 			if (!cell->type.isPublic()) {
 				size += costs.get(cell);
 			} else {
-				RTLIL::Module *submodule = design->module(cell->type_impl);
+				RTLIL::Module *submodule = design->module(cell->type);
 				if (!submodule)
 					log_error("Hierarchy contains unknown module '%s' (instanced as %s in %s)\n",
-							  cell->type.unescaped(), cell, module);
+							  cell->type.unescape(), cell, module);
 				size += visit(submodule);
 			}
 		}

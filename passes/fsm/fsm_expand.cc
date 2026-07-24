@@ -189,7 +189,7 @@ struct FsmExpand
 
 		if (GetSize(input_sig) > 10)
 			log_warning("Cell %s.%s (%s) has %d input bits, merging into FSM %s.%s might be problematic.\n",
-					cell->module, cell, cell->type.unescaped(),
+					cell->module, cell, cell->type.unescape(),
 					GetSize(input_sig), fsm_cell->module, fsm_cell);
 
 		if (GetSize(fsm_data.transition_table) > 10000)

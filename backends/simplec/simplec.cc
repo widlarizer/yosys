@@ -76,7 +76,7 @@ struct HierDirtyFlags
 			dirty(0), module(module), hiername(hiername), parent(parent), prefix(prefix), log_prefix(log_prefix)
 	{
 		for (Cell *cell : module->cells()) {
-			Module *mod = module->design->module(cell->type_impl);
+			Module *mod = module->design->module(cell->type);
 			if (mod) children[cell->name] = new HierDirtyFlags(mod, cell->name, this,
 					prefix + cid(cell->name) + ".", log_prefix + "." + prefix + cell->name.unescape());
 		}
@@ -392,7 +392,7 @@ struct SimplecWorker
 
 			log_assert(y.wire);
 			funct_declarations.push_back(util_set_bit(work->prefix + cid(y.wire->name), y.wire->width, y.offset, expr) +
-					stringf(" // %s (%s)", cell, cell->type.unescaped()));
+					stringf(" // %s (%s)", cell, cell->type.unescape()));
 
 			work->set_dirty(y);
 			return;
@@ -419,7 +419,7 @@ struct SimplecWorker
 
 			log_assert(y.wire);
 			funct_declarations.push_back(util_set_bit(work->prefix + cid(y.wire->name), y.wire->width, y.offset, expr) +
-					stringf(" // %s (%s)", cell, cell->type.unescaped()));
+					stringf(" // %s (%s)", cell, cell->type.unescape()));
 
 			work->set_dirty(y);
 			return;
@@ -442,7 +442,7 @@ struct SimplecWorker
 
 			log_assert(y.wire);
 			funct_declarations.push_back(util_set_bit(work->prefix + cid(y.wire->name), y.wire->width, y.offset, expr) +
-					stringf(" // %s (%s)", cell, cell->type.unescaped()));
+					stringf(" // %s (%s)", cell, cell->type.unescape()));
 
 			work->set_dirty(y);
 			return;
@@ -467,7 +467,7 @@ struct SimplecWorker
 
 			log_assert(y.wire);
 			funct_declarations.push_back(util_set_bit(work->prefix + cid(y.wire->name), y.wire->width, y.offset, expr) +
-					stringf(" // %s (%s)", cell, cell->type.unescaped()));
+					stringf(" // %s (%s)", cell, cell->type.unescape()));
 
 			work->set_dirty(y);
 			return;
@@ -491,13 +491,13 @@ struct SimplecWorker
 
 			log_assert(y.wire);
 			funct_declarations.push_back(util_set_bit(work->prefix + cid(y.wire->name), y.wire->width, y.offset, expr) +
-					stringf(" // %s (%s)", cell, cell->type.unescaped()));
+					stringf(" // %s (%s)", cell, cell->type.unescape()));
 
 			work->set_dirty(y);
 			return;
 		}
 
-		log_error("No C model for %s available at the moment (FIXME).\n", cell->type.unescaped());
+		log_error("No C model for %s available at the moment (FIXME).\n", cell->type.unescape());
 	}
 
 	void eval_dirty(HierDirtyFlags *work)
@@ -583,7 +583,7 @@ struct SimplecWorker
 					string hiername = work->log_prefix + "." + cell->name.unescape();
 
 					if (verbose)
-						log("    Evaluating %s (%s, best of %d).\n", hiername, cell->type.unescaped(), GetSize(work->dirty_cells));
+						log("    Evaluating %s (%s, best of %d).\n", hiername, cell->type.unescape(), GetSize(work->dirty_cells));
 
 					if (activated_cells.count(hiername))
 						reactivated_cells.insert(hiername);

@@ -109,7 +109,7 @@ struct BlifDumper
 			return config->undef_type == "-" || config->undef_type == "+" ? config->undef_out.c_str() : "$undef";
 		}
 
-		std::string str = sig.wire->name.unescaped();
+		std::string str = sig.wire->name.unescape();
 		for (size_t i = 0; i < str.size(); i++)
 			if (str[i] == '#' || str[i] == '=' || str[i] == '<' || str[i] == '>')
 				str[i] = '?';
@@ -428,7 +428,7 @@ struct BlifDumper
 					continue;
 				}
 
-				Module *m = design->module(cell->type_impl);
+				Module *m = design->module(cell->type);
 				Wire *w = m ? m->wire(conn.first) : nullptr;
 
 				if (w == nullptr) {

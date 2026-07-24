@@ -70,7 +70,7 @@ struct UniquifyPass : public Pass {
 
 				for (auto cell : module->selected_cells())
 				{
-					Module *tmod = design->module(cell->type_impl);
+					Module *tmod = design->module(cell->type);
 					std::string tmod_name_str(tmod->name.str());
 					std::string newname = module->name.str() + "." + cell->name.unescape();
 

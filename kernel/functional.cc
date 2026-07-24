@@ -611,7 +611,7 @@ private:
 			FfData ff(&ff_initvals, cell);
 			if (!ff.has_gclk)
 				log_error("The design contains a %s flip-flop at %s. This is not supported by the functional backend. "
-					"Call async2sync or clk2fflogic to avoid this error.\n", cell->type.unescaped(), cell);
+					"Call async2sync or clk2fflogic to avoid this error.\n", cell->type.unescape(), cell);
 			IdString ff_name = ff.name;
 			auto &state = factory.add_state(ff_name, ID::$state, Sort(ff.width));
 			Node q_value = factory.value(state);

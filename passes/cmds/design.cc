@@ -284,7 +284,7 @@ struct DesignPass : public Pass {
 				for (auto mod : old_queue)
 				for (auto cell : mod->cells())
 				{
-					Module *fmod = copy_from_design->module(cell->type_impl);
+					Module *fmod = copy_from_design->module(cell->type);
 
 					if (fmod == nullptr)
 						continue;

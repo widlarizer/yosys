@@ -77,7 +77,7 @@ static void create_ql_macc_dsp(ql_dsp_macc_pm &pm)
 
     for (auto cell : {st.mul, st.add, st.mux, st.ff})
     if (cell)
-        log("  %s (%s)\n", cell, cell->type.unescaped());
+        log("  %s (%s)\n", cell, cell->type.unescape());
 
     // Add the DSP cell
     RTLIL::Cell *cell = pm.module->addCell(NEW_ID, type);

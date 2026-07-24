@@ -207,7 +207,7 @@ struct Smt2Worker
 				}
 			else if (is_output || !is_input)
 				log_error("Unsupported or unknown directionality on port %s of cell %s.%s (%s).\n",
-						module->design->twines.str(conn.first).c_str(), module, cell, cell->type.unescaped());
+						module->design->twines.str(conn.first).c_str(), module, cell, cell->type.unescape());
 
 			if (cell->type.in(ID::$dff, ID::$_DFF_P_, ID::$_DFF_N_) && (conn.first == ID::CLK || conn.first == ID::C))
 			{
@@ -546,7 +546,7 @@ struct Smt2Worker
 	{
 		if (verbose)
 			log("%*s=> export_cell %s (%s) [%s]\n", 2+2*GetSize(recursive_cells), "",
-					cell, cell->type.unescaped(), exported_cells.count(cell) ? "old" : "new");
+					cell, cell->type.unescape(), exported_cells.count(cell) ? "old" : "new");
 
 		if (recursive_cells.count(cell))
 			log_error("Found logic loop in module %s! See cell %s.\n", get_id(module), get_id(cell));
@@ -887,7 +887,7 @@ struct Smt2Worker
 			return;
 		}
 
-		Module *m = module->design->module(cell->type_impl);
+		Module *m = module->design->module(cell->type);
 
 		if (m != nullptr)
 		{
@@ -1166,7 +1166,7 @@ struct Smt2Worker
 		if (verbose) log("=> export logic driving hierarchical cells\n");
 
 		for (auto cell : module->cells())
-			if (module->design->module(cell->type_impl) != nullptr)
+			if (module->design->module(cell->type) != nullptr)
 				export_cell(cell);
 
 		while (!hiercells_queue.empty())
@@ -1177,7 +1177,7 @@ struct Smt2Worker
 			for (auto cell : queue)
 			{
 				string cell_state = stringf("(|%s_h %s| state)", get_id(module), get_id(cell->name));
-				Module *m = module->design->module(cell->type_impl);
+				Module *m = module->design->module(cell->type);
 				log_assert(m != nullptr);
 
 				hier.push_back(stringf("  (= (|%s_is| state) (|%s_is| %s))\n",

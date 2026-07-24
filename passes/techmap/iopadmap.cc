@@ -90,7 +90,7 @@ struct IopadmapPass : public Pass {
 		if (modules_processed.count(module))
 			return;
 		for (auto cell : module->cells()) {
-			Module *submodule = design->module(cell->type_impl);
+			Module *submodule = design->module(cell->type);
 			if (!submodule)
 				continue;
 			module_queue(design, submodule, modules_sorted, modules_processed);
@@ -433,7 +433,7 @@ struct IopadmapPass : public Pass {
 						SigBit wire_bit(wire, i);
 
 						RTLIL::Cell *cell = module->addCell(
-							module->uniquify(Twine{stringf("$iopadmap$%s.%s", module->name.unescaped(), wire->name.unescaped())}),
+							module->uniquify(Twine{stringf("$iopadmap$%s.%s", module->name.unescape(), wire->name.unescape())}),
 							module->design->twines.add(std::string{RTLIL::escape_id(celltype)}));
 						cell->setPort(module->design->twines.add(std::string{RTLIL::escape_id(portname_int)}), wire_bit);
 
@@ -449,7 +449,7 @@ struct IopadmapPass : public Pass {
 				else
 				{
 					RTLIL::Cell *cell = module->addCell(
-						module->uniquify(Twine{stringf("$iopadmap$%s.%s", module->name.unescaped(), wire->name.unescaped())}),
+						module->uniquify(Twine{stringf("$iopadmap$%s.%s", module->name.unescape(), wire->name.unescape())}),
 						module->design->twines.add(std::string{RTLIL::escape_id(celltype)}));
 					cell->setPort(module->design->twines.add(std::string{RTLIL::escape_id(portname_int)}), RTLIL::SigSpec(wire));
 

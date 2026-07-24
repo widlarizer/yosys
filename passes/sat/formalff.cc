@@ -856,7 +856,7 @@ struct FormalFfPass : public Pass {
 
 						if (ff.val_init != before) {
 							log("Setting unused undefined initial value of %s.%s (%s) from %s to %s\n",
-									module, cell, cell->type.unescaped(),
+									module, cell, cell->type.unescape(),
 									log_const(before), log_const(ff.val_init));
 							worker.initvals.set_init(ff.sig_q, ff.val_init);
 						}
@@ -896,7 +896,7 @@ struct FormalFfPass : public Pass {
 								cell, cell->type, module);
 					if (ff.has_aload || ff.has_arst || ff.has_sr)
 						log_error("Async inputs on %s (%s) from module %s, run async2sync first.\n",
-								cell, cell->type.unescaped(), module);
+								cell, cell->type.unescape(), module);
 
 					auto clk_wire = ff.sig_clk.is_wire() ? ff.sig_clk.as_wire() : nullptr;
 
@@ -913,7 +913,7 @@ struct FormalFfPass : public Pass {
 
 					if (!attr.empty() && attr != clk_polarity)
 						log_error("CLK %s on %s (%s) from module %s also used with opposite polarity, run clk2fflogic instead.\n",
-								clk_wire, cell, cell->type.unescaped(), module);
+								clk_wire, cell, cell->type.unescape(), module);
 
 					attr = clk_polarity;
 					clk_wire->set_bool_attribute(ID::keep);

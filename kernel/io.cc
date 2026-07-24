@@ -404,7 +404,7 @@ std::string parent_from_file_path(std::string path) {
 	return result;
 }
 
-void format_emit_unescaped(std::string &result, std::string_view fmt)
+void format_emit_unescape(std::string &result, std::string_view fmt)
 {
 	result.reserve(result.size() + fmt.size());
 	for (size_t i = 0; i < fmt.size(); ++i) {
@@ -419,7 +419,7 @@ void format_emit_unescaped(std::string &result, std::string_view fmt)
 std::string unescape_format_string(std::string_view fmt)
 {
 	std::string result;
-	format_emit_unescaped(result, fmt);
+	format_emit_unescape(result, fmt);
 	return result;
 }
 

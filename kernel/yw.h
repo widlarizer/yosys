@@ -125,7 +125,7 @@ void witness_hierarchy_recursion(IdPath &path, int hdlname_mode, RTLIL::Module *
 
 	for (auto cell : module->cells())
 	{
-		Module *child = module->design->module(cell->type_impl);
+		Module *child = module->design->module(cell->type);
 		if (child == nullptr)
 			continue;
 

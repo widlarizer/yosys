@@ -1251,7 +1251,7 @@ struct ShareWorker
 			RTLIL::Cell *cell = *shareable_cells.begin();
 			shareable_cells.erase(cell);
 
-			log("  Analyzing resource sharing options for %s (%s):\n", cell, cell->type.unescaped());
+			log("  Analyzing resource sharing options for %s (%s):\n", cell, cell->type.unescape());
 
 			const pool<ssc_pair_t> &cell_activation_patterns = find_cell_activation_patterns(cell, "    ");
 			RTLIL::SigSpec cell_activation_signals = bits_from_activation_patterns(cell_activation_patterns);

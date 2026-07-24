@@ -225,7 +225,7 @@ struct XAigerWriter
 					continue;
 			}
 
-			RTLIL::Module* inst_module = design->module(cell->type_impl);
+			RTLIL::Module* inst_module = design->module(cell->type);
 			if (inst_module && inst_module->get_blackbox_attribute()) {
 				bool abc9_flop = false;
 
@@ -305,7 +305,7 @@ struct XAigerWriter
 					}
 			}
 
-			//log_warning("Unsupported cell type: %s (%s)\n", cell->type.unescaped(), cell);
+			//log_warning("Unsupported cell type: %s (%s)\n", cell->type.unescape(), cell);
 		}
 
 		dict<IdString, std::vector<IdString>> box_ports;
@@ -569,7 +569,7 @@ struct XAigerWriter
 				auto r = cell_cache.insert(cell->type);
 				auto &v = r.first->second;
 				if (r.second) {
-					RTLIL::Module* box_module = design->module(cell->type_impl);
+					RTLIL::Module* box_module = design->module(cell->type);
 					log_assert(box_module);
 
 					int box_inputs = 0, box_outputs = 0;

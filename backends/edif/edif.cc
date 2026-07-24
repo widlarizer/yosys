@@ -219,7 +219,7 @@ struct EdifBackend : public Backend {
 				if (cell->type == ID($scopeinfo))
 					continue;
 
-				if (design->module(cell->type_impl) == nullptr || design->module(cell->type_impl)->get_blackbox_attribute()) {
+				if (design->module(cell->type) == nullptr || design->module(cell->type)->get_blackbox_attribute()) {
 					lib_cell_ports[cell->type_impl];
 					for (auto p : cell->connections())
 						lib_cell_ports[cell->type_impl][p.first] = std::max(lib_cell_ports[cell->type_impl][p.first], GetSize(p.second));
@@ -309,8 +309,8 @@ struct EdifBackend : public Backend {
 		for (auto module : design->modules()) {
 			module_deps[module] = std::set<RTLIL::Module*>();
 			for (auto cell : module->cells())
-				if (design->module(cell->type_impl) != nullptr)
-					module_deps[module].insert(design->module(cell->type_impl));
+				if (design->module(cell->type) != nullptr)
+					module_deps[module].insert(design->module(cell->type));
 		}
 
 		// simple good-enough topological sort
@@ -497,7 +497,7 @@ struct EdifBackend : public Backend {
 									i, module, cell, port_name_str, log_signal(sig[i]));
 						else {
 							int member_idx = lsbidx ? i : GetSize(sig)-i-1;
-							auto m = design->module(cell->type_impl);
+							auto m = design->module(cell->type);
 							int width = sig.size();
 							if (m) {
 								auto w = m->wire(p.first);

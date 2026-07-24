@@ -97,7 +97,7 @@ struct EstimateSta {
 				FfData ff(nullptr, cell);
 				if (!ff.has_clk) {
 					log_warning("Ignoring unsupported storage element '%s' (%s)\n",
-								cell, cell->type.unescaped());
+								cell, cell->type.unescape());
 					continue;
 				}
 				if (!clk || ff.sig_clk.as_bit() != *clk)
@@ -121,7 +121,7 @@ struct EstimateSta {
 					aigs.emplace(fingerprint, Aig(cell));
 					if (aigs.at(fingerprint).name.empty()) {
 						log_error("Unsupported cell '%s' in module '%s'",
-								  cell->type.unescaped(), m);
+								  cell->type.unescape(), m);
 					}
 				}
 
@@ -342,7 +342,7 @@ struct EstimateSta {
 						std::string src_attr = cell->get_src_attribute();
 						cell_src = stringf(" source: %s", src_attr);
 					}
-					log("    cell %s (%s)%s\n", cell, cell->type.unescaped(), cell_src);
+					log("    cell %s (%s)%s\n", cell, cell->type.unescape(), cell_src);
 					printed.insert(cell);
 				}
 			} else {

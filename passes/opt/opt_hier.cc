@@ -449,7 +449,7 @@ struct OptHierPass : Pass {
 		for (auto module : d->modules()) {
 			for (auto cell : module->cells()) {
 				if (usage_datas.count(cell->type)) {
-					log_debug("Account for instance %s of %s in %s\n", cell, cell->type.unescaped(), module);
+					log_debug("Account for instance %s of %s in %s\n", cell, cell->type.unescape(), module);
 					usage_datas.at(cell->type).refine(cell, indices.at(module->name));
 				}
 			}
@@ -466,7 +466,7 @@ struct OptHierPass : Pass {
 
 			for (auto cell : module->cells()) {
 				if (indices.count(cell->type)) {
-					log_debug("Applying changes to instance %s of %s in %s\n", cell, cell->type.unescaped(), module);
+					log_debug("Applying changes to instance %s of %s in %s\n", cell, cell->type.unescape(), module);
 					did_something |= indices.at(cell->type).apply_changes(parent_index, cell);
 				}
 			}

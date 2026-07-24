@@ -104,7 +104,7 @@ static void add_wire(RTLIL::Design *design, RTLIL::Module *module, std::string n
 
 	for (auto cell : module->cells())
 	{
-		RTLIL::Module *mod = design->module(cell->type_impl);
+		RTLIL::Module *mod = design->module(cell->type);
 		if (mod == nullptr)
 			continue;
 		if (!mod->is_selected_whole())

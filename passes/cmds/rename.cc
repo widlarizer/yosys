@@ -137,12 +137,12 @@ static bool rename_witness(RTLIL::Design *design, dict<RTLIL::Module *, int> &ca
 	bool has_witness_signals = false;
 	for (auto cell : module->cells())
 	{
-		RTLIL::Module *impl = design->module(cell->type_impl);
+		RTLIL::Module *impl = design->module(cell->type);
 		if (impl != nullptr) {
 			bool witness_in_cell = rename_witness(design, cache, impl);
 			has_witness_signals |= witness_in_cell;
 			if (witness_in_cell && !cell->name.isPublic()) {
-				std::string name = cell->name.unescaped();
+				std::string name = cell->name.unescape();
 				for (auto &c : name)
 					if ((c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && (c < '0' || c > '9') && c != '_')
 						c = '_';
@@ -203,7 +203,7 @@ static bool rename_witness(RTLIL::Design *design, dict<RTLIL::Module *, int> &ca
 	return has_witness_signals;
 }
 
-[[maybe_unused]] static std::string renamed_unescaped(const std::string& str)
+[[maybe_unused]] static std::string renamed_unescape(const std::string& str)
 {
 	std::string new_str = "";
 
@@ -589,7 +589,7 @@ struct RenamePass : public Pass {
 					name = name.substr(1);
 					if (!VERILOG_BACKEND::id_is_verilog_escaped(name))
 						continue;
-					new_wire_names[wire] = module->uniquify(module->design->twines.add(std::string{"\\" + renamed_unescaped(name)}));
+					new_wire_names[wire] = module->uniquify(module->design->twines.add(std::string{"\\" + renamed_unescape(name)}));
 					auto new_name = module->design->twines.str(new_wire_names[wire]).substr(1);
 					if (VERILOG_BACKEND::id_is_verilog_escaped(new_name))
 						log_error("Failed to rename wire %s -> %s\n", name, new_name);
@@ -602,7 +602,7 @@ struct RenamePass : public Pass {
 					name = name.substr(1);
 					if (!VERILOG_BACKEND::id_is_verilog_escaped(name))
 						continue;
-					new_cell_names[cell] = module->uniquify(module->design->twines.add(std::string{"\\" + renamed_unescaped(name)}));
+					new_cell_names[cell] = module->uniquify(module->design->twines.add(std::string{"\\" + renamed_unescape(name)}));
 					auto new_name = module->design->twines.str(new_cell_names[cell]).substr(1);
 					if (VERILOG_BACKEND::id_is_verilog_escaped(new_name))
 						log_error("Failed to rename cell %s -> %s\n", name, new_name);

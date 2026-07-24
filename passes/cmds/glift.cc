@@ -184,7 +184,7 @@ private:
 		std::vector<RTLIL::SigSig> connections(module->connections());
 
 		for(auto &cell : module->cells().to_vector()) {
-			if (!cell->type.in(ID::$_AND_, ID::$_NAND_, ID::$_OR_, ID::$_NOR_, ID::$_XOR_, ID::$_XNOR_, ID::$_MUX_, ID::$_NMUX_, ID::$_NOT_, ID::$anyconst, ID::$allconst, ID::$assume, ID::$assert) && module->design->module(cell->type_impl) == nullptr) {
+			if (!cell->type.in(ID::$_AND_, ID::$_NAND_, ID::$_OR_, ID::$_NOR_, ID::$_XOR_, ID::$_XNOR_, ID::$_MUX_, ID::$_NMUX_, ID::$_NOT_, ID::$anyconst, ID::$allconst, ID::$assume, ID::$assert) && module->design->module(cell->type) == nullptr) {
 				log_cmd_error("Unsupported cell type \"%s\" found.  Run `techmap` first.\n", cell->type);
 			}
 			if (cell->type.in(ID($_AND_), ID($_NAND_), ID($_OR_), ID($_NOR_))) {
@@ -337,12 +337,12 @@ private:
 				}
 				else log_cmd_error("This is a bug (3).\n");
 			}
-			else if (module->design->module(cell->type_impl) != nullptr) {
+			else if (module->design->module(cell->type) != nullptr) {
 				//User cell type
 				//This function is called on modules according to topological order, so we do not need to
 				//recurse to GLIFT model the child module. However, we need to augment the ports list
 				//with taint signals and connect the new ports to the corresponding taint signals.
-				RTLIL::Module *cell_module_def = module->design->module(cell->type_impl);
+				RTLIL::Module *cell_module_def = module->design->module(cell->type);
 				auto orig_ports = cell->connections();
 				log("Adding cell %s\n", cell_module_def->name.str().c_str());
 				for (auto &it : orig_ports) {
@@ -592,7 +592,7 @@ struct GliftPass : public Pass {
 			topo_modules.node(module);
 
 			for (auto cell : module->selected_cells()) {
-				RTLIL::Module *tpl = design->module(cell->type_impl);
+				RTLIL::Module *tpl = design->module(cell->type);
 				if (tpl != nullptr) {
 					if (!topo_modules.has_node(tpl))
 						worklist.push_back(tpl);

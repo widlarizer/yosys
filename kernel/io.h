@@ -381,7 +381,7 @@ inline void format_emit_one(std::string &result, std::string_view fmt, const Fou
 
 // Append the format string `fmt` to `result`, assuming there are no format conversion
 // specifiers other than "%%" and therefore no arguments. Unescape "%%".
-void format_emit_unescaped(std::string &result, std::string_view fmt);
+void format_emit_unescape(std::string &result, std::string_view fmt);
 std::string unescape_format_string(std::string_view fmt);
 
 inline void format_emit(std::string &result, std::string_view fmt, int fmt_start,
@@ -389,7 +389,7 @@ inline void format_emit(std::string &result, std::string_view fmt, int fmt_start
 {
 	fmt = fmt.substr(fmt_start);
 	if (has_escapes) {
-		format_emit_unescaped(result, fmt);
+		format_emit_unescape(result, fmt);
 	} else {
 		result += fmt;
 	}
@@ -416,7 +416,7 @@ inline void format_emit(std::string &result, std::string_view fmt, int fmt_start
 	}
 	std::string_view str = fmt.substr(fmt_start, specs->start - fmt_start);
 	if (has_escapes) {
-		format_emit_unescaped(result, str);
+		format_emit_unescape(result, str);
 	} else {
 		result += str;
 	}

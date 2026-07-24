@@ -291,16 +291,16 @@ struct Clk2fflogicPass : public Pass {
 
 				if (ff.has_clk) {
 					log("Replacing %s.%s (%s): CLK=%s, D=%s, Q=%s\n",
-							module, cell, cell->type.unescaped(),
+							module, cell, cell->type.unescape(),
 							log_signal(ff.sig_clk), log_signal(ff.sig_d), log_signal(ff.sig_q));
 				} else if (ff.has_aload) {
 					log("Replacing %s.%s (%s): EN=%s, D=%s, Q=%s\n",
-							module, cell, cell->type.unescaped(),
+							module, cell, cell->type.unescape(),
 							log_signal(ff.sig_aload), log_signal(ff.sig_ad), log_signal(ff.sig_q));
 				} else {
 					// $sr.
 					log("Replacing %s.%s (%s): SET=%s, CLR=%s, Q=%s\n",
-							module, cell, cell->type.unescaped(),
+							module, cell, cell->type.unescape(),
 							log_signal(ff.sig_set), log_signal(ff.sig_clr), log_signal(ff.sig_q));
 				}
 

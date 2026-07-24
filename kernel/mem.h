@@ -97,7 +97,7 @@ struct Mem : RTLIL::AttrObject {
 	// the Design through the module back-pointer instead of spelling out
 	// `module->design->twines.str(memid)` at every call site.
 	std::string name_str() const { return module->design->twines.str(memid); }
-	std::string name_unescaped() const { return module->design->twines.unescaped_str(memid); }
+	std::string name_unescape() const { return module->design->twines.unescaped_str(memid); }
 	bool packed;
 	RTLIL::Memory *mem;
 	Cell *cell;

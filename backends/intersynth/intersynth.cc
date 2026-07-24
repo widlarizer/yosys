@@ -41,7 +41,7 @@ static std::string netname(std::set<std::string> &conntypes_code, std::set<std::
 		return stringf("CONST_%d_0x%x", sig.size(), sig.as_int());
 	}
 
-	return sig.as_wire()->name.unescaped();
+	return sig.as_wire()->name.unescape();
 }
 
 struct IntersynthBackend : public Backend {
@@ -151,8 +151,8 @@ struct IntersynthBackend : public Backend {
 				if (wire->port_input || wire->port_output) {
 					celltypes_code.insert(stringf("celltype !%s b%d %sPORT\n" "%s %s %d %s PORT\n",
 							wire->name.unescape(), wire->width, wire->port_input ? "*" : "",
-							wire->port_input ? "input" : "output", wire->name.unescaped(), wire->width, wire->name.unescaped()));
-					netlists_code += stringf("node %s %s PORT %s\n", wire->name.unescaped(), wire->name.unescaped(),
+							wire->port_input ? "input" : "output", wire->name.unescape(), wire->width, wire->name.unescape()));
+					netlists_code += stringf("node %s %s PORT %s\n", wire->name.unescape(), wire->name.unescape(),
 							netname(conntypes_code, celltypes_code, constcells_code, sigmap(wire)).c_str());
 				}
 			}
@@ -163,10 +163,10 @@ struct IntersynthBackend : public Backend {
 				std::string celltype_code, node_code;
 
 				if (!ct.cell_known(cell->type_impl))
-					log_error("Found unknown cell type %s in module!\n", cell->type.unescaped());
+					log_error("Found unknown cell type %s in module!\n", cell->type.unescape());
 
-				celltype_code = stringf("celltype %s", cell->type.unescaped());
-				node_code = stringf("node %s %s", cell->name.unescape(), cell->type.unescaped());
+				celltype_code = stringf("celltype %s", cell->type.unescape());
+				node_code = stringf("node %s %s", cell->name.unescape(), cell->type.unescape());
 				for (auto &port : cell->connections()) {
 					RTLIL::SigSpec sig = sigmap(port.second);
 					if (sig.size() != 0) {
