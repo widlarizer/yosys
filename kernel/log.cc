@@ -571,7 +571,7 @@ void log_flush()
 		f->flush();
 }
 
-void log_dump_val_worker(TwineRef v) {
+void log_dump_val_worker(IdString v) {
 	log("%s", log_id(v));
 }
 
@@ -612,7 +612,7 @@ static const char *log_id_cached(std::string unescaped)
 
 // Pool-free fallback: only static (ID::) handles carry their own name.
 // Anything else needs the owning Design; use log_id(design, ref) there.
-const char *log_id(const TwineRef &str)
+const char *log_id(const IdString &str)
 {
 	if (str == Twine::Null)
 		return log_id_cached(std::string());
@@ -622,17 +622,17 @@ const char *log_id(const TwineRef &str)
 	return log_id_cached(RTLIL::unescape_id(name));
 }
 
-static const char *log_id_twine(const RTLIL::Design *design, TwineRef name)
+static const char *log_id_twine(const RTLIL::Design *design, IdString name)
 {
 	return log_id_cached(RTLIL::unescape_id(design->twines.str(name)));
 }
 
-const char *log_id(const RTLIL::Design *design, TwineRef name)
+const char *log_id(const RTLIL::Design *design, IdString name)
 {
 	return log_id_twine(design, name);
 }
 
-const char *log_id(const RTLIL::Module *module, TwineRef name)
+const char *log_id(const RTLIL::Module *module, IdString name)
 {
 	return log_id_twine(module->design, name);
 }

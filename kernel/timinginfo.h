@@ -29,15 +29,15 @@ struct TimingInfo
 {
 	struct NameBit
 	{
-		TwineRef name;
+		IdString name;
 		int offset;
 		NameBit() : offset(0) {}
-		NameBit(TwineRef name, int offset) : name(name), offset(offset) {}
+		NameBit(IdString name, int offset) : name(name), offset(offset) {}
 		explicit NameBit(const RTLIL::SigBit &b) : name(b.wire->meta_->name), offset(b.offset) {}
 		bool operator==(const NameBit& nb) const { return nb.name == name && nb.offset == offset; }
 		bool operator!=(const NameBit& nb) const { return !operator==(nb); }
 		std::optional<SigBit> get_connection(RTLIL::Cell *cell) {
-			TwineRef port_name = name;
+			IdString port_name = name;
 			if (!cell->hasPort(port_name))
 				return {};
 			auto &port = cell->getPort(port_name);
@@ -71,7 +71,7 @@ struct TimingInfo
 		bool has_inputs;
 	};
 
-	dict<TwineRef, ModuleTiming> data;
+	dict<IdString, ModuleTiming> data;
 
 	TimingInfo()
 	{
@@ -198,10 +198,10 @@ struct TimingInfo
 		return t;
 	}
 
-	decltype(data)::const_iterator find(TwineRef module_name) const { return data.find(module_name); }
+	decltype(data)::const_iterator find(IdString module_name) const { return data.find(module_name); }
 	decltype(data)::const_iterator end() const { return data.end(); }
-	int count(TwineRef module_name) const { return data.count(module_name); }
-	const ModuleTiming& at(TwineRef module_name) const { return data.at(module_name); }
+	int count(IdString module_name) const { return data.count(module_name); }
+	const ModuleTiming& at(IdString module_name) const { return data.at(module_name); }
 };
 
 YOSYS_NAMESPACE_END

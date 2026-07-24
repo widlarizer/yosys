@@ -50,7 +50,7 @@ std::string getFileinfo(const RTLIL::AttrObject *design_entity, const RTLIL::Des
 }
 
 // Get a port direction with respect to a specific module.
-FDirection getPortFDirection(TwineRef ref, Module *module)
+FDirection getPortFDirection(IdString ref, Module *module)
 {
 	Wire *wire = module->wire(ref);
 	FDirection direction = FD_NODIRECTION;
@@ -285,7 +285,7 @@ void emit_extmodule(RTLIL::Cell *cell, RTLIL::Module *mod_instance, std::ostream
 	// Emit extmodule generic parameters.
 	for (const auto &p : cell->parameters)
 	{
-		const TwineRef p_id = p.first;
+		const IdString p_id = p.first;
 		const RTLIL::Const p_value = p.second;
 
 		std::string param_name(cell->module->design->twines.str(p_id));

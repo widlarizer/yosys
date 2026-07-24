@@ -297,7 +297,7 @@ struct OptMergeWorker
 			for (auto [remove_cell, keep_cell] : cell_ptrs)
 			{
 				log_debug("  Cell `%s' is identical to cell `%s'.\n", remove_cell->name, keep_cell->name);
-				std::vector<std::pair<TwineRef, RTLIL::SigSpec>> port_replacements;
+				std::vector<std::pair<IdString, RTLIL::SigSpec>> port_replacements;
 				for (auto &it : remove_cell->connections()) {
 					if (remove_cell->output(it.first)) {
 						RTLIL::SigSpec keep_sig = keep_cell->getPort(it.first);
@@ -322,7 +322,7 @@ struct OptMergeWorker
 
 				// Detach every port (inputs included) so the old output
 				// signals are not briefly double-driven while we rewire.
-				std::vector<TwineRef> all_ports;
+				std::vector<IdString> all_ports;
 				all_ports.reserve(remove_cell->connections().size());
 				for (auto &it : remove_cell->connections())
 					all_ports.push_back(it.first);

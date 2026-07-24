@@ -247,7 +247,7 @@ bool is_blackbox(Netlist *nl)
 	return false;
 }
 
-TwineRef VerificImporter::new_verific_id(Verific::DesignObj *obj)
+IdString VerificImporter::new_verific_id(Verific::DesignObj *obj)
 {
 	std::string s = stringf("$verific$%s", obj->Name());
 	if (obj->Linefile())
@@ -427,7 +427,7 @@ static const std::string verific_unescape(const char *value)
 }
 #endif
 
-void VerificImporter::import_attributes(dict<TwineRef, RTLIL::Const> &attributes, DesignObj *obj, Netlist *nl, int wire_width_hint)
+void VerificImporter::import_attributes(dict<IdString, RTLIL::Const> &attributes, DesignObj *obj, Netlist *nl, int wire_width_hint)
 {
 	if (!obj)
 		return;
@@ -652,7 +652,7 @@ RTLIL::SigSpec VerificImporter::operatorOutput(Instance *inst, const pool<Net*> 
 	return sig;
 }
 
-bool VerificImporter::import_netlist_instance_gates(Instance *inst, TwineRef inst_name)
+bool VerificImporter::import_netlist_instance_gates(Instance *inst, IdString inst_name)
 {
 	if (inst->Type() == PRIM_AND) {
 		module->addAndGate(inst_name, net_map_at(inst->GetInput1()), net_map_at(inst->GetInput2()), net_map_at(inst->GetOutput()));
@@ -783,7 +783,7 @@ bool VerificImporter::import_netlist_instance_gates(Instance *inst, TwineRef ins
 	return false;
 }
 
-bool VerificImporter::import_netlist_instance_cells(Instance *inst, TwineRef inst_name)
+bool VerificImporter::import_netlist_instance_cells(Instance *inst, IdString inst_name)
 {
 	RTLIL::Cell *cell = nullptr;
 
@@ -1801,7 +1801,7 @@ void VerificImporter::import_netlist(RTLIL::Design *design, Netlist *nl, std::ma
 		if (net->Bus())
 			continue;
 
-		TwineRef wire_name = module->uniquify(mode_names || net->IsUserDeclared() ? RTLIL::escape_id(net->Name()) : new_verific_id(net));
+		IdString wire_name = module->uniquify(mode_names || net->IsUserDeclared() ? RTLIL::escape_id(net->Name()) : new_verific_id(net));
 
 		if (verific_verbose)
 			log("  importing net %s as %s.\n", net->Name(), wire_name.unescape());
@@ -1825,7 +1825,7 @@ void VerificImporter::import_netlist(RTLIL::Design *design, Netlist *nl, std::ma
 
 		if (found_new_net)
 		{
-			TwineRef wire_name = module->uniquify(mode_names || netbus->IsUserDeclared() ? RTLIL::escape_id(netbus->Name()) : new_verific_id(netbus));
+			IdString wire_name = module->uniquify(mode_names || netbus->IsUserDeclared() ? RTLIL::escape_id(netbus->Name()) : new_verific_id(netbus));
 
 			if (verific_verbose)
 				log("  importing netbus %s as %s.\n", netbus->Name(), wire_name.unescape());
@@ -1958,7 +1958,7 @@ void VerificImporter::import_netlist(RTLIL::Design *design, Netlist *nl, std::ma
 
 	FOREACH_INSTANCE_OF_NETLIST(nl, mi, inst)
 	{
-		TwineRef inst_name = module->uniquify(mode_names || inst->IsUserDeclared() ? RTLIL::escape_id(inst->Name()) : new_verific_id(inst));
+		IdString inst_name = module->uniquify(mode_names || inst->IsUserDeclared() ? RTLIL::escape_id(inst->Name()) : new_verific_id(inst));
 
 		if (verific_verbose)
 			log("  importing cell %s (%s) as %s.\n", inst->Name(), inst->View()->Owner()->Name(), inst_name.unescape());
@@ -2008,7 +2008,7 @@ void VerificImporter::import_netlist(RTLIL::Design *design, Netlist *nl, std::ma
 				RTLIL::SigSpec data = operatorOutput(inst).extract(i * memory->width, memory->width);
 
 				RTLIL::Cell *cell = module->addCell(numchunks == 1 ? inst_name :
-						TwineRef(stringf("%s_%d", inst_name, i)), ID::$memrd);
+						IdString(stringf("%s_%d", inst_name, i)), ID::$memrd);
 				cell->parameters[ID::MEMID] = memory->name.str();
 				cell->parameters[ID::CLK_ENABLE] = false;
 				cell->parameters[ID::CLK_POLARITY] = true;
@@ -2038,7 +2038,7 @@ void VerificImporter::import_netlist(RTLIL::Design *design, Netlist *nl, std::ma
 				RTLIL::SigSpec data = operatorInput2(inst).extract(i * memory->width, memory->width);
 
 				RTLIL::Cell *cell = module->addCell(numchunks == 1 ? inst_name :
-						TwineRef(stringf("%s_%d", inst_name, i)), ID::$memwr);
+						IdString(stringf("%s_%d", inst_name, i)), ID::$memwr);
 				cell->parameters[ID::MEMID] = memory->name.str();
 				cell->parameters[ID::CLK_ENABLE] = false;
 				cell->parameters[ID::CLK_POLARITY] = true;
@@ -2277,7 +2277,7 @@ void VerificImporter::import_netlist(RTLIL::Design *design, Netlist *nl, std::ma
 		if (inst->IsPrimitive() && mode_keep)
 			cell->attributes[ID::keep] = 1;
 
-		dict<TwineRef, vector<SigBit>> cell_port_conns;
+		dict<IdString, vector<SigBit>> cell_port_conns;
 
 		if (verific_verbose)
 			log("    ports in verific db:\n");
@@ -2310,7 +2310,7 @@ void VerificImporter::import_netlist(RTLIL::Design *design, Netlist *nl, std::ma
 					port_offset = abs(port_offset - (lsb_index - min(msb_index, lsb_index)));
 				}
 			}
-			TwineRef port_name_id = RTLIL::escape_id(port_name);
+			IdString port_name_id = RTLIL::escape_id(port_name);
 			auto &sigvec = cell_port_conns[port_name_id];
 			if (GetSize(sigvec) <= port_offset) {
 				SigSpec zwires = module->addWire(new_verific_id(inst), port_offset+1-GetSize(sigvec));
@@ -2547,7 +2547,7 @@ VerificClocking::VerificClocking(VerificImporter *importer, Net *net, bool sva_a
 		gclk = true;
 }
 
-Cell *VerificClocking::addDff(TwineRef name, SigSpec sig_d, SigSpec sig_q, Const init_value)
+Cell *VerificClocking::addDff(IdString name, SigSpec sig_d, SigSpec sig_q, Const init_value)
 {
 	log_assert(GetSize(sig_d) == GetSize(sig_q));
 
@@ -2610,7 +2610,7 @@ Cell *VerificClocking::addDff(TwineRef name, SigSpec sig_d, SigSpec sig_q, Const
 	return module->addDff(name, clock_sig, sig_d, sig_q, posedge);
 }
 
-Cell *VerificClocking::addAdff(TwineRef name, RTLIL::SigSpec sig_arst, SigSpec sig_d, SigSpec sig_q, Const arst_value)
+Cell *VerificClocking::addAdff(IdString name, RTLIL::SigSpec sig_arst, SigSpec sig_d, SigSpec sig_q, Const arst_value)
 {
 	log_assert(gclk == false);
 	log_assert(disable_sig == State::S0);
@@ -2622,7 +2622,7 @@ Cell *VerificClocking::addAdff(TwineRef name, RTLIL::SigSpec sig_arst, SigSpec s
 	return module->addAdff(name, clock_sig, sig_arst, sig_d, sig_q, arst_value, posedge);
 }
 
-Cell *VerificClocking::addDffsr(TwineRef name, RTLIL::SigSpec sig_set, RTLIL::SigSpec sig_clr, SigSpec sig_d, SigSpec sig_q)
+Cell *VerificClocking::addDffsr(IdString name, RTLIL::SigSpec sig_set, RTLIL::SigSpec sig_clr, SigSpec sig_d, SigSpec sig_q)
 {
 	log_assert(gclk == false);
 	log_assert(disable_sig == State::S0);
@@ -2634,7 +2634,7 @@ Cell *VerificClocking::addDffsr(TwineRef name, RTLIL::SigSpec sig_set, RTLIL::Si
 	return module->addDffsr(name, clock_sig, sig_set, sig_clr, sig_d, sig_q, posedge);
 }
 
-Cell *VerificClocking::addAldff(TwineRef name, RTLIL::SigSpec sig_aload, RTLIL::SigSpec sig_adata, SigSpec sig_d, SigSpec sig_q)
+Cell *VerificClocking::addAldff(IdString name, RTLIL::SigSpec sig_aload, RTLIL::SigSpec sig_adata, SigSpec sig_d, SigSpec sig_q)
 {
 	log_assert(disable_sig == State::S0);
 

@@ -29,15 +29,15 @@ struct EquivMarkWorker
 	SigMap sigmap;
 
 	// cache for traversing signal flow graph
-	dict<SigBit, pool<TwineRef>> up_bit2cells;
-	dict<TwineRef, pool<SigBit>> up_cell2bits;
-	pool<TwineRef> edge_cells, equiv_cells;
+	dict<SigBit, pool<IdString>> up_bit2cells;
+	dict<IdString, pool<SigBit>> up_cell2bits;
+	pool<IdString> edge_cells, equiv_cells;
 
 	// graph traversal state
 	pool<SigBit> queue, visited;
 
 	// assigned regions
-	dict<TwineRef, int> cell_regions;
+	dict<IdString, int> cell_regions;
 	dict<SigBit, int> bit_regions;
 	int next_region;
 
@@ -70,7 +70,7 @@ struct EquivMarkWorker
 	{
 		while (!queue.empty())
 		{
-			pool<TwineRef> cells;
+			pool<IdString> cells;
 
 			for (auto &bit : queue)
 			{

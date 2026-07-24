@@ -10,7 +10,7 @@ endmatch
 match add
 	select add->type.in($add, $sub)
 	select GetSize(port(add, \Y)) <= 48
-	choice <TwineRef> AB {\A, \B}
+	choice <IdString> AB {\A, \B}
 	index <SigBit> port(add, AB)[0] === port(mul, \Y)[0]
 endmatch
 
@@ -21,7 +21,7 @@ code
 
 	{
 		SigSpec mul_out = port(mul, \Y);
-		TwineRef add_AB;
+		IdString add_AB;
 
 		if (GetSize(port(add, \A)) >= GetSize(mul_out) && port(add, \A).extract(0, GetSize(mul_out)) == mul_out) {
 			add_AB = \A;
@@ -32,7 +32,7 @@ code
 		}
 
 		Cell *mac = module->addCell(NEW_ID, Twine{std::string("$__NX_MAC18X18")});
-		TwineRef add_C = (add_AB == \A) ? \B : \A;
+		IdString add_C = (add_AB == \A) ? \B : \A;
 
 		mac->setPort(\A, port(mul, \A));
 		mac->setPort(\B, port(mul, \B));
@@ -58,7 +58,7 @@ endmatch
 match mul
 	select mul->type.in($mul)
 	select GetSize(port(mul, \Y)) <= 48
-	choice <TwineRef> mul_AB {\A, \B}
+	choice <IdString> mul_AB {\A, \B}
 	index <SigBit> port(mul, mul_AB)[0] === port(preadd, \Y)[0]
 endmatch
 
@@ -70,7 +70,7 @@ endmatch
 
 code
 	SigSpec preadd_out = port(preadd, \Y);
-	TwineRef actual_mul_AB;
+	IdString actual_mul_AB;
 
 	if (GetSize(port(mul, \A)) >= GetSize(preadd_out) && port(mul, \A).extract(0, GetSize(preadd_out)) == preadd_out) {
 		actual_mul_AB = \A;
@@ -83,9 +83,9 @@ code
 	{
 		Cell *mac = module->addCell(NEW_ID, Twine{std::string("$__NX_PREADD18X18")});
 
-		TwineRef mul_other = (actual_mul_AB == \A) ? \B : \A;
-		TwineRef sgn_AC = (mul_other == \A) ? \B_SIGNED : \A_SIGNED;
-		TwineRef sgn_B = (mul_other == \A) ? \A_SIGNED : \B_SIGNED;
+		IdString mul_other = (actual_mul_AB == \A) ? \B : \A;
+		IdString sgn_AC = (mul_other == \A) ? \B_SIGNED : \A_SIGNED;
+		IdString sgn_B = (mul_other == \A) ? \A_SIGNED : \B_SIGNED;
 
 		SigSpec sig_A = port(preadd, \A);
 		SigSpec sig_C = port(preadd, \B);

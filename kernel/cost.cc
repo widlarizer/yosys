@@ -18,7 +18,7 @@ unsigned int CellCosts::get(RTLIL::Module *mod)
 	return module_cost;
 }
 
-static unsigned int y_coef(TwineRef type)
+static unsigned int y_coef(IdString type)
 {
 	if (
 	  // equality
@@ -46,7 +46,7 @@ static unsigned int y_coef(TwineRef type)
 	return 0;
 }
 
-static unsigned int max_inp_coef(TwineRef type)
+static unsigned int max_inp_coef(IdString type)
 {
 	if (
 	  // binop reduce
@@ -69,7 +69,7 @@ static unsigned int max_inp_coef(TwineRef type)
 	return 0;
 }
 
-static unsigned int sum_coef(TwineRef type)
+static unsigned int sum_coef(IdString type)
 {
 	if (type.in(ID($shr), ID($sshr))) {
 		// right shift
@@ -81,12 +81,12 @@ static unsigned int sum_coef(TwineRef type)
 	return 0;
 }
 
-static unsigned int is_div_mod(TwineRef type)
+static unsigned int is_div_mod(IdString type)
 {
 	return (type == ID($div) || type == ID($divfloor) || type == ID($mod) || type == ID($modfloor));
 }
 
-static bool is_free(TwineRef type)
+static bool is_free(IdString type)
 {
 	return (
 	  // tags
@@ -105,7 +105,7 @@ static bool is_free(TwineRef type)
 unsigned int max_inp_width(RTLIL::Cell *cell)
 {
 	unsigned int max = 0;
-	TwineRef input_width_params[] = {
+	IdString input_width_params[] = {
 	  ID::WIDTH,
 	  ID::A_WIDTH,
 	  ID::B_WIDTH,
@@ -115,7 +115,7 @@ unsigned int max_inp_width(RTLIL::Cell *cell)
 	if (cell->type == ID($bmux))
 		return cell->getParam(ID::WIDTH).as_int() << cell->getParam(ID::S_WIDTH).as_int();
 
-	for (TwineRef param : input_width_params)
+	for (IdString param : input_width_params)
 		if (cell->hasParam(param))
 			max = std::max(max, (unsigned int)cell->getParam(param).as_int());
 	return max;
@@ -124,7 +124,7 @@ unsigned int max_inp_width(RTLIL::Cell *cell)
 unsigned int port_width_sum(RTLIL::Cell *cell)
 {
 	unsigned int sum = 0;
-	TwineRef port_width_params[] = {
+	IdString port_width_params[] = {
 	  ID::WIDTH, ID::A_WIDTH, ID::B_WIDTH, ID::S_WIDTH, ID::Y_WIDTH,
 	};
 

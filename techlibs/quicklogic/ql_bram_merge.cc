@@ -32,14 +32,14 @@ PRIVATE_NAMESPACE_BEGIN
 struct QlBramMergeWorker {
 
 	// can be used to record parameter values that have to match on both sides
-	typedef dict<TwineRef, RTLIL::Const> MergeableGroupKeyType;
+	typedef dict<IdString, RTLIL::Const> MergeableGroupKeyType;
 
 	RTLIL::Module *module;
 	dict<MergeableGroupKeyType, pool<RTLIL::Cell*>> mergeable_groups;
 
 	QlBramMergeWorker(RTLIL::Module* module) : module(module)
 	{
-		const TwineRef split_cell_type = ID::$__QLF_TDP36K;
+		const IdString split_cell_type = ID::$__QLF_TDP36K;
 
 		for (RTLIL::Cell* cell : module->selected_cells())
 		{
@@ -58,16 +58,16 @@ struct QlBramMergeWorker {
 		return key;
 	}
 
-	const dict<TwineRef, TwineRef>& param_map(bool second)
+	const dict<IdString, IdString>& param_map(bool second)
 	{
-		static const dict<TwineRef, TwineRef> bram1_map = {
+		static const dict<IdString, IdString> bram1_map = {
 			{ ID(INIT),                     ID(INIT1) },
 			{ ID(PORT_A_WIDTH),             ID(PORT_A1_WIDTH) },
 			{ ID(PORT_B_WIDTH),             ID(PORT_B1_WIDTH) },
 			{ ID(PORT_A_WR_BE_WIDTH),       ID(PORT_A1_WR_BE_WIDTH) },
 			{ ID(PORT_B_WR_BE_WIDTH),       ID(PORT_B1_WR_BE_WIDTH) }
 		};
-		static const dict<TwineRef, TwineRef> bram2_map = {
+		static const dict<IdString, IdString> bram2_map = {
 			{ ID(INIT),                     ID(INIT2) },
 			{ ID(PORT_A_WIDTH),             ID(PORT_A2_WIDTH) },
 			{ ID(PORT_B_WIDTH),             ID(PORT_B2_WIDTH) },
@@ -81,9 +81,9 @@ struct QlBramMergeWorker {
 			return bram1_map;
 	}
 
-	const dict<TwineRef, TwineRef>& port_map(bool second)
+	const dict<IdString, IdString>& port_map(bool second)
 	{
-		static const dict<TwineRef, TwineRef> bram1_map = {
+		static const dict<IdString, IdString> bram1_map = {
 			{ ID(PORT_A_CLK),       ID(PORT_A1_CLK) },
 			{ ID(PORT_B_CLK),       ID(PORT_B1_CLK) },
 			{ ID(PORT_A_CLK_EN),    ID(PORT_A1_CLK_EN) },
@@ -99,7 +99,7 @@ struct QlBramMergeWorker {
 			{ ID(PORT_A_RD_DATA),   ID(PORT_A1_RD_DATA) },
 			{ ID(PORT_B_RD_DATA),   ID(PORT_B1_RD_DATA) }
 		};
-		static const dict<TwineRef, TwineRef> bram2_map = {
+		static const dict<IdString, IdString> bram2_map = {
 			{ ID(PORT_A_CLK),       ID(PORT_A2_CLK) },
 			{ ID(PORT_B_CLK),       ID(PORT_B2_CLK) },
 			{ ID(PORT_A_CLK_EN),    ID(PORT_A2_CLK_EN) },
@@ -122,10 +122,10 @@ struct QlBramMergeWorker {
 			return bram1_map;
 	}
 
-	void set_bb_instance_port(RTLIL::Cell *merged, TwineRef port, const RTLIL::SigSpec &sig)
+	void set_bb_instance_port(RTLIL::Cell *merged, IdString port, const RTLIL::SigSpec &sig)
 	{
 		RTLIL::Design *design = module->design;
-		TwineRef generated = design->twines.add(RTLIL::escape_id("ql_bram_merge_blackbox"));
+		IdString generated = design->twines.add(RTLIL::escape_id("ql_bram_merge_blackbox"));
 
 		RTLIL::Module *mod = design->module(merged->type_impl);
 		if (mod == nullptr) {
@@ -147,7 +147,7 @@ struct QlBramMergeWorker {
 
 	void merge_brams(RTLIL::Cell* bram1, RTLIL::Cell* bram2)
 	{
-		const TwineRef merged_cell_type = ID::$__QLF_TDP36K_MERGED;
+		const IdString merged_cell_type = ID::$__QLF_TDP36K_MERGED;
 
 		// Create the new cell
 		RTLIL::Cell* merged = module->addCell(NEW_ID, merged_cell_type);

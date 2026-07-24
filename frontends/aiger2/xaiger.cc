@@ -61,7 +61,7 @@ struct Xaiger2Frontend : public Frontend {
 
 	void read_sc_mapping(std::istream *&f, std::string filename, std::vector<std::string> args, Design *design)
 	{
-		std::optional<TwineRef> module_name;
+		std::optional<IdString> module_name;
 		TwineSearch search(&design->twines);
 		std::string map_filename;
 
@@ -264,9 +264,9 @@ struct Xaiger2Frontend : public Frontend {
 				log_debug("M: len=%u no_cells=%u no_instances=%u\n", len, no_cells, no_instances);
 
 				struct MappingCell {
-					TwineRef type;
-					TwineRef out;
-					std::vector<TwineRef> ins;
+					IdString type;
+					IdString out;
+					std::vector<IdString> ins;
 				};
 				std::vector<MappingCell> cells;
 				cells.resize(no_cells);

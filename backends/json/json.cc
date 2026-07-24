@@ -74,7 +74,7 @@ struct JsonWriter
 		return newstr + "\"";
 	}
 
-	string get_name(TwineRef name)
+	string get_name(IdString name)
 	{
 		return get_string(design->twines.unescaped_str(name));
 	}
@@ -130,7 +130,7 @@ struct JsonWriter
 		}
 	}
 
-	void write_parameters(const dict<TwineRef, Const> &parameters, bool for_module=false, const RTLIL::AttrObject *src_obj=nullptr)
+	void write_parameters(const dict<IdString, Const> &parameters, bool for_module=false, const RTLIL::AttrObject *src_obj=nullptr)
 	{
 		bool first = true;
 		if (src_obj && design && design->obj_src_id(src_obj) != Twine::Null) {

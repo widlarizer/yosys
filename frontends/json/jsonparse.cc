@@ -274,14 +274,14 @@ Const json_parse_attr_param_value(JsonNode *node)
 	return value;
 }
 
-void json_parse_attr_param(RTLIL::Design *design, dict<TwineRef, Const> &results, JsonNode *node)
+void json_parse_attr_param(RTLIL::Design *design, dict<IdString, Const> &results, JsonNode *node)
 {
 	if (node->type != 'D')
 		log_error("JSON attributes or parameters node is not a dictionary.\n");
 
 	for (auto it : node->data_dict)
 	{
-		TwineRef key = design->twines.add(RTLIL::escape_id(it.first.c_str()));
+		IdString key = design->twines.add(RTLIL::escape_id(it.first.c_str()));
 		Const value = json_parse_attr_param_value(it.second);
 		results[key] = value;
 	}
@@ -297,7 +297,7 @@ void json_parse_attributes(RTLIL::Design *design, RTLIL::AttrObject *obj, JsonNo
 
 	for (auto it : node->data_dict)
 	{
-		TwineRef key = design->twines.add(RTLIL::escape_id(it.first.c_str()));
+		IdString key = design->twines.add(RTLIL::escape_id(it.first.c_str()));
 		Const value = json_parse_attr_param_value(it.second);
 		if (key == ID::src && (value.flags & RTLIL::CONST_FLAG_STRING))
 			design->set_src_attribute(obj, design->twines.add(Twine{value.decode_string()}));
@@ -327,7 +327,7 @@ void json_import(Design *design, string &modname, JsonNode *node)
 
 	dict<int, SigBit> signal_bits;
 
-	dict<TwineRef, Wire*> wire_cache;
+	dict<IdString, Wire*> wire_cache;
 
 	if (node->data_dict.count("ports"))
 	{
@@ -339,7 +339,7 @@ void json_import(Design *design, string &modname, JsonNode *node)
 		for (int port_id = 1; port_id <= GetSize(ports_node->data_dict_keys); port_id++)
 		{
 			std::string port_name = RTLIL::escape_id(ports_node->data_dict_keys[port_id-1].c_str());
-			TwineRef port_ref = design->twines.add(std::string(port_name));
+			IdString port_ref = design->twines.add(std::string(port_name));
 			JsonNode *port_node = ports_node->data_dict.at(ports_node->data_dict_keys[port_id-1]);
 
 			if (port_node->type != 'D')
@@ -447,7 +447,7 @@ void json_import(Design *design, string &modname, JsonNode *node)
 		for (auto &net : netnames_node->data_dict)
 		{
 			std::string net_name = RTLIL::escape_id(net.first.c_str());
-			TwineRef net_ref = design->twines.add(std::string(net_name));
+			IdString net_ref = design->twines.add(std::string(net_name));
 			JsonNode *net_node = net.second;
 
 			if (net_node->type != 'D')

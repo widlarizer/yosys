@@ -47,7 +47,7 @@ struct ContextData {
 	std::string unused_outputs;
 };
 
-std::optional<std::string> format_with_params(const TwinePool &twines, std::string fmt, const dict<TwineRef, Const> &parameters,
+std::optional<std::string> format_with_params(const TwinePool &twines, std::string fmt, const dict<IdString, Const> &parameters,
 								  const ContextData &context)
 {
 	std::stringstream result;
@@ -69,7 +69,7 @@ std::optional<std::string> format_with_params(const TwinePool &twines, std::stri
 				result << context.unused_outputs;
 			} else {
 				auto name = RTLIL::escape_id(std::string(beg, it));
-				TwineRef id = twines.find(name);
+				IdString id = twines.find(name);
 				if (id == Twine::Null || !parameters.count(id)) {
 					log("Parameter %s referenced in format string '%s' not found\n", name, fmt);
 					return {};
@@ -87,13 +87,13 @@ std::optional<std::string> format_with_params(const TwinePool &twines, std::stri
 }
 
 struct Chunk {
-	TwineRef port;
+	IdString port;
 	int base, len;
 
-	Chunk(TwineRef id, int base, int len)
+	Chunk(IdString id, int base, int len)
 		: port(id), base(base), len(len) {}
 
-	TwineRef format(Cell *cell)
+	IdString format(Cell *cell)
 	{
 		if (len == cell->getPort(port).size())
 			return port;
@@ -110,7 +110,7 @@ struct Chunk {
 };
 
 // Joins contiguous runs of bits into a 'Chunk'
-std::vector<Chunk> collect_chunks(std::vector<std::pair<TwineRef, int>> bits)
+std::vector<Chunk> collect_chunks(std::vector<std::pair<IdString, int>> bits)
 {
 	std::vector<Chunk> ret;
 	std::sort(bits.begin(), bits.end(), [](const auto &a, const auto &b) {
@@ -161,10 +161,10 @@ struct WrapcellPass : Pass {
 		log_header(d, "Executing WRAPCELL pass. (wrap selected cells)\n");
 
 		struct AttrRule {
-			TwineRef name;
+			IdString name;
 			std::string value_fmt;
 
-			AttrRule(TwineRef name, std::string value_fmt)
+			AttrRule(IdString name, std::string value_fmt)
 				: name(name), value_fmt(value_fmt) {}
 		};
 		std::vector<AttrRule> attributes;
@@ -175,7 +175,7 @@ struct WrapcellPass : Pass {
 			if (args[argidx] == "-setattr" && argidx+1 < args.size()) {
 				attributes.emplace_back(d->twines.add(RTLIL::escape_id(args[++argidx])), "");
 			} else if (args[argidx] == "-formatattr" && argidx+2 < args.size()) {
-				TwineRef id = d->twines.add(RTLIL::escape_id(args[++argidx]));
+				IdString id = d->twines.add(RTLIL::escape_id(args[++argidx]));
 				attributes.emplace_back(id, args[++argidx]);
 			} else if (args[argidx] == "-name" && argidx+1 < args.size()) {
 				name_fmt = args[++argidx];
@@ -210,13 +210,13 @@ struct WrapcellPass : Pass {
 			for (auto cell : module->selected_cells()) {
 				Module *subm;
 				Cell *subcell;
-				TwineRef name_ref;
+				IdString name_ref;
 
 				if (!ct.cell_known(cell->type_impl))
 					log_error("Non-internal cell type '%s' on cell '%s' in module '%s' unsupported\n",
 							  cell->type.unescaped(), cell, module);
 
-				std::vector<std::pair<TwineRef, int>> unused_outputs, used_outputs;
+				std::vector<std::pair<IdString, int>> unused_outputs, used_outputs;
 				for (auto conn : cell->connections()) {
 					if (ct.cell_output(cell->type_impl, conn.first))
 					for (int i = 0; i < conn.second.size(); i++) {
@@ -244,7 +244,7 @@ struct WrapcellPass : Pass {
 					goto replace_cell;
 
 				subm = d->addModule(name_ref);
-				subcell = subm->addCell(Twine{"$1"}, TwineRef(cell->type));
+				subcell = subm->addCell(Twine{"$1"}, IdString(cell->type));
 				for (auto conn : cell->connections()) {
 					if (ct.cell_output(cell->type_impl, conn.first)) {
 						// Insert marker bits as placehodlers which need to be replaced
@@ -287,7 +287,7 @@ struct WrapcellPass : Pass {
 			replace_cell:
 				cell->parameters.clear();
 
-				dict<TwineRef, SigSpec> new_connections;
+				dict<IdString, SigSpec> new_connections;
 
 				for (auto conn : cell->connections())
 				if (!ct.cell_output(cell->type_impl, conn.first))

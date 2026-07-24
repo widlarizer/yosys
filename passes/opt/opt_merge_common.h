@@ -64,7 +64,7 @@ struct CellHasher
 		return comm.hash_into(h);
 	}
 
-	static void sort_pmux_conn(dict<TwineRef, RTLIL::SigSpec> &conn)
+	static void sort_pmux_conn(dict<IdString, RTLIL::SigSpec> &conn)
 	{
 		const SigSpec &sig_s = conn.at(ID::S);
 		const SigSpec &sig_b = conn.at(ID::B);

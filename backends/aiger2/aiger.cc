@@ -278,7 +278,7 @@ struct Index {
 			return lits.front();
 	}
 
-	Lit impl_op(HierCursor &cursor, Cell *cell, TwineRef oport, int obit)
+	Lit impl_op(HierCursor &cursor, Cell *cell, IdString oport, int obit)
 	{
 		if (cell->type.in(REDUCE_OPS, LOGIC_OPS, CMP_OPS) && obit != 0) {
 			return CFALSE;
@@ -633,7 +633,7 @@ struct Index {
 			} else {
 				Module *def = cursor.enter(*this, driver);
 				{
-					TwineRef portname = bit.wire->driverPort();
+					IdString portname = bit.wire->driverPort();
 					Wire *w = def->wire(portname);
 					if (!w)
 						log_error("Output port %s on instance %s of %s doesn't exist\n",
@@ -653,7 +653,7 @@ struct Index {
 			// step into the upper module
 			Cell *instance = cursor.exit(*this);
 			{
-				TwineRef portname = bit.wire->meta_->name;
+				IdString portname = bit.wire->meta_->name;
 				if (!instance->hasPort(portname))
 					log_error("Input port %s on instance %s of %s unconnected\n",
 							  design->twines.str(portname).c_str(), instance, instance->type);

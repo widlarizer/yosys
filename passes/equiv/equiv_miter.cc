@@ -34,7 +34,7 @@ struct EquivMiterWorker
 	bool mode_assert;
 	bool mode_undef;
 
-	TwineRef miter_name;
+	IdString miter_name;
 	Module *miter_module;
 	Module *source_module;
 

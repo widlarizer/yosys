@@ -92,8 +92,8 @@ struct node {
 	bool decided = false;
 
 	// cell->name / wire->name are distinct masquerade types under twines;
-	// materialise a plain TwineRef (by value) for the naming logic.
-	TwineRef name() const { return cell ? TwineRef(cell->name) : TwineRef(wire->name); }
+	// materialise a plain IdString (by value) for the naming logic.
+	IdString name() const { return cell ? IdString(cell->name) : IdString(wire->name); }
 };
 
 // Decides the order of exploring neighbors
@@ -241,7 +241,7 @@ struct ModuleAutonamer
 		full.reserve(nd.name_length);
 		append_name(nd.from_node, full);
 		full += nd.suffix;
-		TwineRef name = module->uniquify(module->design->twines.add(std::string(full)));
+		IdString name = module->uniquify(module->design->twines.add(std::string(full)));
 		if (nd.cell) {
 			log_debug("Rename cell %s in %s to %s.\n", nd.cell, module, module->design->twines.unescaped_str(name));
 			module->rename(nd.cell, name);

@@ -1,7 +1,7 @@
 pattern reduce
 
-state <TwineRef> portname
-udata <vector<pair<Cell*, TwineRef>>> chain longest_chain
+state <IdString> portname
+udata <vector<pair<Cell*, IdString>>> chain longest_chain
 udata <pool<Cell*>> non_first_cells
 udata <SigSpec> leaves
 
@@ -62,7 +62,7 @@ endcode
 match next
 	select next->type.in($_AND_, $_OR_, $_XOR_)
 	select nusers(port(next, \Y)) == 2
-	index <TwineRef> next->type === first->type
+	index <IdString> next->type === first->type
 	index <SigSpec> port(next, \Y) === port(first, portname)
 endmatch
 
@@ -79,7 +79,7 @@ match next
 	semioptional
 	select next->type.in($_AND_, $_OR_, $_XOR_)
 	select nusers(port(next, \Y)) == 2
-	index <TwineRef> next->type === chain.back().first->type
+	index <IdString> next->type === chain.back().first->type
 	index <SigSpec> port(next, \Y) === port(chain.back().first, chain.back().second)
 generate 10
 	SigSpec A = module->addWire(NEW_ID);
@@ -115,8 +115,8 @@ state <int> pmux_slice_eq pmux_slice_ne
 
 match eq
 	select eq->type == $eq
-	choice <TwineRef> AB {\A, \B}
-	define <TwineRef> BA AB == \A ? \B : \A
+	choice <IdString> AB {\A, \B}
+	define <IdString> BA AB == \A ? \B : \A
 	set eq_inA port(eq, \A)
 	set eq_inB port(eq, \B)
 	set eq_ne_signed param(eq, \A_SIGNED).as_bool()
@@ -151,8 +151,8 @@ endmatch
 
 match ne
 	select ne->type == $ne
-	choice <TwineRef> AB {\A, \B}
-	define <TwineRef> BA (AB == \A ? \B : \A)
+	choice <IdString> AB {\A, \B}
+	define <IdString> BA (AB == \A ? \B : \A)
 	index <SigSpec> port(ne, AB) === eq_inA
 	index <SigSpec> port(ne, BA) === eq_inB
 	index <int> param(ne, \A_SIGNED).as_bool() === eq_ne_signed

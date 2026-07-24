@@ -27,7 +27,7 @@ PRIVATE_NAMESPACE_BEGIN
 struct EquivMakeWorker
 {
 	Module *gold_mod, *gate_mod, *equiv_mod;
-	pool<TwineRef> wire_names, cell_names;
+	pool<IdString> wire_names, cell_names;
 	CellTypes ct;
 
 	bool inames;
@@ -35,8 +35,8 @@ struct EquivMakeWorker
 	vector<string> encfiles;
 	bool make_assert;
 
-	pool<TwineRef> blacklist_names;
-	dict<TwineRef, dict<Const, Const>> encdata;
+	pool<IdString> blacklist_names;
+	dict<IdString, dict<Const, Const>> encdata;
 
 	pool<SigBit> undriven_bits;
 	SigMap assign_map;
@@ -78,9 +78,9 @@ struct EquivMakeWorker
 					continue;
 
 				if (token == ".fsm") {
-					TwineRef modname = gold_mod->design->twines.add(RTLIL::escape_id(next_token(line)));
+					IdString modname = gold_mod->design->twines.add(RTLIL::escape_id(next_token(line)));
 					(void)modname;
-					TwineRef signame = gold_mod->design->twines.add(RTLIL::escape_id(next_token(line)));
+					IdString signame = gold_mod->design->twines.add(RTLIL::escape_id(next_token(line)));
 					if (encdata.count(signame))
 						log_cmd_error("Re-definition of signal '%s' in encfile '%s'!\n", log_id(gold_mod->design, signame), fn);
 					encdata[signame] = dict<Const, Const>();
@@ -157,8 +157,8 @@ struct EquivMakeWorker
 		TwineSearch search(&equiv_mod->design->twines);
 		for (auto id : wire_names)
 		{
-			TwineRef gold_id = search.find(equiv_mod->design->twines.str(id) + "_gold");
-			TwineRef gate_id = search.find(equiv_mod->design->twines.str(id) + "_gate");
+			IdString gold_id = search.find(equiv_mod->design->twines.str(id) + "_gold");
+			IdString gate_id = search.find(equiv_mod->design->twines.str(id) + "_gate");
 
 			Wire *gold_wire = equiv_mod->wire(gold_id);
 			Wire *gate_wire = equiv_mod->wire(gate_id);
@@ -335,8 +335,8 @@ struct EquivMakeWorker
 		TwineSearch search(&equiv_mod->design->twines);
 		for (auto id : cell_names)
 		{
-			TwineRef gold_id = search.find(equiv_mod->design->twines.str(id) + "_gold");
-			TwineRef gate_id = search.find(equiv_mod->design->twines.str(id) + "_gate");
+			IdString gold_id = search.find(equiv_mod->design->twines.str(id) + "_gold");
+			IdString gate_id = search.find(equiv_mod->design->twines.str(id) + "_gate");
 
 			Cell *gold_cell = equiv_mod->cell(gold_id);
 			Cell *gate_cell = equiv_mod->cell(gate_id);

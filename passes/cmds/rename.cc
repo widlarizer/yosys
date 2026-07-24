@@ -32,11 +32,11 @@ static void rename_in_module(RTLIL::Module *module, std::string from_name, std::
 	to_name = RTLIL::escape_id(to_name);
 
 	TwineSearch search(&module->design->twines);
-	TwineRef to_ref = search.find(to_name);
+	IdString to_ref = search.find(to_name);
 	if (module->count_id(to_ref))
 		log_cmd_error("There is already an object `%s' in module `%s'.\n", RTLIL::unescape_id(to_name), log_id(module));
 
-	TwineRef from_ref = search.find(from_name);
+	IdString from_ref = search.find(from_name);
 	RTLIL::Wire *wire_to_rename = module->wire(from_ref);
 	RTLIL::Cell *cell_to_rename = module->cell(from_ref);
 
@@ -71,7 +71,7 @@ static std::string derive_name_from_src(const std::string &src, int counter)
 		return stringf("\\%s$%d", src_base, counter);
 }
 
-static TwineRef derive_name_from_cell_output_wire(const RTLIL::Cell *cell, string suffix, bool move_to_cell)
+static IdString derive_name_from_cell_output_wire(const RTLIL::Cell *cell, string suffix, bool move_to_cell)
 {
 	// Find output
 	const SigSpec *output = nullptr;
@@ -111,7 +111,7 @@ static TwineRef derive_name_from_cell_output_wire(const RTLIL::Cell *cell, strin
 
 	if (move_to_cell) {
 		TwineSearch search(&cell->module->design->twines);
-		TwineRef name_ref = search.find(name);
+		IdString name_ref = search.find(name);
 		if (name_ref == Twine::Null || (!(wire = cell->module->wire(name_ref)) || !(wire->port_input || wire->port_output)))
 			return cell->module->design->twines.add(std::move(name));
 	}
@@ -132,7 +132,7 @@ static bool rename_witness(RTLIL::Design *design, dict<RTLIL::Module *, int> &ca
 	}
 	cache.emplace(module, -1);
 
-	std::vector<std::pair<Cell *, TwineRef>> renames;
+	std::vector<std::pair<Cell *, IdString>> renames;
 
 	bool has_witness_signals = false;
 	for (auto cell : module->cells())
@@ -154,7 +154,7 @@ static bool rename_witness(RTLIL::Design *design, dict<RTLIL::Module *, int> &ca
 
 		if (cell->type.in(ID($anyconst), ID($anyseq), ID($anyinit), ID($allconst), ID($allseq))) {
 			has_witness_signals = true;
-			TwineRef QY;
+			IdString QY;
 			bool clk2fflogic = false;
 			if (cell->type == ID($anyinit))
 				QY = (clk2fflogic = cell->get_bool_attribute(ID(clk2fflogic))) ? ID::D : ID::Q;
@@ -394,8 +394,8 @@ struct RenamePass : public Pass {
 			for (auto module : design->selected_modules())
 			{
 				int counter = 0;
-				dict<RTLIL::Wire *, TwineRef> new_wire_names;
-				dict<RTLIL::Cell *, TwineRef> new_cell_names;
+				dict<RTLIL::Wire *, IdString> new_wire_names;
+				dict<RTLIL::Cell *, IdString> new_cell_names;
 
 				for (auto wire : module->selected_wires())
 					if (wire->name[0] == '$')
@@ -419,13 +419,13 @@ struct RenamePass : public Pass {
 
 			for (auto module : design->selected_modules()) {
 				TwineSearch search(&module->design->twines);
-				dict<RTLIL::Cell *, TwineRef> new_cell_names;
+				dict<RTLIL::Cell *, IdString> new_cell_names;
 				for (auto cell : module->selected_cells())
 					if (cell->name[0] == '$')
 						new_cell_names[cell] = derive_name_from_cell_output_wire(cell, cell_suffix, flag_move_to_cell);
 				for (auto &[cell, new_name] : new_cell_names) {
 					if (flag_move_to_cell) {
-						TwineRef new_name_ref = new_name;
+						IdString new_name_ref = new_name;
 						RTLIL::Wire *found_wire = new_name_ref != Twine::Null ? module->wire(new_name_ref) : nullptr;
 						if (found_wire) {
 							std::string wire_suffix = cell_suffix;
@@ -452,13 +452,13 @@ struct RenamePass : public Pass {
 			for (auto module : design->selected_modules())
 			{
 				int counter = 0;
-				dict<RTLIL::Wire *, TwineRef> new_wire_names;
-				dict<RTLIL::Cell *, TwineRef> new_cell_names;
+				dict<RTLIL::Wire *, IdString> new_wire_names;
+				dict<RTLIL::Cell *, IdString> new_cell_names;
 
 				for (auto wire : module->selected_wires())
 					if (wire->name[0] == '$') {
 						std::string buf;
-						TwineRef buf_ref;
+						IdString buf_ref;
 						do {
 							buf = stringf("\\%s%d%s", pattern_prefix, counter++, pattern_suffix);
 							buf_ref = search.find(buf);
@@ -469,7 +469,7 @@ struct RenamePass : public Pass {
 				for (auto cell : module->selected_cells())
 					if (cell->name[0] == '$') {
 						std::string buf;
-						TwineRef buf_ref;
+						IdString buf_ref;
 						do {
 							buf = stringf("\\%s%d%s", pattern_prefix, counter++, pattern_suffix);
 							buf_ref = search.find(buf);
@@ -504,8 +504,8 @@ struct RenamePass : public Pass {
 
 			for (auto module : design->selected_modules())
 			{
-				dict<RTLIL::Wire *, TwineRef> new_wire_names;
-				dict<RTLIL::Cell *, TwineRef> new_cell_names;
+				dict<RTLIL::Wire *, IdString> new_wire_names;
+				dict<RTLIL::Cell *, IdString> new_cell_names;
 
 				for (auto wire : module->selected_wires())
 					if (wire->name.isPublic() && wire->port_id == 0)
@@ -528,7 +528,7 @@ struct RenamePass : public Pass {
 			if (argidx+1 != args.size())
 				log_cmd_error("Invalid number of arguments!\n");
 
-			TwineRef new_name = design->twines.add(std::string{RTLIL::escape_id(args[argidx])});
+			IdString new_name = design->twines.add(std::string{RTLIL::escape_id(args[argidx])});
 			RTLIL::Module *module = design->top_module();
 
 			if (module == nullptr)
@@ -552,8 +552,8 @@ struct RenamePass : public Pass {
 					continue;
 				}
 
-				dict<RTLIL::Wire *, TwineRef> new_wire_names;
-				dict<RTLIL::Cell *, TwineRef> new_cell_names;
+				dict<RTLIL::Wire *, IdString> new_wire_names;
+				dict<RTLIL::Cell *, IdString> new_cell_names;
 
 				for (auto wire : module->selected_wires())
 					if (wire->port_id == 0) {
@@ -579,8 +579,8 @@ struct RenamePass : public Pass {
 
 			for (auto module : design->selected_modules())
 			{
-				dict<RTLIL::Wire *, TwineRef> new_wire_names;
-				dict<RTLIL::Cell *, TwineRef> new_cell_names;
+				dict<RTLIL::Wire *, IdString> new_wire_names;
+				dict<RTLIL::Cell *, IdString> new_cell_names;
 
 				for (auto wire : module->selected_wires()) {
 					auto name = wire->name.unescape();

@@ -80,7 +80,7 @@ YOSYS_NAMESPACE_BEGIN
 // - empty set [not a cell — will be emitted as a simple direct connection]
 
 struct FfTypeData {
-	FfTypeData(TwineRef type);
+	FfTypeData(IdString type);
 	FfTypeData() {
 		has_clk = false;
 		has_gclk = false;
@@ -144,7 +144,7 @@ struct FfData : FfTypeData {
 	Module *module;
 	FfInitVals *initvals;
 	Cell *cell;
-	TwineRef name;
+	IdString name;
 	// The FF output.
 	SigSpec sig_q;
 	// The sync data input, present if has_clk or has_gclk.
@@ -169,14 +169,14 @@ struct FfData : FfTypeData {
 	Const val_init;
 	// The FF data width in bits.
 	int width;
-	dict<TwineRef, Const> attributes;
+	dict<IdString, Const> attributes;
 	// Stashed src across construction → emit. Refcount-managed so the
 	// source cell's pool slot survives if the cell itself is removed
 	// before emit() runs. Null when the source cell had no src (default
-	// TwineRef() is index 0, a valid constid, so it must be Null here).
-	TwineRef src_twine = Twine::Null;
+	// IdString() is index 0, a valid constid, so it must be Null here).
+	IdString src_twine = Twine::Null;
 
-	FfData(Module *module = nullptr, FfInitVals *initvals = nullptr, TwineRef name = TwineRef()) : module(module), initvals(initvals), cell(nullptr), name(name) {
+	FfData(Module *module = nullptr, FfInitVals *initvals = nullptr, IdString name = IdString()) : module(module), initvals(initvals), cell(nullptr), name(name) {
 		width = 0;
 		pol_clk = false;
 		pol_aload = false;
@@ -242,7 +242,7 @@ struct FfData : FfTypeData {
 
 struct FfDataSigMapped : public FfData {
 	const SigMapView& sigmap;
-	FfDataSigMapped(const SigMapView& map, Module *module, FfInitVals *initvals = nullptr, TwineRef name = TwineRef()) : FfData(module, initvals, name), sigmap(map) {}
+	FfDataSigMapped(const SigMapView& map, Module *module, FfInitVals *initvals = nullptr, IdString name = IdString()) : FfData(module, initvals, name), sigmap(map) {}
 
 	void remap() {
 		sigmap(sig_q);

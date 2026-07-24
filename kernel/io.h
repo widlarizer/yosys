@@ -8,7 +8,7 @@
 
 YOSYS_NAMESPACE_BEGIN
 
-struct TwineRef;
+struct IdString;
 
 inline std::string vstringf(const char *fmt, va_list ap)
 {
@@ -197,7 +197,7 @@ check_format(std::string_view fmt, int fmt_start, bool *has_escapes, FoundFormat
 
 template <class T>
 static auto has_name_member_imp(int)
-	-> decltype(static_cast<const TwineRef>(std::declval<T>().name), std::true_type{});
+	-> decltype(static_cast<const IdString>(std::declval<T>().name), std::true_type{});
 
 template <class T>
 static auto has_name_member_imp(long)
@@ -208,7 +208,7 @@ struct has_name_member : decltype(has_name_member_imp<T>(0)){};
 
 template <class T>
 static auto ptr_has_name_member_imp(int)
-	-> decltype(static_cast<const TwineRef>(std::declval<T>()->name), std::true_type{});
+	-> decltype(static_cast<const IdString>(std::declval<T>()->name), std::true_type{});
 
 template <class T>
 static auto ptr_has_name_member_imp(long)

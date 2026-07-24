@@ -69,17 +69,17 @@ std::string concat_name(RTLIL::Cell *cell, std::string_view object_name_view, co
 	return prefix + tail;
 }
 
-TwineRef remap_flattened_name(RTLIL::Design *design, TwineRef obj_ref,
-		TwineRef pub_prefix_ref, TwineRef priv_prefix_ref, const std::string &separator, dict<TwineRef, TwineRef> &memo)
+IdString remap_flattened_name(RTLIL::Design *design, IdString obj_ref,
+		IdString pub_prefix_ref, IdString priv_prefix_ref, const std::string &separator, dict<IdString, IdString> &memo)
 {
 	if (auto it = memo.find(obj_ref); it != memo.end())
 		return it->second;
 
 	const Twine &node = design->twines[obj_ref];
-	TwineRef result;
+	IdString result;
 	if (node.is_suffix()) {
 		const Twine::Suffix &sfx = node.suffix();
-		TwineRef prefix = remap_flattened_name(design, twine_tag(sfx.prefix, obj_ref.isPublic()),
+		IdString prefix = remap_flattened_name(design, twine_tag(sfx.prefix, obj_ref.isPublic()),
 				pub_prefix_ref, priv_prefix_ref, separator, memo);
 		result = design->twines.add(Twine{Twine::Suffix{prefix, sfx.tail}});
 	} else {
@@ -164,14 +164,14 @@ struct FlattenWorker
 	{
 		// Copy the contents of the flattened cell
 
-		TwineRef pub_prefix_ref = cell->name.ref();
-		TwineRef priv_prefix_ref = design->twines.add("$flatten" + cell->name.unescape() + separator);
-		dict<TwineRef, TwineRef> remap_memo;
-		auto make_name = [&](TwineRef obj_ref) -> TwineRef {
+		IdString pub_prefix_ref = cell->name.ref();
+		IdString priv_prefix_ref = design->twines.add("$flatten" + cell->name.unescape() + separator);
+		dict<IdString, IdString> remap_memo;
+		auto make_name = [&](IdString obj_ref) -> IdString {
 			return module->uniquify(remap_flattened_name(design, obj_ref, pub_prefix_ref, priv_prefix_ref, separator, remap_memo));
 		};
 
-		dict<std::string, TwineRef> memory_map;
+		dict<std::string, IdString> memory_map;
 		for (auto &tpl_memory_it : tpl->memories) {
 			RTLIL::Memory *new_memory = module->addMemory(make_name(tpl_memory_it.second->meta_->name), tpl_memory_it.second);
 			map_attributes(cell, new_memory, design->twines.str(tpl_memory_it.second->meta_->name));
@@ -180,7 +180,7 @@ struct FlattenWorker
 		}
 
 		dict<RTLIL::Wire*, RTLIL::Wire*> wire_map;
-		dict<TwineRef, TwineRef> positional_ports;
+		dict<IdString, IdString> positional_ports;
 		for (auto tpl_wire : tpl->wires()) {
 			if (tpl_wire->port_id > 0)
 				positional_ports.emplace(design->twines.add(Twine{stringf("$%d", tpl_wire->port_id)}), tpl_wire->meta_->name);
@@ -260,7 +260,7 @@ struct FlattenWorker
 
 		for (auto &port_it : cell->connections())
 		{
-			TwineRef port_name = port_it.first;
+			IdString port_name = port_it.first;
 			if (positional_ports.count(port_name) > 0)
 				port_name = positional_ports.at(port_name);
 			if (tpl->wire(port_name) == nullptr || tpl->wire(port_name)->port_id == 0) {
@@ -315,7 +315,7 @@ struct FlattenWorker
 		}
 
 		RTLIL::Cell *scopeinfo = nullptr;
-		TwineRef cell_name = cell->name;
+		IdString cell_name = cell->name;
 
 		if (create_scopeinfo && cell_name.isPublic())
 		{
@@ -370,7 +370,7 @@ struct FlattenWorker
 			RTLIL::Cell *cell = worklist.back();
 			worklist.pop_back();
 
-			TwineRef cell_type_ref = cell->type;
+			IdString cell_type_ref = cell->type;
 			if (!design->has(cell_type_ref))
 				continue;
 

@@ -29,9 +29,9 @@ PRIVATE_NAMESPACE_BEGIN
 // the case where both LUT and dedicated logic input are connected to the same
 // constant.
 struct dlogic_t {
-	TwineRef cell_type;
+	IdString cell_type;
 	// LUT input idx -> hard cell's port name
-	dict<int, TwineRef> lut_input_port;
+	dict<int, IdString> lut_input_port;
 };
 
 struct OptLutWorker
@@ -136,7 +136,7 @@ struct OptLutWorker
 						{
 							if (dlogic[j].cell_type == port.cell->type)
 							{
-								if (port.port == dlogic[j].lut_input_port.at(i, TwineRef{}))
+								if (port.port == dlogic[j].lut_input_port.at(i, IdString{}))
 								{
 									lut_all_dlogics.insert({j, port.cell});
 								}
@@ -557,14 +557,14 @@ struct OptLutPass : public Pass {
 
 				dlogic = {{
 					ID(SB_CARRY),
-					dict<int, TwineRef>{
+					dict<int, IdString>{
 						std::make_pair(1, ID(I0)),
 						std::make_pair(2, ID(I1)),
 						std::make_pair(3, ID(CI))
 					}
 				}, {
 					ID(SB_CARRY),
-					dict<int, TwineRef>{
+					dict<int, IdString>{
 						std::make_pair(3, ID(CO))
 					}
 				}};

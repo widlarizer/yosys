@@ -134,9 +134,9 @@ static void set_ram_port(RTLIL::Cell *cell, const std::string &port_name,
 		const RTLIL::SigSpec &sig, bool is_output = false)
 {
 	RTLIL::Design *design = cell->module->design;
-	TwineRef port = design->twines.add(std::string{port_name});
+	IdString port = design->twines.add(std::string{port_name});
 
-	TwineRef generated = design->twines.add(RTLIL::escape_id("memory_libmap_blackbox"));
+	IdString generated = design->twines.add(RTLIL::escape_id("memory_libmap_blackbox"));
 	RTLIL::Module *mod = design->module(cell->type_impl);
 	if (mod == nullptr) {
 		mod = design->addModule(cell->type_impl);
@@ -505,7 +505,7 @@ void MemMapping::dump_config(MemConfig &cfg) {
 	}
 }
 
-std::pair<bool, Const> search_for_attribute(Mem mem, TwineRef attr) {
+std::pair<bool, Const> search_for_attribute(Mem mem, IdString attr) {
 	// priority of attributes:
 	// 1. attributes on memory itself
 	// 2. attributes on a read or write port

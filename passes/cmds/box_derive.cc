@@ -75,17 +75,17 @@ struct BoxDerivePass : Pass {
 		}
 		extra_args(args, argidx, d);
 
-		TwineRef naming_attr_ref = naming_attr.empty() ? Twine::Null : d->twines.find(naming_attr);
+		IdString naming_attr_ref = naming_attr.empty() ? Twine::Null : d->twines.find(naming_attr);
 
 		Module *base_override = nullptr;
 		if (!base_name.empty()) {
-			TwineRef base_ref = d->twines.find(base_name);
+			IdString base_ref = d->twines.find(base_name);
 			base_override = base_ref == Twine::Null ? nullptr : d->module(base_ref);
 			if (!base_override)
 				log_cmd_error("Base module %s not found.\n", RTLIL::unescape_id(base_name));
 		}
 
-		dict<std::pair<TwineRef, dict<TwineRef, RTLIL::Const>>, Module*> done;
+		dict<std::pair<IdString, dict<IdString, RTLIL::Const>>, Module*> done;
 
 		for (auto module : d->selected_modules()) {
 			for (auto cell : module->selected_cells()) {
@@ -103,7 +103,7 @@ struct BoxDerivePass : Pass {
 					continue;
 
 				if (!done.count(index)) {
-					TwineRef derived_type = base->derive(d, cell->parameters);
+					IdString derived_type = base->derive(d, cell->parameters);
 					Module *derived = d->module(derived_type);
 					log_assert(derived && "Failed to derive module\n");
 					log("derived %s\n", d->twines.str(derived_type).c_str());

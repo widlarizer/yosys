@@ -91,7 +91,7 @@ struct DeletePass : public Pass {
 			pool<RTLIL::Wire*> delete_wires;
 			pool<RTLIL::Cell*> delete_cells;
 			pool<RTLIL::Process*> delete_procs;
-			pool<TwineRef> delete_mems;
+			pool<IdString> delete_mems;
 
 			for (auto wire : module->selected_wires())
 				delete_wires.insert(wire);

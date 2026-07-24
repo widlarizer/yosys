@@ -41,8 +41,8 @@ namespace AST
 	class Binding : public RTLIL::Binding
 	{
 	public:
-		Binding(TwineRef  target_type,
-		        TwineRef  target_name,
+		Binding(IdString  target_type,
+		        IdString  target_name,
 		        const AstNode   &cell);
 
 		std::string describe(const RTLIL::Design *design) const override;

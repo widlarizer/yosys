@@ -39,7 +39,7 @@ struct rules_t
 	};
 
 	struct bram_t {
-		TwineRef name;
+		IdString name;
 		int variant;
 
 		int groups, abits, dbits, init;
@@ -98,7 +98,7 @@ struct rules_t
 			return portinfos;
 		}
 
-		void find_variant_params(TwinePool &twines, dict<TwineRef, Const> &variant_params, const bram_t &other) const
+		void find_variant_params(TwinePool &twines, dict<IdString, Const> &variant_params, const bram_t &other) const
 		{
 			log_assert(name == other.name);
 
@@ -180,15 +180,15 @@ struct rules_t
 	};
 
 	struct match_t {
-		TwineRef name;
+		IdString name;
 		dict<string, int> min_limits, max_limits;
 		bool or_next_if_better, make_transp, make_outreg;
 		char shuffle_enable;
-		vector<vector<std::tuple<bool,TwineRef,Const>>> attributes;
+		vector<vector<std::tuple<bool,IdString,Const>>> attributes;
 	};
 
 	bool attr_icase;
-	dict<TwineRef, vector<bram_t>> brams;
+	dict<IdString, vector<bram_t>> brams;
 	vector<match_t> matches;
 
 	std::string map_case(std::string value) const
@@ -276,7 +276,7 @@ struct rules_t
 
 	void parse_bram()
 	{
-		TwineRef bram_name = design->twines.add(RTLIL::escape_id(tokens[1]));
+		IdString bram_name = design->twines.add(RTLIL::escape_id(tokens[1]));
 
 		if (GetSize(tokens) != 2)
 			syntax_error();
@@ -414,7 +414,7 @@ struct rules_t
 					size_t c1 = tokens[idx][0] == '!' ? 1 : 0;
 					size_t c2 = tokens[idx].find("=");
 					bool exists = (c1 == 0);
-					TwineRef key = design->twines.add(RTLIL::escape_id(tokens[idx].substr(c1, c2)));
+					IdString key = design->twines.add(RTLIL::escape_id(tokens[idx].substr(c1, c2)));
 					Const val = c2 != std::string::npos ? tokens[idx].substr(c2+1) : RTLIL::Const(1);
 
 					data.attributes.back().emplace_back(exists, key, map_case(val));
@@ -803,7 +803,7 @@ grow_read_ports:;
 			bool found = false;
 			for (const auto &term : sums) {
 				bool exists = std::get<0>(term);
-				TwineRef key = std::get<1>(term);
+				IdString key = std::get<1>(term);
 				const Const &value = std::get<2>(term);
 				auto it = mem.attributes.find(key);
 				if (it == mem.attributes.end()) {
@@ -824,7 +824,7 @@ grow_read_ports:;
 				bool exists = std::get<0>(sums.front());
 				if (!exists)
 					ss << "!";
-				TwineRef key = std::get<1>(sums.front());
+				IdString key = std::get<1>(sums.front());
 				ss << log_id(key);
 				const Const &value = rules.map_case(std::get<2>(sums.front()));
 				if (exists && value != Const(1))
@@ -926,7 +926,7 @@ grow_read_ports:;
 
 	// prepare variant parameters
 
-	dict<TwineRef, Const> variant_params;
+	dict<IdString, Const> variant_params;
 	for (auto &other_bram : rules.brams.at(bram.name))
 		bram.find_variant_params(module->design->twines, variant_params, other_bram);
 
@@ -1089,7 +1089,7 @@ void handle_memory(Mem &mem, const rules_t &rules, FfInitVals *initvals)
 		log(" %s=%d", it.first, it.second);
 	log("\n");
 
-	pool<pair<TwineRef, int>> failed_brams;
+	pool<pair<IdString, int>> failed_brams;
 	dict<pair<int, int>, tuple<int, int, int>> best_rule_cache;
 
 	for (int i = 0; i < GetSize(rules.matches); i++)
@@ -1139,7 +1139,7 @@ void handle_memory(Mem &mem, const rules_t &rules, FfInitVals *initvals)
 			int efficiency = (100 * match_properties["bits"]) / (dups * cells * bram.dbits * (1 << bram.abits));
 			match_properties["efficiency"] = efficiency;
 
-			if (failed_brams.count(pair<TwineRef, int>(bram.name, bram.variant)))
+			if (failed_brams.count(pair<IdString, int>(bram.name, bram.variant)))
 				goto next_match_rule;
 
 			log("    Metrics for %s: awaste=%d dwaste=%d bwaste=%d waste=%d efficiency=%d\n",
@@ -1181,7 +1181,7 @@ void handle_memory(Mem &mem, const rules_t &rules, FfInitVals *initvals)
 				bool found = false;
 				for (const auto &term : sums) {
 					bool exists = std::get<0>(term);
-					TwineRef key = std::get<1>(term);
+					IdString key = std::get<1>(term);
 					const Const &value = std::get<2>(term);
 					auto it = mem.attributes.find(key);
 					if (it == mem.attributes.end()) {
@@ -1202,7 +1202,7 @@ void handle_memory(Mem &mem, const rules_t &rules, FfInitVals *initvals)
 					bool exists = std::get<0>(sums.front());
 					if (!exists)
 						ss << "!";
-					TwineRef key = std::get<1>(sums.front());
+					IdString key = std::get<1>(sums.front());
 					ss << log_id(key);
 					const Const &value = rules.map_case(std::get<2>(sums.front()));
 					if (exists && value != Const(1))
@@ -1223,7 +1223,7 @@ void handle_memory(Mem &mem, const rules_t &rules, FfInitVals *initvals)
 
 				if (!replace_memory(mem, rules, initvals, bram, match, match_properties, 1)) {
 					log("    Mapping to bram type %s failed.\n", log_id(match.name));
-					failed_brams.insert(pair<TwineRef, int>(bram.name, bram.variant));
+					failed_brams.insert(pair<IdString, int>(bram.name, bram.variant));
 					goto next_match_rule;
 				}
 
@@ -1255,7 +1255,7 @@ void handle_memory(Mem &mem, const rules_t &rules, FfInitVals *initvals)
 
 			if (!replace_memory(mem, rules, initvals, bram, match, match_properties, 0)) {
 				log("    Mapping to bram type %s failed.\n", log_id(match.name));
-				failed_brams.insert(pair<TwineRef, int>(bram.name, bram.variant));
+				failed_brams.insert(pair<IdString, int>(bram.name, bram.variant));
 				goto next_match_rule;
 			}
 			return;

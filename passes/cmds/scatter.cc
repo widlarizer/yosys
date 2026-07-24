@@ -49,7 +49,7 @@ struct ScatterPass : public Pass {
 		for (auto module : design->selected_modules())
 		{
 			for (auto cell : module->cells()) {
-				dict<TwineRef, RTLIL::SigSig> new_connections;
+				dict<IdString, RTLIL::SigSig> new_connections;
 				for (auto conn : cell->connections())
 					new_connections.emplace(conn.first, RTLIL::SigSig(conn.second, module->addWire(NEW_ID, GetSize(conn.second))));
 				for (auto &it : new_connections) {

@@ -414,7 +414,7 @@ void xilinx_dsp_pack(xilinx_dsp_pm &pm)
 	{
 		cell->setPort(ID::CLK, st.clock);
 
-		auto f = [&pm,cell](SigSpec &A, Cell* ff, TwineRef ceport, TwineRef rstport) {
+		auto f = [&pm,cell](SigSpec &A, Cell* ff, IdString ceport, IdString rstport) {
 			SigSpec D = ff->getPort(ID::D);
 			SigSpec Q = (*pm.sigmap)(ff->getPort(ID::Q));
 			if (!A.empty())
@@ -601,7 +601,7 @@ void xilinx_dsp48a_pack(xilinx_dsp48a_pm &pm)
 	{
 		cell->setPort(ID::CLK, st.clock);
 
-		auto f = [&pm,cell](SigSpec &A, Cell* ff, TwineRef ceport, TwineRef rstport) {
+		auto f = [&pm,cell](SigSpec &A, Cell* ff, IdString ceport, IdString rstport) {
 			SigSpec D = ff->getPort(ID::D);
 			SigSpec Q = (*pm.sigmap)(ff->getPort(ID::Q));
 			if (!A.empty())
@@ -724,7 +724,7 @@ void xilinx_dsp_packC(xilinx_dsp_CREG_pm &pm)
 	{
 		cell->setPort(ID::CLK, st.clock);
 
-		auto f = [&pm,cell](SigSpec &A, Cell* ff, TwineRef ceport, TwineRef rstport) {
+		auto f = [&pm,cell](SigSpec &A, Cell* ff, IdString ceport, IdString rstport) {
 			SigSpec D = ff->getPort(ID::D);
 			SigSpec Q = (*pm.sigmap)(ff->getPort(ID::Q));
 			if (!A.empty())

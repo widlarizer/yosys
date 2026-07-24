@@ -47,9 +47,9 @@ bool is_full_bus(
 	const RTLIL::SigSpec& sig,
 	ModIndex& index,
 	Cell* a,
-	TwineRef ap,
+	IdString ap,
 	Cell* b,
-	TwineRef bp,
+	IdString bp,
 	bool other_conns_allowed = false)
 {
 	for(auto s : sig)
@@ -112,7 +112,7 @@ struct CounterExtraction
 
 struct CounterExtractionSettings
 {
-	pool<TwineRef>& parallel_cells;
+	pool<IdString>& parallel_cells;
 	int maxwidth;
 	int minwidth;
 	bool allow_arst;
@@ -788,7 +788,7 @@ struct ExtractCounterPass : public Pass {
 	{
 		log_header(design, "Executing EXTRACT_COUNTER pass (find counters in netlist).\n");
 
-		pool<TwineRef> _parallel_cells;
+		pool<IdString> _parallel_cells;
 		CounterExtractionSettings settings
 		{
 			_parallel_cells,    // parallel_cells

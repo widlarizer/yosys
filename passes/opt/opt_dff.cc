@@ -174,7 +174,7 @@ struct OptDffWorker
 			return module->And(NEW_ID, a, b);
 	}
 
-	void create_mux_to_output(SigSpec a, SigSpec b, SigSpec sel, SigSpec y, bool pol, bool is_fine, TwineRef src = Twine::Null) {
+	void create_mux_to_output(SigSpec a, SigSpec b, SigSpec sel, SigSpec y, bool pol, bool is_fine, IdString src = Twine::Null) {
 		if (is_fine) {
 			if (pol)
 				module->addMuxGate(NEW_ID, a, b, sel, y, src);
@@ -485,7 +485,7 @@ struct OptDffWorker
 			// ALOAD always active
 			log("Handling always-active async load on %s (%s) from module %s (changing to combinatorial circuit).\n",
 					cell, cell->type.unescaped(), module);
-			TwineRef src = cell->src_id();
+			IdString src = cell->src_id();
 			ff.remove();
 
 			if (ff.has_sr) {
@@ -1025,7 +1025,7 @@ struct OptDffWorker
 		};
 
 		SigBit clk, ce, srst, arst, aload, clr, set;
-		TwineRef cell_type;  // for SR
+		IdString cell_type;  // for SR
 		uint16_t flags;
 
 		bool operator==(const SigKey &o) const {

@@ -746,7 +746,7 @@ void DriverMap::add(SigSpec const &a, SigSpec const &b)
 	}
 }
 
-void DriverMap::add_port(Cell *cell, TwineRef port, SigSpec const &b)
+void DriverMap::add_port(Cell *cell, IdString port, SigSpec const &b)
 {
 	int offset = 0;
 	for (auto const &chunk : b.chunks()) {

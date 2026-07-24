@@ -56,8 +56,8 @@ struct Coolrunner2SopPass : public Pass {
 			}
 
 			// Find wires that need to become special product terms
-			dict<SigBit, pool<tuple<Cell*, TwineRef>>> special_pterms_no_inv;
-			dict<SigBit, pool<tuple<Cell*, TwineRef>>> special_pterms_inv;
+			dict<SigBit, pool<tuple<Cell*, IdString>>> special_pterms_no_inv;
+			dict<SigBit, pool<tuple<Cell*, IdString>>> special_pterms_inv;
 			for (auto cell : module->selected_cells())
 			{
 				if (cell->type.in(ID(FDCP), ID(FDCP_N), ID(FDDCP), ID(FTCP), ID(FTCP_N), ID(FTDCP),

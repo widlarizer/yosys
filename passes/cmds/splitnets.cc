@@ -146,7 +146,7 @@ struct SplitnetsPass : public Pass {
 		extra_args(args, argidx, design);
 
 		// module_ports_db[module_name][old_port_name] = new_port_name_list
-		dict<TwineRef, dict<TwineRef, vector<TwineRef>>> module_ports_db;
+		dict<IdString, dict<IdString, vector<IdString>>> module_ports_db;
 
 		for (auto module : design->selected_modules())
 		{
@@ -236,7 +236,7 @@ struct SplitnetsPass : public Pass {
 					if (sig == wire)
 						continue;
 
-					vector<TwineRef> &new_ports = module_ports_db[module->meta_->name][wire->meta_->name];
+					vector<IdString> &new_ports = module_ports_db[module->meta_->name][wire->meta_->name];
 
 					for (SigSpec c : sig.chunks())
 						new_ports.push_back(c.as_wire()->meta_->name);
@@ -262,7 +262,7 @@ struct SplitnetsPass : public Pass {
 
 				for (auto &it : module_ports_db.at(cell->type))
 				{
-					TwineRef port_id = it.first;
+					IdString port_id = it.first;
 					const auto &new_port_ids = it.second;
 
 					if (!cell->hasPort(port_id))

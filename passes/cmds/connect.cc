@@ -205,7 +205,7 @@ struct ConnectPass : public Pass {
 			if (!RTLIL::SigSpec::parse_sel(sig, design, module, port_expr))
 				log_cmd_error("Failed to parse port expression `%s'.\n", port_expr);
 
-			TwineRef port_port_ref = search.find(RTLIL::escape_id(port_port));
+			IdString port_port_ref = search.find(RTLIL::escape_id(port_port));
 			if (!flag_assert) {
 				port_cell_obj->setPort(port_port_ref, sigmap(sig));
 			} else {

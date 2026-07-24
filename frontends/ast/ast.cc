@@ -1100,16 +1100,16 @@ std::string AstNode::loc_string() const
 	return stringf("%s:%d.%d-%d.%d", location.begin.filename->c_str(), location.begin.line, location.begin.column, location.end.line, location.end.column);
 }
 
-static TwineRef build_hier_content(TwinePool &pool, std::string_view content)
+static IdString build_hier_content(TwinePool &pool, std::string_view content)
 {
 	size_t dot = content.rfind('.');
 	if (dot == std::string_view::npos)
 		return pool.add(Twine{std::string{content}}).tag(true);
-	TwineRef prefix = build_hier_content(pool, content.substr(0, dot));
+	IdString prefix = build_hier_content(pool, content.substr(0, dot));
 	return pool.add(Twine{Twine::Suffix{prefix, std::string{content.substr(dot)}}});
 }
 
-TwineRef AST::intern_hier_name(RTLIL::Design *design, std::string_view escaped)
+IdString AST::intern_hier_name(RTLIL::Design *design, std::string_view escaped)
 {
 	if (escaped.size() > 1 && escaped[0] == '\\')
 		return build_hier_content(design->twines, escaped.substr(1));
@@ -1139,11 +1139,11 @@ void AST::set_src_attr(RTLIL::AttrObject *obj, const AstNode *ast)
 	// thousands of objects in one file this collapses N copies of a long
 	// path into 1 Leaf + N short Suffix tails.
 	TwinePool *pool = &current_module->design->twines;
-	TwineRef file_id = pool->add(Twine{*loc.begin.filename});
+	IdString file_id = pool->add(Twine{*loc.begin.filename});
 	std::string tail = stringf(":%d.%d-%d.%d",
 			loc.begin.line, loc.begin.column,
 			loc.end.line, loc.end.column);
-	TwineRef suffix_id = pool->add(Twine{Twine::Suffix{file_id, tail}});
+	IdString suffix_id = pool->add(Twine{Twine::Suffix{file_id, tail}});
 	current_module->design->obj_set_src_id(obj, suffix_id);
 }
 
@@ -1499,7 +1499,7 @@ void AST::process(RTLIL::Design *design, AstNode *ast, bool nodisplay, bool dump
 			if (defer_local)
 				child->str = "$abstract" + child->str;
 
-			TwineRef mod_name = design->twines.find(child->str);
+			IdString mod_name = design->twines.find(child->str);
 			if (design->has(mod_name)) {
 				RTLIL::Module *existing_mod = design->module(mod_name);
 				if (!nooverwrite && !overwrite && !existing_mod->get_blackbox_attribute()) {
@@ -1627,8 +1627,8 @@ bool AstModule::reprocess_if_necessary(RTLIL::Design *design)
 		if (modname.empty())
 			continue;
 		TwineSearch search(&design->twines);
-		TwineRef mod_ref = search.find(modname);
-		TwineRef abstract_ref = search.find("$abstract" + modname);
+		IdString mod_ref = search.find(modname);
+		IdString abstract_ref = search.find("$abstract" + modname);
 		if (design->module(mod_ref) || design->module(abstract_ref)) {
 			log("Reprocessing module %s because instantiated module %s has become available.\n",
 					design->twines.str(meta_->name).c_str(), RTLIL::unescape_id(modname));
@@ -1642,7 +1642,7 @@ bool AstModule::reprocess_if_necessary(RTLIL::Design *design)
 
 // When an interface instance is found in a module, the whole RTLIL for the module will be rederived again
 // from AST. The interface members are copied into the AST module with the prefix of the interface.
-void AstModule::expand_interfaces(RTLIL::Design *design, const dict<TwineRef, RTLIL::Module*> &local_interfaces)
+void AstModule::expand_interfaces(RTLIL::Design *design, const dict<IdString, RTLIL::Module*> &local_interfaces)
 {
 	loadconfig();
 
@@ -1677,7 +1677,7 @@ void AstModule::expand_interfaces(RTLIL::Design *design, const dict<TwineRef, RT
 						std::pair<std::string,std::string> res = split_modport_from_type(ch->str);
 						std::string interface_type = res.first;
 						std::string interface_modport = res.second; // Is "", if no modport
-						TwineRef interface_type_ref = TwineSearch(&design->twines).find(interface_type);
+						IdString interface_type_ref = TwineSearch(&design->twines).find(interface_type);
 						if (design->module(interface_type_ref) != nullptr) {
 							// Add a cell to the module corresponding to the interface port such that
 							// it can further propagated down if needed:
@@ -1715,7 +1715,7 @@ void AstModule::expand_interfaces(RTLIL::Design *design, const dict<TwineRef, RT
 
 // create a new parametric module (when needed) and return the name of the generated module - WITH support for interfaces
 // This method is used to explode the interface when the interface is a port of the module (not instantiated inside)
-TwineRef AstModule::derive(RTLIL::Design *design, const dict<TwineRef, RTLIL::Const> &parameters, const dict<TwineRef, RTLIL::Module*> &interfaces, const dict<TwineRef, TwineRef> &modports, bool /*mayfail*/)
+IdString AstModule::derive(RTLIL::Design *design, const dict<IdString, RTLIL::Const> &parameters, const dict<IdString, RTLIL::Module*> &interfaces, const dict<IdString, IdString> &modports, bool /*mayfail*/)
 {
 	std::unique_ptr<AstNode> new_ast = NULL;
 	std::string modname = derive_common(design, parameters, &new_ast);
@@ -1735,10 +1735,10 @@ TwineRef AstModule::derive(RTLIL::Design *design, const dict<TwineRef, RTLIL::Co
 	if (has_interfaces)
 		new_modname += "$interfaces$" + interf_info;
 
-	TwineRef new_modname_ref = design->twines.find(new_modname);
+	IdString new_modname_ref = design->twines.find(new_modname);
 	if (!design->has(new_modname_ref)) {
 		if (!new_ast) {
-			TwineRef modname_ref = design->twines.find(modname);
+			IdString modname_ref = design->twines.find(modname);
 			auto mod = dynamic_cast<AstModule*>(design->module(modname_ref));
 			new_ast = mod->ast->clone();
 		}
@@ -1762,14 +1762,14 @@ TwineRef AstModule::derive(RTLIL::Design *design, const dict<TwineRef, RTLIL::Co
 		}
 
 		process_module(design, new_ast.get(), false);
-		TwineRef new_ref = design->twines.find(modname);
+		IdString new_ref = design->twines.find(modname);
 		design->module(new_ref)->check();
 
 		RTLIL::Module* mod = design->module(new_ref);
 
 		// Now that the interfaces have been exploded, we can delete the dummy port related to every interface.
 		for(auto &intf : interfaces) {
-			TwineRef intf_name = intf.first;
+			IdString intf_name = intf.first;
 			if(mod->wire(intf_name) != nullptr) {
 				// Normally, removing wires would be batched together as it's an
 				//   expensive operation, however, in this case doing so would mean
@@ -1804,14 +1804,14 @@ TwineRef AstModule::derive(RTLIL::Design *design, const dict<TwineRef, RTLIL::Co
 }
 
 // create a new parametric module (when needed) and return the name of the generated module - without support for interfaces
-TwineRef AstModule::derive(RTLIL::Design *design, const dict<TwineRef, RTLIL::Const> &parameters, bool /*mayfail*/)
+IdString AstModule::derive(RTLIL::Design *design, const dict<IdString, RTLIL::Const> &parameters, bool /*mayfail*/)
 {
 	bool quiet = lib || attributes.count(ID::blackbox) || attributes.count(ID::whitebox);
 
 	std::unique_ptr<AstNode> new_ast = NULL;
 	std::string modname = derive_common(design, parameters, &new_ast, quiet);
 
-	TwineRef modname_ref = design->twines.add(std::string{modname});
+	IdString modname_ref = design->twines.add(std::string{modname});
 	if (!design->has(modname_ref) && new_ast) {
 		new_ast->str = modname;
 		process_module(design, new_ast.get(), false, NULL, quiet);
@@ -1852,7 +1852,7 @@ std::string AST::derived_module_name(std::string stripped_name, const std::vecto
 }
 
 // create a new parametric module (when needed) and return the name of the generated module
-std::string AstModule::derive_common(RTLIL::Design *design, const dict<TwineRef, RTLIL::Const> &parameters, std::unique_ptr<AstNode>* new_ast_out, bool quiet)
+std::string AstModule::derive_common(RTLIL::Design *design, const dict<IdString, RTLIL::Const> &parameters, std::unique_ptr<AstNode>* new_ast_out, bool quiet)
 {
 	std::string stripped_name = design->twines.str(meta_->name);
 	(*new_ast_out) = nullptr;
@@ -1893,7 +1893,7 @@ std::string AstModule::derive_common(RTLIL::Design *design, const dict<TwineRef,
 		log_header(design, "Executing AST frontend in derive mode using pre-parsed AST for module `%s'.\n", stripped_name);
 	loadconfig();
 
-	pool<TwineRef> rewritten;
+	pool<IdString> rewritten;
 	rewritten.reserve(GetSize(parameters));
 
 	auto new_ast = ast->clone();
@@ -1997,7 +1997,7 @@ RTLIL::Module *AstModule::clone(RTLIL::Design *dst, bool src_id_verbatim) const
 	return new_mod;
 }
 
-RTLIL::Module *AstModule::clone(RTLIL::Design *dst, TwineRef target_name, bool src_id_verbatim) const
+RTLIL::Module *AstModule::clone(RTLIL::Design *dst, IdString target_name, bool src_id_verbatim) const
 {
 	AstModule *new_mod = new AstModule;
 	new_mod->design = dst;

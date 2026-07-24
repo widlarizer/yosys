@@ -44,9 +44,9 @@ using namespace AST;
 using namespace AST_INTERNAL;
 
 // helper function for creating RTLIL code for unary operations
-static RTLIL::SigSpec uniop2rtlil(AstNode *that, TwineRef type, int result_width, const RTLIL::SigSpec &arg, bool gen_attributes = true)
+static RTLIL::SigSpec uniop2rtlil(AstNode *that, IdString type, int result_width, const RTLIL::SigSpec &arg, bool gen_attributes = true)
 {
-	TwineRef name = current_module->design->twines.add(stringf("%s$%s:%d$%d", current_module->design->twines.str(type).c_str(), RTLIL::encode_filename(*that->location.begin.filename), that->location.begin.line, autoidx++));
+	IdString name = current_module->design->twines.add(stringf("%s$%s:%d$%d", current_module->design->twines.str(type).c_str(), RTLIL::encode_filename(*that->location.begin.filename), that->location.begin.line, autoidx++));
 	RTLIL::Cell *cell = current_module->addCell(name, type);
 	set_src_attr(cell, that);
 
@@ -80,7 +80,7 @@ static void widthExtend(AstNode *that, RTLIL::SigSpec &sig, int width, bool is_s
 		return;
 	}
 
-	TwineRef name = current_module->design->twines.add(stringf("$extend$%s:%d$%d", RTLIL::encode_filename(*that->location.begin.filename), that->location.begin.line, autoidx++));
+	IdString name = current_module->design->twines.add(stringf("$extend$%s:%d$%d", RTLIL::encode_filename(*that->location.begin.filename), that->location.begin.line, autoidx++));
 	RTLIL::Cell *cell = current_module->addCell(name, ID($pos));
 	set_src_attr(cell, that);
 
@@ -107,9 +107,9 @@ static void widthExtend(AstNode *that, RTLIL::SigSpec &sig, int width, bool is_s
 }
 
 // helper function for creating RTLIL code for binary operations
-static RTLIL::SigSpec binop2rtlil(AstNode *that, TwineRef type, int result_width, const RTLIL::SigSpec &left, const RTLIL::SigSpec &right)
+static RTLIL::SigSpec binop2rtlil(AstNode *that, IdString type, int result_width, const RTLIL::SigSpec &left, const RTLIL::SigSpec &right)
 {
-	TwineRef name = current_module->design->twines.add(stringf("%s$%s:%d$%d", current_module->design->twines.str(type).c_str(), RTLIL::encode_filename(*that->location.begin.filename), that->location.begin.line, autoidx++));
+	IdString name = current_module->design->twines.add(stringf("%s$%s:%d$%d", current_module->design->twines.str(type).c_str(), RTLIL::encode_filename(*that->location.begin.filename), that->location.begin.line, autoidx++));
 	RTLIL::Cell *cell = current_module->addCell(name, type);
 	set_src_attr(cell, that);
 
@@ -186,7 +186,7 @@ static void check_unique_id(RTLIL::Module *module, const std::string &id,
 						  to_add_kind, id.c_str(), existing_kind, location_str.c_str());
 	};
 
-	TwineRef id_tw = intern_hier_name(module->design, id);
+	IdString id_tw = intern_hier_name(module->design, id);
 	if (const RTLIL::Wire *wire = module->wire(id_tw))
 		already_exists(wire, "signal");
 	if (const RTLIL::Cell *cell = module->cell(id_tw))
@@ -1006,7 +1006,7 @@ struct AST_INTERNAL::ProcessGenerator
 				set_src_attr(&action, child.get());
 				action.memid = current_module->design->twines.add(std::string(memid));
 				action.address = child->children[0]->genWidthRTLIL(-1, true, &subst_rvalue_map.stdmap());
-				TwineRef memid_tw = current_module->design->twines.find(memid);
+				IdString memid_tw = current_module->design->twines.find(memid);
 				action.data = child->children[1]->genWidthRTLIL(current_module->memories[memid_tw]->width, true, &subst_rvalue_map.stdmap());
 				action.enable = child->children[2]->genWidthRTLIL(-1, true, &subst_rvalue_map.stdmap());
 				RTLIL::Const orig_priority_mask = child->children[4]->bitsAsConst();
@@ -1468,7 +1468,7 @@ RTLIL::SigSpec AstNode::genRTLIL(int width_hint, bool sign_hint)
 	// Clifford's Device (http://www.clifford.at/cfun/cliffdev/). In this
 	// cases this variable is used to hold the type of the cell that should
 	// be instantiated for this type of AST node.
-	TwineRef type_name;
+	IdString type_name;
 
 	switch (type)
 	{
@@ -1658,7 +1658,7 @@ RTLIL::SigSpec AstNode::genRTLIL(int width_hint, bool sign_hint)
 
 			log_assert(id2ast != nullptr);
 
-			TwineRef str_ref = intern_hier_name(current_module->design, str);
+			IdString str_ref = intern_hier_name(current_module->design, str);
 
 			if (id2ast->type == AST_AUTOWIRE && current_module->wire(str_ref) == nullptr) {
 				RTLIL::Wire *wire = current_module->addWire(str_ref);
@@ -1704,7 +1704,7 @@ RTLIL::SigSpec AstNode::genRTLIL(int width_hint, bool sign_hint)
 			// This makes it possible for the hierarchy pass to see what are interface connections and then replace them
 			// with the individual signals:
 			if (is_interface) {
-				TwineRef dummy_wire_name = current_module->design->twines.add(stringf("$dummywireforinterface%s", str));
+				IdString dummy_wire_name = current_module->design->twines.add(stringf("$dummywireforinterface%s", str));
 				RTLIL::Wire *dummy_wire = current_module->wire(dummy_wire_name);
 				if (!dummy_wire) {
 					dummy_wire = current_module->addWire(dummy_wire_name);
@@ -2080,7 +2080,7 @@ RTLIL::SigSpec AstNode::genRTLIL(int width_hint, bool sign_hint)
 			RTLIL::Cell *cell = current_module->addCell(current_module->design->twines.add(sstr.str()), ID::$memrd);
 			set_src_attr(cell, this);
 
-			TwineRef mem_tw = current_module->design->twines.find(str);
+			IdString mem_tw = current_module->design->twines.find(str);
 			RTLIL::Wire *wire = current_module->addWire(current_module->design->twines.add(std::string{cell->name.str() + "_DATA"}), current_module->memories[mem_tw]->width);
 			set_src_attr(wire, this);
 
@@ -2131,7 +2131,7 @@ RTLIL::SigSpec AstNode::genRTLIL(int width_hint, bool sign_hint)
 
 			SigSpec addr_sig = children[0]->genRTLIL();
 
-			TwineRef mem_tw = current_module->design->twines.find(str);
+			IdString mem_tw = current_module->design->twines.find(str);
 			cell->setPort(ID::ADDR, addr_sig);
 			cell->setPort(ID::DATA, children[1]->genWidthRTLIL(current_module->memories[mem_tw]->width * num_words, true));
 			cell->setPort(ID::EN, en_sig);
@@ -2236,7 +2236,7 @@ RTLIL::SigSpec AstNode::genRTLIL(int width_hint, bool sign_hint)
 					continue;
 				}
 				if (child->type == AST_PARASET) {
-					TwineRef paraname = current_module->design->twines.add(child->str.empty() ? stringf("$%d", ++para_counter) : child->str);
+					IdString paraname = current_module->design->twines.add(child->str.empty() ? stringf("$%d", ++para_counter) : child->str);
 					const auto* value = child->children[0].get();
 					if (value->type == AST_REALVALUE)
 						log_file_warning(*location.begin.filename, location.begin.line, "Replacing floating point parameter %s.%s = %f with string.\n",
@@ -2270,7 +2270,7 @@ RTLIL::SigSpec AstNode::genRTLIL(int width_hint, bool sign_hint)
 						} else if (arg->is_signed) {
 							// non-trivial signed nodes are indirected through
 							// signed wires to enable sign extension
-							TwineRef wire_name = current_module->design->twines.add(NEW_ID);
+							IdString wire_name = current_module->design->twines.add(NEW_ID);
 							RTLIL::Wire *wire = current_module->addWire(wire_name, GetSize(sig));
 							wire->is_signed = true;
 							current_module->connect(wire, sig);
@@ -2400,7 +2400,7 @@ RTLIL::SigSpec AstNode::genRTLIL(int width_hint, bool sign_hint)
 				// internal id "$anyseq" (drop the leading '\'), otherwise the
 				// twine gets tagged public and hierarchy stops treating it as
 				// a builtin. Matches the pre-twine `str.substr(1)`.
-				TwineRef _type = current_module->design->twines.add(std::string{str.substr(1)});
+				IdString _type = current_module->design->twines.add(std::string{str.substr(1)});
 				Cell *cell = current_module->addCell(current_module->design->twines.add(std::string{myid}), _type);
 				set_src_attr(cell, this);
 				cell->parameters[ID::WIDTH] = width;

@@ -256,7 +256,7 @@ code argQ clock AREG
 						goto reject_AREG;
 					if (dff->type.in($sdff, $sdffe) && (port(dff, \SRST) != port(prev, \RSTA, State::S0) || !param(dff, \SRST_POLARITY).as_bool()))
 						goto reject_AREG;
-					TwineRef CEA;
+					IdString CEA;
 					if (param(prev, \AREG) == 1)
 						CEA = \CEA2;
 					else if (param(prev, \AREG) == 2)
@@ -297,7 +297,7 @@ code argQ clock BREG
 						goto reject_BREG;
 					if (dff->type.in($sdff, $sdffe) && (port(dff, \SRST) != port(prev, \RSTB, State::S0) || !param(dff, \SRST_POLARITY).as_bool()))
 						goto reject_BREG;
-					TwineRef CEB;
+					IdString CEB;
 					if (next->type.in(\DSP48A, \DSP48A1))
 						CEB = \CEB;
 					else if (next->type.in(\DSP48E1)) {

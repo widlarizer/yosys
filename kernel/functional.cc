@@ -67,7 +67,7 @@ const char *fn_to_string(Fn fn) {
 	log_error("fn_to_string: unknown Functional::Fn value %d", (int)fn);
 }
 
-vector<IRInput const*> IR::inputs(TwineRef kind) const {
+vector<IRInput const*> IR::inputs(IdString kind) const {
 	vector<IRInput const*> ret;
 	for (const auto &[name, input] : _inputs)
 		if(input.kind == kind)
@@ -75,7 +75,7 @@ vector<IRInput const*> IR::inputs(TwineRef kind) const {
 	return ret;
 }
 
-vector<IROutput const*> IR::outputs(TwineRef kind) const {
+vector<IROutput const*> IR::outputs(IdString kind) const {
 	vector<IROutput const*> ret;
 	for (const auto &[name, output] : _outputs)
 		if(output.kind == kind)
@@ -83,7 +83,7 @@ vector<IROutput const*> IR::outputs(TwineRef kind) const {
 	return ret;
 }
 
-vector<IRState const*> IR::states(TwineRef kind) const {
+vector<IRState const*> IR::states(IdString kind) const {
 	vector<IRState const*> ret;
 	for (const auto &[name, state] : _states)
 		if(state.kind == kind)
@@ -120,8 +120,8 @@ struct PrintVisitor : DefaultVisitor<std::string> {
 	std::string zero_extend(Node, Node a, int out_width) override { return "zero_extend(" + np(a) + ", " + std::to_string(out_width) + ")"; }
 	std::string sign_extend(Node, Node a, int out_width) override { return "sign_extend(" + np(a) + ", " + std::to_string(out_width) + ")"; }
 	std::string constant(Node, RTLIL::Const const& value) override { return "constant(" + value.as_string() + ")"; }
-	std::string input(Node self, TwineRef name, TwineRef kind) override { return "input(" + self.design->twines.unescaped_str(name) + ", " + self.design->twines.unescaped_str(kind) + ")"; }
-	std::string state(Node self, TwineRef name, TwineRef kind) override { return "state(" + self.design->twines.unescaped_str(name) + ", " + self.design->twines.unescaped_str(kind) + ")"; }
+	std::string input(Node self, IdString name, IdString kind) override { return "input(" + self.design->twines.unescaped_str(name) + ", " + self.design->twines.unescaped_str(kind) + ")"; }
+	std::string state(Node self, IdString name, IdString kind) override { return "state(" + self.design->twines.unescaped_str(name) + ", " + self.design->twines.unescaped_str(kind) + ")"; }
 	std::string default_handler(Node self) override {
 		std::string ret = fn_to_string(self.fn());
 		ret += "(";
@@ -218,7 +218,7 @@ private:
 			y = factory.mux(y, factory.slice(b, a.width() * i, a.width()), factory.slice(s, i, 1));
 		return y;
 	}
-	dict<TwineRef, Node> handle_fa(Node a, Node b, Node c) {
+	dict<IdString, Node> handle_fa(Node a, Node b, Node c) {
 		Node t1 = factory.bitwise_xor(a, b);
 		Node t2 = factory.bitwise_and(a, b);
 		Node t3 = factory.bitwise_and(c, t1);
@@ -226,7 +226,7 @@ private:
 		Node x = factory.bitwise_or(t2, t3);
 		return {{ID(X), x}, {ID(Y), y}};
 	}
-	dict<TwineRef, Node> handle_alu(Node a_in, Node b_in, int y_width, bool is_signed, Node ci, Node bi) {
+	dict<IdString, Node> handle_alu(Node a_in, Node b_in, int y_width, bool is_signed, Node ci, Node bi) {
 		Node a = factory.extend(a_in, y_width, is_signed);
 		Node b_uninverted = factory.extend(b_in, y_width, is_signed);
 		Node b = factory.mux(b_uninverted, factory.bitwise_not(b_uninverted), bi);
@@ -246,7 +246,7 @@ private:
 		return handle_alu(g, factory.bitwise_or(p, g), g.width(), false, ci, factory.constant(Const(State::S0, 1))).at(ID(CO));
 	}
 public:
-	std::variant<dict<TwineRef, Node>, Node> handle(TwineRef cellName, TwineRef cellType, dict<TwineRef, Const> parameters, dict<TwineRef, Node> inputs)
+	std::variant<dict<IdString, Node>, Node> handle(IdString cellName, IdString cellType, dict<IdString, Const> parameters, dict<IdString, Node> inputs)
 	{
 		int a_width = parameters.at(ID(A_WIDTH), Const(-1)).as_int();
 		int b_width = parameters.at(ID(B_WIDTH), Const(-1)).as_int();
@@ -468,7 +468,7 @@ public:
 class FunctionalIRConstruction {
 	std::deque<std::variant<DriveSpec, Cell *>> queue;
 	dict<DriveSpec, Node> graph_nodes;
-	dict<std::pair<Cell *, TwineRef>, Node> cell_outputs;
+	dict<std::pair<Cell *, IdString>, Node> cell_outputs;
 	DriverMap driver_map;
 	Design *design;
 	Factory& factory;
@@ -489,7 +489,7 @@ class FunctionalIRConstruction {
 		}else
 			return it->second;
 	}
-	Node enqueue_cell(Cell *cell, TwineRef port_name)
+	Node enqueue_cell(Cell *cell, IdString port_name)
 	{
 		auto it = cell_outputs.find({cell, port_name});
 		if(it == cell_outputs.end()) {
@@ -612,7 +612,7 @@ private:
 			if (!ff.has_gclk)
 				log_error("The design contains a %s flip-flop at %s. This is not supported by the functional backend. "
 					"Call async2sync or clk2fflogic to avoid this error.\n", cell->type.unescaped(), cell);
-			TwineRef ff_name = ff.name;
+			IdString ff_name = ff.name;
 			auto &state = factory.add_state(ff_name, ID::$state, Sort(ff.width));
 			Node q_value = factory.value(state);
 			factory.suggest_name(q_value, ff_name);
@@ -620,8 +620,8 @@ private:
 			state.set_next_value(enqueue(ff.sig_d));
 			state.set_initial_value(ff.val_init);
 		} else {
-			dict<TwineRef, Node> connections;
-			TwineRef output_name; // for the single output case
+			dict<IdString, Node> connections;
+			IdString output_name; // for the single output case
 			int n_outputs = 0;
 			for(auto const &[name, sigspec] : cell->connections()) {
 				if(driver_map.celltypes.cell_input(cell->type, name) && sigspec.size() > 0)
@@ -631,12 +631,12 @@ private:
 					n_outputs++;
 				}
 			}
-			std::variant<dict<TwineRef, Node>, Node> outputs = simplifier.handle(cell->name.ref(), cell->type, cell->parameters, connections);
+			std::variant<dict<IdString, Node>, Node> outputs = simplifier.handle(cell->name.ref(), cell->type, cell->parameters, connections);
 			if(auto *nodep = std::get_if<Node>(&outputs); nodep != nullptr) {
 				log_assert(n_outputs == 1);
 				factory.update_pending(cell_outputs.at({cell, output_name}), *nodep);
 			} else {
-				for(auto [name, node] : std::get<dict<TwineRef, Node>>(outputs))
+				for(auto [name, node] : std::get<dict<IdString, Node>>(outputs))
 					factory.update_pending(cell_outputs.at({cell, name}), node);
 			}
 		}
@@ -767,7 +767,7 @@ void IR::topological_sort() {
 		"Try `scc -select; simplemap; select -clear` to avoid this error.\n");
 }
 
-static TwineRef merge_name(TwineRef a, TwineRef b) {
+static IdString merge_name(IdString a, IdString b) {
 	if(!twine_is_public(a) && twine_is_public(b))
 		return b;
 	else
@@ -787,10 +787,10 @@ void IR::forward_buf() {
             auto target_node = _graph[perm[target_index]];
 			if(node.has_sparse_attr()) {
 				if(target_node.has_sparse_attr()) {
-					TwineRef id = merge_name(node.sparse_attr(), target_node.sparse_attr());
+					IdString id = merge_name(node.sparse_attr(), target_node.sparse_attr());
 					target_node.sparse_attr() = id;
 				} else {
-					TwineRef id = node.sparse_attr();
+					IdString id = node.sparse_attr();
 					target_node.sparse_attr() = id;
 				}
 			}

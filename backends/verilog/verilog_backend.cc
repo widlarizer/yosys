@@ -99,14 +99,14 @@ bool verbose, norename, noattr, attr2comment, noexpr, nodec, nohex, nostr, extme
   noparallelcase, default_params;
 int auto_name_counter, auto_name_offset, auto_name_digits, extmem_counter;
 dict<std::string, int> auto_name_map;
-std::set<TwineRef> reg_wires;
+std::set<IdString> reg_wires;
 std::string auto_prefix, extmem_prefix;
 
 RTLIL::Module *active_module;
 std::optional<TwineSearch> active_search;
 dict<RTLIL::SigBit, RTLIL::State> active_initdata;
 SigMap active_sigmap;
-TwineRef initial_id;
+IdString initial_id;
 
 void reset_auto_counter_id(const std::string &id, bool may_rename)
 {
@@ -417,7 +417,7 @@ void dump_attributes(std::ostream &f, std::string indent, const RTLIL::AttrObjec
 	if (attr2comment)
 		as_comment = true;
 	if (active_module && active_module->design) {
-		TwineRef src = active_module->design->obj_src_id(obj);
+		IdString src = active_module->design->obj_src_id(obj);
 		if (src != Twine::Null) {
 			f << stringf("%s" "%s %s", indent, as_comment ? "/*" : "(*", id(ID::str(ID::src)));
 			f << stringf(" = ");
@@ -442,7 +442,7 @@ void dump_attributes(std::ostream &f, std::string indent, const RTLIL::AttrObjec
 	}
 }
 
-void dump_parameter(std::ostream &f, std::string indent, TwineRef id_string, RTLIL::Const parameter)
+void dump_parameter(std::ostream &f, std::string indent, IdString id_string, RTLIL::Const parameter)
 {
 	f << stringf("%sparameter %s = ", indent.c_str(), id(active_module->design->twines.str(id_string)).c_str());
 	dump_const(f, parameter);
@@ -998,7 +998,7 @@ void dump_memory(std::ostream &f, std::string indent, Mem &mem)
 
 void dump_cell_expr_port(std::ostream &f, RTLIL::Cell *cell, std::string port, bool gen_signed = true)
 {
-	TwineRef signed_param = cell->module->design->twines.find("\\" + port + "_SIGNED");
+	IdString signed_param = cell->module->design->twines.find("\\" + port + "_SIGNED");
 	if (gen_signed && signed_param != Twine::Null && cell->parameters.count(signed_param) > 0 && cell->parameters[signed_param].as_bool()) {
 		f << stringf("$signed(");
 		dump_sigspec(f, cell->getPort(ID::lookup(port)));
@@ -2027,12 +2027,12 @@ void dump_cell(std::ostream &f, std::string indent, RTLIL::Cell *cell)
 		f << stringf(" %s (", cell_name);
 
 	bool first_arg = true;
-	std::set<TwineRef> numbered_ports;
+	std::set<IdString> numbered_ports;
 	for (int i = 1; true; i++) {
 		char str[16];
 		snprintf(str, 16, "$%d", i);
 		std::string port_str(str);
-		TwineRef port_ref = active_search->find(port_str);
+		IdString port_ref = active_search->find(port_str);
 		bool found_port = false;
 		for (auto it = cell->connections().begin(); it != cell->connections().end(); ++it) {
 			if (port_ref == Twine::Null || it->first != port_ref)

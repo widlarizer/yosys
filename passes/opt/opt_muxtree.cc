@@ -468,7 +468,7 @@ struct OptMuxtreeWorker
 		deactivate_port(knowledge, port_idx, muxinfo);
 	}
 
-	void replace_known(knowledge_t &knowledge, muxinfo_t &muxinfo, TwineRef portname)
+	void replace_known(knowledge_t &knowledge, muxinfo_t &muxinfo, IdString portname)
 	{
 		SigSpec sig = muxinfo.cell->getPort(portname);
 		bool did_something = false;

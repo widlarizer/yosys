@@ -149,7 +149,7 @@ struct CutpointPass : public Pass {
 				}
 
 				RTLIL::Cell *scopeinfo = nullptr;
-				TwineRef cell_name_ref = cell->name.ref();
+				IdString cell_name_ref = cell->name.ref();
 					bool cell_name_is_public = cell->name.isPublic();
 				if (flag_scopeinfo && cell_name_is_public) {
 					auto scopeinfo = module->addCell(NEW_ID, ID::$scopeinfo);

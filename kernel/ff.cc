@@ -37,9 +37,9 @@ static std::vector<RTLIL::Cell*> cells_added_since(RTLIL::Module *module, int ma
 template<typename InputType, typename OutputType, typename = std::enable_if_t<std::is_base_of_v<FfTypeData, OutputType>>>
 void manufacture_info(InputType flop, OutputType& info, FfInitVals *initvals) {
 	Cell* cell = nullptr;
-	TwineRef type;
+	IdString type;
 	constexpr bool have_cell = std::is_same_v<InputType, Cell*>;
-	if constexpr (std::is_same_v<InputType, TwineRef>) {
+	if constexpr (std::is_same_v<InputType, IdString>) {
 		type = flop;
 	} else {
 		static_assert(std::is_same_v<InputType, Cell*>);
@@ -336,7 +336,7 @@ void manufacture_info(InputType flop, OutputType& info, FfInitVals *initvals) {
 		}
 }
 
-FfTypeData::FfTypeData(TwineRef type) : FfTypeData()
+FfTypeData::FfTypeData(IdString type) : FfTypeData()
 {
 	manufacture_info(type, *this, nullptr);
 }

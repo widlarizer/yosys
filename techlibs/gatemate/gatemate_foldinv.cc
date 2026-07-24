@@ -26,12 +26,12 @@ PRIVATE_NAMESPACE_BEGIN
 
 struct LUTPin {
     int input_bit;
-    TwineRef init_param;
+    IdString init_param;
 };
 
 struct LUTType {
-    dict<TwineRef, LUTPin> inputs;
-    TwineRef output_param;
+    dict<IdString, LUTPin> inputs;
+    IdString output_param;
 };
 
 struct FoldInvWorker {
@@ -44,7 +44,7 @@ struct FoldInvWorker {
     // Mapping from inverter input to inverter
     dict<SigBit, Cell*> inverter_input;
 
-    const dict<TwineRef, LUTType> lut_types = {
+    const dict<IdString, LUTType> lut_types = {
         {ID(CC_LUT2), {{
                 {ID(I0), {0, ID(INIT)}},
                 {ID(I1), {1, ID(INIT)}},

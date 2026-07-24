@@ -95,7 +95,7 @@ struct Lut2muxPass : public Pass {
 		for (auto module : design->selected_modules())
 		for (auto cell : module->selected_cells()) {
 			if (cell->type == ID($lut)) {
-				TwineRef cell_name = cell->name;
+				IdString cell_name = cell->name;
 				int count = lut2mux(cell, word_mode);
 				log("Converted %s.%s to %d MUX cells.\n", module, module->design->twines.unescaped_str(cell_name), count);
 			}

@@ -36,20 +36,20 @@ public:
 
 protected:
 	IdTree *parent = nullptr;
-	TwineRef scope_name;
+	IdString scope_name;
 	int depth = 0;
 
-	pool<TwineRef> names;
-	dict<TwineRef, T> entries;
+	pool<IdString> names;
+	dict<IdString, T> entries;
 public: // XXX
-	dict<TwineRef, std::unique_ptr<IdTree>> subtrees;
+	dict<IdString, std::unique_ptr<IdTree>> subtrees;
 
 	template<typename P, typename T_ref>
 	static Cursor do_insert(IdTree *tree, P begin, P end, T_ref &&value)
 	{
 		log_assert(begin != end && "path must be non-empty");
 		while (true) {
-			TwineRef name = *begin;
+			IdString name = *begin;
 			++begin;
 			log_assert(!name.empty());
 			tree->names.insert(name);
@@ -80,10 +80,10 @@ public:
 	protected:
 	public:
 		IdTree *target;
-		TwineRef scope_name;
+		IdString scope_name;
 
 		Cursor() : target(nullptr) {}
-		Cursor(IdTree *target, TwineRef scope_name) : target(target), scope_name(scope_name) {
+		Cursor(IdTree *target, IdString scope_name) : target(target), scope_name(scope_name) {
 			if (scope_name.empty())
 				log_assert(target->parent == nullptr);
 		}
@@ -123,7 +123,7 @@ public:
 				return Cursor();
 			if (target->parent != nullptr)
 				return Cursor(target->parent, target->scope_name);
-			return Cursor(target, TwineRef());
+			return Cursor(target, IdString());
 		}
 
 		Cursor do_next_preorder() {
@@ -142,7 +142,7 @@ public:
 			return current;
 		}
 
-		Cursor do_child(TwineRef name) {
+		Cursor do_child(IdString name) {
 			IdTree *tree = nullptr;
 			if (scope_name.empty()) {
 				tree = target;
@@ -199,7 +199,7 @@ public:
 			return target->entries.at(scope_name);
 		}
 
-		void assign_path_to(std::vector<TwineRef> &out_path) {
+		void assign_path_to(std::vector<IdString> &out_path) {
 			log_assert(valid());
 			out_path.clear();
 			if (scope_name.empty())
@@ -213,8 +213,8 @@ public:
 			std::reverse(out_path.begin(), out_path.end());
 		}
 
-		std::vector<TwineRef> path() {
-			std::vector<TwineRef> result;
+		std::vector<IdString> path() {
+			std::vector<IdString> result;
 			assign_path_to(result);
 			return result;
 		}
@@ -244,7 +244,7 @@ public:
 			return do_parent();
 		}
 
-		Cursor child(TwineRef name) {
+		Cursor child(IdString name) {
 			log_assert(valid());
 			return do_child(name);
 		}
@@ -286,7 +286,7 @@ public:
 	}
 
 	Cursor cursor() {
-		return parent ? Cursor(this->parent, this->scope_name) : Cursor(this, TwineRef());
+		return parent ? Cursor(this->parent, this->scope_name) : Cursor(this, IdString());
 	}
 
 	template<typename P>
@@ -334,11 +334,11 @@ template<typename T>
 static inline void log_dump_val_worker(const typename std::unique_ptr<T> &cursor ) { log("unique %p", cursor.get()); }
 
 template<typename O>
-std::vector<TwineRef> parse_hdlname(const O* object)
+std::vector<IdString> parse_hdlname(const O* object)
 {
 	TwinePool &twines = RTLIL::design_of(object)->twines;
-	TwineRef name = object->name.ref();
-	std::vector<TwineRef> path;
+	IdString name = object->name.ref();
+	std::vector<IdString> path;
 	for (auto const &item : object->get_hdlname_attribute())
 		path.push_back(twines.add("\\" + item));
 	bool synthetic = !name.isPublic() && !object->name.begins_with("$paramod")
@@ -353,11 +353,11 @@ std::vector<TwineRef> parse_hdlname(const O* object)
 }
 
 template<typename O>
-std::pair<std::vector<TwineRef>, TwineRef> parse_scopename(const O* object)
+std::pair<std::vector<IdString>, IdString> parse_scopename(const O* object)
 {
 	TwinePool &twines = RTLIL::design_of(object)->twines;
-	std::vector<TwineRef> path;
-	TwineRef trailing = object->name.ref();
+	std::vector<IdString> path;
+	IdString trailing = object->name.ref();
 	if (trailing.isPublic() || object->name.begins_with("$paramod") || object->name.begins_with("$abstract")) {
 		for (auto const &item : object->get_hdlname_attribute())
 			path.push_back(twines.add("\\" + item));
@@ -408,7 +408,7 @@ public:
 
 	// Return the cursor for the containing scope of some RTLIL object (Wire/Cell/...)
 	template<typename O>
-	std::pair<Cursor, TwineRef> containing_scope(O *object) {
+	std::pair<Cursor, IdString> containing_scope(O *object) {
 		auto pair = parse_scopename(object);
 		return {tree.cursor(pair.first), pair.second};
 	}
@@ -438,13 +438,13 @@ enum class ScopeinfoAttrs {
 };
 
 // Check whether the flattened module or flattened cell corresponding to a $scopeinfo cell had a specific attribute.
-bool scopeinfo_has_attribute(const RTLIL::Cell *scopeinfo, ScopeinfoAttrs attrs, TwineRef id);
+bool scopeinfo_has_attribute(const RTLIL::Cell *scopeinfo, ScopeinfoAttrs attrs, IdString id);
 
 // Get a specific attribute from the flattened module or flattened cell corresponding to a $scopeinfo cell.
-RTLIL::Const scopeinfo_get_attribute(const RTLIL::Cell *scopeinfo, ScopeinfoAttrs attrs, TwineRef id);
+RTLIL::Const scopeinfo_get_attribute(const RTLIL::Cell *scopeinfo, ScopeinfoAttrs attrs, IdString id);
 
 // Get all attribute from the flattened module or flattened cell corresponding to a $scopeinfo cell.
-dict<TwineRef, RTLIL::Const> scopeinfo_attributes(const RTLIL::Cell *scopeinfo, ScopeinfoAttrs attrs);
+dict<IdString, RTLIL::Const> scopeinfo_attributes(const RTLIL::Cell *scopeinfo, ScopeinfoAttrs attrs);
 
 YOSYS_NAMESPACE_END
 

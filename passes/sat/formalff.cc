@@ -53,7 +53,7 @@ struct InitValWorker
 	}
 
 	// Sign/Zero-extended indexing of individual port bits
-	static SigBit bit_in_port(RTLIL::Cell *cell, TwineRef port, TwineRef sign, int index)
+	static SigBit bit_in_port(RTLIL::Cell *cell, IdString port, IdString sign, int index)
 	{
 		auto sig_port = cell->getPort(port);
 		if (index < GetSize(sig_port))
@@ -320,7 +320,7 @@ struct InitValWorker
 };
 
 struct ReplacedPort {
-	TwineRef name;
+	IdString name;
 	int offset;
 	bool clk_pol;
 };
@@ -342,7 +342,7 @@ struct HierarchyWorker
 
 	void propagate();
 
-	const std::vector<ReplacedPort> &find_replaced_clk_inputs(TwineRef cell_type);
+	const std::vector<ReplacedPort> &find_replaced_clk_inputs(IdString cell_type);
 };
 
 // Propagates replaced clock signals
@@ -457,7 +457,7 @@ struct PropagateWorker
 	}
 };
 
-const std::vector<ReplacedPort> &HierarchyWorker::find_replaced_clk_inputs(TwineRef cell_type)
+const std::vector<ReplacedPort> &HierarchyWorker::find_replaced_clk_inputs(IdString cell_type)
 {
 	static const std::vector<ReplacedPort> empty;
 	if (!cell_type.isPublic())
@@ -630,7 +630,7 @@ struct FormalFfPass : public Pass {
 				SigMap &sigmap = modwalker.sigmap;
 				FfInitVals initvals(&modwalker.sigmap, module);
 
-				dict<TwineRef, Mem> memories;
+				dict<IdString, Mem> memories;
 
 				for (auto mem : Mem::get_selected_memories(module)) {
 					if (!mem.packed)

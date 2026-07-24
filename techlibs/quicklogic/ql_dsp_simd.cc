@@ -46,7 +46,7 @@ struct QlDspSimdPass : public Pass {
 	/// Describes DSP config unique to a whole DSP cell
 	struct DspConfig {
 		// Port connections
-		dict<TwineRef, RTLIL::SigSpec> connections;
+		dict<IdString, RTLIL::SigSpec> connections;
 
 		DspConfig() = default;
 
@@ -76,7 +76,7 @@ struct QlDspSimdPass : public Pass {
 
 		// DSP control and config ports to consider and how to map them to ports
 		// of the target DSP cell
-		static const std::vector<std::pair<TwineRef, TwineRef>> m_DspCfgPorts = {
+		static const std::vector<std::pair<IdString, IdString>> m_DspCfgPorts = {
 			std::make_pair(ID(clock_i), ID(clk)),
 			std::make_pair(ID(reset_i), ID(reset)),
 			std::make_pair(ID(feedback_i), ID(feedback)),
@@ -92,7 +92,7 @@ struct QlDspSimdPass : public Pass {
 		};
 
 		// DSP data ports and how to map them to ports of the target DSP cell
-		static const std::vector<std::pair<TwineRef, TwineRef>> m_DspDataPorts = {
+		static const std::vector<std::pair<IdString, IdString>> m_DspDataPorts = {
 			std::make_pair(ID(a_i), ID(a)),
 			std::make_pair(ID(b_i), ID(b)),
 			std::make_pair(ID(acc_fir_i), ID(acc_fir)),
@@ -101,10 +101,10 @@ struct QlDspSimdPass : public Pass {
 		};
 
 		// Source DSP cell type (SISD)
-		static const TwineRef m_SisdDspType = ID::dsp_t1_10x9x32;
+		static const IdString m_SisdDspType = ID::dsp_t1_10x9x32;
 
 		// Target DSP cell types for the SIMD mode
-		static const TwineRef m_SimdDspType = ID::QL_DSP2;
+		static const IdString m_SimdDspType = ID::QL_DSP2;
 
 		// Parse args
 		extra_args(a_Args, 1, a_Design);
@@ -197,7 +197,7 @@ struct QlDspSimdPass : public Pass {
 					// MODE_BITS parameter
 					Const mode_bits;
 					for (const auto &it : m_DspParams) {
-						TwineRef param = module->design->twines.add("\\" + it);
+						IdString param = module->design->twines.add("\\" + it);
 						auto val_a = dsp_a->getParam(param);
 						auto val_b = dsp_b->getParam(param);
 
@@ -233,7 +233,7 @@ struct QlDspSimdPass : public Pass {
 
 	/// Looks up port width and direction in the cell definition and returns it.
 	/// Returns (0, false) if it cannot be determined.
-	std::pair<size_t, bool> getPortInfo(RTLIL::Cell *a_Cell, TwineRef a_Port)
+	std::pair<size_t, bool> getPortInfo(RTLIL::Cell *a_Cell, IdString a_Port)
 	{
 		if (!a_Cell->known()) {
 			return std::make_pair(0, false);
@@ -256,7 +256,7 @@ struct QlDspSimdPass : public Pass {
 	}
 
 	/// Given a DSP cell populates and returns a DspConfig struct for it.
-	DspConfig getDspConfig(RTLIL::Cell *a_Cell, const std::vector<std::pair<TwineRef, TwineRef>> &dspCfgPorts)
+	DspConfig getDspConfig(RTLIL::Cell *a_Cell, const std::vector<std::pair<IdString, IdString>> &dspCfgPorts)
 	{
 		DspConfig config;
 

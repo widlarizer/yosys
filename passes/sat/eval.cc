@@ -120,7 +120,7 @@ struct VlogHammerReporter
 	RTLIL::Design *design;
 	std::vector<RTLIL::Module*> modules;
 	std::vector<std::string> module_names;
-	std::vector<TwineRef> inputs;
+	std::vector<IdString> inputs;
 	std::vector<int> input_widths;
 	std::vector<RTLIL::Const> patterns;
 	int total_input_width;
@@ -307,7 +307,7 @@ struct VlogHammerReporter
 	{
 		TwineSearch search(&design->twines);
 		for (auto name : split(module_list, ",")) {
-			TwineRef esc_name = design->twines.add(RTLIL::escape_id(module_prefix + name));
+			IdString esc_name = design->twines.add(RTLIL::escape_id(module_prefix + name));
 			RTLIL::Module *mod = design->module(esc_name);
 			if (mod == nullptr)
 				log_error("Can't find module %s in current design!\n", name);
@@ -319,8 +319,8 @@ struct VlogHammerReporter
 		total_input_width = 0;
 		for (auto name : split(input_list, ",")) {
 			int width = -1;
-			TwineRef esc_name = design->twines.add(RTLIL::escape_id(name));
-			TwineRef esc_ref = esc_name;
+			IdString esc_name = design->twines.add(RTLIL::escape_id(name));
+			IdString esc_ref = esc_name;
 			for (auto mod : modules) {
 				if (mod->wire(esc_ref) == nullptr)
 					log_error("Can't find input %s in module %s!\n", name, design->twines.unescaped_str(mod->name));

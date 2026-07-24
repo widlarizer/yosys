@@ -29,7 +29,7 @@
 USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
-void proc_memwr(RTLIL::Module *mod, RTLIL::Process *proc, dict<TwineRef, int> &next_port_id)
+void proc_memwr(RTLIL::Module *mod, RTLIL::Process *proc, dict<IdString, int> &next_port_id)
 {
 	for (auto sr : proc->syncs)
 	{
@@ -100,11 +100,11 @@ struct ProcMemWrPass : public Pass {
 		extra_args(args, 1, design);
 
 		for (auto mod : design->all_selected_modules()) {
-			dict<TwineRef, int> next_port_id;
+			dict<IdString, int> next_port_id;
 			for (auto cell : mod->cells()) {
 				if (cell->type.in(ID($memwr), ID($memwr_v2))) {
 					bool is_compat = cell->type == ID($memwr);
-					TwineRef memid = mod->design->twines.add(cell->parameters.at(ID::MEMID).decode_string());
+					IdString memid = mod->design->twines.add(cell->parameters.at(ID::MEMID).decode_string());
 					int port_id = cell->parameters.at(is_compat ? ID::PRIORITY : ID::PORTID).as_int();
 					if (port_id >= next_port_id[memid])
 						next_port_id[memid] = port_id + 1;

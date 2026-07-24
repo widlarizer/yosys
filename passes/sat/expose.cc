@@ -29,7 +29,7 @@ struct dff_map_info_t {
 	RTLIL::SigSpec sig_d, sig_clk, sig_arst;
 	bool clk_polarity, arst_polarity;
 	RTLIL::Const arst_value;
-	std::vector<TwineRef> cells;
+	std::vector<IdString> cells;
 };
 
 struct dff_map_bit_info_t {
@@ -39,7 +39,7 @@ struct dff_map_bit_info_t {
 	RTLIL::Cell *cell;
 };
 
-bool consider_wire(RTLIL::Wire *wire, std::map<TwineRef, dff_map_info_t> &dff_dq_map)
+bool consider_wire(RTLIL::Wire *wire, std::map<IdString, dff_map_info_t> &dff_dq_map)
 {
 	if (wire->name[0] == '$' || dff_dq_map.count(wire->name.ref()))
 		return false;
@@ -48,7 +48,7 @@ bool consider_wire(RTLIL::Wire *wire, std::map<TwineRef, dff_map_info_t> &dff_dq
 	return true;
 }
 
-bool consider_cell(RTLIL::Design *design, std::set<TwineRef> &dff_cells, RTLIL::Cell *cell)
+bool consider_cell(RTLIL::Design *design, std::set<IdString> &dff_cells, RTLIL::Cell *cell)
 {
 	if (cell->name[0] == '$' || dff_cells.count(cell->name.ref()))
 		return false;
@@ -75,7 +75,7 @@ bool compare_cells(RTLIL::Cell *cell1, RTLIL::Cell *cell2)
 	return true;
 }
 
-void find_dff_wires(std::set<TwineRef> &dff_wires, RTLIL::Module *module)
+void find_dff_wires(std::set<IdString> &dff_wires, RTLIL::Module *module)
 {
 	CellTypes ct;
 	ct.setup_internals_mem();
@@ -95,7 +95,7 @@ void find_dff_wires(std::set<TwineRef> &dff_wires, RTLIL::Module *module)
 	}
 }
 
-void create_dff_dq_map(std::map<TwineRef, dff_map_info_t> &map, RTLIL::Module *module)
+void create_dff_dq_map(std::map<IdString, dff_map_info_t> &map, RTLIL::Module *module)
 {
 	std::map<RTLIL::SigBit, dff_map_bit_info_t> bit_info;
 	SigMap sigmap(module);
@@ -159,7 +159,7 @@ void create_dff_dq_map(std::map<TwineRef, dff_map_info_t> &map, RTLIL::Module *m
 		}
 	}
 
-	std::map<TwineRef, dff_map_info_t> empty_dq_map;
+	std::map<IdString, dff_map_info_t> empty_dq_map;
 	for (auto w : module->wires())
 	{
 		if (!consider_wire(w, empty_dq_map))
@@ -209,7 +209,7 @@ void create_dff_dq_map(std::map<TwineRef, dff_map_info_t> &map, RTLIL::Module *m
 
 RTLIL::Wire *add_new_wire(RTLIL::Module *module, std::string name, int width = 1)
 {
-	TwineRef ref = module->design->twines.add(std::string{name});
+	IdString ref = module->design->twines.add(std::string{name});
 	if (module->count_id(ref))
 		log_error("Attempting to create wire %s, but a wire of this name exists already! Hint: Try another value for -sep.\n", name.c_str());
 	return module->addWire(ref, width);
@@ -312,13 +312,13 @@ struct ExposePass : public Pass {
 
 		CellTypes ct(design);
 
-		std::map<RTLIL::Module*, std::map<TwineRef, dff_map_info_t>> dff_dq_maps;
-		std::map<RTLIL::Module*, std::set<TwineRef>> dff_cells;
+		std::map<RTLIL::Module*, std::map<IdString, dff_map_info_t>> dff_dq_maps;
+		std::map<RTLIL::Module*, std::set<IdString>> dff_cells;
 
 		if (flag_evert_dff)
 		{
 			RTLIL::Module *first_module = NULL;
-			std::set<TwineRef> shared_dff_wires;
+			std::set<IdString> shared_dff_wires;
 
 			for (auto mod : design->selected_modules())
 			{
@@ -332,7 +332,7 @@ struct ExposePass : public Pass {
 						shared_dff_wires.insert(it.first);
 					first_module = mod;
 				} else {
-					std::set<TwineRef> new_shared_dff_wires;
+					std::set<IdString> new_shared_dff_wires;
 					for (auto &it : shared_dff_wires) {
 						if (!dff_dq_maps[mod].count(it))
 							continue;
@@ -347,7 +347,7 @@ struct ExposePass : public Pass {
 			if (flag_shared)
 				for (auto &map_it : dff_dq_maps)
 				{
-					std::map<TwineRef, dff_map_info_t> new_map;
+					std::map<IdString, dff_map_info_t> new_map;
 					for (auto &it : map_it.second)
 						if (shared_dff_wires.count(it.first))
 							new_map[it.first] = it.second;
@@ -360,8 +360,8 @@ struct ExposePass : public Pass {
 				dff_cells[it1.first].insert(it3);
 		}
 
-		std::set<TwineRef> shared_wires, shared_cells;
-		std::set<TwineRef> used_names;
+		std::set<IdString> shared_wires, shared_cells;
+		std::set<IdString> used_names;
 
 		if (flag_shared)
 		{
@@ -369,7 +369,7 @@ struct ExposePass : public Pass {
 
 			for (auto module : design->selected_modules())
 			{
-				std::set<TwineRef> dff_wires;
+				std::set<IdString> dff_wires;
 				if (flag_dff)
 					find_dff_wires(dff_wires, module);
 
@@ -389,7 +389,7 @@ struct ExposePass : public Pass {
 				}
 				else
 				{
-					std::vector<TwineRef> delete_shared_wires, delete_shared_cells;
+					std::vector<IdString> delete_shared_wires, delete_shared_cells;
 
 					for (auto &it : shared_wires)
 					{
@@ -446,7 +446,7 @@ struct ExposePass : public Pass {
 
 		for (auto module : design->selected_modules())
 		{
-			std::set<TwineRef> dff_wires;
+			std::set<IdString> dff_wires;
 			if (flag_dff && !flag_shared)
 				find_dff_wires(dff_wires, module);
 

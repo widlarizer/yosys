@@ -73,8 +73,8 @@ struct TribufWorker {
 
 			if (cell->type.in(ID($mux), ID($_MUX_)))
 			{
-				TwineRef en_port = cell->type == ID::$mux ? ID::EN : ID::E;
-				TwineRef tri_type = cell->type == ID::$mux ? ID::$tribuf : ID::$_TBUF_;
+				IdString en_port = cell->type == ID::$mux ? ID::EN : ID::E;
+				IdString tri_type = cell->type == ID::$mux ? ID::$tribuf : ID::$_TBUF_;
 
 				if (is_all_z(cell->getPort(ID::A)) && is_all_z(cell->getPort(ID::B))) {
 					module->remove(cell);

@@ -219,7 +219,7 @@ struct SubmodWorker
 		submod.cells.clear();
 
 		if (!copy_mode) {
-			TwineRef submod_type = design->twines.add(std::string{submod.full_name});
+			IdString submod_type = design->twines.add(std::string{submod.full_name});
 		RTLIL::Cell *new_cell = module->addCell(design->twines.add(std::string{submod.full_name}), submod_type);
 			for (auto &it : wire_flags)
 			{
@@ -384,14 +384,14 @@ struct SubmodPass : public Pass {
 			Pass::call(design, "opt_clean");
 			log_header(design, "Continuing SUBMOD pass.\n");
 
-			std::set<TwineRef> handled_modules;
+			std::set<IdString> handled_modules;
 
 			bool did_something = true;
 			while (did_something) {
 				did_something = false;
-				std::vector<TwineRef> queued_modules;
+				std::vector<IdString> queued_modules;
 				for (auto mod : design->modules()) {
-					TwineRef mod_name = mod->meta_->name;
+					IdString mod_name = mod->meta_->name;
 					if (handled_modules.count(mod_name) == 0 && design->selected_whole_module(mod))
 						queued_modules.push_back(mod_name);
 				}

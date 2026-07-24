@@ -27,8 +27,8 @@ PRIVATE_NAMESPACE_BEGIN
 struct mutate_t {
 	string mode;
 	pool<string> src;
-	TwineRef module = Twine::Null, cell = Twine::Null;
-	TwineRef port = Twine::Null, wire = Twine::Null;
+	IdString module = Twine::Null, cell = Twine::Null;
+	IdString port = Twine::Null, wire = Twine::Null;
 	int portbit = -1;
 	int ctrlbit = -1;
 	int wirebit = -1;
@@ -39,12 +39,12 @@ struct mutate_opts_t {
 	int seed = 0;
 	std::string mode;
 	pool<string> src;
-	TwineRef module = Twine::Null, cell = Twine::Null, port = Twine::Null, wire = Twine::Null;
+	IdString module = Twine::Null, cell = Twine::Null, port = Twine::Null, wire = Twine::Null;
 	int portbit = -1;
 	int ctrlbit = -1;
 	int wirebit = -1;
 
-	TwineRef ctrl_name = Twine::Null;
+	IdString ctrl_name = Twine::Null;
 	int ctrl_width = -1, ctrl_value = -1;
 
 	bool none = false;
@@ -139,13 +139,13 @@ struct xs128_t
 struct coverdb_t
 {
 	dict<string, int> src_db;
-	dict<tuple<TwineRef, TwineRef>, int> wire_db;
-	dict<tuple<TwineRef, TwineRef, int>, int> wirebit_db;
+	dict<tuple<IdString, IdString>, int> wire_db;
+	dict<tuple<IdString, IdString, int>, int> wirebit_db;
 
 	void insert(const mutate_t &m) {
 		if (m.wire != Twine::Null) {
-			wire_db[tuple<TwineRef, TwineRef>(m.module, m.wire)] = 0;
-			wirebit_db[tuple<TwineRef, TwineRef, int>(m.module, m.wire, m.wirebit)] = 0;
+			wire_db[tuple<IdString, IdString>(m.module, m.wire)] = 0;
+			wirebit_db[tuple<IdString, IdString, int>(m.module, m.wire, m.wirebit)] = 0;
 		}
 		for (auto &s : m.src) {
 			src_db[s] = 0;
@@ -154,8 +154,8 @@ struct coverdb_t
 
 	void update(const mutate_t &m) {
 		if (m.wire != Twine::Null) {
-			wire_db.at(tuple<TwineRef, TwineRef>(m.module, m.wire))++;
-			wirebit_db.at(tuple<TwineRef, TwineRef, int>(m.module, m.wire, m.wirebit))++;
+			wire_db.at(tuple<IdString, IdString>(m.module, m.wire))++;
+			wirebit_db.at(tuple<IdString, IdString, int>(m.module, m.wire, m.wirebit))++;
 		}
 		for (auto &s : m.src) {
 			src_db.at(s)++;
@@ -165,8 +165,8 @@ struct coverdb_t
 	int score(const mutate_t &m) {
 		int this_score = m.src.empty() ? 0 : 1;
 		if (m.wire != Twine::Null) {
-			this_score += wire_db.at(tuple<TwineRef, TwineRef>(m.module, m.wire)) ? 0 : 5;
-			this_score += wirebit_db.at(tuple<TwineRef, TwineRef, int>(m.module, m.wire, m.wirebit)) ? 0 : 1;
+			this_score += wire_db.at(tuple<IdString, IdString>(m.module, m.wire)) ? 0 : 5;
+			this_score += wirebit_db.at(tuple<IdString, IdString, int>(m.module, m.wire, m.wirebit)) ? 0 : 1;
 		}
 		for (auto &s : m.src) {
 			this_score += src_db.at(s) ? 0 : 5;
@@ -279,28 +279,28 @@ void database_reduce(std::vector<mutate_t> &database, const mutate_opts_t &opts,
 	if (N >= GetSize(database))
 		return;
 
-	mutate_once_queue_t<tuple<TwineRef, TwineRef>, mutate_queue_t> primary_queue_wire;
-	mutate_once_queue_t<tuple<TwineRef, TwineRef, int>, mutate_queue_t> primary_queue_bit;
-	mutate_once_queue_t<tuple<TwineRef, TwineRef>, mutate_queue_t> primary_queue_cell;
+	mutate_once_queue_t<tuple<IdString, IdString>, mutate_queue_t> primary_queue_wire;
+	mutate_once_queue_t<tuple<IdString, IdString, int>, mutate_queue_t> primary_queue_bit;
+	mutate_once_queue_t<tuple<IdString, IdString>, mutate_queue_t> primary_queue_cell;
 	mutate_once_queue_t<string, mutate_queue_t> primary_queue_src;
 
-	mutate_chain_queue_t<TwineRef, mutate_once_queue_t<TwineRef, mutate_queue_t>> primary_queue_module_wire;
-	mutate_chain_queue_t<TwineRef, mutate_once_queue_t<pair<TwineRef, int>, mutate_queue_t>> primary_queue_module_bit;
-	mutate_chain_queue_t<TwineRef, mutate_once_queue_t<TwineRef, mutate_queue_t>> primary_queue_module_cell;
-	mutate_chain_queue_t<TwineRef, mutate_once_queue_t<string, mutate_queue_t>> primary_queue_module_src;
+	mutate_chain_queue_t<IdString, mutate_once_queue_t<IdString, mutate_queue_t>> primary_queue_module_wire;
+	mutate_chain_queue_t<IdString, mutate_once_queue_t<pair<IdString, int>, mutate_queue_t>> primary_queue_module_bit;
+	mutate_chain_queue_t<IdString, mutate_once_queue_t<IdString, mutate_queue_t>> primary_queue_module_cell;
+	mutate_chain_queue_t<IdString, mutate_once_queue_t<string, mutate_queue_t>> primary_queue_module_src;
 
 	for (auto &m : database)
 	{
 		coverdb.insert(m);
 
 		if (m.wire != Twine::Null) {
-			primary_queue_wire.add(&m, tuple<TwineRef, TwineRef>(m.module, m.wire));
-			primary_queue_bit.add(&m, tuple<TwineRef, TwineRef, int>(m.module, m.wire, m.wirebit));
+			primary_queue_wire.add(&m, tuple<IdString, IdString>(m.module, m.wire));
+			primary_queue_bit.add(&m, tuple<IdString, IdString, int>(m.module, m.wire, m.wirebit));
 			primary_queue_module_wire.add(&m, m.module, m.wire);
-			primary_queue_module_bit.add(&m, m.module, pair<TwineRef, int>(m.wire, m.wirebit));
+			primary_queue_module_bit.add(&m, m.module, pair<IdString, int>(m.wire, m.wirebit));
 		}
 
-		primary_queue_cell.add(&m, tuple<TwineRef, TwineRef>(m.module, m.cell));
+		primary_queue_cell.add(&m, tuple<IdString, IdString>(m.module, m.cell));
 		primary_queue_module_cell.add(&m, m.module, m.cell);
 
 		for (auto &s : m.src) {
@@ -594,7 +594,7 @@ void mutate_list(Design *design, const mutate_opts_t &opts, const string &filena
 	}
 }
 
-SigSpec mutate_ctrl_sig(Module *module, TwineRef name, int width)
+SigSpec mutate_ctrl_sig(Module *module, IdString name, int width)
 {
 	Wire *ctrl_wire = module->wire(name);
 

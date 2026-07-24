@@ -67,7 +67,7 @@ struct LibertyStubber {
 		i.indent = 3;
 		auto sorted_ports = derived->ports;
 		// Hack for CLK and C coming before Q does
-		auto cmp = [derived](TwineRef l, TwineRef r) { return derived->design->twines.str(l) < derived->design->twines.str(r); };
+		auto cmp = [derived](IdString l, IdString r) { return derived->design->twines.str(l) < derived->design->twines.str(r); };
 		std::sort(sorted_ports.begin(), sorted_ports.end(), cmp);
 		std::string clock_pin_name = "";
 		for (auto x : sorted_ports) {
@@ -183,7 +183,7 @@ struct IcellLiberty : Pass {
 			}
 		}
 
-		pool<TwineRef> done;
+		pool<IdString> done;
 		LibertyStubber stubber = {};
 
 		stubber.liberty_prefix(*liberty_file);

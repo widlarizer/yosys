@@ -48,10 +48,10 @@ match add
 	index <SigSpec> port(add, \Y) === shift_amount
 
 	// one must be constant, the other is variable
-	choice <TwineRef> constport {\A, \B}
+	choice <IdString> constport {\A, \B}
 	select !port(add, constport).empty()
 	select port(add, constport).is_fully_const()
-	define <TwineRef> varport (constport == \A ? \B : \A)
+	define <IdString> varport (constport == \A ? \B : \A)
 
 	// only optimize for constants up to a fixed width. this prevents cases
 	// with a blowup in internal term size and prevents larger constants being

@@ -86,11 +86,11 @@ struct ConnwrappersWorker
 
 				portdecl_t &decl = decls.at(key);
 
-				TwineRef widthparam = module->design->twines.find(decl.widthparam);
+				IdString widthparam = module->design->twines.find(decl.widthparam);
 				if (widthparam == Twine::Null || !cell->parameters.count(widthparam))
 					continue;
 
-				TwineRef signparam = decl.signparam.empty() ? Twine::Null : module->design->twines.find(decl.signparam);
+				IdString signparam = decl.signparam.empty() ? Twine::Null : module->design->twines.find(decl.signparam);
 				if (!decl.signparam.empty() && (signparam == Twine::Null || !cell->parameters.count(signparam)))
 					continue;
 

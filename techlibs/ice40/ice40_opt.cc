@@ -122,7 +122,7 @@ static void run_ice40_opts(Module *module)
 					module->rename(cell, module->design->twines.add(std::string{it->second.decode_string()}));
 					decltype(Cell::attributes) new_attr;
 					TwinePool &twines = module->design->twines;
-					TwineRef lut_name_attr = twines.add(std::string("\\SB_LUT4.name"));
+					IdString lut_name_attr = twines.add(std::string("\\SB_LUT4.name"));
 					for (const auto &a : cell->attributes) {
 						std::string aname = twines.str(a.first);
 						if (aname.starts_with("\\SB_LUT4.\\"))

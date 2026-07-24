@@ -23,12 +23,12 @@ USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
 // Internal ("$...") names become public ("\\$...") ones.
-static TwineRef publish(TwinePool &twines, TwineRef id) {
+static IdString publish(TwinePool &twines, IdString id) {
 	std::string name = twines.str(id);
 	if (!name.starts_with("$"))
 		return id;
 	log_debug("publishing %s\n", name.c_str());
-	TwineRef published = twines.add("\\" + name);
+	IdString published = twines.add("\\" + name);
 	log_debug("published %s\n", twines.str(published).c_str());
 	return published;
 }
@@ -37,7 +37,7 @@ static void publish_design(RTLIL::Design* design) {
 	auto saved_modules = design->modules_;
 	design->modules_.clear();
 	for (auto& [name, mod] : saved_modules) {
-		TwineRef new_name = publish(design->twines, mod->meta_->name);
+		IdString new_name = publish(design->twines, mod->meta_->name);
 		mod->meta_->name = new_name;
 		design->modules_[new_name] = mod;
 		for (auto* cell : mod->cells())
@@ -69,20 +69,20 @@ struct ChtypePass : public Pass {
 	}
 	void execute(std::vector<std::string> args, RTLIL::Design *design) override
 	{
-		TwineRef set_type;
-		dict<TwineRef, TwineRef> map_types;
+		IdString set_type;
+		dict<IdString, IdString> map_types;
 		bool publish_mode = false;
 
 		size_t argidx;
 		for (argidx = 1; argidx < args.size(); argidx++)
 		{
-			if (set_type == TwineRef() && args[argidx] == "-set" && argidx+1 < args.size()) {
+			if (set_type == IdString() && args[argidx] == "-set" && argidx+1 < args.size()) {
 				set_type = design->twines.add(RTLIL::escape_id(args[++argidx]));
 				continue;
 			}
 			if (args[argidx] == "-map" && argidx+2 < args.size()) {
-				TwineRef old_type = design->twines.add(RTLIL::escape_id(args[++argidx]));
-				TwineRef new_type = design->twines.add(RTLIL::escape_id(args[++argidx]));
+				IdString old_type = design->twines.add(RTLIL::escape_id(args[++argidx]));
+				IdString new_type = design->twines.add(RTLIL::escape_id(args[++argidx]));
 				map_types[old_type] = new_type;
 				continue;
 			}
@@ -106,7 +106,7 @@ struct ChtypePass : public Pass {
 					continue;
 				}
 
-				if (set_type != TwineRef()) {
+				if (set_type != IdString()) {
 					cell->type_impl = set_type;
 					continue;
 				}

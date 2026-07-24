@@ -1745,7 +1745,7 @@ struct VerificSvaImporter
 			}
 		}
 
-		TwineRef root_name = module->uniquify(importer->mode_names || is_user_declared ? RTLIL::escape_id(root->Name()) : NEW_ID);
+		IdString root_name = module->uniquify(importer->mode_names || is_user_declared ? RTLIL::escape_id(root->Name()) : NEW_ID);
 
 		try
 		{

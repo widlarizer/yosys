@@ -38,8 +38,8 @@ struct SpliceWorker
 	bool no_outputs;
 	bool do_wires;
 
-	std::set<TwineRef> ports;
-	std::set<TwineRef> no_ports;
+	std::set<IdString> ports;
+	std::set<IdString> no_ports;
 
 	CellTypes ct;
 	SigMap sigmap;
@@ -231,7 +231,7 @@ struct SpliceWorker
 
 		for (auto &it : rework_wires)
 		{
-			TwineRef orig_name = it.first->name.ref();
+			IdString orig_name = it.first->name.ref();
 			module->rename(it.first, design->twines.add(NEW_ID));
 
 			RTLIL::Wire *new_port = module->addWire(orig_name, it.first);
@@ -294,7 +294,7 @@ struct SplicePass : public Pass {
 		bool sel_any_bit = false;
 		bool no_outputs = false;
 		bool do_wires = false;
-		std::set<TwineRef> ports, no_ports;
+		std::set<IdString> ports, no_ports;
 
 		size_t argidx;
 		for (argidx = 1; argidx < args.size(); argidx++) {

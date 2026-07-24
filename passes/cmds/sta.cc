@@ -35,8 +35,8 @@ struct StaWorker
 
 	struct t_data {
 		Cell* driver;
-		TwineRef dst_port, src_port;
-		vector<tuple<SigBit,int,TwineRef>> fanouts;
+		IdString dst_port, src_port;
+		vector<tuple<SigBit,int,IdString>> fanouts;
 		SigBit backtrack;
 		t_data() : driver(nullptr) {}
 	};
@@ -44,7 +44,7 @@ struct StaWorker
 	std::deque<SigBit> queue;
 	struct t_endpoint {
 		Cell *sink;
-		TwineRef port;
+		IdString port;
 		int required;
 		t_endpoint() : sink(nullptr), required(0) {}
 	};
@@ -59,7 +59,7 @@ struct StaWorker
 	{
 		TimingInfo timing;
 
-		pool<TwineRef> unrecognised_cells;
+		pool<IdString> unrecognised_cells;
 
 		for (auto cell : module->cells())
 		{
@@ -75,7 +75,7 @@ struct StaWorker
 				continue;
 			}
 
-			TwineRef derived_type = inst_module->derive(design, cell->parameters);
+			IdString derived_type = inst_module->derive(design, cell->parameters);
 			inst_module = design->module(derived_type);
 			log_assert(inst_module);
 

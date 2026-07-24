@@ -138,7 +138,7 @@ struct EdifBackend : public Backend {
 		bool port_rename = false;
 		bool attr_properties = false;
 		bool lsbidx = false;
-		std::map<TwineRef, std::map<TwineRef, int>> lib_cell_ports;
+		std::map<IdString, std::map<IdString, int>> lib_cell_ports;
 		bool nogndvcc = false, gndvccy = false, keepmode = false;
 		NewCellTypes ct(design);
 		EdifNames edif_names;
@@ -194,7 +194,7 @@ struct EdifBackend : public Backend {
 
 		for (auto module : design->modules())
 		{
-			TwineRef module_type = module->meta_->name;
+			IdString module_type = module->meta_->name;
 			lib_cell_ports[module_type];
 
 			for (auto port : module->ports)
@@ -336,7 +336,7 @@ struct EdifBackend : public Backend {
 		*f << stringf("    (edifLevel 0)\n");
 		*f << stringf("    (technology (numberDefinition))\n");
 
-		auto add_prop = [&](TwineRef name_ref, Const val) {
+		auto add_prop = [&](IdString name_ref, Const val) {
 			std::string name = design->twines.unescaped_str(name_ref);
 			if ((val.flags & RTLIL::CONST_FLAG_STRING) != 0)
 				*f << stringf("\n            (property %s (string \"%s\"))", EDIF_DEF_STR(name), val.decode_string());

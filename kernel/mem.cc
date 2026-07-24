@@ -542,7 +542,7 @@ void Mem::check() {
 
 namespace {
 
-	// Keyed by the *name text*, not a TwineRef: a memory's name may be a
+	// Keyed by the *name text*, not a IdString: a memory's name may be a
 	// Suffix node while the MEMID parameter re-interns as a Leaf, so two
 	// distinct refs can denote the same name.
 	struct MemIndex {
@@ -895,7 +895,7 @@ Cell *Mem::extract_rdff(int idx, FfInitVals *initvals) {
 	// "@N" parse_ref path), and there's no flatten → re-intern → pipe-
 	// leaf round-trip on cells whose src is a Concat node.
 	log_assert(module && module->design);
-	TwineRef mem_src = module->design->obj_src_id(this);
+	IdString mem_src = module->design->obj_src_id(this);
 	std::string memid_str = module->design->twines.str(memid);
 
 	Cell *c;
@@ -1000,7 +1000,7 @@ Cell *Mem::extract_rdff(int idx, FfInitVals *initvals) {
 			}
 		}
 
-		TwineRef name = module->design->twines.add(stringf("$%s$rdreg[%d]", memid_str, idx));
+		IdString name = module->design->twines.add(stringf("$%s$rdreg[%d]", memid_str, idx));
 		FfData ff(module, initvals, name);
 		// pool, direct id retain. emit() transfers verbatim.
 		ff.src_twine = mem_src;

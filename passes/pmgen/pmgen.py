@@ -417,9 +417,9 @@ with open(outfile, "w") as f:
 
     for v, n in sorted(ids.items()):
         if n[0] == "\\":
-            print("  TwineRef {}{{ID::{}}};".format(v, n[1:]), file=f)
+            print("  IdString {}{{ID::{}}};".format(v, n[1:]), file=f)
         else:
-            print("  TwineRef {}{{ID::{}}};".format(v, n), file=f)
+            print("  IdString {}{{ID::{}}};".format(v, n), file=f)
     print("", file=f)
 
     print("  void add_siguser(const SigSpec &sig, Cell *cell) {", file=f)
@@ -451,29 +451,29 @@ with open(outfile, "w") as f:
 
     current_pattern = None
 
-    print("  SigSpec port(Cell *cell, TwineRef portname) {", file=f)
+    print("  SigSpec port(Cell *cell, IdString portname) {", file=f)
     print("    try {", file=f)
     print("      return (*sigmap)(cell->getPort(portname));", file=f)
     print("    } catch(std::out_of_range&) { log_error(\"Accessing non existing port %s\\n\", cell->module->design->twines.str(portname).c_str()); }", file=f)
     print("  }", file=f)
     print("", file=f)
-    print("  SigSpec port(Cell *cell, TwineRef portname, const SigSpec& defval) {", file=f)
+    print("  SigSpec port(Cell *cell, IdString portname, const SigSpec& defval) {", file=f)
     print("    return (*sigmap)(cell->connections_.at(portname, defval));", file=f)
     print("  }", file=f)
     print("", file=f)
 
-    print("  Const param(Cell *cell, TwineRef paramname) {", file=f)
+    print("  Const param(Cell *cell, IdString paramname) {", file=f)
     print("    try {", file=f)
     print("      return cell->getParam(paramname);", file=f)
     print("    } catch(std::out_of_range&) { log_error(\"Accessing non existing parameter %s\\n\", log_id(module, paramname)); }", file=f)
     print("  }", file=f)
     print("", file=f)
-    print("  Const param(Cell *cell, TwineRef paramname, const Const& defval) {", file=f)
+    print("  Const param(Cell *cell, IdString paramname, const Const& defval) {", file=f)
     print("    return cell->parameters.at(paramname, defval);", file=f)
     print("  }", file=f)
     print("", file=f)
 
-    print("  void setparam(Cell *cell, TwineRef param, const Const& val) {", file=f)
+    print("  void setparam(Cell *cell, IdString param, const Const& val) {", file=f)
     print("    cell->setParam(param, val);", file=f)
     print("  }", file=f)
     print("", file=f)

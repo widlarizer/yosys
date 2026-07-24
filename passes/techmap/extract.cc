@@ -33,14 +33,14 @@ class SubCircuitSolver : public SubCircuit::Solver
 {
 public:
 	bool ignore_parameters;
-	std::set<std::pair<TwineRef, TwineRef>> ignored_parameters;
-	std::set<TwineRef> cell_attr, wire_attr;
+	std::set<std::pair<IdString, IdString>> ignored_parameters;
+	std::set<IdString> cell_attr, wire_attr;
 
 	SubCircuitSolver() : ignore_parameters(false)
 	{
 	}
 
-	bool compareAttributes(const std::set<TwineRef> &attr, const dict<TwineRef, RTLIL::Const> &needleAttr, const dict<TwineRef, RTLIL::Const> &haystackAttr)
+	bool compareAttributes(const std::set<IdString> &attr, const dict<IdString, RTLIL::Const> &needleAttr, const dict<IdString, RTLIL::Const> &haystackAttr)
 	{
 		for (auto &it : attr) {
 			size_t nc = needleAttr.count(it), hc = haystackAttr.count(it);
@@ -50,7 +50,7 @@ public:
 		return true;
 	}
 
-	RTLIL::Const unified_param(TwineRef cell_type, TwineRef param, RTLIL::Const value)
+	RTLIL::Const unified_param(IdString cell_type, IdString param, RTLIL::Const value)
 	{
 		std::string type_str = ID::str(cell_type);
 		if (!type_str.starts_with("$") || type_str.starts_with("$_"))
@@ -105,12 +105,12 @@ public:
 		}
 
 		if (!ignore_parameters) {
-			std::map<TwineRef, RTLIL::Const> needle_param, haystack_param;
+			std::map<IdString, RTLIL::Const> needle_param, haystack_param;
 			for (auto &it : needleCell->parameters)
-				if (!ignored_parameters.count(std::pair<TwineRef, TwineRef>(needleCell->type, it.first)))
+				if (!ignored_parameters.count(std::pair<IdString, IdString>(needleCell->type, it.first)))
 					needle_param[it.first] = unified_param(needleCell->type, it.first, it.second);
 			for (auto &it : haystackCell->parameters)
-				if (!ignored_parameters.count(std::pair<TwineRef, TwineRef>(haystackCell->type, it.first)))
+				if (!ignored_parameters.count(std::pair<IdString, IdString>(haystackCell->type, it.first)))
 					haystack_param[it.first] = unified_param(haystackCell->type, it.first, it.second);
 			if (needle_param != haystack_param)
 				return false;
@@ -123,7 +123,7 @@ public:
 		{
 			RTLIL::Wire *lastNeedleWire = nullptr;
 			RTLIL::Wire *lastHaystackWire = nullptr;
-			dict<TwineRef, RTLIL::Const> emptyAttr;
+			dict<IdString, RTLIL::Const> emptyAttr;
 
 			for (auto &conn : needleCell->connections())
 			{
@@ -291,7 +291,7 @@ bool module2graph(SubCircuit::Graph &graph, RTLIL::Module *mod, bool constports,
 RTLIL::Cell *replace(RTLIL::Module *needle, RTLIL::Module *haystack, SubCircuit::Solver::Result &match)
 {
 	SigMap sigmap(needle);
-	SigSet<std::pair<TwineRef, int>> sig2port;
+	SigSet<std::pair<IdString, int>> sig2port;
 	auto &tw = needle->design->twines;
 
 	// create new cell
@@ -302,9 +302,9 @@ RTLIL::Cell *replace(RTLIL::Module *needle, RTLIL::Module *haystack, SubCircuit:
 	// refs as the referenced module in the haystack design.
 	for (auto wire : needle->wires()) {
 		if (wire->port_id > 0) {
-			TwineRef portname = haystack->design->twines.add(tw.str(wire->meta_->name));
+			IdString portname = haystack->design->twines.add(tw.str(wire->meta_->name));
 			for (int i = 0; i < wire->width; i++)
-				sig2port.insert(sigmap(RTLIL::SigSpec(wire, i)), std::pair<TwineRef, int>(portname, i));
+				sig2port.insert(sigmap(RTLIL::SigSpec(wire, i)), std::pair<IdString, int>(portname, i));
 			cell->setPort(portname, RTLIL::SigSpec(RTLIL::State::Sz, wire->width));
 		}
 	}
@@ -558,7 +558,7 @@ struct ExtractPass : public Pass {
 				continue;
 			}
 			if (args[argidx] == "-ignore_param" && argidx+2 < args.size()) {
-				solver.ignored_parameters.insert(std::pair<TwineRef, TwineRef>(design->twines.add(RTLIL::escape_id(args[argidx+1])), design->twines.add(RTLIL::escape_id(args[argidx+2]))));
+				solver.ignored_parameters.insert(std::pair<IdString, IdString>(design->twines.add(RTLIL::escape_id(args[argidx+1])), design->twines.add(RTLIL::escape_id(args[argidx+2]))));
 				argidx += 2;
 				continue;
 			}

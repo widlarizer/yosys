@@ -1561,7 +1561,7 @@ void AbcModuleState::extract(AbcSigMap &assign_map, RTLIL::Design *design, RTLIL
 			cell_stats[c->type.unescape()]++;
 			if (c->type.in(ID(ZERO), ID(ONE))) {
 				RTLIL::SigSig conn;
-				TwineRef name_y = rn(c->getPort(ID::Y).as_wire()->name);
+				IdString name_y = rn(c->getPort(ID::Y).as_wire()->name);
 				conn.first = module->wire(name_y);
 				conn.second = RTLIL::SigSpec(c->type == ID(ZERO) ? 0 : 1, 1);
 				connect(assign_map, module, conn);
@@ -1569,8 +1569,8 @@ void AbcModuleState::extract(AbcSigMap &assign_map, RTLIL::Design *design, RTLIL
 			}
 			if (c->type == ID(BUF)) {
 				RTLIL::SigSig conn;
-				TwineRef name_y = rn(c->getPort(ID::Y).as_wire()->name);
-				TwineRef name_a = rn(c->getPort(ID::A).as_wire()->name);
+				IdString name_y = rn(c->getPort(ID::Y).as_wire()->name);
+				IdString name_a = rn(c->getPort(ID::A).as_wire()->name);
 				conn.first = module->wire(name_y);
 				conn.second = module->wire(name_a);
 				connect(assign_map, module, conn);
@@ -1580,7 +1580,7 @@ void AbcModuleState::extract(AbcSigMap &assign_map, RTLIL::Design *design, RTLIL
 				RTLIL::Cell *cell = module->addCell(rn(c->name), ID::$_NOT_);
 				if (markgroups) cell->attributes[ID::abcgroup] = map_autoidx;
 				for (auto name : {ID::A, ID::Y}) {
-					TwineRef remapped_name = rn(c->getPort(name).as_wire()->name);
+					IdString remapped_name = rn(c->getPort(name).as_wire()->name);
 					cell->setPort(name, module->wire(remapped_name));
 				}
 				design->select(module, cell);
@@ -1590,7 +1590,7 @@ void AbcModuleState::extract(AbcSigMap &assign_map, RTLIL::Design *design, RTLIL
 				RTLIL::Cell *cell = module->addCell(rn(c->name), Twine{stringf("$_%s_", c->type.unescape().c_str())});
 				if (markgroups) cell->attributes[ID::abcgroup] = map_autoidx;
 				for (auto name : {ID::A, ID::B, ID::Y}) {
-					TwineRef remapped_name = rn(c->getPort(name).as_wire()->name);
+					IdString remapped_name = rn(c->getPort(name).as_wire()->name);
 					cell->setPort(name, module->wire(remapped_name));
 				}
 				design->select(module, cell);
@@ -1600,7 +1600,7 @@ void AbcModuleState::extract(AbcSigMap &assign_map, RTLIL::Design *design, RTLIL
 				RTLIL::Cell *cell = module->addCell(rn(c->name), Twine{stringf("$_%s_", c->type.unescape().c_str())});
 				if (markgroups) cell->attributes[ID::abcgroup] = map_autoidx;
 				for (auto name : {ID::A, ID::B, ID::S, ID::Y}) {
-					TwineRef remapped_name = rn(c->getPort(name).as_wire()->name);
+					IdString remapped_name = rn(c->getPort(name).as_wire()->name);
 					cell->setPort(name, module->wire(remapped_name));
 				}
 				design->select(module, cell);
@@ -1610,7 +1610,7 @@ void AbcModuleState::extract(AbcSigMap &assign_map, RTLIL::Design *design, RTLIL
 				RTLIL::Cell *cell = module->addCell(rn(c->name), ID::$_MUX4_);
 				if (markgroups) cell->attributes[ID::abcgroup] = map_autoidx;
 				for (auto name : {ID::A, ID::B, ID::C, ID::D, ID::S, ID::T, ID::Y}) {
-					TwineRef remapped_name = rn(c->getPort(name).as_wire()->name);
+					IdString remapped_name = rn(c->getPort(name).as_wire()->name);
 					cell->setPort(name, module->wire(remapped_name));
 				}
 				design->select(module, cell);
@@ -1620,7 +1620,7 @@ void AbcModuleState::extract(AbcSigMap &assign_map, RTLIL::Design *design, RTLIL
 				RTLIL::Cell *cell = module->addCell(rn(c->name), ID::$_MUX8_);
 				if (markgroups) cell->attributes[ID::abcgroup] = map_autoidx;
 				for (auto name : {ID::A, ID::B, ID::C, ID::D, ID::E, ID::F, ID::G, ID::H, ID::S, ID::T, ID::U, ID::Y}) {
-					TwineRef remapped_name = rn(c->getPort(name).as_wire()->name);
+					IdString remapped_name = rn(c->getPort(name).as_wire()->name);
 					cell->setPort(name, module->wire(remapped_name));
 				}
 				design->select(module, cell);
@@ -1631,7 +1631,7 @@ void AbcModuleState::extract(AbcSigMap &assign_map, RTLIL::Design *design, RTLIL
 				if (markgroups) cell->attributes[ID::abcgroup] = map_autoidx;
 				for (auto name : {ID::A, ID::B, ID::C, ID::D, ID::E, ID::F, ID::G, ID::H, ID::I, ID::J, ID::K,
 						ID::L, ID::M, ID::N, ID::O, ID::P, ID::S, ID::T, ID::U, ID::V, ID::Y}) {
-					TwineRef remapped_name = rn(c->getPort(name).as_wire()->name);
+					IdString remapped_name = rn(c->getPort(name).as_wire()->name);
 					cell->setPort(name, module->wire(remapped_name));
 				}
 				design->select(module, cell);
@@ -1641,7 +1641,7 @@ void AbcModuleState::extract(AbcSigMap &assign_map, RTLIL::Design *design, RTLIL
 				RTLIL::Cell *cell = module->addCell(rn(c->name), Twine{stringf("$_%s_", c->type.unescape().c_str())});
 				if (markgroups) cell->attributes[ID::abcgroup] = map_autoidx;
 				for (auto name : {ID::A, ID::B, ID::C, ID::Y}) {
-					TwineRef remapped_name = rn(c->getPort(name).as_wire()->name);
+					IdString remapped_name = rn(c->getPort(name).as_wire()->name);
 					cell->setPort(name, module->wire(remapped_name));
 				}
 				design->select(module, cell);
@@ -1651,7 +1651,7 @@ void AbcModuleState::extract(AbcSigMap &assign_map, RTLIL::Design *design, RTLIL
 				RTLIL::Cell *cell = module->addCell(rn(c->name), Twine{stringf("$_%s_", c->type.unescape().c_str())});
 				if (markgroups) cell->attributes[ID::abcgroup] = map_autoidx;
 				for (auto name : {ID::A, ID::B, ID::C, ID::D, ID::Y}) {
-					TwineRef remapped_name = rn(c->getPort(name).as_wire()->name);
+					IdString remapped_name = rn(c->getPort(name).as_wire()->name);
 					cell->setPort(name, module->wire(remapped_name));
 				}
 				design->select(module, cell);

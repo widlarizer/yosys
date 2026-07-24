@@ -69,12 +69,12 @@ struct GraphNode {
 		return replaced = replaced->get();
 	}
 
-	pool<TwineRef> names_;
+	pool<IdString> names_;
 	dict<int, uint8_t> tags_;
 	pool<GraphNode*> upstream_;
 	pool<GraphNode*> downstream_;
 
-	pool<TwineRef> &names() { return get()->names_; }
+	pool<IdString> &names() { return get()->names_; }
 	dict<int, uint8_t> &tags() { return get()->tags_; }
 	pool<GraphNode*> &upstream() { return get()->upstream_; }
 	pool<GraphNode*> &downstream() { return get()->downstream_; }
@@ -703,7 +703,7 @@ struct VizWorker
 
 	void update_attrs()
 	{
-		TwineRef vg_id = module->design->twines.add(std::string("\\vg"));
+		IdString vg_id = module->design->twines.add(std::string("\\vg"));
 		for (auto c : module->cells())
 			c->attributes.erase(vg_id);
 		for (auto g : graph.nodes) {

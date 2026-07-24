@@ -207,7 +207,7 @@ eval_end:
 	}
 };
 
-AigerReader::AigerReader(RTLIL::Design *design, std::istream &f, TwineRef module_name, TwineRef clk_name, std::string map_filename)
+AigerReader::AigerReader(RTLIL::Design *design, std::istream &f, IdString module_name, IdString clk_name, std::string map_filename)
 	: design(design), f(f), clk_name(clk_name), map_filename(map_filename), aiger_autoidx(autoidx++)
 {
 	module = new RTLIL::Module;
@@ -463,9 +463,9 @@ void AigerReader::parse_xaiger()
 		}
 		else if (c == 'M') { // cell 'M'apping
 			struct MappingCell {
-				TwineRef type;
-				TwineRef out;
-				std::vector<TwineRef> ins;
+				IdString type;
+				IdString out;
+				std::vector<IdString> ins;
 			};
 			std::vector<MappingCell> mapping_cells;
 
@@ -580,7 +580,7 @@ void AigerReader::parse_xaiger()
 				uint32_t boxUniqueId = parse_xaiger_literal(f);
 				log_assert(boxUniqueId > 0);
 				uint32_t oldBoxNum = parse_xaiger_literal(f);
-				TwineRef _type = module->design->twines.add(std::string{stringf("$__boxid%u", boxUniqueId)});
+				IdString _type = module->design->twines.add(std::string{stringf("$__boxid%u", boxUniqueId)});
 				RTLIL::Cell* cell = module->addCell(Twine{stringf("$box%u", oldBoxNum)}, _type);
 				cell->setPort(ID::i, SigSpec(State::S0, boxInputs));
 				cell->setPort(ID::o, SigSpec(State::S0, boxOutputs));
@@ -849,12 +849,12 @@ void AigerReader::parse_aiger_binary()
 // prefix leaf). Reuse that ref so every wire/cell with the same name string is
 // keyed by a single canonical ref; otherwise leaf-vs-suffix refs diverge and
 // module->wire()/cell() lookups miss.
-TwineRef AigerReader::intern_name(const std::string &escaped, TwineSearch &search)
+IdString AigerReader::intern_name(const std::string &escaped, TwineSearch &search)
 {
-	TwineRef existing = search.find(escaped);
+	IdString existing = search.find(escaped);
 	if (existing != Twine::Null)
 		return existing;
-	TwineRef ref = design->twines.add(std::string{escaped});
+	IdString ref = design->twines.add(std::string{escaped});
 	search.insert(ref);
 	return ref;
 }
@@ -944,8 +944,8 @@ struct AigerFrontend : public Frontend {
 	{
 		log_header(design, "Executing AIGER frontend.\n");
 
-		TwineRef clk_name;
-		TwineRef module_name;
+		IdString clk_name;
+		IdString module_name;
 		std::string map_filename;
 		bool xaiger = false;
 

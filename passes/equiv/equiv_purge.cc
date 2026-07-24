@@ -31,7 +31,7 @@ struct EquivPurgeWorker
 
 	EquivPurgeWorker(Module *module) : module(module), sigmap(module), name_cnt(0) { }
 
-	SigSpec make_output(SigSpec sig, TwineRef cellname)
+	SigSpec make_output(SigSpec sig, IdString cellname)
 	{
 		if (sig.is_wire()) {
 			Wire *wire = sig.as_wire();
@@ -99,8 +99,8 @@ struct EquivPurgeWorker
 		pool<SigBit> queue, visited;
 
 		// cache for traversing signal flow graph
-		dict<SigBit, pool<TwineRef>> up_bit2cells;
-		dict<TwineRef, pool<SigBit>> up_cell2bits;
+		dict<SigBit, pool<IdString>> up_bit2cells;
+		dict<IdString, pool<SigBit>> up_cell2bits;
 
 		for (auto cell : module->cells())
 		{

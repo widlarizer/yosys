@@ -46,14 +46,14 @@ struct RTLILFrontendWorker {
 	std::string_view line;
 
 	RTLIL::Module *current_module;
-	dict<TwineRef, RTLIL::Const> attrbuf;
+	dict<IdString, RTLIL::Const> attrbuf;
 
-	TwineRef pending_src = Twine::Null;
+	IdString pending_src = Twine::Null;
 	std::vector<std::vector<RTLIL::SwitchRule*>*> switch_stack;
 	std::vector<RTLIL::CaseRule*> case_stack;
 
-	dict<size_t, TwineRef> twine_remap;
-	std::vector<TwineRef> twine_parser_holds;
+	dict<size_t, IdString> twine_remap;
+	std::vector<IdString> twine_parser_holds;
 
 	struct TwineDesc {
 		enum Kind { Leaf, Suffix, Concat } kind;
@@ -337,12 +337,12 @@ struct RTLILFrontendWorker {
 		return val;
 	}
 
-	RTLIL::Wire *legalize_wire(TwineRef id)
+	RTLIL::Wire *legalize_wire(IdString id)
 	{
 		int wires_size = current_module->wires_size();
 		if (wires_size == 0)
 			error("No wires found for legalization");
-		int hash = hash_ops<TwineRef>::hash(id).yield();
+		int hash = hash_ops<IdString>::hash(id).yield();
 		RTLIL::Wire *wire = current_module->wire_at(abs(hash % wires_size));
 		log("Legalizing wire `%s' to `%s'.\n", log_id(id), design->twines.unescaped_str(wire->name.ref()));
 		return wire;
@@ -358,8 +358,8 @@ struct RTLILFrontendWorker {
 				parts.push_back(parse_sigspec());
 			for (auto it = parts.rbegin(); it != parts.rend(); ++it)
 				sig.append(std::move(*it));
-		} else if (std::optional<TwineRef> handle = try_parse_twine_handle()) {
-			TwineRef ref = *handle;
+		} else if (std::optional<IdString> handle = try_parse_twine_handle()) {
+			IdString ref = *handle;
 			RTLIL::Wire *wire = current_module->wire(ref);
 			if (wire == nullptr) {
 				if (flag_legalize)
@@ -376,7 +376,7 @@ struct RTLILFrontendWorker {
 			if (id.has_value()) {
 				const std::string &s = *id;
 				bool pub = !s.empty() && s[0] == '\\';
-				TwineRef ref = twine_tag(design->twines.find(Twine{pub ? s.substr(1) : s}), pub);
+				IdString ref = twine_tag(design->twines.find(Twine{pub ? s.substr(1) : s}), pub);
 				RTLIL::Wire *wire = current_module->wire(ref);
 				if (wire == nullptr) {
 					if (flag_legalize)
@@ -442,7 +442,7 @@ struct RTLILFrontendWorker {
 
 	void parse_module()
 	{
-		TwineRef module_name = parse_twine();
+		IdString module_name = parse_twine();
 		expect_eol();
 
 		bool delete_current_module = false;
@@ -524,7 +524,7 @@ struct RTLILFrontendWorker {
 
 	void parse_attribute()
 	{
-		TwineRef id = design->twines.add(parse_id());
+		IdString id = design->twines.add(parse_id());
 		RTLIL::Const c = parse_const();
 		if (id == RTLIL::ID::src && (c.flags & RTLIL::CONST_FLAG_STRING)) {
 			std::string raw = c.decode_string();
@@ -558,11 +558,11 @@ struct RTLILFrontendWorker {
 		}
 	}
 
-	TwineRef resolve_file_twine(size_t id, bool is_public = false)
+	IdString resolve_file_twine(size_t id, bool is_public = false)
 	{
-		TwineRef base;
+		IdString base;
 		if (id < STATIC_TWINE_END) {
-			base = TwineRef(id);
+			base = IdString(id);
 		} else {
 			auto it = twine_remap.find(id);
 			base = (it == twine_remap.end()) ? materialize_file_twine(id) : it->second;
@@ -571,10 +571,10 @@ struct RTLILFrontendWorker {
 	}
 
 	// Tolerates nodes listed out of dependency order
-	TwineRef materialize_file_twine(size_t id)
+	IdString materialize_file_twine(size_t id)
 	{
 		if (id < STATIC_TWINE_END)
-			return TwineRef(id);
+			return IdString(id);
 		auto rit = twine_remap.find(id);
 		if (rit != twine_remap.end())
 			return rit->second;
@@ -585,7 +585,7 @@ struct RTLILFrontendWorker {
 		if (desc.materializing)
 			error("Cyclic twine reference @%zu at line %d", id, line_num);
 		desc.materializing = true;
-		TwineRef ref;
+		IdString ref;
 		switch (desc.kind) {
 		case TwineDesc::Leaf:
 			ref = design->twines.add(Twine{desc.text});
@@ -595,7 +595,7 @@ struct RTLILFrontendWorker {
 					materialize_file_twine(desc.parent), desc.text}});
 			break;
 		case TwineDesc::Concat: {
-			std::vector<TwineRef> children;
+			std::vector<IdString> children;
 			children.reserve(desc.children.size());
 			for (size_t c : desc.children)
 				children.push_back(materialize_file_twine(c));
@@ -609,7 +609,7 @@ struct RTLILFrontendWorker {
 	}
 
 	// Parse a "$pub@N"/"$priv@N" twine handle into a resolved, retagged ref
-	std::optional<TwineRef> try_parse_twine_handle()
+	std::optional<IdString> try_parse_twine_handle()
 	{
 		bool is_public;
 		if (line.substr(0, 5) == "$pub@")
@@ -623,9 +623,9 @@ struct RTLILFrontendWorker {
 
 	// A twine-typed token at a definition site: a $pub@/$priv@ reference into
 	// the twines table, or an escaped identifier interned into the pool.
-	std::optional<TwineRef> try_parse_twine()
+	std::optional<IdString> try_parse_twine()
 	{
-		if (std::optional<TwineRef> handle = try_parse_twine_handle())
+		if (std::optional<IdString> handle = try_parse_twine_handle())
 			return handle;
 		std::optional<std::string> id = try_parse_id();
 		if (!id)
@@ -633,9 +633,9 @@ struct RTLILFrontendWorker {
 		return design->twines.add(std::move(*id));
 	}
 
-	TwineRef parse_twine()
+	IdString parse_twine()
 	{
-		std::optional<TwineRef> t = try_parse_twine();
+		std::optional<IdString> t = try_parse_twine();
 		if (!t)
 			error("Expected twine reference or ID, got `%s'.", error_token());
 		return *t;
@@ -692,7 +692,7 @@ struct RTLILFrontendWorker {
 
 	void parse_parameter()
 	{
-		TwineRef id = design->twines.add(parse_id());
+		IdString id = design->twines.add(parse_id());
 		current_module->avail_parameters(id);
 		if (try_parse_eol())
 			return;
@@ -714,9 +714,9 @@ struct RTLILFrontendWorker {
 
 		while (true)
 		{
-			std::optional<TwineRef> name = try_parse_twine();
+			std::optional<IdString> name = try_parse_twine();
 			if (name) {
-				TwineRef wire_name = *name;
+				IdString wire_name = *name;
 				if (current_module->wire(wire_name) != nullptr) {
 					if (flag_legalize) {
 						log("Legalizing redefinition of wire %s.\n", design->twines.str(wire_name).c_str());
@@ -782,10 +782,10 @@ struct RTLILFrontendWorker {
 		int width = 1;
 		int start_offset = 0;
 		int size = 0;
-		TwineRef mem_name = Twine::Null;
+		IdString mem_name = Twine::Null;
 		while (true)
 		{
-			std::optional<TwineRef> name = try_parse_twine();
+			std::optional<IdString> name = try_parse_twine();
 			if (name.has_value()) {
 				mem_name = *name;
 				if (current_module->memories.count(mem_name) != 0) {
@@ -830,9 +830,9 @@ struct RTLILFrontendWorker {
 		expect_eol();
 	}
 
-	void legalize_width_parameter(RTLIL::Cell *cell, TwineRef port_name)
+	void legalize_width_parameter(RTLIL::Cell *cell, IdString port_name)
 	{
-		TwineRef width_param = design->twines.find(design->twines.str(port_name) + "_WIDTH");
+		IdString width_param = design->twines.find(design->twines.str(port_name) + "_WIDTH");
 		if (width_param == Twine::Null || cell->parameters.count(width_param) == 0)
 			return;
 		RTLIL::Const &param = cell->parameters.at(width_param);
@@ -843,8 +843,8 @@ struct RTLILFrontendWorker {
 
 	void parse_cell()
 	{
-		TwineRef cell_type_ref = parse_twine();
-		TwineRef cell_name_ref = parse_twine();
+		IdString cell_type_ref = parse_twine();
+		IdString cell_name_ref = parse_twine();
 		expect_eol();
 
 		if (current_module->cell(cell_name_ref) != nullptr) {
@@ -878,7 +878,7 @@ struct RTLILFrontendWorker {
 				} else if (try_parse_keyword("unsized")) {
 					is_unsized = true;
 				}
-				TwineRef param_name = design->twines.add(parse_id());
+				IdString param_name = design->twines.add(parse_id());
 				RTLIL::Const val = parse_const();
 				if (is_signed)
 					val.flags |= RTLIL::CONST_FLAG_SIGNED;
@@ -889,7 +889,7 @@ struct RTLILFrontendWorker {
 				cell->parameters.insert({std::move(param_name), std::move(val)});
 				expect_eol();
 			} else if (try_parse_keyword("connect")) {
-				TwineRef port_name = parse_twine();
+				IdString port_name = parse_twine();
 				if (cell->hasPort(port_name)) {
 					if (flag_legalize)
 						log("Legalizing redefinition of cell port %s.", design->twines.str(port_name).c_str());
@@ -997,7 +997,7 @@ struct RTLILFrontendWorker {
 
 	void parse_process()
 	{
-		TwineRef proc_name = parse_twine();
+		IdString proc_name = parse_twine();
 		expect_eol();
 
 		if (current_module->processes.count(proc_name) != 0) {

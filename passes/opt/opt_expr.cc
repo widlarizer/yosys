@@ -128,14 +128,14 @@ void log_replace_sig(RTLIL::Module *module, RTLIL::Cell *cell,
 }
 
 void log_replace_port(RTLIL::Module *module, RTLIL::Cell *cell,
-		const std::string &info, TwineRef port, RTLIL::SigSpec new_sig)
+		const std::string &info, IdString port, RTLIL::SigSpec new_sig)
 {
 	log_replace_sig(module, cell, info, cell->getPort(port), new_sig);
 }
 
 // Single-output rewrite: rewire the output to new_sig and drop old_cell.
 static void patch_cell(Module *mod, SigMap *map, Cell *old_cell,
-		TwineRef old_port, SigSpec new_sig, const std::string &info)
+		IdString old_port, SigSpec new_sig, const std::string &info)
 {
 	new_sig.extend_u0(old_cell->getPort(old_port).size(), false);
 	log_replace_port(mod, old_cell, info, old_port, new_sig);
@@ -152,7 +152,7 @@ static void patch_cell(Module *mod, SigMap *map, Cell *old_cell,
 // Same for cell types with more than one output port (e.g. $alu); `ports`
 // must cover every output of old_cell.
 static void patch_cell_ports(Module *mod, SigMap *map, Cell *old_cell,
-		std::vector<std::pair<TwineRef, SigSpec>> ports, const std::string &info)
+		std::vector<std::pair<IdString, SigSpec>> ports, const std::string &info)
 {
 	for (auto &[port, new_sig] : ports) {
 		new_sig.extend_u0(old_cell->getPort(port).size(), false);
@@ -166,7 +166,7 @@ static void patch_cell_ports(Module *mod, SigMap *map, Cell *old_cell,
 
 	// Detach every port first so the old output signals are never briefly
 	// double-driven while we rewire them.
-	std::vector<TwineRef> all_ports;
+	std::vector<IdString> all_ports;
 	all_ports.reserve(old_cell->connections().size());
 	for (auto &it : old_cell->connections())
 		all_ports.push_back(it.first);
@@ -184,7 +184,7 @@ static void patch_cell_ports(Module *mod, SigMap *map, Cell *old_cell,
 
 bool group_cell_inputs(RTLIL::Module *module, RTLIL::Cell *cell, bool commutative, SigMap &sigmap, bool keepdc)
 {
-	TwineRef b_name = cell->hasPort(ID::B) ? ID::B : ID::A;
+	IdString b_name = cell->hasPort(ID::B) ? ID::B : ID::A;
 
 	bool a_signed = cell->parameters.at(ID::A_SIGNED).as_bool();
 	bool b_signed = cell->parameters.at(b_name == ID::B ? ID::B_SIGNED : ID::A_SIGNED).as_bool();
@@ -403,7 +403,7 @@ std::optional<SigBit> get_inverted(SigBit s, const SigMap &assign_map, const dic
 		return std::nullopt;
 }
 
-void handle_polarity_inv(Cell *cell, TwineRef port, TwineRef param, const SigMap &assign_map, const dict<SigBit, SigBit> &inv_drivers)
+void handle_polarity_inv(Cell *cell, IdString port, IdString param, const SigMap &assign_map, const dict<SigBit, SigBit> &inv_drivers)
 {
 	SigSpec raw = cell->getPort(port);
 	if (raw.size() != 1)
@@ -420,7 +420,7 @@ void handle_polarity_inv(Cell *cell, TwineRef port, TwineRef param, const SigMap
 	}
 }
 
-void handle_clkpol_celltype_swap(Cell *cell, string type1, string type2, TwineRef port, const SigMap &assign_map, const dict<SigBit, SigBit> &inv_drivers)
+void handle_clkpol_celltype_swap(Cell *cell, string type1, string type2, IdString port, const SigMap &assign_map, const dict<SigBit, SigBit> &inv_drivers)
 {
 	log_assert(GetSize(type1) == GetSize(type2));
 	if ((size_t)cell->type_impl > STATIC_TWINE_END)
@@ -1538,7 +1538,7 @@ skip_fine_alu:
 						a_port_width = cell->getParam(identity_wrt_a ? ID::A_WIDTH : ID::B_WIDTH).as_int();
 					}
 
-					TwineRef new_type = arith_inverse ? ID::$neg : ID::$pos;
+					IdString new_type = arith_inverse ? ID::$neg : ID::$pos;
 					SigSpec new_y = module->addWire(NEW_ID, y_width);
 					Cell *new_cell = module->addCell(NEW_ID, new_type);
 					new_cell->setPort(ID::A, a_port);
@@ -2267,7 +2267,7 @@ skip_alu_split:
 		// simplify comparisons
 		if (do_fine && cell->type.in(ID($lt), ID($ge), ID($gt), ID($le)))
 		{
-			TwineRef cmp_type = cell->type;
+			IdString cmp_type = cell->type;
 			SigSpec var_sig = cell->getPort(ID::A);
 			SigSpec const_sig = cell->getPort(ID::B);
 			int var_width = cell->parameters[ID::A_WIDTH].as_int();
@@ -2410,7 +2410,7 @@ void replace_const_connections(RTLIL::Module *module) {
 	SigMap assign_map(module);
 	for (auto cell : module->selected_cells())
 	{
-		std::vector<std::pair<TwineRef, SigSpec>> changes;
+		std::vector<std::pair<IdString, SigSpec>> changes;
 		for (auto &conn : cell->connections()) {
 			SigSpec mapped = assign_map(conn.second);
 			if (conn.second != mapped && mapped.is_fully_const())

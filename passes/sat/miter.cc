@@ -71,9 +71,9 @@ void create_miter_equiv(struct Pass *that, std::vector<std::string> args, RTLIL:
 	if (argidx+3 != args.size() || args[argidx].compare(0, 1, "-") == 0)
 		that->cmd_error(args, argidx, "command argument error");
 
-	TwineRef gold_name = design->twines.add(RTLIL::escape_id(args[argidx++]));
-	TwineRef gate_name = design->twines.add(RTLIL::escape_id(args[argidx++]));
-	TwineRef miter_name = design->twines.add(RTLIL::escape_id(args[argidx++]));
+	IdString gold_name = design->twines.add(RTLIL::escape_id(args[argidx++]));
+	IdString gate_name = design->twines.add(RTLIL::escape_id(args[argidx++]));
+	IdString miter_name = design->twines.add(RTLIL::escape_id(args[argidx++]));
 
 	TwineSearch search(&design->twines);
 
@@ -321,8 +321,8 @@ void create_miter_assert(struct Pass *that, std::vector<std::string> args, RTLIL
 	if ((argidx+1 != args.size() && argidx+2 != args.size()) || args[argidx].compare(0, 1, "-") == 0)
 		that->cmd_error(args, argidx, "command argument error");
 
-	TwineRef module_name = design->twines.add(RTLIL::escape_id(args[argidx++]));
-	TwineRef miter_name = argidx < args.size() ? design->twines.add(RTLIL::escape_id(args[argidx++])) : Twine::Null;
+	IdString module_name = design->twines.add(RTLIL::escape_id(args[argidx++]));
+	IdString miter_name = argidx < args.size() ? design->twines.add(RTLIL::escape_id(args[argidx++])) : Twine::Null;
 
 	TwineSearch search(&design->twines);
 

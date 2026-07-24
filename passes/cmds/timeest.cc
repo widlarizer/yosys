@@ -42,7 +42,7 @@ struct EstimateSta {
 	std::optional<SigBit> clk;
 	bool top_port_endpoints = false;
 
-	dict<std::pair<TwineRef, dict<TwineRef, RTLIL::Const>>, Aig> aigs;
+	dict<std::pair<IdString, dict<IdString, RTLIL::Const>>, Aig> aigs;
 	dict<Cell *, Aig *> cell_aigs;
 
 	std::vector<std::pair<Cell *, SigBit>> launchers;
@@ -64,7 +64,7 @@ struct EstimateSta {
 
 	// we include a discount factor for cells that can be implemented using carry chain logic
 	// and to account for the AIG model not being balanced
-	int cell_type_factor(TwineRef type)
+	int cell_type_factor(IdString type)
 	{
 		if (type.in(ID($gt), ID($ge), ID($lt), ID($le), ID($add), ID($sub),
 					ID($logic_not), ID($reduce_and), ID($reduce_or), ID($eq)))
@@ -116,7 +116,7 @@ struct EstimateSta {
 				continue;
 			} else {
 				// find or build AIG model of combinational cell
-				auto fingerprint = std::make_pair(TwineRef(cell->type), cell->parameters);
+				auto fingerprint = std::make_pair(IdString(cell->type), cell->parameters);
 				if (!aigs.count(fingerprint)) {
 					aigs.emplace(fingerprint, Aig(cell));
 					if (aigs.at(fingerprint).name.empty()) {
@@ -133,7 +133,7 @@ struct EstimateSta {
 		// since we're now taking reference into `aigs`, we can no longer modify it
 		// and thus have to fill `cell_aigs` in a separate loop
 		for (auto cell : combinational) {
-			auto fingerprint = std::make_pair(TwineRef(cell->type), cell->parameters);
+			auto fingerprint = std::make_pair(IdString(cell->type), cell->parameters);
 			cell_aigs.emplace(cell, &aigs.at(fingerprint));
 		}
 
@@ -188,7 +188,7 @@ struct EstimateSta {
 			assert(cell_aigs.count(cell));
 			Aig &aig = *cell_aigs.at(cell);
 			for (auto &node : aig.nodes) {
-				if (node.portname != TwineRef{}) {
+				if (node.portname != IdString{}) {
 					topo.edge(
 						desc_sig(cell->getPort(node.portname)[node.portbit]),
 						desc_aig(cell, node)
@@ -235,7 +235,7 @@ struct EstimateSta {
 			if (aig_node) {
 				Cell *cell = std::get<1>(node);
 				Aig &aig = *cell_aigs.at(cell);
-				if (aig_node->portname != TwineRef{}) {
+				if (aig_node->portname != IdString{}) {
 					// for a cell port, copy `levels` value from port bit
 					SigBit bit = cell->getPort(aig_node->portname)[aig_node->portbit];
 					levels[node] = levels[desc_sig(bit)];
@@ -294,7 +294,7 @@ struct EstimateSta {
 						critical[node] = true;
 				}
 
-				if (aig_node->portname != TwineRef{}) {
+				if (aig_node->portname != IdString{}) {
 					SigBit bit = cell->getPort(aig_node->portname)[aig_node->portbit];
 					if (critical.count(node))
 						critical[desc_sig(bit)] = true;
@@ -326,7 +326,7 @@ struct EstimateSta {
 
 		// finally print the path we found
 		SigPool bits_to_select;
-		pool<TwineRef> to_select;
+		pool<IdString> to_select;
 
 		pool<Cell *> printed;
 		for (auto node : topo.sorted) {
@@ -359,7 +359,7 @@ struct EstimateSta {
 
 		for (auto wire : m->wires()) {
 			if (bits_to_select.check_any(sigmap(wire)))
-				{ TwineRef wn = wire->name; to_select.insert(wn); }
+				{ IdString wn = wire->name; to_select.insert(wn); }
 		}
 
 		if (select) {
@@ -425,7 +425,7 @@ struct TimeestPass : Pass {
 			std::optional<SigBit> clk;
 
 			if (clk_domain_specified) {
-				TwineRef clk_ref = search.find(RTLIL::escape_id(clk_name));
+				IdString clk_ref = search.find(RTLIL::escape_id(clk_name));
 				if (!m->wire(clk_ref)) {
 					log_warning("No domain '%s' in module %s\n", clk_name.c_str(), m);
 					continue;

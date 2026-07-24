@@ -244,9 +244,9 @@ void log_check_expected();
 
 std::string log_signal(const RTLIL::SigSpec &sig, bool autoint = true);
 std::string log_const(const RTLIL::Const &value, bool autoint = true);
-const char *log_id(const TwineRef &id);
-const char *log_id(const RTLIL::Design *design, TwineRef id);
-const char *log_id(const RTLIL::Module *module, TwineRef id);
+const char *log_id(const IdString &id);
+const char *log_id(const RTLIL::Design *design, IdString id);
+const char *log_id(const RTLIL::Module *module, IdString id);
 
 // Name masquerades know which Design backs them; the overloads that use this
 // live in rtlil.h, where those types are complete.
@@ -373,7 +373,7 @@ static inline void log_dump_val_worker(const char *v) { log("%s", v); }
 static inline void log_dump_val_worker(std::string v) { log("%s", v); }
 static inline void log_dump_val_worker(PerformanceTimer p) { log("%f seconds", p.sec()); }
 static inline void log_dump_args_worker(const char *p) { log_assert(*p == 0); }
-void log_dump_val_worker(TwineRef v);
+void log_dump_val_worker(IdString v);
 void log_dump_val_worker(RTLIL::SigSpec v);
 void log_dump_val_worker(RTLIL::State v);
 

@@ -74,7 +74,7 @@ class SmtrStruct {
 		std::string accessor;
 		std::string name;
 	};
-	idict<TwineRef> field_names;
+	idict<IdString> field_names;
 	vector<Field> fields;
 	SmtrScope &global_scope;
 	SmtrScope local_scope;
@@ -82,7 +82,7 @@ class SmtrStruct {
 public:
 	std::string name;
 	SmtrStruct(std::string name, SmtrScope &scope, Design *design) : global_scope(scope), local_scope(design), design(design), name(name) {}
-	void insert(TwineRef field_name, SmtrSort sort) {
+	void insert(IdString field_name, SmtrSort sort) {
 		field_names(field_name);
 		auto base_name = local_scope.unique_name(field_name);
 		auto accessor = name + "-" + base_name;
@@ -112,7 +112,7 @@ public:
 		}
 		w.close();
 	}
-	SExpr access(SExpr record, TwineRef name) {
+	SExpr access(SExpr record, IdString name) {
 		size_t i = field_names.at(name);
 		return list(fields[i].accessor, std::move(record));
 	}
@@ -182,8 +182,8 @@ struct SmtrPrintVisitor : public Functional::AbstractVisitor<SExpr> {
 	SExpr memory_read(Node, Node mem, Node addr) override { return list("list-ref-bv", n(mem), n(addr)); }
 	SExpr memory_write(Node, Node mem, Node addr, Node data) override { return list("list-set-bv", n(mem), n(addr), n(data)); }
 
-	SExpr input(Node, TwineRef name, TwineRef kind) override { log_assert(kind == ID::$input); return input_struct.access("inputs", name); }
-	SExpr state(Node, TwineRef name, TwineRef kind) override { log_assert(kind == ID::$state); return state_struct.access("state", name); }
+	SExpr input(Node, IdString name, IdString kind) override { log_assert(kind == ID::$input); return input_struct.access("inputs", name); }
+	SExpr state(Node, IdString name, IdString kind) override { log_assert(kind == ID::$state); return state_struct.access("state", name); }
 };
 
 struct SmtrModule {
@@ -241,8 +241,8 @@ struct SmtrModule {
 				w.comment(SmtrSort(n.sort()).to_sexpr().to_string(), true);
 			}
 		w.open(list("cons"));
-		output_struct.write_value(w, [&](TwineRef name) { return node_to_sexpr(ir.output(name).value()); });
-		state_struct.write_value(w, [&](TwineRef name) { return node_to_sexpr(ir.state(name).next_value()); });
+		output_struct.write_value(w, [&](IdString name) { return node_to_sexpr(ir.output(name).value()); });
+		state_struct.write_value(w, [&](IdString name) { return node_to_sexpr(ir.state(name).next_value()); });
 		w.pop();
 	}
 

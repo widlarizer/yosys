@@ -33,12 +33,12 @@ struct OptBalanceTreeWorker {
 	SigMap sigmap;
 
 	// Counts of each cell type that are getting balanced
-	dict<TwineRef, int> cell_count;
+	dict<IdString, int> cell_count;
 
 	// Check if cell is of the right type and has matching input/output widths
 	// Only allow cells with "natural" output widths (no truncation) to prevent
 	// equivalence issues when rebalancing (see YosysHQ/yosys#5605)
-	bool is_right_type(Cell* cell, TwineRef cell_type) {
+	bool is_right_type(Cell* cell, IdString cell_type) {
 		if (cell->type != cell_type)
 			return false;
 
@@ -65,7 +65,7 @@ struct OptBalanceTreeWorker {
 	}
 
 	// Create a balanced binary tree from a vector of source signals
-	SigSpec create_balanced_tree(vector<SigSpec> &sources, TwineRef cell_type, Cell* cell) {
+	SigSpec create_balanced_tree(vector<SigSpec> &sources, IdString cell_type, Cell* cell) {
 		// Base case: if we have no sources, return an empty signal
 		if (sources.size() == 0)
 			return SigSpec();
@@ -139,7 +139,7 @@ struct OptBalanceTreeWorker {
 		return out_wire;
 	}
 
-	OptBalanceTreeWorker(Module *module, const vector<TwineRef> cell_types) : module(module), sigmap(module) {
+	OptBalanceTreeWorker(Module *module, const vector<IdString> cell_types) : module(module), sigmap(module) {
 		// Do for each cell type
 		for (auto cell_type : cell_types) {
 			// Index all of the nets in the module
@@ -257,7 +257,7 @@ struct OptBalanceTreeWorker {
 						Cell* x = bfs_queue.front();
 						bfs_queue.pop_front();
 
-						for (TwineRef port: {ID::A, ID::B}) {
+						for (IdString port: {ID::A, ID::B}) {
 							auto sig = sigmap(x->getPort(port));
 							Cell* drv = sig_to_driver[sig];
 							bool drv_ok = drv && is_right_type(drv, cell_type);
@@ -345,14 +345,14 @@ struct OptBalanceTreePass : public Pass {
 
 		// Handle arguments
 		size_t argidx;
-		vector<TwineRef> cell_types = {TwineRef{ID::$and}, TwineRef{ID::$or}, TwineRef{ID::$xor}, TwineRef{ID::$add}, TwineRef{ID::$mul}};
+		vector<IdString> cell_types = {IdString{ID::$and}, IdString{ID::$or}, IdString{ID::$xor}, IdString{ID::$add}, IdString{ID::$mul}};
 		for (argidx = 1; argidx < args.size(); argidx++) {
 			if (args[argidx] == "-arith") {
-				cell_types = {TwineRef{ID::$add}, TwineRef{ID::$mul}};
+				cell_types = {IdString{ID::$add}, IdString{ID::$mul}};
 				continue;
 			}
 			if (args[argidx] == "-logic") {
-				cell_types = {TwineRef{ID::$and}, TwineRef{ID::$or}, TwineRef{ID::$xor}};
+				cell_types = {IdString{ID::$and}, IdString{ID::$or}, IdString{ID::$xor}};
 				continue;
 			}
 			break;
@@ -360,7 +360,7 @@ struct OptBalanceTreePass : public Pass {
 		extra_args(args, argidx, design);
 
 		// Count of all cells that were packed
-		dict<TwineRef, int> cell_count;
+		dict<IdString, int> cell_count;
 		for (auto module : design->selected_modules()) {
 			OptBalanceTreeWorker worker(module, cell_types);
 			for (auto cell : worker.cell_count) {

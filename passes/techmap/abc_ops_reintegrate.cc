@@ -34,22 +34,22 @@ inline std::string remap_name(const std::string &abc9_name)
 	return stringf("$abc$%d$%s", map_autoidx, abc9_name.c_str() + 1);
 }
 
-inline TwineRef rn(RTLIL::Design *design, TwineRef n)
+inline IdString rn(RTLIL::Design *design, IdString n)
 {
 	return design->twines.add(remap_name(design->twines.str(n)));
 }
 
-// toposort keys cells by TwineRef; recover the cell's own pool ref rather
+// toposort keys cells by IdString; recover the cell's own pool ref rather
 // than re-interning the flattened name, which would yield a fresh leaf that
 // never matches a Suffix-shaped auto name.
-inline TwineRef refof(const dict<TwineRef, TwineRef> &name_ref, TwineRef n)
+inline IdString refof(const dict<IdString, IdString> &name_ref, IdString n)
 {
 	auto it = name_ref.find(n);
 	return it == name_ref.end() ? Twine::Null : it->second;
 }
 
 inline RTLIL::Wire *wire_of(RTLIL::Design *design, RTLIL::Module *module,
-		const dict<std::string, RTLIL::Wire*> &module_wire_by_name, TwineRef name)
+		const dict<std::string, RTLIL::Wire*> &module_wire_by_name, IdString name)
 {
 	if (auto *w = module->wire(name))
 		return w;
@@ -58,7 +58,7 @@ inline RTLIL::Wire *wire_of(RTLIL::Design *design, RTLIL::Module *module,
 }
 
 inline RTLIL::Cell *cell_of(RTLIL::Design *design, RTLIL::Module *module,
-		const dict<std::string, RTLIL::Cell*> &module_cell_by_name, TwineRef name)
+		const dict<std::string, RTLIL::Cell*> &module_cell_by_name, IdString name)
 {
 	if (auto *c = module->cell(name))
 		return c;
@@ -81,7 +81,7 @@ void reintegrate(RTLIL::Module *module, bool dff_mode, std::string map_filename)
 	int output_count = design->scratchpad_get_int("read_aiger.outputs", 0);
 	int co_count = design->scratchpad_get_int("read_aiger.co_count", 0);
 
-	dict<TwineRef, std::pair<int,int>> wideports_cache;
+	dict<IdString, std::pair<int,int>> wideports_cache;
 
 	if (!map_filename.empty()) {
 		std::ifstream mf(map_filename);
@@ -89,7 +89,7 @@ void reintegrate(RTLIL::Module *module, bool dff_mode, std::string map_filename)
 		int variable, index;
 		while (mf >> type >> variable >> index >> symbol) {
 			std::string escaped_s = RTLIL::escape_id(symbol);
-			TwineRef escaped_ref = design->twines.add(std::string{escaped_s});
+			IdString escaped_ref = design->twines.add(std::string{escaped_s});
 			if (type == "input") {
 				log_assert(variable < input_count);
 				RTLIL::Wire* wire = mapped_mod->wire(design->twines.add(stringf("$aiger$i%d", variable + 1)));
@@ -98,7 +98,7 @@ void reintegrate(RTLIL::Module *module, bool dff_mode, std::string map_filename)
 				log_debug("Renaming input %s", wire);
 
 				RTLIL::Wire *existing = nullptr;
-				TwineRef name_ref;
+				IdString name_ref;
 				if (index == 0) {
 					name_ref = escaped_ref;
 					// Cope with the fact that a CI might be identical
@@ -146,7 +146,7 @@ void reintegrate(RTLIL::Module *module, bool dff_mode, std::string map_filename)
 				log_debug("Renaming output %s", wire);
 
 				RTLIL::Wire *existing;
-				TwineRef name_ref;
+				IdString name_ref;
 				if (index == 0) {
 					name_ref = escaped_ref;
 					// Cope with the fact that a CO might be identical
@@ -202,7 +202,7 @@ void reintegrate(RTLIL::Module *module, bool dff_mode, std::string map_filename)
 	}
 
 	for (auto &wp : wideports_cache) {
-		TwineRef name = wp.first;
+		IdString name = wp.first;
 		int min = wp.second.first;
 		int max = wp.second.second;
 		if (min == 0 && max == 0)
@@ -216,7 +216,7 @@ void reintegrate(RTLIL::Module *module, bool dff_mode, std::string map_filename)
 		// wide ports
 		bool port_input = false, port_output = false;
 		for (int i = min; i <= max; i++) {
-			TwineRef other_name = design->twines.add(stringf("%s[%d]", design->twines.str(name).c_str(), i));
+			IdString other_name = design->twines.add(stringf("%s[%d]", design->twines.str(name).c_str(), i));
 			RTLIL::Wire *other_wire = mapped_mod->wire(other_name);
 			if (other_wire) {
 				port_input = port_input || other_wire->port_input;
@@ -230,7 +230,7 @@ void reintegrate(RTLIL::Module *module, bool dff_mode, std::string map_filename)
 		wire->port_output = port_output;
 
 		for (int i = min; i <= max; i++) {
-			TwineRef other_name = design->twines.add(stringf("%s[%d]", design->twines.str(name).c_str(), i));
+			IdString other_name = design->twines.add(stringf("%s[%d]", design->twines.str(name).c_str(), i));
 			RTLIL::Wire *other_wire = mapped_mod->wire(other_name);
 			if (other_wire) {
 				other_wire->port_input = false;
@@ -248,7 +248,7 @@ void reintegrate(RTLIL::Module *module, bool dff_mode, std::string map_filename)
 	// Populated after the map_filename box/wire renames above have settled,
 	// so it reflects each cell's final name in mapped_mod (not a stale
 	// pre-rename snapshot).
-	dict<TwineRef, TwineRef> name_ref;
+	dict<IdString, IdString> name_ref;
 	for (auto mapped_cell : mapped_mod->cells())
 		name_ref[mapped_cell->name] = mapped_cell->name.ref();
 
@@ -266,7 +266,7 @@ void reintegrate(RTLIL::Module *module, bool dff_mode, std::string map_filename)
 		w->attributes.erase(ID::init);
 	}
 
-	dict<TwineRef,std::vector<TwineRef>> box_ports;
+	dict<IdString,std::vector<IdString>> box_ports;
 
 	for (auto m : design->modules()) {
 		if (!m->attributes.count(ID::abc9_box_id))
@@ -278,7 +278,7 @@ void reintegrate(RTLIL::Module *module, bool dff_mode, std::string map_filename)
 
 		// Make carry in the last PI, and carry out the last PO
 		//   since ABC requires it this way
-		TwineRef carry_in = Twine::Null, carry_out = Twine::Null;
+		IdString carry_in = Twine::Null, carry_out = Twine::Null;
 		for (const auto &port_name : m->ports) {
 			auto w = m->wire(port_name);
 			log_assert(w);
@@ -336,12 +336,12 @@ void reintegrate(RTLIL::Module *module, bool dff_mode, std::string map_filename)
 			boxes.emplace_back(cell);
 	}
 
-	dict<SigBit, pool<TwineRef>> bit_drivers, bit_users;
-	TopoSort<TwineRef> toposort;
+	dict<SigBit, pool<IdString>> bit_drivers, bit_users;
+	TopoSort<IdString> toposort;
 	dict<RTLIL::Cell*,RTLIL::Cell*> not2drivers;
 	dict<SigBit, std::vector<RTLIL::Cell*>> bit2sinks;
 
-	std::map<TwineRef, int> cell_stats;
+	std::map<IdString, int> cell_stats;
 	for (auto mapped_cell : mapped_mod->cells())
 	{
 		// Short out $_FF_ cells since the flop box already has
@@ -386,7 +386,7 @@ void reintegrate(RTLIL::Module *module, bool dff_mode, std::string map_filename)
 						driver_name = stringf("$lut%s", a_bit.wire->name);
 					else
 						driver_name = stringf("$lut%s[%d]", a_bit.wire->name, a_bit.offset);
-					TwineRef driver_ref = mapped_mod->design->twines.find(driver_name);
+					IdString driver_ref = mapped_mod->design->twines.find(driver_name);
 					driver_lut = driver_ref == Twine::Null ? nullptr : mapped_mod->cell(refof(name_ref, driver_ref));
 				}
 

@@ -37,7 +37,7 @@ struct SynthPropWorker
 	// pointer to main design
 	RTLIL::Design *design;
 
-	TwineRef top_name;
+	IdString top_name;
 
 	RTLIL::Module *module;
 
@@ -45,9 +45,9 @@ struct SynthPropWorker
 
 	bool or_outputs;
 
-	TwineRef port_name;
+	IdString port_name;
 
-	TwineRef reset_name;
+	IdString reset_name;
 
 	bool reset_pol;
 
@@ -95,7 +95,7 @@ void SynthPropWorker::run()
 	TrackingData tracing_data;
 	tracing(module, 0, tracing_data, design->twines.unescaped_str(module->name));
 
-	TwineRef port_ref = port_name;
+	IdString port_ref = port_name;
 
 	for (auto &data : tracing_data) {
 		if (data.second.names.size() == 0) continue;

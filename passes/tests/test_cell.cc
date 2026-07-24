@@ -39,7 +39,7 @@ static uint32_t xorshift32(uint32_t limit) {
 	return xorshift32_state % limit;
 }
 
-static RTLIL::Cell* create_gold_module(RTLIL::Design *design, TwineRef cell_type, std::string cell_type_flags, bool constmode, bool muxdiv)
+static RTLIL::Cell* create_gold_module(RTLIL::Design *design, IdString cell_type, std::string cell_type_flags, bool constmode, bool muxdiv)
 {
 	RTLIL::Module *module = design->addModule(ID(gold));
 	RTLIL::Cell *cell = module->addCell(ID(UUT), cell_type);
@@ -981,8 +981,8 @@ struct TestCellPass : public Pass {
 			log("Rng seed value: %d\n", int(xorshift32_state));
 		}
 
-		std::map<TwineRef, std::string> cell_types;
-		std::vector<TwineRef> selected_cell_types;
+		std::map<IdString, std::string> cell_types;
+		std::vector<IdString> selected_cell_types;
 
 		cell_types[ID($not)] = "ASY";
 		cell_types[ID($pos)] = "ASY";
@@ -1080,7 +1080,7 @@ struct TestCellPass : public Pass {
 		cell_types[ID::$_AOI4_] = "ABCDYb";
 		cell_types[ID::$_OAI4_] = "ABCDYb";
 
-		auto find_type = [&](const std::string &s) -> TwineRef {
+		auto find_type = [&](const std::string &s) -> IdString {
 			for (auto &it : cell_types)
 				if (ID::str(it.first) == s)
 					return it.first;
@@ -1100,7 +1100,7 @@ struct TestCellPass : public Pass {
 			}
 
 			if (args[argidx].compare(0, 1, "/") == 0) {
-				std::vector<TwineRef> new_selected_cell_types;
+				std::vector<IdString> new_selected_cell_types;
 				for (auto it : selected_cell_types)
 					if (ID::str(it) != args[argidx].substr(1))
 						new_selected_cell_types.push_back(it);
@@ -1108,7 +1108,7 @@ struct TestCellPass : public Pass {
 				continue;
 			}
 
-			TwineRef arg_type = find_type(args[argidx]);
+			IdString arg_type = find_type(args[argidx]);
 			if (arg_type == Twine::Null) {
 				std::string cell_type_list;
 				int charcount = 100;

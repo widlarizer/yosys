@@ -53,24 +53,24 @@ struct DftTagWorker {
 		bool empty() const { return index == 0; }
 	};
 
-	idict<pool<TwineRef>> tag_sets;
+	idict<pool<IdString>> tag_sets;
 
-	pool<TwineRef> tmp_tag_set;
+	pool<IdString> tmp_tag_set;
 	dict<std::pair<tag_set, tag_set>, tag_set> tag_set_union_cache;
 
 	dict<SigBit, tag_set> tagged_signals;
 
-	dict<TwineRef, pool<TwineRef>> tag_groups;
-	dict<TwineRef, TwineRef> group_of_tag;
-	pool<TwineRef> all_tags;
+	dict<IdString, pool<IdString>> tag_groups;
+	dict<IdString, IdString> group_of_tag;
+	pool<IdString> all_tags;
 
 	pool<Cell *> pending_cells;
 	std::deque<Cell *> pending_cell_queue;
 
-	dict<std::pair<TwineRef, SigBit>, SigBit> tag_signals;
+	dict<std::pair<IdString, SigBit>, SigBit> tag_signals;
 
 	// Uses SigSpec instead of SigBit so we can use coarse grained cells to combine the individual tags
-	dict<std::pair<TwineRef, SigSpec>, SigSpec> tag_group_signals;
+	dict<std::pair<IdString, SigSpec>, SigSpec> tag_group_signals;
 
 	pool<Cell *> warned_cells;
 
@@ -131,7 +131,7 @@ struct DftTagWorker {
 
 	void divert_users(SigBit driver_bit, SigBit interposed_bit)
 	{
-		dict<std::pair<Cell *, TwineRef>, SigSpec> updated_ports;
+		dict<std::pair<Cell *, IdString>, SigSpec> updated_ports;
 		// TODO also check module outputs
 		auto found = modwalker.signal_consumers.find(driver_bit);
 		if (found == modwalker.signal_consumers.end())
@@ -141,7 +141,7 @@ struct DftTagWorker {
 				continue;
 			if (sigmap(consumer.cell->getPort(consumer.port)[consumer.offset]) != driver_bit)
 				continue;
-			std::pair<Cell *, TwineRef> key = {consumer.cell, consumer.port};
+			std::pair<Cell *, IdString> key = {consumer.cell, consumer.port};
 			auto found_port = updated_ports.find(key);
 			if (found_port == updated_ports.end()) {
 				updated_ports.emplace(key, consumer.cell->getPort(consumer.port));
@@ -154,9 +154,9 @@ struct DftTagWorker {
 		}
 	}
 
-	const pool<TwineRef> &tag_pool(tag_set set) { return tag_sets[set.index]; }
+	const pool<IdString> &tag_pool(tag_set set) { return tag_sets[set.index]; }
 
-	tag_set singleton(TwineRef tag)
+	tag_set singleton(IdString tag)
 	{
 		tmp_tag_set.clear();
 		tmp_tag_set.emplace(tag);
@@ -264,7 +264,7 @@ struct DftTagWorker {
 		}
 	}
 
-	SigBit tag_signal(TwineRef tag, SigBit bit)
+	SigBit tag_signal(IdString tag, SigBit bit)
 	{
 		sigmap.apply(bit);
 		if (!bit.is_wire())
@@ -292,7 +292,7 @@ struct DftTagWorker {
 		return found->second;
 	}
 
-	SigSpec tag_signal(TwineRef tag, SigSpec sig)
+	SigSpec tag_signal(IdString tag, SigSpec sig)
 	{
 		SigSpec result;
 		for (auto bit : sig)
@@ -300,7 +300,7 @@ struct DftTagWorker {
 		return result;
 	}
 
-	SigSpec tag_group_signal(TwineRef tag_group, SigSpec sig)
+	SigSpec tag_group_signal(IdString tag_group, SigSpec sig)
 	{
 		sigmap.apply(sig);
 		if (sig.is_fully_const() || tag_groups.count(tag_group) == 0)
@@ -328,7 +328,7 @@ struct DftTagWorker {
 		return combined;
 	}
 
-	void emit_tag_signal(TwineRef tag, SigBit bit, SigBit tag_bit)
+	void emit_tag_signal(IdString tag, SigBit bit, SigBit tag_bit)
 	{
 		sigmap.apply(bit);
 		sigmap.apply(tag_bit);
@@ -345,14 +345,14 @@ struct DftTagWorker {
 		tag_signals.emplace(key, tag_bit);
 	}
 
-	void emit_tag_signal(TwineRef tag, SigSpec sig, SigSpec tag_sig)
+	void emit_tag_signal(IdString tag, SigSpec sig, SigSpec tag_sig)
 	{
 		log_assert(GetSize(sig) == GetSize(tag_sig));
 		for (int i = 0; i < GetSize(sig); i++)
 			emit_tag_signal(tag, sig[i], tag_sig[i]);
 	}
 
-	void emit_tag_signals(TwineRef tag, Cell *cell)
+	void emit_tag_signals(IdString tag, Cell *cell)
 	{
 		if (!pending_cells.insert(cell).second) {
 			// We have a cycle, emit placeholder wires which will be connected
@@ -372,11 +372,11 @@ struct DftTagWorker {
 	void propagate_tags(Cell *cell)
 	{
 		if (cell->type == ID($set_tag)) {
-			TwineRef tag = module->design->twines.add(stringf("\\%s", cell->getParam(ID::TAG).decode_string()));
+			IdString tag = module->design->twines.add(stringf("\\%s", cell->getParam(ID::TAG).decode_string()));
 			if (all_tags.insert(tag).second) {
 				std::string tag_str = module->design->twines.str(tag);
 				auto group_sep = tag_str.find(':');
-				TwineRef tag_group = group_sep != std::string::npos
+				IdString tag_group = group_sep != std::string::npos
 						? module->design->twines.add(tag_str.substr(0, group_sep)) : tag;
 				tag_groups[tag_group].insert(tag);
 				group_of_tag[tag] = tag_group;
@@ -477,10 +477,10 @@ struct DftTagWorker {
 			log_debug("Unhandled cell %s (%s) during tag propagation\n", cell, cell->type.unescape());
 	}
 
-	void process_cell(TwineRef tag, Cell *cell)
+	void process_cell(IdString tag, Cell *cell)
 	{
 		if (cell->type == ID($set_tag)) {
-			TwineRef cell_tag = module->design->twines.add(stringf("\\%s", cell->getParam(ID::TAG).decode_string()));
+			IdString cell_tag = module->design->twines.add(stringf("\\%s", cell->getParam(ID::TAG).decode_string()));
 
 			auto tag_sig_a = tag_signal(tag, cell->getPort(ID::A));
 			auto &sig_y = cell->getPort(ID::Y);
@@ -754,7 +754,7 @@ struct DftTagWorker {
 
 		for (auto cell : get_tag_cells) {
 			auto &sig_a = cell->getPort(ID::A);
-			TwineRef tag = module->design->twines.add(stringf("\\%s", cell->getParam(ID::TAG).decode_string()));
+			IdString tag = module->design->twines.add(stringf("\\%s", cell->getParam(ID::TAG).decode_string()));
 
 			tag_signal(tag, sig_a);
 		}
@@ -820,7 +820,7 @@ struct DftTagWorker {
 		for (auto cell : get_tag_cells) {
 			auto &sig_a = cell->getPort(ID::A);
 			auto &sig_y = cell->getPort(ID::Y);
-			TwineRef tag = module->design->twines.add(stringf("\\%s", cell->getParam(ID::TAG).decode_string()));
+			IdString tag = module->design->twines.add(stringf("\\%s", cell->getParam(ID::TAG).decode_string()));
 
 			auto tag_sig = tag_signal(tag, sig_a);
 			module->connect(sig_y, tag_sig);

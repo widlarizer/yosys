@@ -41,7 +41,7 @@ struct generate_port_decl_t {
 
 void generate(RTLIL::Design *design, const std::vector<std::string> &celltypes, const std::vector<generate_port_decl_t> &portdecls)
 {
-	std::set<TwineRef> found_celltypes;
+	std::set<IdString> found_celltypes;
 
 	for (auto mod : design->modules())
 	for (auto cell : mod->cells())
@@ -58,7 +58,7 @@ void generate(RTLIL::Design *design, const std::vector<std::string> &celltypes, 
 	for (auto &celltype : found_celltypes)
 	{
 		std::set<std::string> portnames;
-		std::set<TwineRef> parameters;
+		std::set<IdString> parameters;
 		std::map<std::string, int> portwidths;
 		log("Generate module for cell type %s:\n", log_id(design, celltype));
 
@@ -156,10 +156,10 @@ std::string basic_cell_type(const std::string celltype, int pos[3] = nullptr) {
 	return basicType;
 }
 
-// Try to read a TwineRef as a numbered connection name ("$123" or similar),
+// Try to read a IdString as a numbered connection name ("$123" or similar),
 // writing the result to dst. If the string isn't of the right format, ignore
 // dst and return false.
-bool read_id_num(RTLIL::Design &design, TwineRef ref, int *dst)
+bool read_id_num(RTLIL::Design &design, IdString ref, int *dst)
 {
 	log_assert(dst);
 
@@ -189,14 +189,14 @@ struct IFExpander
 
 	RTLIL::Design                          &design;
 	RTLIL::Module                          &module;
-	dict<TwineRef, RTLIL::Module*>   interfaces_in_module;
+	dict<IdString, RTLIL::Module*>   interfaces_in_module;
 
 	bool                                    has_interfaces_not_found;
-	std::vector<TwineRef>                   connections_to_remove;
-	std::vector<TwineRef>                   connections_to_add;
+	std::vector<IdString>                   connections_to_remove;
+	std::vector<IdString>                   connections_to_add;
 	std::vector<RTLIL::SigSpec>             connections_to_add_signal;
-	dict<TwineRef, RTLIL::Module*>          interfaces_to_add_to_submodule;
-	dict<TwineRef, TwineRef>         modports_used_in_submodule;
+	dict<IdString, RTLIL::Module*>          interfaces_to_add_to_submodule;
+	dict<IdString, IdString>         modports_used_in_submodule;
 
 	// Reset the per-cell state
 	void start_cell()
@@ -212,7 +212,7 @@ struct IFExpander
 	// Set has_interfaces_not_found if there are pending interfaces that
 	// haven't been found yet (and might be found in the future). Print a
 	// warning if we've already gone over all the cells in the module.
-	void on_missing_interface(TwineRef interface_name)
+	void on_missing_interface(IdString interface_name)
 	{
 		// If there are cells that haven't yet been processed, maybe
 		// we'll find this interface in the future.
@@ -231,7 +231,7 @@ struct IFExpander
 
 	// Handle an interface connection from the module
 	void on_interface(RTLIL::Module        &submodule,
-	                  TwineRef              conn_name,
+	                  IdString              conn_name,
 	                  const RTLIL::SigSpec &conn_signals)
 	{
 		// Check if the connected wire is a potential interface in the parent module
@@ -239,7 +239,7 @@ struct IFExpander
 		// Strip the prefix '$dummywireforinterface' from the dummy wire to get the name
 		interface_name_str.replace(0,23,"");
 		interface_name_str = "\\" + interface_name_str;
-		TwineRef interface_name = design.twines.add(std::string(interface_name_str));
+		IdString interface_name = design.twines.add(std::string(interface_name_str));
 
 		// If 'interfaces' in the cell have not be been handled yet, we aren't
 		// ready to derive the sub-module either
@@ -253,7 +253,7 @@ struct IFExpander
 		// '_inst_from_top_dummy'. Check for both of them here
 		int nexactmatch = interfaces_in_module.count(interface_name) > 0;
 		std::string interface_name_str2 =  interface_name_str + "_inst_from_top_dummy";
-		TwineRef interface_name2 = design.twines.add(std::string(interface_name_str2));
+		IdString interface_name2 = design.twines.add(std::string(interface_name_str2));
 		int nmatch2 = interfaces_in_module.count(interface_name2) > 0;
 
 		// If we can't find either name, this is a missing interface.
@@ -274,7 +274,7 @@ struct IFExpander
 			std::string signal_name1 = conn_name_str + "." + member;
 			std::string signal_name2 = interface_name_str + "." + member;
 			connections_to_add.push_back(AST::intern_hier_name(&design, signal_name1));
-			TwineRef signal_name2_ref = AST::intern_hier_name(&design, signal_name2);
+			IdString signal_name2_ref = AST::intern_hier_name(&design, signal_name2);
 			if(module.wire(signal_name2_ref) == nullptr) {
 				log_error("Could not find signal '%s' in '%s'\n",
 					  signal_name2.c_str(), module.name.str().data());
@@ -299,7 +299,7 @@ struct IFExpander
 	// Handle a single connection from the module, making a note to expand
 	// it if it's an interface connection.
 	void on_connection(RTLIL::Module        &submodule,
-	                   TwineRef              conn_name,
+	                   IdString              conn_name,
 	                   const RTLIL::SigSpec &conn_signals)
 	{
 		// Does the connection look like an interface
@@ -507,8 +507,8 @@ bool expand_module(RTLIL::Design *design, RTLIL::Module *module, bool flag_check
 			cell->type_impl = cell->module->design->twines.add(std::string{cell->type.str().substr(pos_type + 1)});
 		}
 
-		dict<TwineRef, RTLIL::Module*> interfaces_by_name;
-		dict<TwineRef, TwineRef> modports_by_name;
+		dict<IdString, RTLIL::Module*> interfaces_by_name;
+		dict<IdString, IdString> modports_by_name;
 
 		RTLIL::Module *mod = design->module(cell->type_impl);
 		if (!mod)
@@ -615,7 +615,7 @@ bool expand_module(RTLIL::Design *design, RTLIL::Module *module, bool flag_check
 
 		for (auto &conn : cell->connections_) {
 			int conn_size = conn.second.size();
-			TwineRef portname = conn.first;
+			IdString portname = conn.first;
 			std::string portname_str = module->design->twines.str(conn.first);
 			if (portname_str.empty() || portname_str[0] != '$') {
 				// Named port, use as-is
@@ -770,14 +770,14 @@ RTLIL::Wire *find_implicit_port_wire(Module *module, Cell *cell, const std::stri
 	TwineSearch search(&module->design->twines);
 	while ((idx = cellname.find_last_of('.', idx-1)) != std::string::npos) {
 		std::string wire_name = cellname.substr(0, idx+1) + port.substr(1);
-		TwineRef ref = search.find(wire_name);
+		IdString ref = search.find(wire_name);
 		if (ref != Twine::Null) {
 			Wire *found = module->wire(ref);
 			if (found != nullptr)
 				return found;
 		}
 	}
-	TwineRef ref = search.find(port);
+	IdString ref = search.find(port);
 	if (ref != Twine::Null)
 		return module->wire(ref);
 	return nullptr;
@@ -1005,12 +1005,12 @@ struct HierarchyPass : public Pass {
 
 		if (!load_top_mod.empty())
 		{
-			TwineRef top_name = design->twines.add(RTLIL::escape_id(load_top_mod));
-			TwineRef abstract_id = design->twines.add("$abstract" + RTLIL::escape_id(load_top_mod));
+			IdString top_name = design->twines.add(RTLIL::escape_id(load_top_mod));
+			IdString abstract_id = design->twines.add("$abstract" + RTLIL::escape_id(load_top_mod));
 			top_mod = design->module(top_name);
 			RTLIL::Module *abstract_mod = design->module(abstract_id);
 
-			dict<TwineRef, RTLIL::Const> top_parameters;
+			dict<IdString, RTLIL::Const> top_parameters;
 			if ((top_mod == nullptr && abstract_mod) || top_mod != nullptr) {
 				for (auto &para : parameters) {
 					SigSpec sig_value;
@@ -1027,7 +1027,7 @@ struct HierarchyPass : public Pass {
 			else if (top_mod != nullptr && !top_parameters.empty())
 				top_mod = design->module(top_mod->derive(design, top_parameters));
 
-			TwineRef top_name_ref = top_name;
+			IdString top_name_ref = top_name;
 			if (top_mod != nullptr && top_mod->meta_->name != top_name_ref) {
 				Module *m = top_mod->clone();
 				m->meta_->name = top_name_ref;
@@ -1076,7 +1076,7 @@ struct HierarchyPass : public Pass {
 
 		if (top_mod == nullptr)
 		{
-			std::vector<TwineRef> abstract_ids;
+			std::vector<IdString> abstract_ids;
 			for (auto module : design->modules()) {
 				std::string mod_name = module->name.str();
 				if (!mod_name.empty() && mod_name[0] == '$' && mod_name.substr(0, 9) == "$abstract")
@@ -1103,9 +1103,9 @@ struct HierarchyPass : public Pass {
 
 		std::string top_mod_name = top_mod ? top_mod->name.str() : std::string("");
 		if (top_mod != nullptr && !top_mod_name.empty() && top_mod_name[0] == '$' && top_mod_name.substr(0, 9) == "$abstract") {
-			TwineRef top_name = design->twines.add(top_mod_name.substr(strlen("$abstract")));
+			IdString top_name = design->twines.add(top_mod_name.substr(strlen("$abstract")));
 
-			dict<TwineRef, RTLIL::Const> top_parameters;
+			dict<IdString, RTLIL::Const> top_parameters;
 			for (auto &para : parameters) {
 				SigSpec sig_value;
 				if (!RTLIL::SigSpec::parse(sig_value, NULL, para.second))
@@ -1117,7 +1117,7 @@ struct HierarchyPass : public Pass {
 
 			top_mod = design->module(top_mod->derive(design, top_parameters));
 
-			TwineRef top_name_ref = top_name;
+			IdString top_name_ref = top_name;
 			if (top_mod != nullptr && top_mod->meta_->name != top_name_ref) {
 				Module *m = top_mod->clone();
 				m->meta_->name = top_name_ref;
@@ -1238,7 +1238,7 @@ struct HierarchyPass : public Pass {
 		if (!keep_positionals)
 		{
 			std::set<RTLIL::Module*> pos_mods;
-			std::map<std::pair<RTLIL::Module*,int>, TwineRef> pos_map;
+			std::map<std::pair<RTLIL::Module*,int>, IdString> pos_map;
 			std::vector<std::pair<RTLIL::Module*,RTLIL::Cell*>> pos_work;
 
 			for (auto mod : design->modules())
@@ -1255,7 +1255,7 @@ struct HierarchyPass : public Pass {
 					}
 				}
 
-				pool<std::pair<TwineRef, TwineRef>> params_rename;
+				pool<std::pair<IdString, IdString>> params_rename;
 				for (const auto &p : cell->parameters) {
 					int id;
 					if (read_id_num(*design, p.first, &id)) {
@@ -1276,7 +1276,7 @@ struct HierarchyPass : public Pass {
 			for (auto module : pos_mods)
 			for (auto wire : module->wires()) {
 				if (wire->port_id > 0)
-					pos_map[std::pair<RTLIL::Module*,int>(module, wire->port_id)] = TwineRef(wire->name);
+					pos_map[std::pair<RTLIL::Module*,int>(module, wire->port_id)] = IdString(wire->name);
 			}
 
 			for (auto &work : pos_work) {
@@ -1284,7 +1284,7 @@ struct HierarchyPass : public Pass {
 				RTLIL::Cell *cell = work.second;
 				log("Mapping positional arguments of cell %s.%s (%s).\n",
 						module, cell, cell->type.unescaped());
-				dict<TwineRef, RTLIL::SigSpec> new_connections_twine;
+				dict<IdString, RTLIL::SigSpec> new_connections_twine;
 				for (auto &conn : cell->connections()) {
 					int id;
 					if (read_id_num(*design, conn.first, &id)) {
@@ -1303,7 +1303,7 @@ struct HierarchyPass : public Pass {
 		}
 
 		// Determine default values
-		dict<TwineRef, dict<TwineRef, Const>> defaults_db;
+		dict<IdString, dict<IdString, Const>> defaults_db;
 		if (!nodefaults)
 		{
 			for (auto module : design->modules())
@@ -1329,8 +1329,8 @@ struct HierarchyPass : public Pass {
 
 				// Need accurate port widths for error checking; so must derive blackboxes with dynamic port widths
 				if (m->get_blackbox_attribute() && !cell->parameters.empty() && m->get_bool_attribute(ID::dynports)) {
-					TwineRef new_m_ref = m->derive(design, cell->parameters, true);
-					if (new_m_ref == TwineRef{})
+					IdString new_m_ref = m->derive(design, cell->parameters, true);
+					if (new_m_ref == IdString{})
 						continue;
 					if (new_m_ref != m->meta_->name) {
 						m = design->module(new_m_ref);
@@ -1385,7 +1385,7 @@ struct HierarchyPass : public Pass {
 					}
 
 					for (auto &it : defaults_db.at(cell->type)) {
-						TwineRef port_ref = it.first;
+						IdString port_ref = it.first;
 						if (!cell->hasPort(port_ref))
 							cell->setPort(port_ref, it.second);
 					}
@@ -1518,8 +1518,8 @@ struct HierarchyPass : public Pass {
 				bool boxed_params = false;
 				if (m->get_blackbox_attribute() && !cell->parameters.empty()) {
 					if (m->get_bool_attribute(ID::dynports)) {
-						TwineRef new_m_ref = m->derive(design, cell->parameters, true);
-						if (new_m_ref == TwineRef{})
+						IdString new_m_ref = m->derive(design, cell->parameters, true);
+						if (new_m_ref == IdString{})
 							continue;
 						if (new_m_ref != m->meta_->name) {
 							m = design->module(new_m_ref);

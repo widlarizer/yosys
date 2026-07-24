@@ -32,9 +32,9 @@ struct cell_mapping {
 	std::string cell_name;
 	std::map<std::string, char> ports;
 };
-static std::map<TwineRef, cell_mapping> cell_mappings;
+static std::map<IdString, cell_mapping> cell_mappings;
 
-static void logmap(TwineRef dff)
+static void logmap(IdString dff)
 {
 	if (cell_mappings.count(dff) == 0) {
 		log("    unmapped dff cell: %s\n", ID::str(dff));
@@ -235,7 +235,7 @@ static bool parse_pin(const LibertyAst *cell, const LibertyAst *attr, std::strin
 	return false;
 }
 
-static void find_cell(std::vector<const LibertyAst *> cells, TwineRef cell_type, bool clkpol, bool has_reset, bool rstpol, bool rstval, bool has_enable, bool enapol, std::vector<std::string> &dont_use_cells)
+static void find_cell(std::vector<const LibertyAst *> cells, IdString cell_type, bool clkpol, bool has_reset, bool rstpol, bool rstval, bool has_enable, bool enapol, std::vector<std::string> &dont_use_cells)
 {
 	const LibertyAst *best_cell = nullptr;
 	std::map<std::string, char> best_cell_ports;
@@ -363,7 +363,7 @@ static void find_cell(std::vector<const LibertyAst *> cells, TwineRef cell_type,
 	}
 }
 
-static void find_cell_sr(std::vector<const LibertyAst *> cells, TwineRef cell_type, bool clkpol, bool setpol, bool clrpol, bool has_enable, bool enapol, std::vector<std::string> &dont_use_cells)
+static void find_cell_sr(std::vector<const LibertyAst *> cells, IdString cell_type, bool clkpol, bool setpol, bool clrpol, bool has_enable, bool enapol, std::vector<std::string> &dont_use_cells)
 {
 	const LibertyAst *best_cell = nullptr;
 	std::map<std::string, char> best_cell_ports;
@@ -506,7 +506,7 @@ static void dfflibmap(RTLIL::Design *design, RTLIL::Module *module)
 	for (auto cell : module->cells()) {
 		if (design->selected(module, cell) && cell_mappings.count(cell->type) > 0)
 			cell_list.push_back(cell);
-		if (cell->type.in(TwineRef{ID::$_NOT_}))
+		if (cell->type.in(IdString{ID::$_NOT_}))
 			notmap[sigmap(cell->getPort(ID::A))].insert(cell);
 	}
 
@@ -516,8 +516,8 @@ static void dfflibmap(RTLIL::Design *design, RTLIL::Module *module)
 	std::map<std::string, int> stats;
 	for (auto cell : cell_list)
 	{
-		TwineRef cell_type = cell->type;
-		TwineRef cell_name(cell->name);
+		IdString cell_type = cell->type;
+		IdString cell_name(cell->name);
 		auto cell_connections = cell->connections();
 		std::string src = cell->get_src_attribute();
 

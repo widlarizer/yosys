@@ -27,8 +27,8 @@ YOSYS_NAMESPACE_BEGIN
 
 struct CellType
 {
-	TwineRef type;
-	pool<TwineRef> inputs, outputs;
+	IdString type;
+	pool<IdString> inputs, outputs;
 	bool is_evaluable;
 	bool is_combinatorial;
 	bool is_synthesizable;
@@ -36,7 +36,7 @@ struct CellType
 
 struct CellTypes
 {
-	dict<TwineRef, CellType> cell_types;
+	dict<IdString, CellType> cell_types;
 
 	CellTypes()
 	{
@@ -59,20 +59,20 @@ struct CellTypes
 		setup_stdcells_mem();
 	}
 
-	void setup_type(TwineRef type, const pool<TwineRef> &inputs, const pool<TwineRef> &outputs, bool is_evaluable = false, bool is_combinatorial = false, bool is_synthesizable = false)
+	void setup_type(IdString type, const pool<IdString> &inputs, const pool<IdString> &outputs, bool is_evaluable = false, bool is_combinatorial = false, bool is_synthesizable = false)
 	{
 		CellType ct = {type, inputs, outputs, is_evaluable, is_combinatorial, is_synthesizable};
 		cell_types[ct.type] = ct;
 	}
 
-	void setup_type(const std::string &type_str, const pool<TwineRef> &inputs, const pool<TwineRef> &outputs, bool is_evaluable = false, bool is_combinatorial = false, bool is_synthesizable = false)
+	void setup_type(const std::string &type_str, const pool<IdString> &inputs, const pool<IdString> &outputs, bool is_evaluable = false, bool is_combinatorial = false, bool is_synthesizable = false)
 	{
 		setup_type(ID::lookup(type_str), inputs, outputs, is_evaluable, is_combinatorial, is_synthesizable);
 	}
 
 	void setup_module(RTLIL::Module *module)
 	{
-		pool<TwineRef> inputs, outputs;
+		pool<IdString> inputs, outputs;
 		for (auto wire_name : module->ports) {
 			RTLIL::Wire *wire = module->wire(wire_name);
 			if (wire->port_input)
@@ -95,25 +95,25 @@ struct CellTypes
 
 		setup_type(ID::$tribuf, {ID::A, ID::EN}, {ID::Y});
 
-		setup_type(ID::$assert, {ID::A, ID::EN}, pool<TwineRef>());
-		setup_type(ID::$assume, {ID::A, ID::EN}, pool<TwineRef>());
-		setup_type(ID::$live, {ID::A, ID::EN}, pool<TwineRef>());
-		setup_type(ID::$fair, {ID::A, ID::EN}, pool<TwineRef>());
-		setup_type(ID::$cover, {ID::A, ID::EN}, pool<TwineRef>());
-		setup_type(ID::$initstate, pool<TwineRef>(), {ID::Y});
-		setup_type(ID::$anyconst, pool<TwineRef>(), {ID::Y});
-		setup_type(ID::$anyseq, pool<TwineRef>(), {ID::Y});
-		setup_type(ID::$allconst, pool<TwineRef>(), {ID::Y});
-		setup_type(ID::$allseq, pool<TwineRef>(), {ID::Y});
+		setup_type(ID::$assert, {ID::A, ID::EN}, pool<IdString>());
+		setup_type(ID::$assume, {ID::A, ID::EN}, pool<IdString>());
+		setup_type(ID::$live, {ID::A, ID::EN}, pool<IdString>());
+		setup_type(ID::$fair, {ID::A, ID::EN}, pool<IdString>());
+		setup_type(ID::$cover, {ID::A, ID::EN}, pool<IdString>());
+		setup_type(ID::$initstate, pool<IdString>(), {ID::Y});
+		setup_type(ID::$anyconst, pool<IdString>(), {ID::Y});
+		setup_type(ID::$anyseq, pool<IdString>(), {ID::Y});
+		setup_type(ID::$allconst, pool<IdString>(), {ID::Y});
+		setup_type(ID::$allseq, pool<IdString>(), {ID::Y});
 		setup_type(ID::$equiv, {ID::A, ID::B}, {ID::Y});
-		setup_type(ID::$specify2, {ID::EN, ID::SRC, ID::DST}, pool<TwineRef>());
-		setup_type(ID::$specify3, {ID::EN, ID::SRC, ID::DST, ID::DAT}, pool<TwineRef>());
-		setup_type(ID::$specrule, {ID::SRC_EN, ID::DST_EN, ID::SRC, ID::DST}, pool<TwineRef>());
-		setup_type(ID::$print, {ID::EN, ID::ARGS, ID::TRG}, pool<TwineRef>());
-		setup_type(ID::$check, {ID::A, ID::EN, ID::ARGS, ID::TRG}, pool<TwineRef>());
+		setup_type(ID::$specify2, {ID::EN, ID::SRC, ID::DST}, pool<IdString>());
+		setup_type(ID::$specify3, {ID::EN, ID::SRC, ID::DST, ID::DAT}, pool<IdString>());
+		setup_type(ID::$specrule, {ID::SRC_EN, ID::DST_EN, ID::SRC, ID::DST}, pool<IdString>());
+		setup_type(ID::$print, {ID::EN, ID::ARGS, ID::TRG}, pool<IdString>());
+		setup_type(ID::$check, {ID::A, ID::EN, ID::ARGS, ID::TRG}, pool<IdString>());
 		setup_type(ID::$set_tag, {ID::A, ID::SET, ID::CLR}, {ID::Y});
 		setup_type(ID::$get_tag, {ID::A}, {ID::Y});
-		setup_type(ID::$overwrite_tag, {ID::A, ID::SET, ID::CLR}, pool<TwineRef>());
+		setup_type(ID::$overwrite_tag, {ID::A, ID::SET, ID::CLR}, pool<IdString>());
 		setup_type(ID::$original_tag, {ID::A}, {ID::Y});
 		setup_type(ID::$future_ff, {ID::A}, {ID::Y});
 		setup_type(ID::$scopeinfo, {}, {});
@@ -125,13 +125,13 @@ struct CellTypes
 
 	void setup_internals_eval()
 	{
-		std::vector<TwineRef> unary_ops = {
+		std::vector<IdString> unary_ops = {
 			ID($not), ID($pos), ID($buf), ID($neg),
 			ID($reduce_and), ID($reduce_or), ID($reduce_xor), ID($reduce_xnor), ID($reduce_bool),
 			ID($logic_not), ID($slice), ID($lut), ID($sop)
 		};
 
-		std::vector<TwineRef> binary_ops = {
+		std::vector<IdString> binary_ops = {
 			ID($and), ID($or), ID($xor), ID($xnor),
 			ID($shl), ID($shr), ID($sshl), ID($sshr), ID($shift), ID($shiftx),
 			ID($lt), ID($le), ID($eq), ID($ne), ID($eqx), ID($nex), ID($ge), ID($gt),
@@ -146,10 +146,10 @@ struct CellTypes
 		for (auto type : binary_ops)
 			setup_type(type, {ID::A, ID::B}, {ID::Y}, true);
 
-		for (auto type : std::vector<TwineRef>({ID::$mux, ID::$pmux, ID::$bwmux}))
+		for (auto type : std::vector<IdString>({ID::$mux, ID::$pmux, ID::$bwmux}))
 			setup_type(type, {ID::A, ID::B, ID::S}, {ID::Y}, true);
 
-		for (auto type : std::vector<TwineRef>({ID::$bmux, ID::$demux}))
+		for (auto type : std::vector<IdString>({ID::$bmux, ID::$demux}))
 			setup_type(type, {ID::A, ID::S}, {ID::Y}, true);
 
 		setup_type(ID($lcu), {ID::P, ID::G, ID::CI}, {ID::CO}, true);
@@ -189,10 +189,10 @@ struct CellTypes
 
 		setup_type(ID($memrd), {ID::CLK, ID::EN, ID::ADDR}, {ID::DATA});
 		setup_type(ID($memrd_v2), {ID::CLK, ID::EN, ID::ARST, ID::SRST, ID::ADDR}, {ID::DATA});
-		setup_type(ID::$memwr, {ID::CLK, ID::EN, ID::ADDR, ID::DATA}, pool<TwineRef>());
-		setup_type(ID::$memwr_v2, {ID::CLK, ID::EN, ID::ADDR, ID::DATA}, pool<TwineRef>());
-		setup_type(ID::$meminit, {ID::ADDR, ID::DATA}, pool<TwineRef>());
-		setup_type(ID::$meminit_v2, {ID::ADDR, ID::DATA, ID::EN}, pool<TwineRef>());
+		setup_type(ID::$memwr, {ID::CLK, ID::EN, ID::ADDR, ID::DATA}, pool<IdString>());
+		setup_type(ID::$memwr_v2, {ID::CLK, ID::EN, ID::ADDR, ID::DATA}, pool<IdString>());
+		setup_type(ID::$meminit, {ID::ADDR, ID::DATA}, pool<IdString>());
+		setup_type(ID::$meminit_v2, {ID::ADDR, ID::DATA, ID::EN}, pool<IdString>());
 		setup_type(ID($mem), {ID::RD_CLK, ID::RD_EN, ID::RD_ADDR, ID::WR_CLK, ID::WR_EN, ID::WR_ADDR, ID::WR_DATA}, {ID::RD_DATA});
 		setup_type(ID($mem_v2), {ID::RD_CLK, ID::RD_EN, ID::RD_ARST, ID::RD_SRST, ID::RD_ADDR, ID::WR_CLK, ID::WR_EN, ID::WR_ADDR, ID::WR_DATA}, {ID::RD_DATA});
 
@@ -313,24 +313,24 @@ struct CellTypes
 		cell_types.clear();
 	}
 
-	bool cell_known(TwineRef type) const
+	bool cell_known(IdString type) const
 	{
 		return cell_types.count(type) != 0;
 	}
 
-	bool cell_output(TwineRef type, TwineRef port) const
+	bool cell_output(IdString type, IdString port) const
 	{
 		auto it = cell_types.find(type);
 		return it != cell_types.end() && it->second.outputs.count(port) != 0;
 	}
 
-	bool cell_input(TwineRef type, TwineRef port) const
+	bool cell_input(IdString type, IdString port) const
 	{
 		auto it = cell_types.find(type);
 		return it != cell_types.end() && it->second.inputs.count(port) != 0;
 	}
 
-	RTLIL::PortDir cell_port_dir(TwineRef type, TwineRef port) const
+	RTLIL::PortDir cell_port_dir(IdString type, IdString port) const
 	{
 		auto it = cell_types.find(type);
 		if (it == cell_types.end())
@@ -340,7 +340,7 @@ struct CellTypes
 		return RTLIL::PortDir(is_input + is_output * 2);
 	}
 
-	bool cell_evaluable(TwineRef type) const
+	bool cell_evaluable(IdString type) const
 	{
 		auto it = cell_types.find(type);
 		return it != cell_types.end() && it->second.is_evaluable;
@@ -355,7 +355,7 @@ struct CellTypes
 	}
 
 	// Consider using the ConstEval struct instead if you need named ports and/or multiple outputs
-	static RTLIL::Const eval(TwineRef type, const RTLIL::Const &arg1, const RTLIL::Const &arg2, bool signed1, bool signed2, int result_len, bool *errp = nullptr)
+	static RTLIL::Const eval(IdString type, const RTLIL::Const &arg1, const RTLIL::Const &arg2, bool signed1, bool signed2, int result_len, bool *errp = nullptr)
 	{
 		if (type == ID($sshr) && !signed1)
 			type = ID($shr);

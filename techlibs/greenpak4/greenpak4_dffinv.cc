@@ -114,7 +114,7 @@ struct Greenpak4DffInvPass : public Pass {
 		}
 		extra_args(args, argidx, design);
 
-		pool<TwineRef> gp_dff_types;
+		pool<IdString> gp_dff_types;
 		gp_dff_types.insert(ID(GP_DFF));
 		gp_dff_types.insert(ID(GP_DFFI));
 		gp_dff_types.insert(ID(GP_DFFR));

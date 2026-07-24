@@ -100,7 +100,7 @@ struct NlutmapWorker
 						cand.second -= bit_lut_count[bit];
 			}
 
-			vector<pair<int, TwineRef>> rated_candidates;
+			vector<pair<int, IdString>> rated_candidates;
 
 			for (auto &cand : candidate_ratings)
 				rated_candidates.push_back({cand.second, cand.first->meta_->name});

@@ -431,13 +431,13 @@ struct OptHierPass : Pass {
 		if (!d->top_module())
 			log_cmd_error("Top module needs to be selected for opt_hier\n");
 
-		dict<TwineRef, ModuleIndex> indices;
+		dict<IdString, ModuleIndex> indices;
 		for (auto module : d->modules()) {
 			log_debug("Building index for %s\n", module);
 			indices.emplace(module->name, ModuleIndex(module));
 		}
 
-		dict<TwineRef, UsageData> usage_datas;
+		dict<IdString, UsageData> usage_datas;
 		for (auto module : d->selected_modules(RTLIL::SELECT_WHOLE_ONLY, RTLIL::SB_UNBOXED_CMDERR)) {
 			if (module->get_bool_attribute(ID::top))
 				continue;

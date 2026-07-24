@@ -5,7 +5,7 @@ YOSYS_NAMESPACE_BEGIN
 
 std::vector<Twine> TwinePool::globals_;
 
-TwineRef twine_populate(std::string name) {
+IdString twine_populate(std::string name) {
 	// Globals store content only: drop the prepended '\'. Publicity lives
 	// in TWINE_PUBLIC_BIT on the ID:: handle, not in the stored string.
 	log_assert(name[0] == '\\');
@@ -61,11 +61,11 @@ void twine_prepopulate() {
 // 	free_list_ = other.free_list_;
 // 	// Re-create the index sets with functors pointing to *this,
 // 	// then rebuild their contents from the (now-copied) nodes_.
-// 	leaf_index_ = std::unordered_set<TwineRef, LeafHash, LeafEq>(
+// 	leaf_index_ = std::unordered_set<IdString, LeafHash, LeafEq>(
 // 		0, LeafHash{this}, LeafEq{this});
-// 	suffix_index_ = std::unordered_set<TwineRef, SuffixHash, SuffixEq>(
+// 	suffix_index_ = std::unordered_set<IdString, SuffixHash, SuffixEq>(
 // 		0, SuffixHash{this}, SuffixEq{this});
-// 	concat_index_ = std::unordered_set<TwineRef, ConcatHash, ConcatEq>(
+// 	concat_index_ = std::unordered_set<IdString, ConcatHash, ConcatEq>(
 // 		0, ConcatHash{this}, ConcatEq{this});
 // 	rebuild_indexes_();
 // 	return *this;
@@ -81,7 +81,7 @@ void twine_prepopulate() {
 // 	}
 // }
 
-// TwineRef TwinePool::alloc_slot_(Twine &&node)
+// IdString TwinePool::alloc_slot_(Twine &&node)
 // {
 // 	if (!free_list_.empty()) {
 // 		// Pop the SMALLEST free id (not the most recent), so reuse order
@@ -92,7 +92,7 @@ void twine_prepopulate() {
 // 		// the free list.
 // 		// TODO nevermind, inefficient, solve in RTLIL frontend and backend
 // 		// auto it = std::min_element(free_list_.begin(), free_list_.end());
-// 		// TwineRef id = *it;
+// 		// IdString id = *it;
 // 		// free_list_.erase(it);
 // 		Twine* id = free_list_.back();
 // 		*id = std::move(node);
@@ -102,14 +102,14 @@ void twine_prepopulate() {
 // 		refcount(id) = 0;
 // 		return id;
 // 	}
-// 	// TwineRef id = static_cast<TwineRef>(nodes_.size());
+// 	// IdString id = static_cast<IdString>(nodes_.size());
 // 	nodes_.push_back(std::move(node));
 // 	Twine* id = &nodes_.back();
 // 	refcount_.push_back(0);
 // 	return id;
 // }
 
-// TwineRef TwinePool::intern(std::string_view str)
+// IdString TwinePool::intern(std::string_view str)
 // {
 // 	if (str.empty())
 // 		return Twine::Null;
@@ -127,7 +127,7 @@ void twine_prepopulate() {
 // 		retain(*it);
 // 		return *it;
 // 	}
-// 	TwineRef id = alloc_slot_(Twine{std::string{str}});
+// 	IdString id = alloc_slot_(Twine{std::string{str}});
 // 	leaf_index_.insert(id);
 
 // 	// size_t idx = id - &nodes_.front();
@@ -159,26 +159,26 @@ void twine_prepopulate() {
 
 // 	// Internal child ref: the suffix node owns one ref on its parent.
 // 	retain(parent);
-// 	TwineRef id = alloc_slot_(Twine{Twine::Suffix{parent, std::string{tail}}});
+// 	IdString id = alloc_slot_(Twine{Twine::Suffix{parent, std::string{tail}}});
 // 	suffix_index_.insert(id);
 // 	refcount(id) = 1;
 // 	return id;
 // }
 
-// TwineRef TwinePool::concat(std::span<const TwineRef> parts)
+// IdString TwinePool::concat(std::span<const IdString> parts)
 // {
 // 	// Flat invariant: a Concat node only ever holds flat children (Leaf
 // 	// or Suffix), never another Concat. Splice in concats' children
 // 	// directly so identical sets map to byte-equal child vectors
 // 	// regardless of how callers nested concats.
-// 	std::vector<TwineRef> children;
+// 	std::vector<IdString> children;
 // 	children.reserve(parts.size());
-// 	pool<TwineRef> seen;
-// 	auto push_flat = [&](TwineRef flat_id) {
+// 	pool<IdString> seen;
+// 	auto push_flat = [&](IdString flat_id) {
 // 		if (seen.insert(flat_id).second)
 // 			children.push_back(flat_id);
 // 	};
-// 	for (TwineRef p : parts) {
+// 	for (IdString p : parts) {
 // 		if (p == Twine::Null)
 // 			continue;
 // 		// log_assert(p < nodes_.size() && !nodes_[p].is_dead());
@@ -186,7 +186,7 @@ void twine_prepopulate() {
 // 		if (n.is_flat()) {
 // 			push_flat(p);
 // 		} else {
-// 			for (TwineRef grandchild : n.children())
+// 			for (IdString grandchild : n.children())
 // 				push_flat(grandchild);
 // 		}
 // 	}
@@ -199,35 +199,35 @@ void twine_prepopulate() {
 // 	}
 
 // 	// Transparent find: probes with span, no vector allocation.
-// 	std::span<const TwineRef> child_span{children};
+// 	std::span<const IdString> child_span{children};
 // 	if (auto it = concat_index_.find(child_span); it != concat_index_.end()) {
 // 		retain(*it);
 // 		return *it;
 // 	}
 
 // 	// Internal child refs: the concat node owns one ref on each child.
-// 	for (TwineRef c : children)
+// 	for (IdString c : children)
 // 		retain(c);
-// 	TwineRef id = alloc_slot_(Twine{std::move(children)});
+// 	IdString id = alloc_slot_(Twine{std::move(children)});
 // 	concat_index_.insert(id);
 // 	refcount(id) = 1;
 // 	return id;
 // }
 
-// TwineRef TwinePool::concat(TwineRef a, TwineRef b)
+// IdString TwinePool::concat(IdString a, IdString b)
 // {
-// 	std::array<TwineRef, 2> pair{a, b};
-// 	return concat(std::span<const TwineRef>{pair});
+// 	std::array<IdString, 2> pair{a, b};
+// 	return concat(std::span<const IdString>{pair});
 // }
 
-// void TwinePool::retain(TwineRef id)
+// void TwinePool::retain(IdString id)
 // {
 // 	if (id == Twine::Null)
 // 		return;
 // 	refcount(id)++;
 // }
 
-// void TwinePool::release(TwineRef id)
+// void TwinePool::release(IdString id)
 // {
 // 	if (id == Twine::Null)
 // 		return;
@@ -237,12 +237,12 @@ void twine_prepopulate() {
 // 		destroy_slot_(id);
 // }
 
-// size_t TwinePool::index(TwineRef p) const
+// size_t TwinePool::index(IdString p) const
 // {
 // 	return p - &nodes_.front();
 // }
 
-// uint32_t& TwinePool::refcount(TwineRef id)
+// uint32_t& TwinePool::refcount(IdString id)
 // {
 // 	log_assert(id != Twine::Null);
 // 	size_t idx = index(id);
@@ -250,7 +250,7 @@ void twine_prepopulate() {
 // 	return refcount_[idx];
 // }
 
-// uint32_t TwinePool::refcount(TwineRef id) const
+// uint32_t TwinePool::refcount(IdString id) const
 // {
 // 	log_assert(id != Twine::Null);
 // 	size_t idx = id - &nodes_.front();
@@ -258,14 +258,14 @@ void twine_prepopulate() {
 // 	return refcount_[idx];
 // }
 
-// bool TwinePool::is_alive(TwineRef id) const
+// bool TwinePool::is_alive(IdString id) const
 // {
 // 	if (id == Twine::Null)
 // 		return false;
 // 	return id >= &nodes_.front() && id <= &nodes_.back() && !id->is_dead();
 // }
 
-// void TwinePool::destroy_slot_(TwineRef id)
+// void TwinePool::destroy_slot_(IdString id)
 // {
 // 	Twine &n = *id;
 // 	if (n.is_leaf()) {
@@ -275,11 +275,11 @@ void twine_prepopulate() {
 // 		// Erase by id first (while data is still readable), then capture
 // 		// children by move so iteration is stable across recursive release.
 // 		concat_index_.erase(id);
-// 		std::vector<TwineRef> children =
-// 			std::move(std::get<std::vector<TwineRef>>(n.data));
+// 		std::vector<IdString> children =
+// 			std::move(std::get<std::vector<IdString>>(n.data));
 // 		n.data = std::monostate{};
 // 		free_list_.push_back(id);
-// 		for (TwineRef c : children)
+// 		for (IdString c : children)
 // 			release(c);
 // 		return;
 // 	} else if (n.is_suffix()) {
@@ -295,7 +295,7 @@ void twine_prepopulate() {
 // 	free_list_.push_back(id);
 // }
 
-// TwineRef TwinePool::lookup(std::string_view sv) const
+// IdString TwinePool::lookup(std::string_view sv) const
 // {
 // 	if (sv.empty())
 // 		return Twine::Null;
@@ -303,7 +303,7 @@ void twine_prepopulate() {
 // 	return (it != leaf_index_.end()) ? *it : Twine::Null;
 // }
 
-// char TwinePool::first_char(TwineRef id) const
+// char TwinePool::first_char(IdString id) const
 // {
 // 	log_assert(id != Twine::Null && id > &nodes_.front() && id <= &nodes_.back() && !id->is_dead());
 // 	// Walk suffix parents to reach the root leaf, then return its first char.
@@ -314,7 +314,7 @@ void twine_prepopulate() {
 // 	return s.empty() ? '\0' : s.front();
 // }
 
-// void TwinePool::collect_leaves(TwineRef id, pool<std::string> &out) const
+// void TwinePool::collect_leaves(IdString id, pool<std::string> &out) const
 // {
 // 	if (id == Twine::Null)
 // 		return;
@@ -331,11 +331,11 @@ void twine_prepopulate() {
 // 		out.insert(flat_string_(id));
 // 		return;
 // 	}
-// 	for (TwineRef c : n.children())
+// 	for (IdString c : n.children())
 // 		collect_leaves(c, out);
 // }
 
-// std::string TwinePool::flat_string_(TwineRef id) const
+// std::string TwinePool::flat_string_(IdString id) const
 // {
 // 	// Walk the parent chain iteratively to avoid recursion depth concerns
 // 	// on deep suffix trees. Collect tails (and the root leaf) then stitch
@@ -362,7 +362,7 @@ void twine_prepopulate() {
 // 	return out;
 // }
 
-// std::string TwinePool::flatten(TwineRef id, char sep) const
+// std::string TwinePool::flatten(IdString id, char sep) const
 // {
 // 	if (id == Twine::Null)
 // 		return {};
@@ -379,7 +379,7 @@ void twine_prepopulate() {
 // 	return out;
 // }
 
-// std::string TwinePool::format_ref(TwineRef id) const
+// std::string TwinePool::format_ref(IdString id) const
 // {
 // 	if (id == Twine::Null)
 // 		return {};
@@ -400,7 +400,7 @@ void twine_prepopulate() {
 // 	}
 // 	return v;
 // }
-// TwineRef TwinePool::get_ref(std::string_view s)
+// IdString TwinePool::get_ref(std::string_view s)
 // {
 // 	if (auto idx = parse_ref(s))
 // 		return &nodes_.front() + *idx;
@@ -414,7 +414,7 @@ void twine_prepopulate() {
 // 				banner, nodes_.size() - free_list_.size(),
 // 				leaf_index_.size(), suffix_index_.size(),
 // 				concat_index_.size(), free_list_.size());
-// 	for_each_live([&](TwineRef id, const Twine &n) {
+// 	for_each_live([&](IdString id, const Twine &n) {
 // 		if (n.is_leaf()) {
 // 			log("  @%u leaf rc=%u %s\n", id, refcount(id), n.leaf().c_str());
 // 		} else if (n.is_suffix()) {
@@ -422,7 +422,7 @@ void twine_prepopulate() {
 // 					n.suffix().parent, n.suffix().tail.c_str());
 // 		} else {
 // 			std::string children;
-// 			for (TwineRef c : n.children()) {
+// 			for (IdString c : n.children()) {
 // 				if (!children.empty())
 // 					children += ", ";
 // 				children += format_ref(c);
@@ -432,30 +432,30 @@ void twine_prepopulate() {
 // 	});
 // }
 
-// dict<TwineRef, TwineRef> TwinePool::gc(const pool<TwineRef> &live)
+// dict<IdString, IdString> TwinePool::gc(const pool<IdString> &live)
 // {
 // 	// Closure: mark every node reachable from `live`. Concat children
 // 	// (Leaf or Suffix) and Suffix parents (Leaf or Suffix) are both
 // 	// followed. With Suffix nodes chains can be more than one step deep,
 // 	// so use a worklist rather than a single BFS step.
-// 	pool<TwineRef> reachable;
-// 	std::vector<TwineRef> work;
-// 	for (TwineRef id : live) {
+// 	pool<IdString> reachable;
+// 	std::vector<IdString> work;
+// 	for (IdString id : live) {
 // 		if (!id || id->is_dead())
 // 			continue;
 // 		if (reachable.insert(id).second)
 // 			work.push_back(id);
 // 	}
 // 	while (!work.empty()) {
-// 		TwineRef id = work.back();
+// 		IdString id = work.back();
 // 		work.pop_back();
 // 		const Twine &n = *id;
 // 		if (n.is_concat()) {
-// 			for (TwineRef c : n.children())
+// 			for (IdString c : n.children())
 // 				if (reachable.insert(c).second)
 // 					work.push_back(c);
 // 		} else if (n.is_suffix()) {
-// 			TwineRef p = n.suffix().parent;
+// 			IdString p = n.suffix().parent;
 // 			if (reachable.insert(p).second)
 // 				work.push_back(p);
 // 		}
@@ -465,22 +465,22 @@ void twine_prepopulate() {
 // 	// before concats so child lookups can resolve.
 // 	std::vector<Twine> new_nodes;
 // 	std::vector<uint32_t> new_refcount;
-// 	dict<TwineRef, TwineRef> remap;
+// 	dict<IdString, IdString> remap;
 
 // 	// Helper: insert a leaf into new_nodes, dedup by string.
-// 	// dict<std::string, TwineRef> new_leaf_map;
-// 	for (TwineRef old_id : reachable) {
+// 	// dict<std::string, IdString> new_leaf_map;
+// 	for (IdString old_id : reachable) {
 // 		const Twine &n = *old_id;
 // 		if (n.is_leaf())
 // 			remap[old_id] = intern(n.leaf());
 // 	}
 
-// 	std::function<TwineRef(TwineRef)> remap_flat = [&](TwineRef old_id) -> TwineRef {
+// 	std::function<IdString(IdString)> remap_flat = [&](IdString old_id) -> IdString {
 // 		if (auto it = remap.find(old_id); it != remap.end())
 // 			return it->second;
 // 		const Twine &n = *old_id;
 // 		log_assert(n.is_suffix());
-// 		TwineRef new_parent = remap_flat(n.suffix().parent);
+// 		IdString new_parent = remap_flat(n.suffix().parent);
 // 		// Dedup suffix nodes in the new pool.
 // 		for (auto& i : new_nodes) {
 // 			if (i.is_suffix()) {
@@ -491,38 +491,38 @@ void twine_prepopulate() {
 // 				}
 // 			}
 // 		}
-// 		// TwineRef new_id = static_cast<TwineRef>(new_nodes.size());
+// 		// IdString new_id = static_cast<IdString>(new_nodes.size());
 // 		new_nodes.push_back(Twine{Twine::Suffix{new_parent, n.suffix().tail}});
-// 		TwineRef new_id = &new_nodes.back();
+// 		IdString new_id = &new_nodes.back();
 // 		new_refcount.push_back(0);
 // 		remap[old_id] = new_id;
 // 		return new_id;
 // 	};
 
-// 	for (TwineRef old_id : reachable) {
+// 	for (IdString old_id : reachable) {
 // 		const Twine &n = *old_id;
 // 		if (n.is_suffix() && remap.find(old_id) == remap.end())
 // 			remap_flat(old_id);
 // 	}
 
 // 	// Dedup concat nodes by child vector.
-// 	dict<std::vector<TwineRef>, TwineRef> new_concat_map;
-// 	for (TwineRef old_id : reachable) {
+// 	dict<std::vector<IdString>, IdString> new_concat_map;
+// 	for (IdString old_id : reachable) {
 // 		const Twine &n = *old_id;
 // 		if (!n.is_concat())
 // 			continue;
-// 		std::vector<TwineRef> children;
+// 		std::vector<IdString> children;
 // 		children.reserve(n.children().size());
-// 		for (TwineRef c : n.children())
+// 		for (IdString c : n.children())
 // 			children.push_back(remap.at(c));
 // 		if (auto it = new_concat_map.find(children); it != new_concat_map.end()) {
 // 			remap[old_id] = it->second;
 // 		} else {
-// 			// TwineRef new_id = static_cast<TwineRef>(new_nodes.size());
+// 			// IdString new_id = static_cast<IdString>(new_nodes.size());
 // 			new_nodes.push_back(Twine{children});
-// 			TwineRef new_id = &new_nodes.back();
+// 			IdString new_id = &new_nodes.back();
 // 			new_refcount.push_back(0);
-// 			new_concat_map[std::get<std::vector<TwineRef>>(new_nodes.back().data)] = new_id;
+// 			new_concat_map[std::get<std::vector<IdString>>(new_nodes.back().data)] = new_id;
 // 			remap[old_id] = new_id;
 // 		}
 // 	}
@@ -534,14 +534,14 @@ void twine_prepopulate() {
 // 	refcount_ = std::move(new_refcount);
 
 // 	// Refcounts in the rebuilt pool.
-// 	for (TwineRef old_id : live) {
+// 	for (IdString old_id : live) {
 // 		auto it = remap.find(old_id);
 // 		if (it != remap.end())
 // 			refcount(it->second)++;
 // 	}
 // 	for (size_t i = 0; i < nodes_.size(); i++) {
 // 		if (nodes_[i].is_concat()) {
-// 			for (TwineRef c : nodes_[i].children())
+// 			for (IdString c : nodes_[i].children())
 // 				refcount(c)++;
 // 		} else if (nodes_[i].is_suffix()) {
 // 			refcount(nodes_[i].suffix().parent)++;
@@ -549,17 +549,17 @@ void twine_prepopulate() {
 // 	}
 
 // 	free_list_.clear();
-// 	leaf_index_ = std::unordered_set<TwineRef, LeafHash, LeafEq>(
+// 	leaf_index_ = std::unordered_set<IdString, LeafHash, LeafEq>(
 // 		0, LeafHash{this}, LeafEq{this});
-// 	suffix_index_ = std::unordered_set<TwineRef, SuffixHash, SuffixEq>(
+// 	suffix_index_ = std::unordered_set<IdString, SuffixHash, SuffixEq>(
 // 		0, SuffixHash{this}, SuffixEq{this});
-// 	concat_index_ = std::unordered_set<TwineRef, ConcatHash, ConcatEq>(
+// 	concat_index_ = std::unordered_set<IdString, ConcatHash, ConcatEq>(
 // 		0, ConcatHash{this}, ConcatEq{this});
 // 	rebuild_indexes_();
 // 	return remap;
 // }
 
-// TwineRef TwinePool::copy_from(const TwinePool &src, TwineRef src_id)
+// IdString TwinePool::copy_from(const TwinePool &src, IdString src_id)
 // {
 // 	if (src_id == Twine::Null)
 // 		return Twine::Null;
@@ -568,21 +568,21 @@ void twine_prepopulate() {
 // 	if (n.is_leaf())
 // 		return intern(n.leaf());
 // 	if (n.is_suffix()) {
-// 		TwineRef new_parent = copy_from(src, n.suffix().parent);
-// 		TwineRef result = intern_suffix(new_parent, n.suffix().tail);
+// 		IdString new_parent = copy_from(src, n.suffix().parent);
+// 		IdString result = intern_suffix(new_parent, n.suffix().tail);
 // 		// intern_suffix retained the parent internally; the caller-side
 // 		// +1 ref from copy_from(parent) is surplus.
 // 		release(new_parent);
 // 		return result;
 // 	}
-// 	std::vector<TwineRef> children;
+// 	std::vector<IdString> children;
 // 	children.reserve(n.children().size());
-// 	for (TwineRef c : n.children())
+// 	for (IdString c : n.children())
 // 		children.push_back(copy_from(src, c));
-// 	TwineRef result = concat(std::span<const TwineRef>{children});
+// 	IdString result = concat(std::span<const IdString>{children});
 // 	// concat retained each child internally; the caller-side +1 refs from
 // 	// copy_from(child) are surplus.
-// 	for (TwineRef c : children)
+// 	for (IdString c : children)
 // 		release(c);
 // 	return result;
 // }

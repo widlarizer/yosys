@@ -13,23 +13,23 @@ YOSYS_NAMESPACE_BEGIN
 
 namespace StaticCellTypes {
 
-// Given by last internal cell type TwineRef constids.inc, compilation error if too low
+// Given by last internal cell type IdString constids.inc, compilation error if too low
 constexpr int MAX_CELLS = 300;
 // Currently given by _MUX16_, compilation error if too low
 constexpr int MAX_PORTS = 20;
 struct CellTableBuilder {
 	struct PortList {
-		std::array<TwineRef, MAX_PORTS> ports{};
+		std::array<IdString, MAX_PORTS> ports{};
 		size_t count = 0;
 		constexpr PortList() = default;
-		constexpr PortList(std::initializer_list<TwineRef> init) {
+		constexpr PortList(std::initializer_list<IdString> init) {
 			for (auto p : init) {
 				ports[count++] = p;
 			}
 		}
 		constexpr auto begin() const { return ports.begin(); }
 		constexpr auto end() const { return ports.begin() + count; }
-		constexpr bool contains(TwineRef port) const {
+		constexpr bool contains(IdString port) const {
 			for (size_t i = 0; i < count; i++) {
 				if (port == ports[i])
 					return true;
@@ -50,14 +50,14 @@ struct CellTableBuilder {
 		bool is_tristate = false;
 	};
 	struct CellInfo {
-		TwineRef type;
+		IdString type;
 		PortList inputs, outputs;
 		Features features;
 	};
 	std::array<CellInfo, MAX_CELLS> cells{};
 	size_t count = 0;
 
-	constexpr void setup_type(TwineRef type, std::initializer_list<TwineRef> inputs, std::initializer_list<TwineRef> outputs, const Features& features) {
+	constexpr void setup_type(IdString type, std::initializer_list<IdString> inputs, std::initializer_list<IdString> outputs, const Features& features) {
 		cells[count++] = {type, PortList(inputs), PortList(outputs), features};
 	}
 	constexpr void setup_internals_other()
@@ -98,13 +98,13 @@ struct CellTableBuilder {
 	{
 		Features features {};
 		features.is_evaluable = true;
-		std::initializer_list<TwineRef> unary_ops = {
+		std::initializer_list<IdString> unary_ops = {
 			ID($not), ID($pos), ID($buf), ID($neg),
 			ID($reduce_and), ID($reduce_or), ID($reduce_xor), ID($reduce_xnor), ID($reduce_bool),
 			ID($logic_not), ID($slice), ID($lut), ID($sop)
 		};
 
-		std::initializer_list<TwineRef> binary_ops = {
+		std::initializer_list<IdString> binary_ops = {
 			ID($and), ID($or), ID($xor), ID($xnor),
 			ID($shl), ID($shr), ID($sshl), ID($sshr), ID($shift), ID($shiftx),
 			ID($lt), ID($le), ID($eq), ID($ne), ID($eqx), ID($nex), ID($ge), ID($gt),
@@ -423,7 +423,7 @@ constexpr CellTableBuilder builder {};
 struct PortInfo {
 	struct PortLists {
 		std::array<CellTableBuilder::PortList, MAX_CELLS> data{};
-		constexpr CellTableBuilder::PortList operator()(TwineRef type) const {
+		constexpr CellTableBuilder::PortList operator()(IdString type) const {
 			return data[type];
 		}
 		constexpr CellTableBuilder::PortList& operator[](size_t idx) {
@@ -446,7 +446,7 @@ struct PortInfo {
 struct Categories {
 	struct Category {
 		std::array<bool, MAX_CELLS> data{};
-		constexpr bool operator()(TwineRef type) const {
+		constexpr bool operator()(IdString type) const {
 			size_t idx = type;
 			if (idx >= MAX_CELLS)
 				return false;
@@ -455,9 +455,9 @@ struct Categories {
 		constexpr bool operator[](size_t idx) {
 			return data[idx];
 		}
-		// Indexed by TwineRef value, matching operator() and the Categories
+		// Indexed by IdString value, matching operator() and the Categories
 		// constructor.
-		constexpr void set_id(TwineRef type, bool val = true) {
+		constexpr void set_id(IdString type, bool val = true) {
 			size_t idx = type;
 			if (idx >= MAX_CELLS)
 				return; // TODO should be an assert but then it's not constexpr
@@ -549,8 +549,8 @@ namespace {
 };
 
 struct NewCellType {
-	TwineRef type;
-	pool<TwineRef> inputs, outputs;
+	IdString type;
+	pool<IdString> inputs, outputs;
 	bool is_evaluable;
 	bool is_combinatorial;
 	bool is_synthesizable;
@@ -558,7 +558,7 @@ struct NewCellType {
 
 struct NewCellTypes {
 	StaticCellTypes::Categories::Category static_cell_types = StaticCellTypes::categories.empty;
-	dict<TwineRef, NewCellType> custom_cell_types {};
+	dict<IdString, NewCellType> custom_cell_types {};
 
 	NewCellTypes() {
 		static_cell_types = StaticCellTypes::categories.empty;
@@ -579,7 +579,7 @@ struct NewCellTypes {
 	}
 
 	void setup_module(RTLIL::Module *module) {
-		pool<TwineRef> inputs, outputs;
+		pool<IdString> inputs, outputs;
 		for (auto wire_name : module->ports) {
 			RTLIL::Wire *wire = module->wire(wire_name);
 			if (wire->port_input)
@@ -590,7 +590,7 @@ struct NewCellTypes {
 		setup_type(module->meta_->name, inputs, outputs);
 	}
 
-	void setup_type(TwineRef type, const pool<TwineRef> &inputs, const pool<TwineRef> &outputs, bool is_evaluable = false, bool is_combinatorial = false, bool is_synthesizable = false) {
+	void setup_type(IdString type, const pool<IdString> &inputs, const pool<IdString> &outputs, bool is_evaluable = false, bool is_combinatorial = false, bool is_synthesizable = false) {
 		NewCellType ct = {type, inputs, outputs, is_evaluable, is_combinatorial, is_synthesizable};
 		custom_cell_types[ct.type] = ct;
 	}
@@ -600,11 +600,11 @@ struct NewCellTypes {
 		static_cell_types = StaticCellTypes::categories.empty;
 	}
 
-	bool cell_known(TwineRef type) const {
+	bool cell_known(IdString type) const {
 		return static_cell_types(type) || custom_cell_types.count(type) != 0;
 	}
 
-	bool cell_output(TwineRef type, TwineRef port) const
+	bool cell_output(IdString type, IdString port) const
 	{
 		// TODO refactor
 		if (static_cell_types(type) && StaticCellTypes::port_info.outputs(type).contains(port)) {
@@ -614,7 +614,7 @@ struct NewCellTypes {
 		return it != custom_cell_types.end() && it->second.outputs.count(port) != 0;
 	}
 
-	bool cell_input(TwineRef type, TwineRef port) const
+	bool cell_input(IdString type, IdString port) const
 	{
 		if (static_cell_types(type) && StaticCellTypes::port_info.inputs(type).contains(port)) {
 			return true;
@@ -623,7 +623,7 @@ struct NewCellTypes {
 		return it != custom_cell_types.end() && it->second.inputs.count(port) != 0;
 	}
 
-	RTLIL::PortDir cell_port_dir(TwineRef type, TwineRef port) const
+	RTLIL::PortDir cell_port_dir(IdString type, IdString port) const
 	{
 		bool is_input, is_output;
 		if (static_cell_types(type)) {
@@ -638,7 +638,7 @@ struct NewCellTypes {
 		}
 		return RTLIL::PortDir(is_input + is_output * 2);
 	}
-	bool cell_evaluable(TwineRef type) const
+	bool cell_evaluable(IdString type) const
 	{
 		return static_cell_types(type) && StaticCellTypes::categories.is_evaluable(type);
 	}

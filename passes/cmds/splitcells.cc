@@ -27,8 +27,8 @@ struct SplitcellsWorker
 {
 	Module *module;
 	SigMap sigmap;
-	dict<SigBit, tuple<TwineRef,TwineRef,int>> bit_drivers_db;
-	dict<SigBit, pool<tuple<TwineRef,TwineRef,int>>> bit_users_db;
+	dict<SigBit, tuple<IdString,IdString,int>> bit_drivers_db;
+	dict<SigBit, pool<tuple<IdString,IdString,int>>> bit_users_db;
 
 	SplitcellsWorker(Module *module) : module(module), sigmap(module)
 	{
@@ -37,7 +37,7 @@ struct SplitcellsWorker
 				if (!cell->output(conn.first)) continue;
 				for (int i = 0; i < GetSize(conn.second); i++) {
 					SigBit bit(sigmap(conn.second[i]));
-					bit_drivers_db[bit] = tuple<TwineRef,TwineRef,int>(cell->meta_->name, conn.first, i);
+					bit_drivers_db[bit] = tuple<IdString,IdString,int>(cell->meta_->name, conn.first, i);
 				}
 			}
 		}
@@ -48,7 +48,7 @@ struct SplitcellsWorker
 				for (int i = 0; i < GetSize(conn.second); i++) {
 					SigBit bit(sigmap(conn.second[i]));
 					if (!bit_drivers_db.count(bit)) continue;
-					bit_users_db[bit].insert(tuple<TwineRef,TwineRef,int>(cell->meta_->name,
+					bit_users_db[bit].insert(tuple<IdString,IdString,int>(cell->meta_->name,
 							conn.first, i-std::get<2>(bit_drivers_db[bit])));
 				}
 			}
@@ -60,7 +60,7 @@ struct SplitcellsWorker
 			for (int i = 0; i < GetSize(sig); i++) {
 				SigBit bit(sig[i]);
 				if (!bit_drivers_db.count(bit)) continue;
-				bit_users_db[bit].insert(tuple<TwineRef,TwineRef,int>(wire->meta_->name,
+				bit_users_db[bit].insert(tuple<IdString,IdString,int>(wire->meta_->name,
 						Twine::Null, i-std::get<2>(bit_drivers_db[bit])));
 			}
 		}
@@ -98,7 +98,7 @@ struct SplitcellsWorker
 				std::string s = cell->name.unescape() + (slice_msb == slice_lsb ?
 						stringf("%c%d%c", format[0], slice_lsb, format[1]) :
 						stringf("%c%d%c%d%c", format[0], slice_msb, format[2], slice_lsb, format[1]));
-				TwineRef slice_name = module->uniquify(module->design->twines.add(std::move(s)));
+				IdString slice_name = module->uniquify(module->design->twines.add(std::move(s)));
 
 				Cell *slice = module->addCell(slice_name, cell);
 
@@ -166,11 +166,11 @@ struct SplitcellsWorker
 				std::string s = cell->name.unescape() + (slice_msb == slice_lsb ?
 						stringf("%c%d%c", format[0], slice_lsb, format[1]) :
 						stringf("%c%d%c%d%c", format[0], slice_msb, format[2], slice_lsb, format[1]));
-				TwineRef slice_name = module->uniquify(twines.add(std::move(s)));
+				IdString slice_name = module->uniquify(twines.add(std::move(s)));
 
 				Cell *slice = module->addCell(slice_name, cell);
 
-				for (TwineRef portname : splitports) {
+				for (IdString portname : splitports) {
 					if (slice->hasPort(portname)) {
 						SigSpec sig = slice->getPort(portname);
 						sig = sig.extract(slice_lsb, slice_msb-slice_lsb+1);
@@ -178,7 +178,7 @@ struct SplitcellsWorker
 					}
 				}
 
-				for (TwineRef paramname : splitparams) {
+				for (IdString paramname : splitparams) {
 					if (slice->hasParam(paramname)) {
 						Const val = slice->getParam(paramname);
 						val = val.extract(slice_lsb, slice_msb-slice_lsb+1);

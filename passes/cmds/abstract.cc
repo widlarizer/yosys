@@ -212,7 +212,7 @@ unsigned int abstract_state(Module* mod, EnableLogic enable, const std::vector<S
 	return changed;
 }
 
-bool abstract_value_cell_port(Module* mod, Cell* cell, std::set<int> offsets, TwineRef port_name, EnableLogic enable) {
+bool abstract_value_cell_port(Module* mod, Cell* cell, std::set<int> offsets, IdString port_name, EnableLogic enable) {
 	Wire* to_abstract = mod->addWire(NEW_ID, offsets.size());
 	SigSpec mux_input;
 	SigSpec mux_output;

@@ -64,7 +64,7 @@ struct MemoryMapWorker
 		return value;
 	}
 
-	std::string genid(TwineRef name, std::string token1 = "", int i = -1, std::string token2 = "", int j = -1, std::string token3 = "", int k = -1, std::string token4 = "")
+	std::string genid(IdString name, std::string token1 = "", int i = -1, std::string token2 = "", int j = -1, std::string token3 = "", int k = -1, std::string token4 = "")
 	{
 		std::stringstream sstr;
 		sstr << "$memory" << design->twines.str(name) << token1;
@@ -91,7 +91,7 @@ struct MemoryMapWorker
 		std::pair<RTLIL::SigSpec, RTLIL::SigSpec> key(addr_sig, addr_val);
 		log_assert(GetSize(addr_sig) == GetSize(addr_val));
 
-		TwineRef src_ref = mem_src.empty() ? Twine::Null : design->twines.add(Twine{mem_src});
+		IdString src_ref = mem_src.empty() ? Twine::Null : design->twines.add(Twine{mem_src});
 		if (decoder_cache.count(key) == 0) {
 			if (GetSize(addr_sig) < 2) {
 				decoder_cache[key] = module->Eq(NEW_ID, addr_sig, addr_val, false, src_ref);
@@ -117,7 +117,7 @@ struct MemoryMapWorker
 		// new cell. set_src_attribute's parse_ref path retains the
 		// pool slot directly.
 		{
-			TwineRef mid = (mem.module && mem.module->design) ? mem.module->design->obj_src_id(&mem) : Twine::Null;
+			IdString mid = (mem.module && mem.module->design) ? mem.module->design->obj_src_id(&mem) : Twine::Null;
 			mem_src = (mid != Twine::Null) ? design->twines.str(mid) : std::string();
 		}
 
@@ -128,7 +128,7 @@ struct MemoryMapWorker
 
 		// check if attributes allow us to infer FFRAM for this memory
 		for (const auto &attr : attributes) {
-			TwineRef attr_ref = design->twines.find(attr.first);
+			IdString attr_ref = design->twines.find(attr.first);
 			if (attr_ref != Twine::Null && mem.attributes.count(attr_ref)) {
 				const auto &cell_attr = mem.attributes[attr_ref];
 				if (attr.second.empty()) {

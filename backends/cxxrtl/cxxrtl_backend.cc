@@ -174,14 +174,14 @@ struct Scheduler {
 	}
 };
 
-bool is_unary_cell(TwineRef type)
+bool is_unary_cell(IdString type)
 {
 	return type.in(
 		ID($not), ID($logic_not), ID($reduce_and), ID($reduce_or), ID($reduce_xor), ID($reduce_xnor), ID($reduce_bool),
 		ID($pos), ID($neg));
 }
 
-bool is_binary_cell(TwineRef type)
+bool is_binary_cell(IdString type)
 {
 	return type.in(
 		ID($and), ID($or), ID($xor), ID($xnor), ID($logic_and), ID($logic_or),
@@ -190,20 +190,20 @@ bool is_binary_cell(TwineRef type)
 		ID($add), ID($sub), ID($mul), ID($div), ID($mod), ID($modfloor), ID($divfloor));
 }
 
-bool is_extending_cell(TwineRef type)
+bool is_extending_cell(IdString type)
 {
 	return !type.in(
 		ID($logic_not), ID($logic_and), ID($logic_or),
 		ID($reduce_and), ID($reduce_or), ID($reduce_xor), ID($reduce_xnor), ID($reduce_bool));
 }
 
-bool is_inlinable_cell(TwineRef type)
+bool is_inlinable_cell(IdString type)
 {
 	return is_unary_cell(type) || is_binary_cell(type) || type.in(
 		ID($mux), ID($concat), ID($slice), ID($pmux), ID($bmux), ID($demux), ID($bwmux));
 }
 
-bool is_ff_cell(TwineRef type)
+bool is_ff_cell(IdString type)
 {
 	return type.in(
 		ID($dff), ID($dffe), ID($sdff), ID($sdffe), ID($sdffce),
@@ -212,12 +212,12 @@ bool is_ff_cell(TwineRef type)
 		ID($dlatch), ID($adlatch), ID($dlatchsr), ID($sr));
 }
 
-bool is_internal_cell(TwineRef type)
+bool is_internal_cell(IdString type)
 {
 	return !type.isPublic() && type.untag().value < STATIC_TWINE_END;
 }
 
-bool is_effectful_cell(TwineRef type)
+bool is_effectful_cell(IdString type)
 {
 	return type.in(ID($print), ID($check));
 }
@@ -243,7 +243,7 @@ enum class CxxrtlPortType {
 	SYNC = 2,
 };
 
-CxxrtlPortType cxxrtl_port_type(RTLIL::Module *module, TwineRef port)
+CxxrtlPortType cxxrtl_port_type(RTLIL::Module *module, IdString port)
 {
 	RTLIL::Wire *output_wire = module->wire(port);
 	log_assert(output_wire != nullptr);
@@ -259,7 +259,7 @@ CxxrtlPortType cxxrtl_port_type(RTLIL::Module *module, TwineRef port)
 	return CxxrtlPortType::UNKNOWN;
 }
 
-CxxrtlPortType cxxrtl_port_type(const RTLIL::Cell *cell, TwineRef port)
+CxxrtlPortType cxxrtl_port_type(const RTLIL::Cell *cell, IdString port)
 {
 	RTLIL::Module *cell_module = cell->module->design->module(cell->type_impl);
 	if (cell_module == nullptr || !cell_module->get_bool_attribute(ID(cxxrtl_blackbox)))
@@ -267,12 +267,12 @@ CxxrtlPortType cxxrtl_port_type(const RTLIL::Cell *cell, TwineRef port)
 	return cxxrtl_port_type(cell_module, port);
 }
 
-bool is_cxxrtl_comb_port(const RTLIL::Cell *cell, TwineRef port)
+bool is_cxxrtl_comb_port(const RTLIL::Cell *cell, IdString port)
 {
 	return cxxrtl_port_type(cell, port) == CxxrtlPortType::COMB;
 }
 
-bool is_cxxrtl_sync_port(const RTLIL::Cell *cell, TwineRef port)
+bool is_cxxrtl_sync_port(const RTLIL::Cell *cell, IdString port)
 {
 	return cxxrtl_port_type(cell, port) == CxxrtlPortType::SYNC;
 }
@@ -743,7 +743,7 @@ struct CxxrtlWorker {
 
 	dict<const RTLIL::Module*, SigMap> sigmaps;
 	dict<const RTLIL::Module*, std::vector<Mem>> mod_memories;
-	pool<std::pair<const RTLIL::Module*, TwineRef>> writable_memories;
+	pool<std::pair<const RTLIL::Module*, IdString>> writable_memories;
 	pool<const RTLIL::Wire*> edge_wires;
 	dict<const RTLIL::Wire*, RTLIL::Const> wire_init;
 	dict<RTLIL::SigBit, RTLIL::SyncType> edge_types;
@@ -769,7 +769,7 @@ struct CxxrtlWorker {
 	//  1b. Generated identifiers for internal names (beginning with `$`) start with `i_`.
 	//  2. An underscore is escaped with another underscore, i.e. `__`.
 	//  3. Any other non-alnum character is escaped with underscores around its lowercase hex code, e.g. `@` as `_40_`.
-	std::string mangle_name(TwineRef name)
+	std::string mangle_name(IdString name)
 	{
 		std::string mangled;
 		bool first = true;
@@ -799,7 +799,7 @@ struct CxxrtlWorker {
 		return mangled;
 	}
 
-	std::string mangle_module_name(TwineRef name, bool is_blackbox = false)
+	std::string mangle_module_name(IdString name, bool is_blackbox = false)
 	{
 		// Class namespace.
 		if (is_blackbox)
@@ -807,19 +807,19 @@ struct CxxrtlWorker {
 		return mangle_name(name);
 	}
 
-	std::string mangle_memory_name(TwineRef name)
+	std::string mangle_memory_name(IdString name)
 	{
 		// Class member namespace.
 		return "memory_" + mangle_name(name);
 	}
 
-	std::string mangle_cell_name(TwineRef name)
+	std::string mangle_cell_name(IdString name)
 	{
 		// Class member namespace.
 		return "cell_" + mangle_name(name);
 	}
 
-	std::string mangle_wire_name(TwineRef name)
+	std::string mangle_wire_name(IdString name)
 	{
 		// Class member namespace.
 		return mangle_name(name);
@@ -917,7 +917,7 @@ struct CxxrtlWorker {
 				params += ", ";
 			first = false;
 			params += "/*" + param_name + "=*/";
-			TwineRef id_param_name = cell->module->design->twines.add('\\' + param_name);
+			IdString id_param_name = cell->module->design->twines.add('\\' + param_name);
 			if (!cell->hasParam(id_param_name))
 				log_cmd_error("Cell `%s.%s' does not have a parameter `%s', which is required by the templated module `%s'.\n",
 				              cell->module, cell, param_name.c_str(), cell_module);
@@ -1773,7 +1773,7 @@ struct CxxrtlWorker {
 					for (auto &action : sync->actions)
 						dump_assign(action, for_debug);
 					for (auto &memwr : sync->mem_write_actions) {
-						TwineRef memid_ref = memwr.memid;
+						IdString memid_ref = memwr.memid;
 						log_assert(memid_ref != Twine::Null);
 						RTLIL::Memory *memory = proc->module->memories[memid_ref];
 						std::string valid_index_temp = fresh_temporary();
@@ -2296,7 +2296,7 @@ struct CxxrtlWorker {
 		dec_indent();
 	}
 
-	void dump_serialized_metadata(const dict<TwineRef, RTLIL::Const> &metadata_map) {
+	void dump_serialized_metadata(const dict<IdString, RTLIL::Const> &metadata_map) {
 		// Creating thousands metadata_map objects using initializer lists in a single function results in one of:
 		// 1. Megabytes of stack usage (with __attribute__((optnone))).
 		// 2. Minutes of compile time (without __attribute__((optnone))).
@@ -2339,7 +2339,7 @@ struct CxxrtlWorker {
 		f << escape_c_string(data);
 	}
 
-	void dump_metadata_map(const dict<TwineRef, RTLIL::Const> &metadata_map) {
+	void dump_metadata_map(const dict<IdString, RTLIL::Const> &metadata_map) {
 		if (metadata_map.empty()) {
 			f << "metadata_map()";
 		} else {
@@ -2372,7 +2372,7 @@ struct CxxrtlWorker {
 
 	void dump_debug_attrs(const RTLIL::AttrObject *object, bool serialize = true)
 	{
-		dict<TwineRef, RTLIL::Const> attributes = object->attributes;
+		dict<IdString, RTLIL::Const> attributes = object->attributes;
 		// Inherently necessary to get access to the object, so a waste of space to emit.
 		attributes.erase(ID::hdlname);
 		// Internal Yosys attribute that should be removed but isn't.

@@ -9,8 +9,8 @@ YOSYS_NAMESPACE_BEGIN
 TEST(TwinePublicityTest, LeafEscapeParsing)
 {
 	TwinePool pool;
-	TwineRef pub = pool.add(std::string("\\foo"));
-	TwineRef priv = pool.add(std::string("$foo"));
+	IdString pub = pool.add(std::string("\\foo"));
+	IdString priv = pool.add(std::string("$foo"));
 
 	EXPECT_TRUE(twine_is_public(pub));
 	EXPECT_FALSE(twine_is_public(priv));
@@ -25,8 +25,8 @@ TEST(TwinePublicityTest, EscapedDollarStaysDistinct)
 	// Verilog escaped identifier `\$foo` (public, content "$foo") must not
 	// collide with the private name `$foo` as a dict key.
 	TwinePool pool;
-	TwineRef pub = pool.add(std::string("\\$foo"));
-	TwineRef priv = pool.add(std::string("$foo"));
+	IdString pub = pool.add(std::string("\\$foo"));
+	IdString priv = pool.add(std::string("$foo"));
 
 	EXPECT_EQ(twine_untag(pub), twine_untag(priv)); // shared content node
 	EXPECT_NE(pub, priv);                           // distinct handles
@@ -37,19 +37,19 @@ TEST(TwinePublicityTest, EscapedDollarStaysDistinct)
 TEST(TwinePublicityTest, InterningIsStableAcrossTags)
 {
 	TwinePool pool;
-	TwineRef a = pool.add(std::string("\\foo"));
-	TwineRef b = pool.add(std::string("\\foo"));
+	IdString a = pool.add(std::string("\\foo"));
+	IdString b = pool.add(std::string("\\foo"));
 	EXPECT_EQ(a, b);
 }
 
 TEST(TwinePublicityTest, SuffixInheritsPublicity)
 {
 	TwinePool pool;
-	TwineRef pub = pool.add(std::string("\\base"));
-	TwineRef priv = pool.add(std::string("$base"));
+	IdString pub = pool.add(std::string("\\base"));
+	IdString priv = pool.add(std::string("$base"));
 
-	TwineRef pub_sfx = pool.add(Twine{Twine::Suffix{pub, "_1"}});
-	TwineRef priv_sfx = pool.add(Twine{Twine::Suffix{priv, "_1"}});
+	IdString pub_sfx = pool.add(Twine{Twine::Suffix{pub, "_1"}});
+	IdString priv_sfx = pool.add(Twine{Twine::Suffix{priv, "_1"}});
 
 	EXPECT_TRUE(twine_is_public(pub_sfx));
 	EXPECT_FALSE(twine_is_public(priv_sfx));
@@ -70,8 +70,8 @@ TEST(TwinePublicityTest, StaticHandlesAreTagged)
 TEST(TwinePublicityTest, LookupReturnsTaggedHandle)
 {
 	TwinePool pool;
-	TwineRef pub = pool.add(std::string("\\net"));
-	TwineRef priv = pool.add(std::string("$net"));
+	IdString pub = pool.add(std::string("\\net"));
+	IdString priv = pool.add(std::string("$net"));
 
 	TwineSearch search(&pool);
 	EXPECT_EQ(search.find("\\net"), pub);
@@ -83,8 +83,8 @@ TEST(TwinePublicityTest, LookupReturnsTaggedHandle)
 TEST(TwinePublicityTest, CopyFromPreservesTag)
 {
 	TwinePool src, dst;
-	TwineRef pub = src.add(std::string("\\xfer"));
-	TwineRef copied = dst.copy_from(src, pub);
+	IdString pub = src.add(std::string("\\xfer"));
+	IdString copied = dst.copy_from(src, pub);
 	EXPECT_TRUE(twine_is_public(copied));
 	EXPECT_EQ(dst.str(copied), "\\xfer");
 	// Static handles pass through tag and all.
@@ -94,9 +94,9 @@ TEST(TwinePublicityTest, CopyFromPreservesTag)
 TEST(TwinePublicityTest, GcKeepsTaggedRoots)
 {
 	TwinePool pool;
-	TwineRef pub = pool.add(std::string("\\keep"));
+	IdString pub = pool.add(std::string("\\keep"));
 	pool.add(std::string("\\drop"));
-	std::vector<TwineRef> roots{pub};
+	std::vector<IdString> roots{pub};
 	EXPECT_EQ(pool.gc(roots), 1u);
 	EXPECT_EQ(pool.str(pub), "\\keep");
 }
@@ -124,7 +124,7 @@ TEST(TwinePublicityTest, WireNameMasquerade)
 	EXPECT_EQ(mod->wire(search.find("$sig")), priv);
 
 	// uniquify keeps publicity.
-	TwineRef uniq = mod->uniquify(pub->meta_->name);
+	IdString uniq = mod->uniquify(pub->meta_->name);
 	EXPECT_TRUE(twine_is_public(uniq));
 	EXPECT_EQ(design.twines.str(uniq), "\\sig_1");
 }

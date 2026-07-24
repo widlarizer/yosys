@@ -66,7 +66,7 @@ int check_bufnorm_wire(RTLIL::Module *module, RTLIL::Wire *wire)
 	int counter = 0;
 	if (wire->known_driver()) {
 		Cell *driver = wire->driverCell();
-		TwineRef dport = wire->driverPort();
+		IdString dport = wire->driverPort();
 		if (!driver->hasPort(dport)) {
 			log_warning("bufNorm: wire %s.%s driverPort_ %s does not exist on driverCell_ %s\n",
 				log_id(module), log_id(wire), module->design->twines.str(dport).c_str(), log_id(driver));
@@ -217,7 +217,7 @@ struct CheckPass : public Pass {
 			dict<SigBit, Cell *> driver_cells;
 			dict<SigBit, int> wire_drivers_count;
 			pool<SigBit> used_wires;
-			TopoSort<std::pair<TwineRef, int>> topo;
+			TopoSort<std::pair<IdString, int>> topo;
 			for (auto &proc_it : module->processes)
 			{
 				std::vector<RTLIL::CaseRule*> all_cases = {&proc_it.second->root_case};
@@ -263,15 +263,15 @@ struct CheckPass : public Pass {
 			}
 
 			struct CircuitEdgesDatabase : AbstractCellEdgesDatabase {
-				TopoSort<std::pair<TwineRef, int>> &topo;
+				TopoSort<std::pair<IdString, int>> &topo;
 				SigMap sigmap;
 				bool force_detail;
 
-				CircuitEdgesDatabase(TopoSort<std::pair<TwineRef, int>> &topo, SigMap &sigmap, bool force_detail)
+				CircuitEdgesDatabase(TopoSort<std::pair<IdString, int>> &topo, SigMap &sigmap, bool force_detail)
 					: topo(topo), sigmap(sigmap), force_detail(force_detail) {}
 
-				void add_edge(RTLIL::Cell *cell, TwineRef from_port, int from_bit,
-							  TwineRef to_port, int to_bit, int) override {
+				void add_edge(RTLIL::Cell *cell, IdString from_port, int from_bit,
+							  IdString to_port, int to_bit, int) override {
 					SigSpec from_portsig = cell->getPort(from_port);
 					SigSpec to_portsig = cell->getPort(to_port);
 					log_assert(from_bit >= 0 && from_bit < from_portsig.size());
@@ -280,7 +280,7 @@ struct CheckPass : public Pass {
 					SigBit to = sigmap(to_portsig[to_bit]);
 
 					if (from.wire && to.wire)
-						topo.edge(std::make_pair(TwineRef(from.wire->name), from.offset), std::make_pair(TwineRef(to.wire->name), to.offset));
+						topo.edge(std::make_pair(IdString(from.wire->name), from.offset), std::make_pair(IdString(to.wire->name), to.offset));
 				}
 
 				bool detail_costly(Cell *cell) {
@@ -330,14 +330,14 @@ struct CheckPass : public Pass {
 						if (cell->input(conn.first))
 						for (auto bit : sigmap(conn.second))
 						if (bit.wire)
-							topo.edge(std::make_pair(TwineRef(bit.wire->name), bit.offset),
-									  std::make_pair(TwineRef(cell->name), -1));
+							topo.edge(std::make_pair(IdString(bit.wire->name), bit.offset),
+									  std::make_pair(IdString(cell->name), -1));
 
 						if (cell->output(conn.first))
 						for (auto bit : sigmap(conn.second))
 						if (bit.wire)
-							topo.edge(std::make_pair(TwineRef(cell->name), -1),
-									  std::make_pair(TwineRef(bit.wire->name), bit.offset));
+							topo.edge(std::make_pair(IdString(cell->name), -1),
+									  std::make_pair(IdString(bit.wire->name), bit.offset));
 					}
 
 					// Return false to signify the fallback
@@ -503,8 +503,8 @@ struct CheckPass : public Pass {
 						MatchingEdgePrinter(std::string &message, SigMap &sigmap, SigBit from, SigBit to)
 							: message(message), sigmap(sigmap), from(from), to(to), nhits(0) {}
 
-						void add_edge(RTLIL::Cell *cell, TwineRef from_port, int from_bit,
-									  TwineRef to_port, int to_bit, int) override {
+						void add_edge(RTLIL::Cell *cell, IdString from_port, int from_bit,
+									  IdString to_port, int to_bit, int) override {
 							SigBit edge_from = sigmap(cell->getPort(from_port))[from_bit];
 							SigBit edge_to = sigmap(cell->getPort(to_port))[to_bit];
 

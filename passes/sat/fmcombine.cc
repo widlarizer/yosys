@@ -40,9 +40,9 @@ struct FmcombineWorker
 	Design *design;
 	Module *original = nullptr;
 	Module *module = nullptr;
-	TwineRef orig_type, combined_type;
+	IdString orig_type, combined_type;
 
-	FmcombineWorker(Design *design, TwineRef orig_type, const opts_t &opts) :
+	FmcombineWorker(Design *design, IdString orig_type, const opts_t &opts) :
 			opts(opts), design(design), original(design->module(orig_type)),
 			orig_type(orig_type), combined_type(design->twines.add(stringf("$fmcombine%s", design->twines.str(orig_type).c_str())))
 	{
@@ -326,9 +326,9 @@ struct FmcombinePass : public Pass {
 		}
 		else if (argidx+3 == args.size())
 		{
-			TwineRef module_name = design->twines.add(RTLIL::escape_id(args[argidx++]));
-			TwineRef gold_name = design->twines.add(RTLIL::escape_id(args[argidx++]));
-			TwineRef gate_name = design->twines.add(RTLIL::escape_id(args[argidx++]));
+			IdString module_name = design->twines.add(RTLIL::escape_id(args[argidx++]));
+			IdString gold_name = design->twines.add(RTLIL::escape_id(args[argidx++]));
+			IdString gate_name = design->twines.add(RTLIL::escape_id(args[argidx++]));
 
 			module = design->module(module_name);
 			if (module == nullptr)
@@ -363,7 +363,7 @@ struct FmcombinePass : public Pass {
 
 		FmcombineWorker worker(design, gold_cell->type_impl, opts);
 		worker.generate();
-		TwineRef combined_cell_name = module->uniquify(Twine{stringf("\\%s_%s", gold_cell, gate_cell)});
+		IdString combined_cell_name = module->uniquify(Twine{stringf("\\%s_%s", gold_cell, gate_cell)});
 
 		Cell *cell = module->addCell(combined_cell_name, worker.combined_type);
 		cell->attributes = gold_cell->attributes;

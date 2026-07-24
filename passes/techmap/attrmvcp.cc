@@ -60,7 +60,7 @@ struct AttrmvcpPass : public Pass {
 		bool copy_mode = false;
 		bool driven_mode = false;
 		bool purge_mode = false;
-		pool<TwineRef> attrnames;
+		pool<IdString> attrnames;
 
 		size_t argidx;
 		for (argidx = 1; argidx < args.size(); argidx++)
@@ -107,7 +107,7 @@ struct AttrmvcpPass : public Pass {
 
 			for (auto wire : module->selected_wires())
 			{
-				dict<TwineRef, Const> new_attributes;
+				dict<IdString, Const> new_attributes;
 
 				for (auto attr : wire->attributes)
 				{

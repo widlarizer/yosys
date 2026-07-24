@@ -63,9 +63,9 @@ struct QlDspIORegs : public Pass {
 
 	void ql_dsp_io_regs_pass(RTLIL::Module *module)
 	{
-		static const std::vector<TwineRef> ports2del_mult = {ID::load_acc, ID::subtract, ID::acc_fir, ID::dly_b,
+		static const std::vector<IdString> ports2del_mult = {ID::load_acc, ID::subtract, ID::acc_fir, ID::dly_b,
 														ID(saturate_enable), ID(shift_right), ID(round)};
-		static const std::vector<TwineRef> ports2del_mult_acc = {ID::acc_fir, ID::dly_b};
+		static const std::vector<IdString> ports2del_mult_acc = {ID::acc_fir, ID::dly_b};
 
 
 		sigmap.set(module);

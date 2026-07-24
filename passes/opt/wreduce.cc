@@ -29,13 +29,13 @@ PRIVATE_NAMESPACE_BEGIN
 
 struct WreduceConfig
 {
-	pool<TwineRef> supported_cell_types;
+	pool<IdString> supported_cell_types;
 	bool keepdc = false;
 	bool mux_undef = false;
 
 	WreduceConfig()
 	{
-		supported_cell_types = pool<TwineRef>({
+		supported_cell_types = pool<IdString>({
 			ID($not), ID($pos), ID($neg),
 			ID($and), ID($or), ID($xor), ID($xnor),
 			ID($shl), ID($shr), ID($sshl), ID($sshr), ID($shift), ID($shiftx),

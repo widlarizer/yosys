@@ -43,7 +43,7 @@ static void add_formal(RTLIL::Module *module, const std::string &celltype, const
 		log_error("Could not find wire with name \"%s\".\n", name);
 	}
 	else {
-		TwineRef _type = module->design->twines.add(Twine{"$" + celltype});
+		IdString _type = module->design->twines.add(Twine{"$" + celltype});
 		RTLIL::Cell *formal_cell = module->addCell(NEW_ID, _type);
 		formal_cell->setPort(ID::A, wire);
 		if(enable_name == "") {
@@ -66,7 +66,7 @@ static void add_wire(RTLIL::Design *design, RTLIL::Module *module, std::string n
 	RTLIL::Wire *wire = nullptr;
 	name = RTLIL::escape_id(name);
 	TwineSearch search(&design->twines);
-	TwineRef name_ref = search.find(name);
+	IdString name_ref = search.find(name);
 
 	if (name_ref != Twine::Null)
 	{

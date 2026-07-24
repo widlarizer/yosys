@@ -99,7 +99,7 @@ struct SdcObjects {
 		// constraint-side tracking
 		FullConstraint,
 	} collect_mode;
-	using CellPin = std::pair<Cell*, TwineRef>;
+	using CellPin = std::pair<Cell*, IdString>;
 	Design* design;
 	std::vector<std::pair<std::string, Wire*>> design_ports;
 	std::vector<std::pair<std::string, Cell*>> design_cells;
@@ -151,7 +151,7 @@ struct SdcObjects {
 			path += name;
 			design_cells.push_back(std::make_pair(path, cell));
 			for (auto& pin : cell->connections()) {
-				TwineRef pin_name = pin.first;
+				IdString pin_name = pin.first;
 				std::string pin_name_sdc = path + "/" + design->twines.unescaped_str(pin.first);
 				design_pins.push_back(std::make_pair(pin_name_sdc, std::make_pair(cell, pin_name)));
 			}

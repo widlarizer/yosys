@@ -86,7 +86,7 @@ void microchip_dsp_pack(microchip_dsp_pm &pm)
 		cell->setPort(ID::CLK, st.clock);
 
 		// function to absorb a register
-		auto f = [&pm, cell](SigSpec &A, Cell *ff, TwineRef ceport, TwineRef rstport, TwineRef bypass) {
+		auto f = [&pm, cell](SigSpec &A, Cell *ff, IdString ceport, IdString rstport, IdString bypass) {
 			// input/output ports
 			SigSpec D = ff->getPort(ID::D);
 			SigSpec Q = (*pm.sigmap)(ff->getPort(ID::Q));
@@ -203,7 +203,7 @@ void microchip_dsp_packC(microchip_dsp_CREG_pm &pm)
 		cell->setPort(ID::CLK, st.clock);
 
 		// same function as above, used for the last CREG we need to absorb
-		auto f = [&pm, cell](SigSpec &A, Cell *ff, TwineRef ceport, TwineRef rstport, TwineRef bypass) {
+		auto f = [&pm, cell](SigSpec &A, Cell *ff, IdString ceport, IdString rstport, IdString bypass) {
 			// input/output ports
 			SigSpec D = ff->getPort(ID::D);
 			SigSpec Q = (*pm.sigmap)(ff->getPort(ID::Q));

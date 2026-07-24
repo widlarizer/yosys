@@ -735,14 +735,14 @@ const RTLIL::Module* AstNode::lookup_cell_module()
 
 	// build a mapping from true param name to param value
 	size_t para_counter = 0;
-	dict<TwineRef, RTLIL::Const> cell_params_map;
+	dict<IdString, RTLIL::Const> cell_params_map;
 	for (auto& child : children) {
 		if (child->type != AST_PARASET)
 			continue;
 
 		if (child->str.empty() && para_counter >= module->avail_parameters.size())
 			return nullptr; // let hierarchy handle this error
-		TwineRef paraname = child->str.empty() ? module->avail_parameters[para_counter++]
+		IdString paraname = child->str.empty() ? module->avail_parameters[para_counter++]
 				: module->design->twines.add(std::string(child->str));
 
 		const AstNode *value = child->children[0].get();
@@ -753,7 +753,7 @@ const RTLIL::Module* AstNode::lookup_cell_module()
 
 	// put the parameters in order and generate the derived module name
 	std::vector<std::pair<std::string, RTLIL::Const>> named_parameters;
-	for (TwineRef param : module->avail_parameters) {
+	for (IdString param : module->avail_parameters) {
 		auto it = cell_params_map.find(param);
 		if (it != cell_params_map.end())
 			named_parameters.emplace_back(module->design->twines.str(it->first), it->second);
@@ -1481,7 +1481,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 					continue;
 
 				// determine the full name of port this argument is connected to
-				TwineRef port_name;
+				IdString port_name;
 				if (child->str.size())
 					port_name = search.find(child->str);
 				else {

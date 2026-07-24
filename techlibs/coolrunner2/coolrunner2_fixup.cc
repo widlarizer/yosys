@@ -23,7 +23,7 @@
 USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
-static TwineRef uniq(RTLIL::Module *module, std::string name)
+static IdString uniq(RTLIL::Module *module, std::string name)
 {
 	return module->uniquify(module->design->twines.add(std::move(name)));
 }

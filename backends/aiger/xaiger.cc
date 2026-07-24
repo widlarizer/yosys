@@ -268,7 +268,7 @@ struct XAigerWriter
 
 #ifndef NDEBUG
 					if (ys_debug(1)) {
-						static pool<std::pair<TwineRef,TimingInfo::NameBit>> seen;
+						static pool<std::pair<IdString,TimingInfo::NameBit>> seen;
 						if (seen.emplace(inst_name_id, i.first).second) log("%s.%s[%d] abc9_arrival = %d\n",
 								cell->type.unescape(), design->twines.unescaped_str(i.first.name), offset, d);
 					}
@@ -308,7 +308,7 @@ struct XAigerWriter
 			//log_warning("Unsupported cell type: %s (%s)\n", cell->type.unescaped(), cell);
 		}
 
-		dict<TwineRef, std::vector<TwineRef>> box_ports;
+		dict<IdString, std::vector<IdString>> box_ports;
 		for (auto cell : box_list) {
 			log_assert(cell);
 
@@ -320,7 +320,7 @@ struct XAigerWriter
 			if (r.second) {
 				// Make carry in the last PI, and carry out the last PO
 				//   since ABC requires it this way
-				TwineRef carry_in = Twine::Null, carry_out = Twine::Null;
+				IdString carry_in = Twine::Null, carry_out = Twine::Null;
 				for (const auto &port_name : box_module->ports) {
 					auto w = box_module->wire(port_name);
 					log_assert(w);
@@ -559,7 +559,7 @@ struct XAigerWriter
 		//	write_o_buffer(0);
 
 		if (!box_list.empty() || !ff_list.empty()) {
-			dict<TwineRef, std::tuple<int,int,int>> cell_cache;
+			dict<IdString, std::tuple<int,int,int>> cell_cache;
 
 			int box_count = 0;
 			for (auto cell : box_list) {

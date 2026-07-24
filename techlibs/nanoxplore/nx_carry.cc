@@ -77,9 +77,9 @@ static void nx_carry_chain(Module *module)
 		Cell *cell = nullptr;
 		int j = 0;
 		int cnt = 0;
-		TwineRef names_A[] = { ID::A1, ID::A2, ID::A3, ID::A4 };
-		TwineRef names_B[] = { ID::B1, ID::B2, ID::B3, ID::B4 };
-		TwineRef names_S[] = { ID::S1, ID::S2, ID::S3, ID::S4 };
+		IdString names_A[] = { ID::A1, ID::A2, ID::A3, ID::A4 };
+		IdString names_B[] = { ID::B1, ID::B2, ID::B3, ID::B4 };
+		IdString names_S[] = { ID::S1, ID::S2, ID::S3, ID::S4 };
 		if (!c.second.at(0)->getPort(ID(CI)).is_fully_const()) {
 			cell = module->addCell(NEW_ID, ID(NX_CY));
 			cell->setParam(ID(add_carry), Const(1,2));

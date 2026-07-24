@@ -32,14 +32,14 @@ struct EquivStructWorker
 	bool mode_icells;
 	int merge_count;
 
-	const pool<TwineRef> &fwonly_cells;
+	const pool<IdString> &fwonly_cells;
 
 	struct merge_key_t
 	{
-		TwineRef type;
-		vector<pair<TwineRef, Const>> parameters;
-		vector<pair<TwineRef, int>> port_sizes;
-		vector<tuple<TwineRef, int, SigBit>> connections;
+		IdString type;
+		vector<pair<IdString, Const>> parameters;
+		vector<pair<IdString, int>> port_sizes;
+		vector<tuple<IdString, int, SigBit>> connections;
 
 		bool operator==(const merge_key_t &other) const {
 			return type == other.type && connections == other.connections &&
@@ -55,7 +55,7 @@ struct EquivStructWorker
 		}
 	};
 
-	dict<merge_key_t, pool<TwineRef>> merge_cache;
+	dict<merge_key_t, pool<IdString>> merge_cache;
 	pool<merge_key_t> fwd_merge_cache, bwd_merge_cache;
 
 	void merge_cell_pair(Cell *cell_a, Cell *cell_b)
@@ -93,7 +93,7 @@ struct EquivStructWorker
 			merged_map.add(bit_b, bit_y);
 		}
 
-		std::vector<TwineRef> outport_names, inport_names;
+		std::vector<IdString> outport_names, inport_names;
 
 		for (auto &port_a : cell_a->connections())
 			if (cell_a->output(port_a.first))
@@ -114,14 +114,14 @@ struct EquivStructWorker
 		module->remove(cell_b);
 	}
 
-	EquivStructWorker(Module *module, bool mode_fwd, bool mode_icells, const pool<TwineRef> &fwonly_cells, int iter_num) :
+	EquivStructWorker(Module *module, bool mode_fwd, bool mode_icells, const pool<IdString> &fwonly_cells, int iter_num) :
 			module(module), sigmap(module), equiv_bits(module),
 			mode_fwd(mode_fwd), mode_icells(mode_icells), merge_count(0), fwonly_cells(fwonly_cells)
 	{
 		log("  Starting iteration %d.\n", iter_num);
 
 		pool<SigBit> equiv_inputs;
-		pool<TwineRef> cells;
+		pool<IdString> cells;
 
 		for (auto cell : module->selected_cells())
 			if (cell->type == ID($equiv)) {
@@ -155,7 +155,7 @@ struct EquivStructWorker
 		for (auto cell_name : cells)
 		{
 			merge_key_t key;
-			vector<tuple<TwineRef, int, SigBit>> fwd_connections;
+			vector<tuple<IdString, int, SigBit>> fwd_connections;
 
 			Cell *cell = module->cell(cell_name);
 			key.type = cell->type;
@@ -206,7 +206,7 @@ struct EquivStructWorker
 				const char *strategy = nullptr;
 				vector<Cell*> gold_cells, gate_cells, other_cells;
 				vector<pair<Cell*, Cell*>> cell_pairs;
-				TwineRef cells_type;
+				IdString cells_type;
 
 				for (auto cell_name : merge_cache[key]) {
 					Cell *c = module->cell(cell_name);
@@ -314,7 +314,7 @@ struct EquivStructPass : public Pass {
 	}
 	void execute(std::vector<std::string> args, Design *design) override
 	{
-		pool<TwineRef> fwonly_cells({ ID::$equiv });
+		pool<IdString> fwonly_cells({ ID::$equiv });
 		bool mode_icells = false;
 		bool mode_fwd = false;
 		int max_iter = -1;

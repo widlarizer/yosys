@@ -50,7 +50,7 @@ struct RmportsPassPass : public Pass {
 		extra_args(args, argidx, design);
 
 		// The set of ports we removed
-		dict<TwineRef, pool<TwineRef>> removed_ports;
+		dict<IdString, pool<IdString>> removed_ports;
 
 		// Find all of the unused ports, and remove them from that module
 		auto modules = design->selected_modules();
@@ -62,7 +62,7 @@ struct RmportsPassPass : public Pass {
 			CleanupModule(mod, removed_ports);
 	}
 
-	void CleanupModule(Module *module, dict<TwineRef, pool<TwineRef>> &removed_ports)
+	void CleanupModule(Module *module, dict<IdString, pool<IdString>> &removed_ports)
 	{
 		log("Removing now-unused cell ports in module %s\n", module->name);
 
@@ -82,11 +82,11 @@ struct RmportsPassPass : public Pass {
 		}
 	}
 
-	void ScanModule(Module* module, dict<TwineRef, pool<TwineRef>> &removed_ports)
+	void ScanModule(Module* module, dict<IdString, pool<IdString>> &removed_ports)
 	{
 		log("Finding unconnected ports in module %s\n", module->name);
 
-		pool<TwineRef> used_ports;
+		pool<IdString> used_ports;
 
 		// See what wires are used.
 		// Start by checking connections between named wires
@@ -137,7 +137,7 @@ struct RmportsPassPass : public Pass {
 		}
 
 		// Now that we know what IS used, get rid of anything that isn't in that list
-		pool<TwineRef> unused_ports;
+		pool<IdString> unused_ports;
 		for(auto port : module->ports)
 		{
 			if(used_ports.count(port))
@@ -149,7 +149,7 @@ struct RmportsPassPass : public Pass {
 		for(auto port : unused_ports)
 		{
 			log("  removing unused port %s\n", module->design->twines.unescaped_str(port).data());
-			TwineRef port_id = port;
+			IdString port_id = port;
 			removed_ports[module->name].insert(port_id);
 
 			// Remove from ports list

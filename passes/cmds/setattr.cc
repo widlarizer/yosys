@@ -47,11 +47,11 @@ struct setunset_t
 	}
 };
 
-static void do_setunset(RTLIL::Design *design, dict<TwineRef, RTLIL::Const> &attrs, const std::vector<setunset_t> &list)
+static void do_setunset(RTLIL::Design *design, dict<IdString, RTLIL::Const> &attrs, const std::vector<setunset_t> &list)
 {
 	for (auto &item : list)
 		if (item.unset) {
-			TwineRef name = design->twines.find(item.name);
+			IdString name = design->twines.find(item.name);
 			if (name != Twine::Null)
 				attrs.erase(name);
 		} else
@@ -217,7 +217,7 @@ struct ChparamPass : public Pass {
 	void execute(std::vector<std::string> args, RTLIL::Design *design) override
 	{
 		std::vector<setunset_t> setunset_list;
-		dict<TwineRef, RTLIL::Const> new_parameters;
+		dict<IdString, RTLIL::Const> new_parameters;
 		bool list_mode = false;
 
 		size_t argidx;
@@ -258,7 +258,7 @@ struct ChparamPass : public Pass {
 			return;
 		}
 
-		pool<TwineRef> modnames, old_modnames;
+		pool<IdString> modnames, old_modnames;
 		for (auto module : design->selected_whole_modules_warn()) {
 			modnames.insert(module->meta_->name);
 			old_modnames.insert(module->meta_->name);

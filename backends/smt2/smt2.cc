@@ -36,7 +36,7 @@ struct Smt2Worker
 	SigMap sigmap;
 	RTLIL::Module *module;
 	bool bvmode, memmode, wiresmode, verbose, statebv, statedt, forallmode;
-	dict<TwineRef, int> &mod_stbv_width;
+	dict<IdString, int> &mod_stbv_width;
 	int idcounter = 0, statebv_width = 0;
 
 	std::vector<std::string> decls, trans, hier, dtmembers;
@@ -53,11 +53,11 @@ struct Smt2Worker
 	std::map<RTLIL::SigBit, std::pair<int, int>> fcache;
 	std::map<Mem*, int> memarrays;
 	std::map<int, int> bvsizes;
-	dict<TwineRef, char*> ids;
+	dict<IdString, char*> ids;
 
 	bool is_smtlib2_module;
 
-	const char *get_id(TwineRef n)
+	const char *get_id(IdString n)
 	{
 		if (ids.count(n) == 0) {
 			std::string str = module->design->twines.unescaped_str(n);
@@ -116,7 +116,7 @@ struct Smt2Worker
 	}
 
 	Smt2Worker(RTLIL::Module *module, bool bvmode, bool memmode, bool wiresmode, bool verbose, bool statebv, bool statedt, bool forallmode,
-		   dict<TwineRef, int> &mod_stbv_width, dict<TwineRef, dict<TwineRef, pair<bool, bool>>> &mod_clk_cache)
+		   dict<IdString, int> &mod_stbv_width, dict<IdString, dict<IdString, pair<bool, bool>>> &mod_clk_cache)
 	    : ct(module->design), sigmap(module), module(module), bvmode(bvmode), memmode(memmode), wiresmode(wiresmode), verbose(verbose),
 	      statebv(statebv), statedt(statedt), forallmode(forallmode), mod_stbv_width(mod_stbv_width),
 	      is_smtlib2_module(module->has_attribute(ID::smtlib2_module))
@@ -221,7 +221,7 @@ struct Smt2Worker
 			}
 			else
 			{
-				TwineRef port_name = conn.first;
+				IdString port_name = conn.first;
 				if (mod_clk_cache.count(cell->type) && mod_clk_cache.at(cell->type).count(port_name))
 				{
 					for (auto bit : sigmap(conn.second)) {
@@ -260,7 +260,7 @@ struct Smt2Worker
 			if (!wire->port_input || GetSize(wire) != 1)
 				continue;
 			SigBit bit = sigmap(wire);
-			TwineRef module_name = module->meta_->name;
+			IdString module_name = module->meta_->name;
 			if (clock_posedge.count(bit))
 				mod_clk_cache[module_name][wire->name].first = true;
 			if (clock_negedge.count(bit))
@@ -524,7 +524,7 @@ struct Smt2Worker
 
 		for (char ch : expr)
 			if (ch == 'A' || ch == 'B') {
-				TwineRef port = (ch == 'A') ? ID::A : ID::B;
+				IdString port = (ch == 'A') ? ID::A : ID::B;
 				RTLIL::SigSpec sig = sigmap(cell->getPort(port));
 				for (auto bit : sig)
 					processed_expr += " " + get_bool(bit);
@@ -1481,7 +1481,7 @@ struct Smt2Worker
 
 		if (statebv) {
 			f << stringf("(define-sort |%s_s| () (_ BitVec %d))\n", get_id(module), statebv_width);
-			TwineRef module_name = module->meta_->name;
+			IdString module_name = module->meta_->name;
 			mod_stbv_width[module_name] = statebv_width;
 		} else
 		if (statedt) {
@@ -1868,7 +1868,7 @@ struct Smt2Backend : public Backend {
 		for (auto mod : design->modules()) {
 			module_deps[mod] = std::set<RTLIL::Module*>();
 			for (auto cell : mod->cells()) {
-				TwineRef cell_type_ref = search.find(cell->type.str());
+				IdString cell_type_ref = search.find(cell->type.str());
 				if (cell_type_ref != Twine::Null && design->has(cell_type_ref))
 					module_deps[mod].insert(design->module(cell_type_ref));
 			}
@@ -1892,8 +1892,8 @@ struct Smt2Backend : public Backend {
 				module_deps.erase(sorted_modules.at(sorted_modules_idx++));
 		}
 
-		dict<TwineRef, int> mod_stbv_width;
-		dict<TwineRef, dict<TwineRef, pair<bool, bool>>> mod_clk_cache;
+		dict<IdString, int> mod_stbv_width;
+		dict<IdString, dict<IdString, pair<bool, bool>>> mod_clk_cache;
 		Module *topmod = design->top_module();
 		std::string topmod_id;
 

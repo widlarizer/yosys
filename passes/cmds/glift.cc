@@ -31,11 +31,11 @@ private:
 	bool opt_taintconstants = false, opt_keepoutputs = false, opt_simplecostmodel = false, opt_nocostmodel = false;
 	bool opt_instrumentmore = false;
 	std::vector<RTLIL::Wire *> new_taint_outputs;
-	std::vector<std::pair<RTLIL::SigSpec, TwineRef>> meta_mux_selects;
+	std::vector<std::pair<RTLIL::SigSpec, IdString>> meta_mux_selects;
 	RTLIL::Module *module = nullptr;
 
-	const TwineRef cost_model_wire_name = ID::__glift_weight;
-	const TwineRef glift_attribute_name = ID::glift;
+	const IdString cost_model_wire_name = ID::__glift_weight;
+	const IdString glift_attribute_name = ID::glift;
 
 
 	RTLIL::SigSpec get_corresponding_taint_signal(RTLIL::SigSpec sig) {
@@ -47,7 +47,7 @@ private:
 
 		//Get a SigSpec for the corresponding taint signal for the cell port, creating one if necessary:
 		if (sig.is_wire()) {
-			TwineRef taint_name_ref = module->design->twines.add(Twine{sig.as_wire()->name.str() + "_t"});
+			IdString taint_name_ref = module->design->twines.add(Twine{sig.as_wire()->name.str() + "_t"});
 			RTLIL::Wire *w = module->wire(taint_name_ref);
 			if (w == nullptr) w = module->addWire(Twine{sig.as_wire()->name.str() + "_t"}, 1);
 			ret = w;
@@ -137,7 +137,7 @@ private:
 		module->addOr(Twine{cell->name.unescape() + "_t_4_16"}, subexpr11, subexpr12, port_y_taint, false, cell->src_ref());
 	}
 
-	RTLIL::SigSpec score_metamux_select(const RTLIL::SigSpec &metamux_select, const TwineRef celltype) {
+	RTLIL::SigSpec score_metamux_select(const RTLIL::SigSpec &metamux_select, const IdString celltype) {
 		log_assert(metamux_select.is_wire());
 
 		if (opt_simplecostmodel) {
@@ -234,7 +234,7 @@ private:
 					auto select_width = log2(num_versions);
 					log_assert(exp2(select_width) == num_versions);
 					RTLIL::SigSpec meta_mux_select(module->addWire(Twine{cell->name.unescape() + "_sel"}, select_width));
-					meta_mux_selects.push_back(make_pair(meta_mux_select, TwineRef(cell->type)));
+					meta_mux_selects.push_back(make_pair(meta_mux_select, IdString(cell->type)));
 					module->connect(meta_mux_select, module->Anyconst(module->design->twines.add(Twine{cell->name.unescape() + "_hole"}), select_width, cell->src_ref()));
 
 					std::vector<RTLIL::SigSpec> next_meta_mux_y_ports, meta_mux_y_ports(taint_version);
@@ -289,7 +289,7 @@ private:
 					}
 
 					RTLIL::SigSpec meta_mux_select(module->addWire(Twine{cell->name.unescape() + "_sel"}, select_width));
-					meta_mux_selects.push_back(make_pair(meta_mux_select, TwineRef(cell->type)));
+					meta_mux_selects.push_back(make_pair(meta_mux_select, IdString(cell->type)));
 					module->connect(meta_mux_select, module->Anyconst(module->design->twines.add(Twine{cell->name.unescape() + "_hole"}), select_width, cell->src_ref()));
 
 					std::vector<RTLIL::SigSpec> next_meta_mux_y_ports, meta_mux_y_ports(taint_version);
@@ -585,7 +585,7 @@ struct GliftPass : public Pass {
 		};
 		TopoSort<RTLIL::Module*, ModuleNameCmp> topo_modules; //cribbed from passes/techmap/flatten.cc
 		auto worklist = design->selected_modules();
-		pool<TwineRef> non_top_modules;
+		pool<IdString> non_top_modules;
 		while (!worklist.empty()) {
 			RTLIL::Module *module = *(worklist.begin());
 			worklist.erase(worklist.begin());

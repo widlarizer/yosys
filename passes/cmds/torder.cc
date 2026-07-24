@@ -52,15 +52,15 @@ struct TorderPass : public Pass {
 	void execute(std::vector<std::string> args, RTLIL::Design *design) override
 	{
 		bool noautostop = false;
-		dict<TwineRef, pool<TwineRef>> stop_db;
+		dict<IdString, pool<IdString>> stop_db;
 
 		log_header(design, "Executing TORDER pass (print cells in topological order).\n");
 
 		size_t argidx;
 		for (argidx = 1; argidx < args.size(); argidx++) {
 			if (args[argidx] == "-stop" && argidx+2 < args.size()) {
-				TwineRef cell_type = design->twines.add(RTLIL::escape_id(args[++argidx]));
-				TwineRef cell_port = design->twines.add(RTLIL::escape_id(args[++argidx]));
+				IdString cell_type = design->twines.add(RTLIL::escape_id(args[++argidx]));
+				IdString cell_port = design->twines.add(RTLIL::escape_id(args[++argidx]));
 				stop_db[cell_type].insert(cell_port);
 				continue;
 			}
@@ -77,13 +77,13 @@ struct TorderPass : public Pass {
 			log("module %s\n", module);
 
 			SigMap sigmap(module);
-			dict<SigBit, pool<TwineRef>> bit_drivers, bit_users;
-			TopoSort<TwineRef> toposort;
+			dict<SigBit, pool<IdString>> bit_drivers, bit_users;
+			TopoSort<IdString> toposort;
 
 			for (auto cell : module->selected_cells())
 			for (auto conn : cell->connections())
 			{
-				if (stop_db.count(TwineRef(cell->type)) && stop_db.at(TwineRef(cell->type)).count(conn.first))
+				if (stop_db.count(IdString(cell->type)) && stop_db.at(IdString(cell->type)).count(conn.first))
 					continue;
 
 				if (!noautostop && yosys_celltypes.cell_known(cell->type)) {

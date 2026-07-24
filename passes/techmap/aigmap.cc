@@ -68,11 +68,11 @@ struct AigmapPass : public Pass {
 		{
 			vector<Cell*> replaced_cells;
 			int not_replaced_count = 0;
-			dict<TwineRef, int> stat_replaced;
-			dict<TwineRef, int> stat_not_replaced;
+			dict<IdString, int> stat_replaced;
+			dict<IdString, int> stat_not_replaced;
 			int orig_num_cells = GetSize(module->cells());
 
-			pool<TwineRef> new_sel;
+			pool<IdString> new_sel;
 			for (auto cell : module->selected_cells())
 			{
 				Aig aig(cell);

@@ -64,15 +64,15 @@ struct HierDirtyFlags
 {
 	int dirty;
 	Module *module;
-	TwineRef hiername;
+	IdString hiername;
 	HierDirtyFlags *parent;
 	pool<SigBit> dirty_bits;
 	pool<Cell*> dirty_cells;
 	pool<SigBit> sticky_dirty_bits;
-	dict<TwineRef, HierDirtyFlags*> children;
+	dict<IdString, HierDirtyFlags*> children;
 	string prefix, log_prefix;
 
-	HierDirtyFlags(Module *module, TwineRef hiername, HierDirtyFlags *parent, const string &prefix, const string &log_prefix) :
+	HierDirtyFlags(Module *module, IdString hiername, HierDirtyFlags *parent, const string &prefix, const string &log_prefix) :
 			dirty(0), module(module), hiername(hiername), parent(parent), prefix(prefix), log_prefix(log_prefix)
 	{
 		for (Cell *cell : module->cells()) {
@@ -163,11 +163,11 @@ struct SimplecWorker
 	pool<string> generated_utils;
 
 	vector<string> struct_declarations;
-	pool<TwineRef> generated_structs;
+	pool<IdString> generated_structs;
 
 	vector<string> funct_declarations;
 
-	dict<Module*, dict<SigBit, pool<tuple<Cell*, TwineRef, int>>>> bit2cell;
+	dict<Module*, dict<SigBit, pool<tuple<Cell*, IdString, int>>>> bit2cell;
 	dict<Module*, dict<SigBit, pool<SigBit>>> bit2output;
 	dict<Module*, pool<SigBit>> driven_bits;
 
@@ -309,14 +309,14 @@ struct SimplecWorker
 
 				int idx = 0;
 				for (auto bit : sigmaps.at(mod)(conn.second))
-					bit2cell[mod][bit].insert(tuple<Cell*, TwineRef, int>(c, conn.first, idx++));
+					bit2cell[mod][bit].insert(tuple<Cell*, IdString, int>(c, conn.first, idx++));
 			}
 
 			if (design->module(c->type_impl))
 				create_module_struct(design->module(c->type_impl));
 		}
 
-		TopoSort<TwineRef> topo;
+		TopoSort<IdString> topo;
 
 		for (Cell *c : mod->cells())
 		{
@@ -532,7 +532,7 @@ struct SimplecWorker
 								Module *parent_mod = work->parent->module;
 								Cell *parent_cell = parent_mod->cell(work->hiername);
 
-								TwineRef port_name = outbit.wire->meta_->name;
+								IdString port_name = outbit.wire->meta_->name;
 								int port_offset = outbit.offset;
 								SigBit parent_bit = sigmaps.at(parent_mod)(parent_cell->getPort(port_name)[port_offset]);
 
@@ -720,7 +720,7 @@ struct SimplecWorker
 	{
 		create_module_struct(mod);
 
-		HierDirtyFlags work(mod, TwineRef(), nullptr, "state->", mod->name.str());
+		HierDirtyFlags work(mod, IdString(), nullptr, "state->", mod->name.str());
 
 		make_init_func(&work);
 		make_eval_func(&work);

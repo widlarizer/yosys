@@ -64,10 +64,10 @@ match mul
 	index <SigSpec> port(mul, \Y) === shift_amount
 	filter !param(mul, \A_SIGNED).as_bool()
 
-	choice <TwineRef> constport {\A, \B}
+	choice <IdString> constport {\A, \B}
 	filter port(mul, constport).is_fully_const()
 
-	define <TwineRef> varport (constport == \A ? \B : \A)
+	define <IdString> varport (constport == \A ? \B : \A)
 	set mul_const SigSpec({port(mul, constport), SigSpec(State::S0, log2scale)}).as_const()
 	// get mul_din unmapped (so no `port()` shorthand)
 	// because we will be using it to set the \A port

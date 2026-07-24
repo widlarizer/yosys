@@ -48,10 +48,10 @@ struct rm {
 
 thread_local Module *symfpu_mod = nullptr;
 
-// symfpu.cc names wires/modules from TwineRef literals (ID::a, ID::o, ...);
-// under the twine migration the name-taking APIs want a TwineRef, so intern
+// symfpu.cc names wires/modules from IdString literals (ID::a, ID::o, ...);
+// under the twine migration the name-taking APIs want a IdString, so intern
 // the (public) string name into the design's twine pool.
-static inline TwineRef sym_name(TwineRef name) { return name; }
+static inline IdString sym_name(IdString name) { return name; }
 
 struct rtlil_traits {
 	using bwt = uint64_t;
@@ -381,28 +381,28 @@ void rtlil_traits::invariant(const prop &cond)
 	cell->set_bool_attribute(ID(symfpu_inv));
 }
 
-ubv input_ubv(TwineRef name, int width)
+ubv input_ubv(IdString name, int width)
 {
 	auto input = symfpu_mod->addWire(sym_name(name), width);
 	input->port_input = true;
 	return ubv(SigSpec(input));
 }
 
-prop input_prop(TwineRef name)
+prop input_prop(IdString name)
 {
 	auto input = symfpu_mod->addWire(sym_name(name));
 	input->port_input = true;
 	return prop(SigBit(input));
 }
 
-void output_ubv(TwineRef name, const ubv &value)
+void output_ubv(IdString name, const ubv &value)
 {
 	auto output = symfpu_mod->addWire(sym_name(name), value.getWidth());
 	symfpu_mod->connect(output, value.bits);
 	output->port_output = true;
 }
 
-void output_prop(TwineRef name, const prop &value)
+void output_prop(IdString name, const prop &value)
 {
 	auto output = symfpu_mod->addWire(sym_name(name));
 	symfpu_mod->connect(output, value.bit);
@@ -771,7 +771,7 @@ struct SymFpuConvertPass : public Pass {
 		uf i_f = symfpu::unpack<rtlil_traits>(i_format, i_bv);
 		prop i_sNaN(i_f.getNaN() && is_sNaN(i_bv, i_size-i_exp));
 
-		auto output_flags = [](TwineRef name, const prop &nv, const prop &nx, const prop &of = prop(false), const prop &uf = prop(false), const prop &dz = prop(false)) {
+		auto output_flags = [](IdString name, const prop &nv, const prop &nx, const prop &of = prop(false), const prop &uf = prop(false), const prop &dz = prop(false)) {
 			output_ubv(name, ubv{SigSpec({nv.bit, dz.bit, of.bit, uf.bit, nx.bit})});
 		};
 

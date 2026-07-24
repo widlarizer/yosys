@@ -36,7 +36,7 @@ struct SmvWorker
 	bool verbose;
 
 	int idcounter;
-	dict<TwineRef, shared_str> idcache;
+	dict<IdString, shared_str> idcache;
 	pool<shared_str> used_names;
 	vector<shared_str> strbuf;
 
@@ -55,7 +55,7 @@ struct SmvWorker
 		}
 	}
 
-	const char *cid(TwineRef id, bool precache = false)
+	const char *cid(IdString id, bool precache = false)
 	{
 		if (!idcache.count(id))
 		{

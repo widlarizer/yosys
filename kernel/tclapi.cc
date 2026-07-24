@@ -284,7 +284,7 @@ static int tcl_get_attr(ClientData, Tcl_Interp *interp, int argc, const char *ar
 	if (!obj)
 		ERROR("object not found")
 
-	TwineRef attr_twine = search.find(attr_id);
+	IdString attr_twine = search.find(attr_id);
 
 	if (string_flag) {
 		Tcl_SetObjResult(interp, Tcl_NewStringObj(obj->get_string_attribute(attr_twine).c_str(), -1));
@@ -408,7 +408,7 @@ static int tcl_set_attr(ClientData, Tcl_Interp *interp, int objc, Tcl_Obj *const
 	if (!obj)
 		ERROR("object not found")
 
-	TwineRef attr_twine = yosys_design->twines.add(std::string(attr_id));
+	IdString attr_twine = yosys_design->twines.add(std::string(attr_id));
 
 	if (string_flag) {
 		obj->set_string_attribute(attr_twine, Tcl_GetString(objv[i++]));
@@ -478,7 +478,7 @@ static int tcl_get_param(ClientData, Tcl_Interp *interp, int argc, const char *a
 	if (!cell)
 		ERROR("object not found")
 
-	TwineRef param_twine = search.find(param_id);
+	IdString param_twine = search.find(param_id);
 	if (!cell->hasParam(param_twine))
 		ERROR("parameter missing")
 
@@ -528,7 +528,7 @@ static int tcl_set_param(ClientData, Tcl_Interp *interp, int objc, Tcl_Obj *cons
 	if (!cell)
 		ERROR("object not found")
 
-	TwineRef param_twine = yosys_design->twines.add(std::string(param_id));
+	IdString param_twine = yosys_design->twines.add(std::string(param_id));
 
 	if (string_flag) {
 		cell->setParam(param_twine, Const(std::string(Tcl_GetString(objv[i++]))));
@@ -590,7 +590,7 @@ int yosys_tcl_interp_init(Tcl_Interp *interp)
 	// pack
 
 	// Note (dev jf 24-12-02): Make log_id escape everything that’s not a valid
-	// verilog identifier before adding any tcl API that returns TwineRef values
+	// verilog identifier before adding any tcl API that returns IdString values
 	// to avoid -option injection
 
 	return TCL_OK ;

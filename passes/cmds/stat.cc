@@ -68,7 +68,7 @@ struct statdata_t {
 	std::map<std::string, double> local_seq_area_cells_by_type;
 	string tech;
 
-	std::map<TwineRef, unsigned int> num_cells_by_type_raw;
+	std::map<IdString, unsigned int> num_cells_by_type_raw;
 	std::map<std::string, unsigned int> num_cells_by_type;
 	std::map<std::string, double> area_cells_by_type;
 	std::map<std::string, double> seq_area_cells_by_type;
@@ -249,7 +249,7 @@ struct statdata_t {
 					vector<double> widths;
 					if (cell_data.parameter_names.size() > 0) {
 						for (auto &it : cell_data.parameter_names) {
-							TwineRef port_name;
+							IdString port_name;
 							if (it == "A") {
 								port_name = ID::A;
 							} else if (it == "B") {
@@ -738,13 +738,13 @@ struct statdata_t {
 	}
 };
 
-statdata_t hierarchy_worker(const TwinePool& twines, std::map<TwineRef, statdata_t> &mod_stat, TwineRef mod, int level, bool quiet = false, bool has_area = true,
+statdata_t hierarchy_worker(const TwinePool& twines, std::map<IdString, statdata_t> &mod_stat, IdString mod, int level, bool quiet = false, bool has_area = true,
 			    bool hierarchy_mode = true)
 {
 	statdata_t mod_data = mod_stat.at(mod);
 
 	for (auto &it : mod_data.num_submodules_by_type) {
-		TwineRef sub = twines.find(it.first);
+		IdString sub = twines.find(it.first);
 		if (sub != Twine::Null && mod_stat.count(sub) > 0) {
 			if (!quiet)
 				mod_data.print_log_line(RTLIL::unescape_id(it.first), mod_stat.at(sub).local_num_cells,
@@ -757,7 +757,7 @@ statdata_t hierarchy_worker(const TwinePool& twines, std::map<TwineRef, statdata
 	return mod_data;
 }
 
-statdata_t hierarchy_builder(RTLIL::Design *design, const RTLIL::Module *top_mod, std::map<TwineRef, statdata_t> &mod_stat,
+statdata_t hierarchy_builder(RTLIL::Design *design, const RTLIL::Module *top_mod, std::map<IdString, statdata_t> &mod_stat,
 			     bool width_mode, dict<std::string, cell_area_t> &cell_area, string techname)
 {
 	if (top_mod == nullptr)
@@ -940,7 +940,7 @@ struct StatPass : public Pass {
 	{
 		bool width_mode = false, json_mode = false, hierarchy_mode = false;
 		RTLIL::Module *top_mod = nullptr;
-		std::map<TwineRef, statdata_t> mod_stat;
+		std::map<IdString, statdata_t> mod_stat;
 		dict<std::string, cell_area_t> cell_area;
 		string techname;
 
@@ -962,7 +962,7 @@ struct StatPass : public Pass {
 			}
 			if (args[argidx] == "-top" && argidx + 1 < args.size()) {
 				TwineSearch search(&design->twines);
-				TwineRef top_ref = search.find(RTLIL::escape_id(args[argidx + 1]));
+				IdString top_ref = search.find(RTLIL::escape_id(args[argidx + 1]));
 				if (design->module(top_ref) == nullptr)
 					log_cmd_error("Can't find module %s.\n", args[argidx + 1]);
 				top_mod = design->module(top_ref);

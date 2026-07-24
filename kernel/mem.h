@@ -91,9 +91,9 @@ struct MemInit : RTLIL::AttrObject {
 
 struct Mem : RTLIL::AttrObject {
 	Module *module;
-	TwineRef memid;
+	IdString memid;
 	// Same pattern as the RTLIL::Memory/Process name helpers in rtlil.h:
-	// memid is a bare TwineRef (no owning-object masquerade), so resolve
+	// memid is a bare IdString (no owning-object masquerade), so resolve
 	// the Design through the module back-pointer instead of spelling out
 	// `module->design->twines.str(memid)` at every call site.
 	std::string name_str() const { return module->design->twines.str(memid); }
@@ -228,7 +228,7 @@ struct Mem : RTLIL::AttrObject {
 	// in the same clock domain.
 	void emulate_read_first(FfInitVals *initvals);
 
-	Mem(Module *module, TwineRef memid, int width, int start_offset, int size) : module(module), memid(memid), packed(false), mem(nullptr), cell(nullptr), width(width), start_offset(start_offset), size(size) {}
+	Mem(Module *module, IdString memid, int width, int start_offset, int size) : module(module), memid(memid), packed(false), mem(nullptr), cell(nullptr), width(width), start_offset(start_offset), size(size) {}
 	// Convenience: intern a fresh name (NEW_ID and friends) into the module's
 	// design pool, so callers don't have to spell that out.
 	Mem(Module *module, Twine &&memid, int width, int start_offset, int size)

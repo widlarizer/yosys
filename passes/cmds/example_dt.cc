@@ -44,11 +44,11 @@ struct ExampleDtPass : public Pass
 			DriverMap dm;
 
 			struct ExampleFn {
-				TwineRef name;
-				dict<TwineRef, Const> parameters;
+				IdString name;
+				dict<IdString, Const> parameters;
 
-				ExampleFn(TwineRef name) : name(name) {}
-				ExampleFn(TwineRef name, dict<TwineRef, Const> parameters) : name(name), parameters(parameters) {}
+				ExampleFn(IdString name) : name(name) {}
+				ExampleFn(IdString name, dict<IdString, Const> parameters) : name(name), parameters(parameters) {}
 
 				bool operator==(ExampleFn const &other) const {
 					return name == other.name && parameters == other.parameters;
@@ -61,7 +61,7 @@ struct ExampleDtPass : public Pass
 				}
 			};
 
-			typedef ComputeGraph<ExampleFn, int, TwineRef, TwineRef> ExampleGraph;
+			typedef ComputeGraph<ExampleFn, int, IdString, IdString> ExampleGraph;
 
 			ExampleGraph compute_graph;
 

@@ -24,7 +24,7 @@
 USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
-static TwineRef formal_flavor(RTLIL::Cell *cell)
+static IdString formal_flavor(RTLIL::Cell *cell)
 {
 	if (cell->type != ID($check))
 		return cell->type_impl;
@@ -44,7 +44,7 @@ static TwineRef formal_flavor(RTLIL::Cell *cell)
 		log_abort();
 }
 
-static void set_formal_flavor(RTLIL::Cell *cell, TwineRef flavor)
+static void set_formal_flavor(RTLIL::Cell *cell, IdString flavor)
 {
 	if (cell->type != ID($check)) {
 		cell->type_impl = flavor;
@@ -136,7 +136,7 @@ struct ChformalPass : public Pass {
 		bool live2fair = false;
 		bool fair2live = false;
 
-		pool<TwineRef> constr_types;
+		pool<IdString> constr_types;
 		char mode = 0;
 		int mode_arg = 0;
 
@@ -298,7 +298,7 @@ struct ChformalPass : public Pass {
 						cell->setParam(ID::TRG_POLARITY, false);
 					}
 
-					TwineRef flavor = formal_flavor(cell);
+					IdString flavor = formal_flavor(cell);
 
 					while (true)
 					{
@@ -392,7 +392,7 @@ struct ChformalPass : public Pass {
 			if (mode == 'c')
 			{
 				for (auto cell : constr_cells) {
-					TwineRef flavor = formal_flavor(cell);
+					IdString flavor = formal_flavor(cell);
 					if (assert2assume && flavor == ID($assert))
 						set_formal_flavor(cell, ID($assume));
 					if (assert2cover && flavor == ID($assert))

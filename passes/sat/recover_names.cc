@@ -43,7 +43,7 @@ PRIVATE_NAMESPACE_BEGIN
 // Similar to a SigBit; but module-independent
 struct IdBit {
     IdBit() : name(Twine::Null), bit(0) {};
-    IdBit(TwineRef name, int bit = 0) : name(name), bit(bit) {};
+    IdBit(IdString name, int bit = 0) : name(name), bit(bit) {};
 
     bool operator==(const IdBit &other) const { return name == other.name && bit == other.bit; };
     bool operator!=(const IdBit &other) const { return name != other.name || bit != other.bit; };
@@ -54,7 +54,7 @@ struct IdBit {
         return h;
     }
 
-    TwineRef name;
+    IdString name;
     int bit;
 };
 
@@ -206,8 +206,8 @@ struct RecoverModuleWorker {
     dict<IdBit, int> bit2depth;
     void compute_depths(const dict<IdBit, IdBit> &anchor_bits)
     {
-        dict<SigBit, pool<TwineRef>> bit_drivers, bit_users;
-        TopoSort<TwineRef> toposort;
+        dict<SigBit, pool<IdString>> bit_drivers, bit_users;
+        TopoSort<IdString> toposort;
 
         for (auto cell : flat->cells())
         for (auto conn : cell->connections())
@@ -273,7 +273,7 @@ struct RecoverModuleWorker {
     int setup_sat(SatGen *sat, const std::string &prefix, IdBit bit, const dict<IdBit, IdBit> &anchor_bits, dict<IdBit, int> &anchor2var)
     {
         sat->setContext(sigmap, prefix);
-        pool<TwineRef> imported_cells;
+        pool<IdString> imported_cells;
         int result = sat->importSigBit(id2bit(bit));
         // Recursively import driving cells
         std::queue<IdBit> to_import;
@@ -314,7 +314,7 @@ struct RecoverModuleWorker {
         return result;
     }
 
-    void find_buffers(const pool<TwineRef> &buffer_types, dict<SigBit, pool<SigBit>> &root2buffered)
+    void find_buffers(const pool<IdString> &buffer_types, dict<SigBit, pool<SigBit>> &root2buffered)
     {
         SigMap orig_sigmap(mod);
         dict<SigBit, SigBit> buffer2root;
@@ -345,9 +345,9 @@ struct RecoverModuleWorker {
         }
     }
 
-    void do_rename(Module *gold, const dict<IdBit, InvBit> &gate2gold, const pool<TwineRef> &buffer_types)
+    void do_rename(Module *gold, const dict<IdBit, InvBit> &gate2gold, const pool<IdString> &buffer_types)
     {
-        dict<SigBit, std::vector<std::tuple<Cell*, TwineRef, int>>> bit2port;
+        dict<SigBit, std::vector<std::tuple<Cell*, IdString, int>>> bit2port;
         pool<SigBit> unused_bits;
         SigMap orig_sigmap(mod);
         for (auto wire : mod->wires()) {
@@ -425,7 +425,7 @@ struct RecoverModuleWorker {
             if (bit2port.count(old_bit))
                 for (auto port_ref : bit2port.at(old_bit)) {
                     Cell *cell = std::get<0>(port_ref);
-                    TwineRef port_name = std::get<1>(port_ref);
+                    IdString port_name = std::get<1>(port_ref);
                     int port_bit = std::get<2>(port_ref);
                     SigSpec port_sig = cell->getPort(port_name);
                     port_sig.replace(port_bit, new_bit);
@@ -449,7 +449,7 @@ struct RecoverNamesWorker {
     CellTypes ct_all;
     RecoverNamesWorker(Design *design) : design(design) {}
 
-    pool<TwineRef> comb_whiteboxes, buffer_types;
+    pool<IdString> comb_whiteboxes, buffer_types;
 
     // class -> (gold, (gate, inverted))
     dict<equiv_cls_t, std::pair<pool<IdBit>, dict<IdBit, bool>>> cls2bits;

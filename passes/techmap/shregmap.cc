@@ -36,7 +36,7 @@ struct ShregmapOptions
 	int minlen, maxlen;
 	int keep_before, keep_after;
 	bool zinit, init, params, ffe;
-	dict<TwineRef, pair<TwineRef, TwineRef>> ffcells;
+	dict<IdString, pair<IdString, IdString>> ffcells;
 	ShregmapTech *tech;
 
 	ShregmapOptions()
@@ -122,8 +122,8 @@ struct ShregmapWorker
 		{
 			if (opts.ffcells.count(cell->type_impl) && !cell->get_bool_attribute(ID::keep))
 			{
-				TwineRef d_port = opts.ffcells.at(cell->type_impl).first;
-				TwineRef q_port = opts.ffcells.at(cell->type_impl).second;
+				IdString d_port = opts.ffcells.at(cell->type_impl).first;
+				IdString q_port = opts.ffcells.at(cell->type_impl).second;
 
 				SigBit d_bit = sigmap(cell->getPort(d_port).as_bit());
 				SigBit q_bit = sigmap(cell->getPort(q_port).as_bit());
@@ -178,8 +178,8 @@ struct ShregmapWorker
 				if (c1->parameters != c2->parameters)
 					goto start_cell;
 
-				TwineRef d_port = opts.ffcells.at(c1->type_impl).first;
-				TwineRef q_port = opts.ffcells.at(c1->type_impl).second;
+				IdString d_port = opts.ffcells.at(c1->type_impl).first;
+				IdString q_port = opts.ffcells.at(c1->type_impl).second;
 
 				auto c1_conn = c1->connections();
 				auto c2_conn = c2->connections();
@@ -210,7 +210,7 @@ struct ShregmapWorker
 		{
 			chain.push_back(c);
 
-			TwineRef q_port = opts.ffcells.at(c->type_impl).second;
+			IdString q_port = opts.ffcells.at(c->type_impl).second;
 			SigBit q_bit = sigmap(c->getPort(q_port).as_bit());
 
 			if (sigbit_chain_next.count(q_bit) == 0)
@@ -238,7 +238,7 @@ struct ShregmapWorker
 				depth = std::min(opts.maxlen, depth);
 
 			Cell *first_cell = chain[cursor];
-			TwineRef q_port = opts.ffcells.at(first_cell->type_impl).second;
+			IdString q_port = opts.ffcells.at(first_cell->type_impl).second;
 			dict<int, SigBit> taps_dict;
 
 			if (opts.tech)
@@ -456,9 +456,9 @@ struct ShregmapPass : public Pass {
 					match_args.push_back("D");
 				if (GetSize(match_args) < 3)
 					match_args.push_back("Q");
-				TwineRef id_cell_type = design->twines.add(std::string{RTLIL::escape_id(match_args[0])});
-				TwineRef id_d_port_name = design->twines.add(std::string{RTLIL::escape_id(match_args[1])});
-				TwineRef id_q_port_name = design->twines.add(std::string{RTLIL::escape_id(match_args[2])});
+				IdString id_cell_type = design->twines.add(std::string{RTLIL::escape_id(match_args[0])});
+				IdString id_d_port_name = design->twines.add(std::string{RTLIL::escape_id(match_args[1])});
+				IdString id_q_port_name = design->twines.add(std::string{RTLIL::escape_id(match_args[2])});
 				opts.ffcells[id_cell_type] = make_pair(id_d_port_name, id_q_port_name);
 				continue;
 			}

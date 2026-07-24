@@ -91,10 +91,10 @@ struct AigMaker
 		return node2index(node);
 	}
 
-	int inport(TwineRef portname, int portbit = 0, bool inverter = false)
+	int inport(IdString portname, int portbit = 0, bool inverter = false)
 	{
 		if (portbit >= GetSize(cell->getPort(portname))) {
-			TwineRef signed_param = cell->module->design->twines.find(
+			IdString signed_param = cell->module->design->twines.find(
 				cell->module->design->twines.str(portname) + "_SIGNED");
 		if (signed_param != Twine::Null && cell->parameters.count(signed_param) && cell->getParam(signed_param).as_bool())
 				return inport(portname, GetSize(cell->getPort(portname))-1, inverter);
@@ -108,7 +108,7 @@ struct AigMaker
 		return node2index(node);
 	}
 
-	vector<int> inport_vec(TwineRef portname, int width)
+	vector<int> inport_vec(IdString portname, int width)
 	{
 		vector<int> vec;
 		for (int i = 0; i < width; i++)
@@ -116,7 +116,7 @@ struct AigMaker
 		return vec;
 	}
 
-	int not_inport(TwineRef portname, int portbit = 0)
+	int not_inport(IdString portname, int portbit = 0)
 	{
 		return inport(portname, portbit, true);
 	}
@@ -246,20 +246,20 @@ struct AigMaker
 		return Y;
 	}
 
-	void outport(int node, TwineRef portname, int portbit = 0)
+	void outport(int node, IdString portname, int portbit = 0)
 	{
 		if (portbit < GetSize(cell->getPort(portname)))
-			aig->nodes.at(node).outports.push_back(pair<TwineRef, int>(portname, portbit));
+			aig->nodes.at(node).outports.push_back(pair<IdString, int>(portname, portbit));
 	}
 
-	void outport_bool(int node, TwineRef portname)
+	void outport_bool(int node, IdString portname)
 	{
 		outport(node, portname);
 		for (int i = 1; i < GetSize(cell->getPort(portname)); i++)
 			outport(bool_node(false), portname, i);
 	}
 
-	void outport_vec(const vector<int> &vec, TwineRef portname)
+	void outport_vec(const vector<int> &vec, IdString portname)
 	{
 		for (int i = 0; i < GetSize(vec); i++)
 			outport(vec.at(i), portname, i);

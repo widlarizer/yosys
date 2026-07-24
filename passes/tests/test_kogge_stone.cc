@@ -25,7 +25,7 @@ static void build_lcu_adder(Module *module, SigSpec a, SigSpec b, SigSpec y)
 	module->addXor(NEW_ID, p, carry_in, y);
 }
 
-static Module *make_module(Design *design, TwineRef name, int width)
+static Module *make_module(Design *design, IdString name, int width)
 {
 	Module *module = design->addModule(name);
 
@@ -64,8 +64,8 @@ struct TestKoggeStonePass : public Pass {
 	void execute(std::vector<std::string> args, Design *design) override
 	{
 		int width = 16;
-		TwineRef gold_name = ID::gold;
-		TwineRef gate_name = ID::gate;
+		IdString gold_name = ID::gold;
+		IdString gate_name = ID::gate;
 
 		size_t argidx;
 		for (argidx = 1; argidx < args.size(); argidx++) {

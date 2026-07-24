@@ -24,8 +24,8 @@ YOSYS_NAMESPACE_BEGIN
 
 using namespace AST_INTERNAL;
 
-AST::Binding::Binding(TwineRef  target_type,
-                      TwineRef  target_name,
+AST::Binding::Binding(IdString  target_type,
+                      IdString  target_name,
                       const AstNode   &cell)
 	: RTLIL::Binding(target_type, target_name),
 	  ast_node(cell.clone())

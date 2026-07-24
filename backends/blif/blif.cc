@@ -47,7 +47,7 @@ struct BlifDumperConfig
 	bool gatesi_mode;
 
 	std::string buf_type, buf_in, buf_out;
-	std::map<TwineRef, std::pair<TwineRef, TwineRef>> unbuf_types;
+	std::map<IdString, std::pair<IdString, IdString>> unbuf_types;
 	std::string true_type, true_out, false_type, false_out, undef_type, undef_out;
 
 	BlifDumperConfig() : icells_mode(false), conn_mode(false), impltf_mode(false), gates_mode(false),
@@ -90,7 +90,7 @@ struct BlifDumper
 
 	pool<SigBit> cstr_bits_seen;
 
-	const std::string str(TwineRef id)
+	const std::string str(IdString id)
 	{
 		std::string str = design->twines.unescaped_str(id);
 		for (size_t i = 0; i < str.size(); i++)
@@ -141,7 +141,7 @@ struct BlifDumper
 	{
 		if (!config->gates_mode)
 			return "subckt";
-		TwineRef cell_type_ref = search.find(RTLIL::escape_id(cell_type));
+		IdString cell_type_ref = search.find(RTLIL::escape_id(cell_type));
 		if (design->module(cell_type_ref) == nullptr)
 			return "gate";
 		if (design->module(cell_type_ref)->get_blackbox_attribute())
@@ -149,7 +149,7 @@ struct BlifDumper
 		return "subckt";
 	}
 
-	void dump_params(const char *command, dict<TwineRef, Const> &params)
+	void dump_params(const char *command, dict<IdString, Const> &params)
 	{
 		for (auto &param : params) {
 			f << stringf("%s %s ", command, design->twines.unescaped_str(param.first).c_str());
@@ -239,8 +239,8 @@ struct BlifDumper
 
 			if (config->unbuf_types.count(cell->type)) {
 				auto portnames = config->unbuf_types.at(cell->type);
-				TwineRef port_in = portnames.first;
-				TwineRef port_out = portnames.second;
+				IdString port_in = portnames.first;
+				IdString port_out = portnames.second;
 				f << stringf(".names %s %s\n1 1\n",
 						str(cell->getPort(port_in)).c_str(), str(cell->getPort(port_out)).c_str());
 				continue;
@@ -593,10 +593,10 @@ struct BlifBackend : public Backend {
 				continue;
 			}
 			if (args[argidx] == "-unbuf" && argidx+3 < args.size()) {
-				TwineRef unbuf_type = design->twines.add(RTLIL::escape_id(args[++argidx]));
-				TwineRef unbuf_in = design->twines.add(RTLIL::escape_id(args[++argidx]));
-				TwineRef unbuf_out = design->twines.add(RTLIL::escape_id(args[++argidx]));
-				config.unbuf_types[unbuf_type] = std::pair<TwineRef, TwineRef>(unbuf_in, unbuf_out);
+				IdString unbuf_type = design->twines.add(RTLIL::escape_id(args[++argidx]));
+				IdString unbuf_in = design->twines.add(RTLIL::escape_id(args[++argidx]));
+				IdString unbuf_out = design->twines.add(RTLIL::escape_id(args[++argidx]));
+				config.unbuf_types[unbuf_type] = std::pair<IdString, IdString>(unbuf_in, unbuf_out);
 				continue;
 			}
 			if (args[argidx] == "-true" && argidx+2 < args.size()) {

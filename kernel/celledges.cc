@@ -425,12 +425,12 @@ void ff_op(AbstractCellEdgesDatabase *db, RTLIL::Cell *cell)
 
 void full_op(AbstractCellEdgesDatabase *db, RTLIL::Cell *cell)
 {
-	std::vector<TwineRef> input_ports;
-	std::vector<TwineRef> output_ports;
+	std::vector<IdString> input_ports;
+	std::vector<IdString> output_ports;
 
 	for (auto &conn : cell->connections())
 	{
-		TwineRef port = conn.first;
+		IdString port = conn.first;
 		RTLIL::PortDir dir = cell->port_dir(port);
 		if (cell->input(port) || dir == RTLIL::PortDir::PD_INOUT)
 			input_ports.push_back(port);

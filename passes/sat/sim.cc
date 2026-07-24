@@ -173,7 +173,7 @@ struct SimInstance
 
 	pool<SigBit> dirty_bits;
 	pool<Cell*> dirty_cells;
-	pool<TwineRef> dirty_memories;
+	pool<IdString> dirty_memories;
 	pool<SimInstance*> dirty_children;
 
 	struct ff_state_t
@@ -225,10 +225,10 @@ struct SimInstance
 	};
 
 	dict<Cell*, ff_state_t> ff_database;
-	dict<TwineRef, mem_state_t> mem_database;
+	dict<IdString, mem_state_t> mem_database;
 	pool<Cell*> formal_database;
 	pool<Cell*> initstate_database;
-	dict<Cell*, TwineRef> mem_cells;
+	dict<Cell*, IdString> mem_cells;
 	std::vector<print_state_t> print_database;
 
 	std::vector<Mem> memories;
@@ -240,11 +240,11 @@ struct SimInstance
 	};
 
 	dict<Wire*, signal_entry_t> signal_database;
-	dict<TwineRef, std::map<int, pair<int, Const>>> trace_mem_database;
-	dict<std::pair<TwineRef, int>, Const> trace_mem_init_database;
+	dict<IdString, std::map<int, pair<int, Const>>> trace_mem_database;
+	dict<std::pair<IdString, int>, Const> trace_mem_init_database;
 	dict<Wire*, fstHandle> fst_handles;
 	dict<Wire*, fstHandle> fst_inputs;
-	dict<TwineRef, dict<int,fstHandle>> fst_memories;
+	dict<IdString, dict<int,fstHandle>> fst_memories;
 
 	SimInstance(SimShared *shared, std::string scope, Module *module, Cell *instance = nullptr, SimInstance *parent = nullptr) :
 			shared(shared), scope(scope), module(module), instance(instance), parent(parent), sigmap(module)
@@ -352,7 +352,7 @@ struct SimInstance
 			if (cell->is_mem_cell())
 			{
 				std::string name_str = cell->parameters.at(ID::MEMID).decode_string();
-				TwineRef name = module->design->twines.add(std::string(name_str));
+				IdString name = module->design->twines.add(std::string(name_str));
 				mem_cells[cell] = name;
 				if (shared->fst)
 					fst_memories[name] = shared->fst->getMemoryHandles(scope + "." + RTLIL::unescape_id(name_str));
@@ -407,7 +407,7 @@ struct SimInstance
 			delete child.second;
 	}
 
-	TwineRef name() const
+	IdString name() const
 	{
 		if (instance != nullptr)
 			return instance->meta_->name;
@@ -499,12 +499,12 @@ struct SimInstance
 		}
 	}
 
-	void set_memory_state(TwineRef memid, Const addr, Const data)
+	void set_memory_state(IdString memid, Const addr, Const data)
 	{
 		set_memory_state(memid, addr.as_int(), data);
 	}
 
-	void set_memory_state(TwineRef memid, int addr, Const data)
+	void set_memory_state(IdString memid, int addr, Const data)
 	{
 		auto &state = mem_database[memid];
 
@@ -520,7 +520,7 @@ struct SimInstance
 			dirty_memories.insert(memid);
 	}
 
-	void set_memory_state_bit(TwineRef memid, int offset, State data)
+	void set_memory_state_bit(IdString memid, int offset, State data)
 	{
 		auto &state = mem_database[memid];
 		if (offset >= state.mem->size * state.mem->width)
@@ -612,7 +612,7 @@ struct SimInstance
 		log_error("Unsupported cell type: %s (%s.%s)\n", cell->type.unescaped(), module, cell);
 	}
 
-	void update_memory(TwineRef id) {
+	void update_memory(IdString id) {
 		auto &mdb = mem_database[id];
 		auto &mem = *mdb.mem;
 
@@ -1112,7 +1112,7 @@ struct SimInstance
 			exit_scope();
 	}
 
-	void register_memory_addr(TwineRef memid, int addr)
+	void register_memory_addr(IdString memid, int addr)
 	{
 		auto &mdb = mem_database.at(memid);
 		auto &mem = *mdb.mem;
@@ -1185,7 +1185,7 @@ struct SimInstance
 		for (auto cell : module->cells())
 		{
 			if (cell->is_mem_cell()) {
-				TwineRef memid = module->design->twines.add(cell->parameters.at(ID::MEMID).decode_string());
+				IdString memid = module->design->twines.add(cell->parameters.at(ID::MEMID).decode_string());
 				for (auto &data : fst_memories[memid])
 				{
 					std::string v = shared->fst->valueOf(data.second);
@@ -1299,7 +1299,7 @@ struct SimInstance
 		}
 	}
 
-	void setMemState(dict<int, std::pair<TwineRef,int>> bits, std::string values)
+	void setMemState(dict<int, std::pair<IdString,int>> bits, std::string values)
 	{
 		for(auto bit : bits) {
 			if (bit.first >= GetSize(values))
@@ -1359,7 +1359,7 @@ struct SimInstance
 struct SimWorker : SimShared
 {
 	SimInstance *top = nullptr;
-	pool<TwineRef> clock, clockn, reset, resetn;
+	pool<IdString> clock, clockn, reset, resetn;
 	std::string timescale;
 	std::string sim_filename;
 	std::string map_filename;
@@ -1457,11 +1457,11 @@ struct SimWorker : SimShared
 		top->update_ph3(true);
 	}
 
-	void set_inports(pool<TwineRef> ports, State value)
+	void set_inports(pool<IdString> ports, State value)
 	{
 		for (auto portname : ports)
 		{
-			TwineRef portref = portname;
+			IdString portref = portname;
 			Wire *w = top->module->wire(portref);
 
 			if (w == nullptr)
@@ -1546,7 +1546,7 @@ struct SimWorker : SimShared
 
 		for (auto portname : clock)
 		{
-			TwineRef portref = portname;
+			IdString portref = portname;
 			Wire *w = topmod->wire(portref);
 			if (!w)
 				log_error("Can't find port %s on module %s.\n", topmod->design->twines.unescaped_str(portref), top->module);
@@ -1559,7 +1559,7 @@ struct SimWorker : SimShared
 		}
 		for (auto portname : clockn)
 		{
-			TwineRef portref = portname;
+			IdString portref = portname;
 			Wire *w = topmod->wire(portref);
 			if (!w)
 				log_error("Can't find port %s on module %s.\n", topmod->design->twines.unescaped_str(portref), top->module);
@@ -1687,11 +1687,11 @@ struct SimWorker : SimShared
 		std::string type, symbol;
 		int variable, index;
 		dict<int, std::pair<SigBit,bool>> inputs, inits, latches;
-		dict<int, std::pair<TwineRef,int>> mem_inits, mem_latches;
+		dict<int, std::pair<IdString,int>> mem_inits, mem_latches;
 		if (mf.fail())
 			log_cmd_error("Not able to read AIGER witness map file.\n");
 		while (mf >> type >> variable >> index >> symbol) {
-			TwineRef escaped_s = topmod->design->twines.add(RTLIL::escape_id(symbol));
+			IdString escaped_s = topmod->design->twines.add(RTLIL::escape_id(symbol));
 			Wire *w = topmod->wire(escaped_s);
 			if (!w) {
 				escaped_s = topmod->design->twines.add(RTLIL::escape_id(cell_name(symbol)));
@@ -1700,7 +1700,7 @@ struct SimWorker : SimShared
 					log_warning("Wire/cell %s not present in module %s\n",symbol,topmod);
 
 				if (c->is_mem_cell()) {
-					TwineRef memid = topmod->design->twines.add(c->parameters.at(ID::MEMID).decode_string());
+					IdString memid = topmod->design->twines.add(c->parameters.at(ID::MEMID).decode_string());
 					auto &state = top->mem_database[memid];
 
 					int offset = (mem_cell_addr(symbol) - state.mem->start_offset) * state.mem->width + index;
@@ -1894,7 +1894,7 @@ struct SimWorker : SimShared
 
 					std::string unescaped_s = signal_name(parts[len-1]);
 					std::string escaped_s = RTLIL::escape_id(unescaped_s);
-					TwineRef found = search.find(escaped_s);
+					IdString found = search.find(escaped_s);
 					if (len==3) {
 						Wire *w = topmod->wire(found);
 						if (!w) {
@@ -1934,7 +1934,7 @@ struct SimWorker : SimShared
 	{
 		SimInstance *instance;
 		Wire *wire;
-		TwineRef memid;
+		IdString memid;
 		int addr;
 	};
 
@@ -2217,7 +2217,7 @@ struct SimWorker : SimShared
 
 		for (auto portname : clock)
 		{
-			TwineRef portref = portname;
+			IdString portref = portname;
 			Wire *w = topmod->wire(portref);
 			if (!w)
 				log_error("Can't find port %s on module %s.\n", topmod->design->twines.unescaped_str(portref), top->module);
@@ -2231,7 +2231,7 @@ struct SimWorker : SimShared
 		}
 		for (auto portname : clockn)
 		{
-			TwineRef portref = portname;
+			IdString portref = portname;
 			Wire *w = topmod->wire(portref);
 			if (!w)
 				log_error("Can't find port %s on module %s.\n", topmod->design->twines.unescaped_str(portref), top->module);
@@ -2558,7 +2558,7 @@ struct AIWWriter : public OutputWriter
 		if (mf.fail())
 			log_cmd_error("Not able to read AIGER witness map file.\n");
 		while (mf >> type >> variable >> index >> symbol) {
-			TwineRef escaped_s = worker->top->module->design->twines.add(RTLIL::escape_id(symbol));
+			IdString escaped_s = worker->top->module->design->twines.add(RTLIL::escape_id(symbol));
 			Wire *w = worker->top->module->wire(escaped_s);
 			if (!w)
 				log_error("Wire %s not present in module %s\n", worker->top->module->design->twines.unescaped_str(escaped_s), worker->top->module);

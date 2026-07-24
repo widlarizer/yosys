@@ -290,7 +290,7 @@ struct ProcArstPass : public Pass {
 		pool<Wire*> delete_initattr_wires;
 
 		TwineSearch search(&design->twines);
-		TwineRef global_arst_ref = global_arst.empty() ? Twine::Null
+		IdString global_arst_ref = global_arst.empty() ? Twine::Null
 				: search.find(global_arst);
 
 		for (auto mod : design->all_selected_modules()) {

@@ -387,8 +387,8 @@ namespace RTLIL {
 
 	TEST_F(KernelRtlilTest, LookupAutoidxId) {
 		TwinePool twines;
-		TwineRef id = twines.add(NEW_ID);
-		TwineRef id2 = twines.find(twines.str(id));
+		IdString id = twines.add(NEW_ID);
+		IdString id2 = twines.find(twines.str(id));
 		EXPECT_EQ(id, id2);
 	}
 

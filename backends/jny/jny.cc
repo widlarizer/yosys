@@ -211,7 +211,7 @@ struct JnyWriter
         f << _indent << "  }";
     }
 
-    void write_cell_conn(Design* design, const std::pair<TwineRef, RTLIL::SigSpec>& sig, uint16_t indent_level = 0) {
+    void write_cell_conn(Design* design, const std::pair<IdString, RTLIL::SigSpec>& sig, uint16_t indent_level = 0) {
         const auto _indent = gen_indent(indent_level);
         std::string port_name = design->twines.str(sig.first);
         f << _indent << "  {\n";
@@ -344,7 +344,7 @@ struct JnyWriter
         }
     }
 
-    void write_prams(Design *design, dict<TwineRef, RTLIL::Const>& params, uint16_t indent_level = 0) {
+    void write_prams(Design *design, dict<IdString, RTLIL::Const>& params, uint16_t indent_level = 0) {
         const auto _indent = gen_indent(indent_level);
 
         bool first_param{true};

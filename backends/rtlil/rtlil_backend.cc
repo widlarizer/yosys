@@ -32,19 +32,19 @@ USING_YOSYS_NAMESPACE
 using namespace RTLIL_BACKEND;
 YOSYS_NAMESPACE_BEGIN
 
-static std::string twine_handle(TwineRef ref)
+static std::string twine_handle(IdString ref)
 {
 	return stringf("%s@%zu", twine_is_public(ref) ? "$pub" : "$priv", (size_t)twine_untag(ref));
 }
 
-static std::string twine_ref(const RTLIL::Design *design, TwineRef ref, DumpMode mode)
+static std::string twine_ref(const RTLIL::Design *design, IdString ref, DumpMode mode)
 {
 	if (mode == DumpMode::Readable || twine_untag(ref) < STATIC_TWINE_END)
 		return design->twines.str(ref);
 	return twine_handle(ref);
 }
 
-static std::string twine_cmt(const RTLIL::Design *design, TwineRef ref, DumpMode mode)
+static std::string twine_cmt(const RTLIL::Design *design, IdString ref, DumpMode mode)
 {
 	if (mode != DumpMode::Replayable || twine_untag(ref) < STATIC_TWINE_END)
 		return "";
@@ -116,7 +116,7 @@ void RTLIL_BACKEND::dump_const(std::ostream &f, const RTLIL::Const &data, int wi
 void RTLIL_BACKEND::dump_attributes(std::ostream &f, std::string indent, const RTLIL::AttrObject *obj, const RTLIL::Design *design, DumpMode mode)
 {
 	if (design && design->obj_src_id(obj) != Twine::Null) {
-		TwineRef id = design->obj_src_id(obj);
+		IdString id = design->obj_src_id(obj);
 		f << stringf("%s" "attribute \\src ", indent);
 		if (mode == DumpMode::Readable) {
 			dump_const(f, RTLIL::Const(design->twines.str(id)));
@@ -139,11 +139,11 @@ void RTLIL_BACKEND::dump_twines(std::ostream &f, const RTLIL::Design *design)
 	if (!design || design->twines.size() == 0)
 		return;
 	f << stringf("twines\n");
-	std::vector<TwineRef> ids;
+	std::vector<IdString> ids;
 	for (size_t idx = 0; idx < design->twines.backing.size(); ++idx)
 		ids.push_back(STATIC_TWINE_END + idx);
 	std::sort(ids.begin(), ids.end());
-	for (TwineRef id : ids) {
+	for (IdString id : ids) {
 		const Twine &n = design->twines[id];
 		if (n.is_leaf()) {
 			f << stringf("  leaf %zu ", id);
@@ -155,7 +155,7 @@ void RTLIL_BACKEND::dump_twines(std::ostream &f, const RTLIL::Design *design)
 			f << stringf("\n");
 		} else if (n.is_concat()) {
 			f << stringf("  concat %zu", id);
-			for (TwineRef c : n.children())
+			for (IdString c : n.children())
 				f << stringf(" %zu", c);
 			f << stringf("\n");
 		}
@@ -184,7 +184,7 @@ void RTLIL_BACKEND::dump_sigchunk(std::ostream &f, const RTLIL::SigChunk &chunk,
 	if (chunk.wire == NULL) {
 		dump_const(f, chunk.data, chunk.width, chunk.offset, autoint);
 	} else {
-		TwineRef wref = chunk.wire->name.ref();
+		IdString wref = chunk.wire->name.ref();
 		std::string name = (mode == DumpMode::Readable || twine_untag(wref) < STATIC_TWINE_END)
 			? chunk.wire->name.unescape() : twine_handle(wref);
 		if (chunk.width == chunk.wire->width && chunk.offset == 0)

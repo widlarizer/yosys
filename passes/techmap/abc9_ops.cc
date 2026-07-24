@@ -30,7 +30,7 @@ PRIVATE_NAMESPACE_BEGIN
 
 void check(RTLIL::Design *design, bool dff_mode)
 {
-	dict<TwineRef,TwineRef> box_lookup;
+	dict<IdString,IdString> box_lookup;
 	for (auto m : design->modules()) {
 		auto flop = m->get_bool_attribute(ID::abc9_flop);
 		auto it = m->attributes.find(ID::abc9_box_id);
@@ -46,7 +46,7 @@ void check(RTLIL::Design *design, bool dff_mode)
 
 		// Make carry in the last PI, and carry out the last PO
 		//   since ABC requires it this way
-		TwineRef carry_in = Twine::Null, carry_out = Twine::Null;
+		IdString carry_in = Twine::Null, carry_out = Twine::Null;
 		for (const auto &port_name : m->ports) {
 			auto w = m->wire(port_name);
 			log_assert(w);
@@ -81,7 +81,7 @@ void check(RTLIL::Design *design, bool dff_mode)
 	}
 
 	if (dff_mode) {
-		static pool<TwineRef> unsupported{
+		static pool<IdString> unsupported{
 			ID($adff), ID($dlatch), ID($dlatchsr), ID($sr),
 			ID($_DFF_NN0_), ID($_DFF_NN1_), ID($_DFF_NP0_), ID($_DFF_NP1_),
 			ID($_DFF_PN0_), ID($_DFF_PN1_), ID($_DFF_PP0_), ID($_DFF_PP1_),
@@ -95,7 +95,7 @@ void check(RTLIL::Design *design, bool dff_mode)
 				auto inst_module = design->module(cell->type_impl);
 				if (!inst_module)
 					continue;
-				TwineRef derived_type;
+				IdString derived_type;
 				Module *derived_module;
 				if (cell->parameters.empty()) {
 					derived_type = cell->type_impl;
@@ -147,17 +147,17 @@ void prep_hier(RTLIL::Design *design, bool dff_mode)
 	if (r.second)
 		r.first->second = new Design;
 	Design *unmap_design = r.first->second;
-	auto to_unmap = [&](TwineRef t) { return unmap_design->twines.add(std::string{design->twines.str(t)}); };
+	auto to_unmap = [&](IdString t) { return unmap_design->twines.add(std::string{design->twines.str(t)}); };
 
 	// Keep track of derived versions of modules that we haven't used, to prevent these being used for unwanted techmaps later on.
-	pool<TwineRef> unused_derived;
+	pool<IdString> unused_derived;
 
 	for (auto module : design->selected_modules())
 		for (auto cell : module->cells()) {
 			auto inst_module = design->module(cell->type_impl);
 			if (!inst_module)
 				continue;
-			TwineRef derived_type;
+			IdString derived_type;
 			Module *derived_module;
 			if (cell->parameters.empty()) {
 				derived_type = cell->type_impl;
@@ -271,10 +271,10 @@ void prep_bypass(RTLIL::Design *design)
 	if (r.second)
 		r.first->second = new Design;
 	Design *unmap_design = r.first->second;
-	auto to_map = [&](TwineRef t) { return map_design->twines.add(std::string{design->twines.str(t)}); };
-	auto to_unmap = [&](TwineRef t) { return unmap_design->twines.add(std::string{design->twines.str(t)}); };
+	auto to_map = [&](IdString t) { return map_design->twines.add(std::string{design->twines.str(t)}); };
+	auto to_unmap = [&](IdString t) { return unmap_design->twines.add(std::string{design->twines.str(t)}); };
 
-	pool<TwineRef> processed;
+	pool<IdString> processed;
 	for (auto module : design->selected_modules())
 		for (auto cell : module->cells()) {
 			if (!processed.insert(cell->type).second)
@@ -524,7 +524,7 @@ void prep_dff_submod(RTLIL::Design *design)
 void prep_dff_unmap(RTLIL::Design *design)
 {
 	Design *unmap_design = saved_designs.at("$abc9_unmap");
-	auto to_unmap = [&](TwineRef t) { return unmap_design->twines.add(std::string{design->twines.str(t)}); };
+	auto to_unmap = [&](IdString t) { return unmap_design->twines.add(std::string{design->twines.str(t)}); };
 
 	for (auto module : design->modules()) {
 		if (!module->get_bool_attribute(ID::abc9_flop) || module->get_bool_attribute(ID::abc9_box))
@@ -660,7 +660,7 @@ void prep_delays(RTLIL::Design *design, bool dff_mode)
 
 	// Insert $__ABC9_DELAY cells on all cells that instantiate blackboxes
 	//   (or bypassed white-boxes with required times)
-	dict<int, TwineRef> box_cache;
+	dict<int, IdString> box_cache;
 	Module *delay_module = design->module(ID($__ABC9_DELAY));
 	log_assert(delay_module);
 	for (auto cell : cells) {
@@ -689,7 +689,7 @@ void prep_delays(RTLIL::Design *design, bool dff_mode)
 
 #ifndef NDEBUG
 			if (ys_debug(1)) {
-				static pool<std::pair<TwineRef,TimingInfo::NameBit>> seen;
+				static pool<std::pair<IdString,TimingInfo::NameBit>> seen;
 				if (seen.emplace(cell->type, i.first).second) log("%s.%s[%d] abc9_required = %d\n",
 						cell->type.unescape(), design->twines.unescaped_str(i.first.name), offset, d);
 			}
@@ -712,15 +712,15 @@ void prep_xaiger(RTLIL::Module *module, bool dff)
 {
 	auto design = module->design;
 	log_assert(design);
-	// toposort keys cells by TwineRef; recover the cell's own pool ref rather
+	// toposort keys cells by IdString; recover the cell's own pool ref rather
 	// than re-interning the flattened name, which would yield a fresh leaf that
 	// never matches a Suffix-shaped auto name.
-	dict<TwineRef, TwineRef> name_ref;
-	auto refof = [&](TwineRef n) { return name_ref.at(n); };
+	dict<IdString, IdString> name_ref;
+	auto refof = [&](IdString n) { return name_ref.at(n); };
 
 	SigMap sigmap(module);
 
-	dict<TwineRef, std::vector<TwineRef>> box_ports;
+	dict<IdString, std::vector<IdString>> box_ports;
 
 	for (auto cell : module->cells()) {
 		if (cell->type.in(ID($_DFF_N_), ID($_DFF_P_)))
@@ -738,7 +738,7 @@ void prep_xaiger(RTLIL::Module *module, bool dff)
 			if (r.second) {
 				// Make carry in the last PI, and carry out the last PO
 				//   since ABC requires it this way
-				TwineRef carry_in = Twine::Null, carry_out = Twine::Null;
+				IdString carry_in = Twine::Null, carry_out = Twine::Null;
 				for (const auto &port_name : inst_module->ports) {
 					auto w = inst_module->wire(port_name);
 					log_assert(w);
@@ -764,8 +764,8 @@ void prep_xaiger(RTLIL::Module *module, bool dff)
 		return;
 
 	// Build the same topo graph for the initial pass and the optional retry.
-	auto build_toposort = [&](TopoSort<TwineRef> &toposort) {
-		dict<SigBit, pool<TwineRef>> bit_drivers, bit_users;
+	auto build_toposort = [&](TopoSort<IdString> &toposort) {
+		dict<SigBit, pool<IdString>> bit_drivers, bit_users;
 
 		for (auto cell : module->cells()) {
 			if (cell->type.in(ID($_DFF_N_), ID($_DFF_P_)))
@@ -806,7 +806,7 @@ void prep_xaiger(RTLIL::Module *module, bool dff)
 	};
 
 	// Build TopoSort in a container, as we may need to conditionally rebuild it on retry.
-	std::optional<TopoSort<TwineRef>> toposort;
+	std::optional<TopoSort<IdString>> toposort;
 	toposort.emplace();
 	bool no_loops = build_toposort(toposort.value());
 
@@ -814,7 +814,7 @@ void prep_xaiger(RTLIL::Module *module, bool dff)
 	// breakers on non-box loop cells, then re-run toposort checks.
 	if (!no_loops) {
 		SigSpec I, O;
-		pool<TwineRef> broken_cells;
+		pool<IdString> broken_cells;
 
 		for (auto &loop : toposort.value().loops)
 			for (auto cell_name : loop) {
@@ -869,11 +869,11 @@ void prep_xaiger(RTLIL::Module *module, bool dff)
 		r.first->second = new Design;
 	RTLIL::Design *holes_design = r.first->second;
 	log_assert(holes_design);
-	auto to_holes = [&](TwineRef t) { return holes_design->twines.add(std::string{design->twines.str(t)}); };
+	auto to_holes = [&](IdString t) { return holes_design->twines.add(std::string{design->twines.str(t)}); };
 	RTLIL::Module *holes_module = holes_design->addModule(to_holes(module->name.ref()));
 	log_assert(holes_module);
 
-	dict<TwineRef, Cell*> cell_cache;
+	dict<IdString, Cell*> cell_cache;
 	TimingInfo timing;
 
 	int port_id = 1, box_count = 0;
@@ -956,7 +956,7 @@ void prep_lut(RTLIL::Design *design, int maxlut)
 	TimingInfo timing;
 
 	struct t_lut {
-		TwineRef name;
+		IdString name;
 		int area;
 		std::vector<int> delays;
 	};
@@ -1034,7 +1034,7 @@ void prep_box(RTLIL::Design *design)
 
 	int abc9_box_id = 1;
 	std::stringstream ss;
-	dict<TwineRef,std::vector<TwineRef>> box_ports;
+	dict<IdString,std::vector<IdString>> box_ports;
 	for (auto module : design->modules()) {
 		auto it = module->attributes.find(ID::abc9_box);
 		if (it == module->attributes.end())
@@ -1098,7 +1098,7 @@ void prep_box(RTLIL::Design *design)
 
 #ifndef NDEBUG
 					if (ys_debug(1)) {
-						static std::set<std::pair<TwineRef,TwineRef>> seen;
+						static std::set<std::pair<IdString,IdString>> seen;
 						if (seen.emplace(module->name, port_name).second) log("%s.%s abc9_required = %d\n", module,
 								design->twines.unescaped_str(port_name), it->second.first);
 					}
@@ -1113,7 +1113,7 @@ void prep_box(RTLIL::Design *design)
 			if (r2.second) {
 				// Make carry in the last PI, and carry out the last PO
 				//   since ABC requires it this way
-				TwineRef carry_in = Twine::Null, carry_out = Twine::Null;
+				IdString carry_in = Twine::Null, carry_out = Twine::Null;
 				for (const auto &port_name : module->ports) {
 					auto w = module->wire(port_name);
 					log_assert(w);

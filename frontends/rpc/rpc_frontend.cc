@@ -115,7 +115,7 @@ struct RpcServer {
 		return modules;
 	}
 
-	std::pair<std::string, std::string> derive_module(const RTLIL::Design *design, const std::string &module, const dict<TwineRef, RTLIL::Const> &parameters) {
+	std::pair<std::string, std::string> derive_module(const RTLIL::Design *design, const std::string &module, const dict<IdString, RTLIL::Const> &parameters) {
 		Json::object json_parameters;
 		for (auto &param : parameters) {
 			std::string type, value;
@@ -157,7 +157,7 @@ struct RpcServer {
 struct RpcModule : RTLIL::Module {
 	std::shared_ptr<RpcServer> server;
 
-	TwineRef derive(RTLIL::Design *design, const dict<TwineRef, RTLIL::Const> &parameters, bool /*mayfail*/) override {
+	IdString derive(RTLIL::Design *design, const dict<IdString, RTLIL::Const> &parameters, bool /*mayfail*/) override {
 		std::string stripped_name = design->twines.str(meta_->name);
 		if (stripped_name.compare(0, 9, "$abstract") == 0)
 			stripped_name = stripped_name.substr(9);
@@ -215,7 +215,7 @@ struct RpcModule : RTLIL::Module {
 
 				log("Importing `%s' as `%s'.\n", derived_design->twines.str(module.first), mangled_name);
 
-				TwineRef original_name = module.first;
+				IdString original_name = module.first;
 				RTLIL::Module *t = module.second->clone(design, design->twines.add(Twine{mangled_name}));
 				t->attributes.erase(ID::top);
 				if (!t->has_attribute(ID::hdlname))

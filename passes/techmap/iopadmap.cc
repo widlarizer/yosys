@@ -110,7 +110,7 @@ struct IopadmapPass : public Pass {
 		std::string tinoutpad_celltype, tinoutpad_portname_oe, tinoutpad_portname_o, tinoutpad_portname_i, tinoutpad_portname_pad;
 		bool toutpad_neg_oe = false, tinoutpad_neg_oe = false;
 		std::string widthparam, nameparam;
-		pool<pair<TwineRef, TwineRef>> ignore;
+		pool<pair<IdString, IdString>> ignore;
 		bool flag_bits = false;
 
 		size_t argidx;
@@ -199,7 +199,7 @@ struct IopadmapPass : public Pass {
 
 		// Recursively collect list of (module, port, bit) triples that already have buffers.
 
-		pool<pair<TwineRef, pair<TwineRef, int>>> buf_ports;
+		pool<pair<IdString, pair<IdString, int>>> buf_ports;
 
 		// Process submodules before module using them.
 		std::vector<Module *> modules_sorted;
@@ -214,7 +214,7 @@ struct IopadmapPass : public Pass {
 
 			// Collect explicitly-marked already-buffered SigBits.
 			for (auto wire : module->wires())
-				if (wire->get_bool_attribute(ID::iopad_external_pin) || ignore.count(make_pair(TwineRef(module->name), TwineRef(wire->name))))
+				if (wire->get_bool_attribute(ID::iopad_external_pin) || ignore.count(make_pair(IdString(module->name), IdString(wire->name))))
 					for (int i = 0; i < GetSize(wire); i++)
 						buf_bits.insert(sigmap(SigBit(wire, i)));
 
@@ -239,7 +239,7 @@ struct IopadmapPass : public Pass {
 
 		for (auto module : design->selected_modules())
 		{
-			dict<Wire *, dict<int, pair<Cell *, TwineRef>>> rewrite_bits;
+			dict<Wire *, dict<int, pair<Cell *, IdString>>> rewrite_bits;
 			dict<SigSig, pool<int>> remove_conns;
 
 			if (!toutpad_celltype.empty() || !tinoutpad_celltype.empty())

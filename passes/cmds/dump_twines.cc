@@ -42,7 +42,7 @@ struct DumpTwinesPass : public Pass {
 		const TwinePool &pool = design->twines;
 		log("twine pool: %zu local nodes\n", pool.size());
 		for (size_t idx = 0; idx < pool.backing.size(); ++idx) {
-			TwineRef id = STATIC_TWINE_END + idx;
+			IdString id = STATIC_TWINE_END + idx;
 			const Twine &n = pool.backing[idx];
 			if (n.is_leaf()) {
 				log("  @%zu leaf \"%s\"", (size_t)id, n.leaf().c_str());
@@ -51,7 +51,7 @@ struct DumpTwinesPass : public Pass {
 						(size_t)n.suffix().prefix, n.suffix().tail.c_str());
 			} else if (n.is_concat()) {
 				std::string children;
-				for (TwineRef c : n.children()) {
+				for (IdString c : n.children()) {
 					if (!children.empty())
 						children += ", ";
 					children += "@" + std::to_string((size_t)c);

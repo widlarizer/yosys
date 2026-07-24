@@ -19,8 +19,8 @@ TEST(CellTypesTest, basic)
 	newer.setup(nullptr);
 	// Non-constid cell types need a pool to live in.
 	TwinePool twines;
-	TwineRef bleh = twines.add(std::string("\\bleh"));
-	TwineRef aaaaa = twines.add(std::string("\\aaaaa"));
+	IdString bleh = twines.add(std::string("\\bleh"));
+	IdString aaaaa = twines.add(std::string("\\aaaaa"));
 	older.setup_type(bleh, {ID::G}, {ID::H, ID::I}, false, true);
 	newer.setup_type(bleh, {ID::G}, {ID::H, ID::I}, false, true);
 	EXPECT_EQ(older.cell_known(aaaaa), newer.cell_known(aaaaa));
@@ -32,7 +32,7 @@ TEST(CellTypesTest, basic)
 	};
 
 	// ground truth
-	const pool<TwineRef> expected_ff_types = {
+	const pool<IdString> expected_ff_types = {
 		ID($sr), ID($ff), ID($dff), ID($dffe), ID($dffsr), ID($dffsre),
 		ID($adff), ID($adffe), ID($aldff), ID($aldffe),
 		ID($sdff), ID($sdffe), ID($sdffce),
@@ -75,7 +75,7 @@ TEST(CellTypesTest, basic)
 
 	TwinePool empty_pool;
 	for (size_t i = 0; i < static_cast<size_t>(STATIC_TWINE_END); i++) {
-		TwineRef type;
+		IdString type;
 		type = i;
 		EXPECT_EQ(older.cell_known(type), newer.cell_known(type));
 		if (older.cell_evaluable(type) != newer.cell_evaluable(type))

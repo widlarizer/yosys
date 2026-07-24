@@ -38,14 +38,14 @@ static string spice_id2str(const std::string &id)
 	return s;
 }
 
-static string spice_id2str(const RTLIL::Design *design, TwineRef id, bool use_inames, idict<TwineRef, 1> &inums)
+static string spice_id2str(const RTLIL::Design *design, IdString id, bool use_inames, idict<IdString, 1> &inums)
 {
 	if (!use_inames && design->twines.str(id)[0] == '$')
 		return stringf("%d", inums(id));
 	return spice_id2str(design->twines.str(id));
 }
 
-static void print_spice_net(std::ostream &f, RTLIL::SigBit s, std::string &neg, std::string &pos, std::string &ncpf, int &nc_counter, bool use_inames, idict<TwineRef, 1> &inums)
+static void print_spice_net(std::ostream &f, RTLIL::SigBit s, std::string &neg, std::string &pos, std::string &ncpf, int &nc_counter, bool use_inames, idict<IdString, 1> &inums)
 {
 	if (s.wire) {
 		if (s.wire->port_id)
@@ -67,7 +67,7 @@ static void print_spice_net(std::ostream &f, RTLIL::SigBit s, std::string &neg, 
 static void print_spice_module(std::ostream &f, RTLIL::Module *module, RTLIL::Design *design, std::string &neg, std::string &pos, std::string &buf, std::string &ncpf, bool big_endian, bool use_inames)
 {
 	SigMap sigmap(module);
-	idict<TwineRef, 1> inums;
+	idict<IdString, 1> inums;
 	int cell_counter = 0, conn_counter = 0, nc_counter = 0;
 
 	for (auto cell : module->cells())
@@ -105,7 +105,7 @@ static void print_spice_module(std::ostream &f, RTLIL::Module *module, RTLIL::De
 			for (RTLIL::Wire *wire : ports) {
 				log_assert(wire != NULL);
 				RTLIL::SigSpec sig(RTLIL::State::Sz, wire->width);
-				TwineRef wire_name_ref = search.find(wire->name.unescape());
+				IdString wire_name_ref = search.find(wire->name.unescape());
 				if (cell->hasPort(wire_name_ref)) {
 					sig = sigmap(cell->getPort(wire_name_ref));
 					sig.extend_u0(wire->width, false);

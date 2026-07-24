@@ -126,11 +126,11 @@ struct BtorWorker
 			string src = module && module->design ? module->design->get_src_attribute(obj) : std::string();
 			if (srcsym && infostr[0] == '$') {
 				std::replace(src.begin(), src.end(), ' ', '_');
-				TwineRef src_ref = src_search.find(src);
+				IdString src_ref = src_search.find(src);
 				if (srcsymbols.count(src) || src_ref != Twine::Null) {
 					for (int i = 1;; i++) {
 						string s = stringf("%s-%d", src, i);
-						TwineRef s_ref = src_search.find(s);
+						IdString s_ref = src_search.find(s);
 						if (!srcsymbols.count(s) && s_ref == Twine::Null) {
 							src = s;
 							break;
@@ -154,11 +154,11 @@ struct BtorWorker
 			string src = module && module->design ? module->design->get_src_attribute(mem) : std::string();
 			if (srcsym && infostr[0] == '$') {
 				std::replace(src.begin(), src.end(), ' ', '_');
-				TwineRef src_ref = src_search.find(src);
+				IdString src_ref = src_search.find(src);
 				if (srcsymbols.count(src) || src_ref != Twine::Null) {
 					for (int i = 1;; i++) {
 						string s = stringf("%s-%d", src, i);
-						TwineRef s_ref = src_search.find(s);
+						IdString s_ref = src_search.find(s);
 						if (!srcsymbols.count(s) && s_ref == Twine::Null) {
 							src = s;
 							break;

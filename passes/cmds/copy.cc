@@ -45,7 +45,7 @@ struct CopyPass : public Pass {
 		std::string trg_name = RTLIL::escape_id(args[2]);
 
 		TwineSearch search(&design->twines);
-		TwineRef src_ref = search.find(src_name);
+		IdString src_ref = search.find(src_name);
 		if (design->module(src_ref) == nullptr)
 			log_cmd_error("Can't find source module %s.\n", src_name);
 
