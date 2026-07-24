@@ -504,7 +504,7 @@ struct TechmapWorker
 
 			if (celltypeMap.count(cell->type) == 0) {
 				if (assert_mode && !cell->type.ends_with("_"))
-					log_error("(ASSERT MODE) No matching template cell for type %s found.\n", cell->type.unescaped());
+					log_error("(ASSERT MODE) No matching template cell for type %s found.\n", cell->type.unescape());
 				continue;
 			}
 
@@ -571,7 +571,7 @@ struct TechmapWorker
 				{
 					if ((extern_mode && !in_recursion) || extmapper_name == "wrap")
 					{
-						std::string m_name = stringf("$extern:%s:%s", extmapper_name, cell->type.unescaped());
+						std::string m_name = stringf("$extern:%s:%s", extmapper_name, cell->type.unescape());
 
 						for (auto &c : cell->parameters)
 							m_name += stringf(":%s=%s", log_id(c.first), log_signal(c.second));
@@ -636,31 +636,31 @@ struct TechmapWorker
 							goto use_wrapper_tpl;
 						}
 
-						auto msg = stringf("Using extmapper %s for cells of type %s.", extmapper_module, cell->type.unescaped());
+						auto msg = stringf("Using extmapper %s for cells of type %s.", extmapper_module, cell->type.unescape());
 						if (!log_msg_cache.count(msg)) {
 							log_msg_cache.insert(msg);
 							log("%s\n", msg);
 						}
-						log_debug("%s %s.%s (%s) to %s.\n", mapmsg_prefix, module, cell, cell->type.unescaped(), extmapper_module);
+						log_debug("%s %s.%s (%s) to %s.\n", mapmsg_prefix, module, cell, cell->type.unescape(), extmapper_module);
 					}
 					else
 					{
-						auto msg = stringf("Using extmapper %s for cells of type %s.", extmapper_name, cell->type.unescaped());
+						auto msg = stringf("Using extmapper %s for cells of type %s.", extmapper_name, cell->type.unescape());
 						if (!log_msg_cache.count(msg)) {
 							log_msg_cache.insert(msg);
 							log("%s\n", msg);
 						}
-						log_debug("%s %s.%s (%s) with %s.\n", mapmsg_prefix, module, cell, cell->type.unescaped(), extmapper_name);
+						log_debug("%s %s.%s (%s) with %s.\n", mapmsg_prefix, module, cell, cell->type.unescape(), extmapper_name);
 
 						if (extmapper_name == "simplemap") {
 							if (simplemap_mappers.count(cell->type) == 0)
-								log_error("No simplemap mapper for cell type %s found!\n", cell->type.unescaped());
+								log_error("No simplemap mapper for cell type %s found!\n", cell->type.unescape());
 							simplemap_mappers.at(cell->type)(module, cell);
 						}
 
 						if (extmapper_name == "maccmap") {
 							if (!cell->type.in(ID($macc), ID($macc_v2)))
-								log_error("The maccmap mapper can only map $macc/$macc_v2 (not %s) cells!\n", cell->type.unescaped());
+								log_error("The maccmap mapper can only map $macc/$macc_v2 (not %s) cells!\n", cell->type.unescape());
 							maccmap(module, cell);
 						}
 
@@ -691,7 +691,7 @@ struct TechmapWorker
 				}
 
 				if (tpl->avail_parameters.count(ID::_TECHMAP_CELLTYPE_) != 0)
-					parameters.emplace(ID::_TECHMAP_CELLTYPE_, cell->type.unescaped());
+					parameters.emplace(ID::_TECHMAP_CELLTYPE_, cell->type.unescape());
 				if (tpl->avail_parameters.count(ID::_TECHMAP_CELLNAME_) != 0)
 					parameters.emplace(ID::_TECHMAP_CELLNAME_, cell->name.unescape());
 
@@ -1023,7 +1023,7 @@ struct TechmapWorker
 			}
 
 			if (assert_mode && !mapped_cell)
-				log_error("(ASSERT MODE) Failed to map cell %s.%s (%s).\n", module, cell, cell->type.unescaped());
+				log_error("(ASSERT MODE) Failed to map cell %s.%s (%s).\n", module, cell, cell->type.unescape());
 
 			handled_cells.insert(cell);
 		}
@@ -1291,8 +1291,11 @@ struct TechmapPass : public Pass {
 						delete map;
 						log_cmd_error("Can't open saved design `%s'.\n", fn.c_str()+1);
 					}
-					for (auto mod : saved_designs.at(fn.substr(1))->modules())
-						if (!map->module(mod->name))
+					auto saved = saved_designs.at(fn.substr(1));
+					for (auto mod : saved->modules())
+						// mod->name is a ref into the saved design's pool; intern it
+						// into map's pool before looking it up there
+						if (!map->module(map->twines.copy_from(saved->twines, mod->name.ref())))
 							mod->clone(map);
 				} else {
 					Frontend::frontend_call(map, nullptr, fn, (fn.size() > 3 && fn.compare(fn.size()-3, std::string::npos, ".il") == 0 ? "rtlil" : verilog_frontend));
