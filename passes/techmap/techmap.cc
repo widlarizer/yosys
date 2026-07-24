@@ -222,10 +222,10 @@ struct TechmapWorker
 		// successive merges share substructure.
 		const RTLIL::Cell *src_cell = cell;
 
-		orig_cell_name = cell->name.str();
+		orig_cell_name = cell->name.unescape();
 		for (auto tpl_cell : tpl->cells())
 			if (tpl_cell->name.ends_with("_TECHMAP_REPLACE_")) {
-				module->rename(cell, module->design->twines.add(stringf("$techmap%d", autoidx++) + cell->name.str()));
+				module->rename(cell, module->design->twines.add(stringf("$techmap%d", autoidx++) + cell->name.unescape()));
 				break;
 			}
 
@@ -395,7 +395,7 @@ struct TechmapWorker
 			TwineRef c_ref;
 			if (techmap_replace_cell)
 				c_ref = module->design->twines.add(std::string{orig_cell_name});
-			else if (const char *p = strstr(tpl_cell->name.str().c_str(), "_TECHMAP_REPLACE_."))
+			else if (const char *p = strstr(tpl_cell->name.unescape().c_str(), "_TECHMAP_REPLACE_."))
 				c_ref = module->design->twines.add(stringf("%s%s", orig_cell_name, p + strlen("_TECHMAP_REPLACE_")));
 			else
 				c_ref = ap.name(tpl_cell->name.ref());

@@ -166,7 +166,7 @@ struct IntersynthBackend : public Backend {
 					log_error("Found unknown cell type %s in module!\n", cell->type.unescaped());
 
 				celltype_code = stringf("celltype %s", cell->type.unescaped());
-				node_code = stringf("node %s %s", cell->name.str(), cell->type.unescaped());
+				node_code = stringf("node %s %s", cell->name.unescape(), cell->type.unescaped());
 				for (auto &port : cell->connections()) {
 					RTLIL::SigSpec sig = sigmap(port.second);
 					if (sig.size() != 0) {

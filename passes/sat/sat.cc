@@ -1414,18 +1414,18 @@ struct SatPass : public Pass {
 							reg_wires.insert(bit.wire);
 			}
 			for (auto wire : reg_wires)
-				shows.push_back(wire->name.str());
+				shows.push_back(wire->name.unescape());
 		}
 
 		if (show_public) {
 			for (auto wire : module->wires())
 				if (wire->name.isPublic())
-					shows.push_back(wire->name.str());
+					shows.push_back(wire->name.unescape());
 		}
 
 		if (show_all) {
 			for (auto wire : module->wires())
-				shows.push_back(wire->name.str());
+				shows.push_back(wire->name.unescape());
 		}
 
 		log("Using SAT solver `%s`.\n", solver->name.c_str());

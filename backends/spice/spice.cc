@@ -105,7 +105,7 @@ static void print_spice_module(std::ostream &f, RTLIL::Module *module, RTLIL::De
 			for (RTLIL::Wire *wire : ports) {
 				log_assert(wire != NULL);
 				RTLIL::SigSpec sig(RTLIL::State::Sz, wire->width);
-				TwineRef wire_name_ref = search.find(wire->name.str());
+				TwineRef wire_name_ref = search.find(wire->name.unescape());
 				if (cell->hasPort(wire_name_ref)) {
 					sig = sigmap(cell->getPort(wire_name_ref));
 					sig.extend_u0(wire->width, false);
@@ -249,9 +249,9 @@ struct SpiceBackend : public Backend {
 				log_assert(wire != NULL);
 				if (wire->width > 1) {
 					for (int i = 0; i < wire->width; i++)
-						*f << stringf(" %s.%d", spice_id2str(wire->name.str()), big_endian ? wire->width - 1 - i : i);
+						*f << stringf(" %s.%d", spice_id2str(wire->name.unescape()), big_endian ? wire->width - 1 - i : i);
 				} else
-					*f << stringf(" %s", spice_id2str(wire->name.str()));
+					*f << stringf(" %s", spice_id2str(wire->name.unescape()));
 			}
 			*f << stringf("\n");
 			print_spice_module(*f, module, design, neg, pos, buf, ncpf, big_endian, use_inames);

@@ -188,7 +188,7 @@ struct EstimateSta {
 			assert(cell_aigs.count(cell));
 			Aig &aig = *cell_aigs.at(cell);
 			for (auto &node : aig.nodes) {
-				if (!node.portname == TwineRef{}) {
+				if (node.portname != TwineRef{}) {
 					topo.edge(
 						desc_sig(cell->getPort(node.portname)[node.portbit]),
 						desc_aig(cell, node)
@@ -235,7 +235,7 @@ struct EstimateSta {
 			if (aig_node) {
 				Cell *cell = std::get<1>(node);
 				Aig &aig = *cell_aigs.at(cell);
-				if (!aig_node->portname == TwineRef{}) {
+				if (aig_node->portname != TwineRef{}) {
 					// for a cell port, copy `levels` value from port bit
 					SigBit bit = cell->getPort(aig_node->portname)[aig_node->portbit];
 					levels[node] = levels[desc_sig(bit)];
@@ -294,7 +294,7 @@ struct EstimateSta {
 						critical[node] = true;
 				}
 
-				if (!aig_node->portname == TwineRef{}) {
+				if (aig_node->portname != TwineRef{}) {
 					SigBit bit = cell->getPort(aig_node->portname)[aig_node->portbit];
 					if (critical.count(node))
 						critical[desc_sig(bit)] = true;

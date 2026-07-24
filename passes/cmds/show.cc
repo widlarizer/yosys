@@ -442,7 +442,7 @@ struct ShowWorker
 				if (href && wire->has_attribute(ID::src) > 0)
 					src_href = stringf(", href=\"%s\" ", escape(wire->get_src_attribute()));
 				fprintf(f, "n%d [ shape=%s,%s label=\"%s\", %s%s];\n",
-						id2num(wire->name), shape.c_str(), is_borderless? " margin=0, width=0" : "",  findLabel(wire->name.str()),
+						id2num(wire->name), shape.c_str(), is_borderless? " margin=0, width=0" : "",  findLabel(wire->name.unescape()),
 						is_borderless
 						    ? "color=\"none\", fontcolor=\"black\""
 							: nextColor(RTLIL::SigSpec(wire), "color=\"black\", fontcolor=\"black\"").c_str(),
@@ -452,7 +452,7 @@ struct ShowWorker
 				else if (wire->port_output)
 					all_sinks.insert(stringf("n%d", id2num(wire->name)));
 			} else {
-				wires_on_demand[stringf("n%d", id2num(wire->name))] = wire->name.str();
+				wires_on_demand[stringf("n%d", id2num(wire->name))] = wire->name.unescape();
 			}
 		}
 
@@ -502,7 +502,7 @@ struct ShowWorker
 			std::string out_label = join_label_pieces(out_label_pieces);
 
 			std::string label_string = stringf("{{%s}|%s\\n%s|{%s}}", in_label,
-											   findLabel(cell->name.str()), escape(cell->type.str()),
+											   findLabel(cell->name.unescape()), escape(cell->type.str()),
 											   out_label.c_str());
 
 			std::string code;

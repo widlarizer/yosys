@@ -126,7 +126,7 @@ struct SdcObjects {
 		}
 
 		for (auto* wire : mod->wires()) {
-			std::string name = wire->name.str();
+			std::string name = wire->name.unescape();
 			log_assert(name.length());
 			// TODO: really skip internal wires?
 			if (name[0] == '$')
@@ -140,7 +140,7 @@ struct SdcObjects {
 		}
 
 		for (auto* cell : mod->cells()) {
-			std::string name = cell->name.str();
+			std::string name = cell->name.unescape();
 			// TODO: really skip internal cells?
 			if (name[0] == '$')
 				continue;

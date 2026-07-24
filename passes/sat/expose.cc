@@ -554,7 +554,7 @@ struct ExposePass : public Pass {
 					cell->setPort(ID::Q, cell_q_bits);
 				}
 
-				RTLIL::Wire *wire_q = add_new_wire(module, wire->name.str() + sep + "q", wire->width);
+				RTLIL::Wire *wire_q = add_new_wire(module, wire->name.unescape() + sep + "q", wire->width);
 				wire_q->port_input = true;
 				log("New module port: %s/%s\n", module, wire_q);
 
@@ -568,12 +568,12 @@ struct ExposePass : public Pass {
 				}
 				module->connect(connect_q);
 
-				RTLIL::Wire *wire_d = add_new_wire(module, wire->name.str() + sep + "d", wire->width);
+				RTLIL::Wire *wire_d = add_new_wire(module, wire->name.unescape() + sep + "d", wire->width);
 				wire_d->port_output = true;
 				log("New module port: %s/%s\n", module, wire_d);
 				module->connect(RTLIL::SigSig(wire_d, info.sig_d));
 
-				RTLIL::Wire *wire_c = add_new_wire(module, wire->name.str() + sep + "c");
+				RTLIL::Wire *wire_c = add_new_wire(module, wire->name.unescape() + sep + "c");
 				wire_c->port_output = true;
 				log("New module port: %s/%s\n", module, wire_c);
 				if (info.clk_polarity) {
@@ -589,7 +589,7 @@ struct ExposePass : public Pass {
 
 				if (info.sig_arst != RTLIL::State::Sm)
 				{
-					RTLIL::Wire *wire_r = add_new_wire(module, wire->name.str() + sep + "r");
+					RTLIL::Wire *wire_r = add_new_wire(module, wire->name.unescape() + sep + "r");
 					wire_r->port_output = true;
 					log("New module port: %s/%s\n", module, wire_r);
 					if (info.arst_polarity) {
@@ -603,7 +603,7 @@ struct ExposePass : public Pass {
 						c->setPort(ID::Y, wire_r);
 					}
 
-					RTLIL::Wire *wire_v = add_new_wire(module, wire->name.str() + sep + "v", wire->width);
+					RTLIL::Wire *wire_v = add_new_wire(module, wire->name.unescape() + sep + "v", wire->width);
 					wire_v->port_output = true;
 					log("New module port: %s/%s\n", module, wire_v);
 					module->connect(RTLIL::SigSig(wire_v, info.arst_value));
@@ -633,7 +633,7 @@ struct ExposePass : public Pass {
 							if (!p->port_input && !p->port_output)
 								continue;
 
-							RTLIL::Wire *w = add_new_wire(module, cell->name.str() + sep + design->twines.unescaped_str(p->name.ref()), p->width);
+							RTLIL::Wire *w = add_new_wire(module, cell->name.unescape() + sep + design->twines.unescaped_str(p->name.ref()), p->width);
 							if (p->port_input)
 								w->port_output = true;
 							if (p->port_output)
@@ -655,7 +655,7 @@ struct ExposePass : public Pass {
 					{
 						for (auto &it : cell->connections())
 						{
-							RTLIL::Wire *w = add_new_wire(module, cell->name.str() + sep + design->twines.unescaped_str(it.first), it.second.size());
+							RTLIL::Wire *w = add_new_wire(module, cell->name.unescape() + sep + design->twines.unescaped_str(it.first), it.second.size());
 							if (ct.cell_input(cell->type_impl, it.first))
 								w->port_output = true;
 							if (ct.cell_output(cell->type_impl, it.first))

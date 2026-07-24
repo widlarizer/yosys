@@ -312,7 +312,7 @@ struct XAigerWriter
 		for (auto cell : box_list) {
 			log_assert(cell);
 
-			RTLIL::Module* box_module = design->module(cell->type_impl);
+			RTLIL::Module* box_module = design->module(cell->type);
 			log_assert(box_module);
 			log_assert(box_module->has_attribute(ID::abc9_box_id));
 
@@ -712,7 +712,7 @@ struct XAigerWriter
 
 		int box_count = 0;
 		for (auto cell : box_list)
-			f << stringf("box %d %d %s\n", box_count++, 0, cell->name.str());
+			f << stringf("box %d %d %s\n", box_count++, 0, cell->name.unescape());
 
 		output_lines.sort();
 		for (auto &it : output_lines)

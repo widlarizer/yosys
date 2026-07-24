@@ -119,14 +119,6 @@ namespace RTLIL
 	struct Process;
 	struct Binding;
 	struct ObjMeta;
-	template<typename Derived> struct NameMasqBase;
-	struct ModuleNameMasq;
-	template<typename Owner> struct ObjNameMasq;
-	using WireNameMasq = ObjNameMasq<Wire>;
-	using CellNameMasq = ObjNameMasq<Cell>;
-	using MemoryNameMasq = ObjNameMasq<Memory>;
-	using ProcessNameMasq = ObjNameMasq<Process>;
-	struct CellTypeMasq;
 
 	typedef std::pair<SigSpec, SigSpec> SigSig;
 };
@@ -714,111 +706,13 @@ struct RTLIL::NamedObject : public RTLIL::AttrObject
 	TwineRef name = Twine::Null;
 };
 
-// CRTP base shared by WireNameMasq, CellNameMasq, and ModuleNameMasq.
-// Derived must define ref(), escaped(), and unescaped(); everything else
-// is derived from those three via operator TwineRef().
-namespace RTLIL {
-template<typename Derived>
-struct NameMasqBase {
-	operator TwineRef() const { return self().ref(); }
-	operator std::string() const {
-		return self().escaped();
-	}
-	bool isPublic() const { return self().ref().isPublic(); }
-	bool empty() const { return self().ref() == Twine::Null; }
-	std::string str() const { return self().escaped(); }
-	std::string unescape() const { return self().unescaped(); }
-	bool begins_with(const char *s) const { return str().starts_with(s); }
-	bool ends_with(const char *s) const { return str().ends_with(s); }
-	template <typename... Ts> bool in(Ts &&...args) const {
-		return self().ref().in(std::forward<Ts>(args)...);
-	}
-	std::string substr(size_t pos = 0, size_t len = std::string::npos) const {
-		return self().escaped().substr(pos, len);
-	}
-	size_t size() const { return self().escaped().size(); }
-	bool contains(const char *p) const { return self().escaped().find(p) != std::string::npos; }
-	char operator[](int n) const { return self().escaped()[n]; }
-	bool lt_by_name(const Derived &rhs) const { return self().escaped() < rhs.escaped(); }
-	bool operator==(TwineRef rhs) const { return self().ref() == rhs; }
-	bool operator!=(TwineRef rhs) const { return self().ref() != rhs; }
-	bool operator==(const std::string &rhs) const { return self().escaped() == rhs; }
-	bool operator!=(const std::string &rhs) const { return self().escaped() != rhs; }
-	bool operator==(const Derived &rhs) const { return self().ref() == rhs.ref(); }
-	bool operator!=(const Derived &rhs) const { return self().ref() != rhs.ref(); }
-	bool operator<(const Derived &rhs) const { return self().escaped() < rhs.escaped(); }
-	[[nodiscard]] Hasher hash_into(Hasher h) const { return self().ref().hash_into(h); }
-private:
-	const Derived &self() const { return *static_cast<const Derived *>(this); }
-};
-} // namespace RTLIL
-template<typename Derived>
-inline bool operator==(TwineRef lhs, const RTLIL::NameMasqBase<Derived> &rhs) {
-	return lhs == static_cast<const Derived &>(rhs).ref();
-}
-template<typename Derived>
-inline bool operator!=(TwineRef lhs, const RTLIL::NameMasqBase<Derived> &rhs) {
-	return lhs != static_cast<const Derived &>(rhs).ref();
-}
-
-// Read-only masquerade for Wire::name/Cell::name/Memory::name/Process::name.
-// Reads materialise the TwineRef in the owning Design's twines pool (found
-// via Owner::module->design) into a temporary std::string; writes go through
-// Owner::meta_ directly. Defined before Wire/Cell/Memory/Process so it can be
-// used as a [[no_unique_address]] member of each.
-template<typename Owner>
-struct RTLIL::ObjNameMasq : RTLIL::NameMasqBase<RTLIL::ObjNameMasq<Owner>> {
-	ObjNameMasq() = default;
-	ObjNameMasq(const ObjNameMasq &) = delete;
-	ObjNameMasq(ObjNameMasq &&) = delete;
-	ObjNameMasq &operator=(const ObjNameMasq &) = delete;
-	ObjNameMasq &operator=(ObjNameMasq &&) = delete;
-	// Tagged name handle (Twine::Null when unnamed).
-	TwineRef ref() const;
-	bool isPublic() const { return ref().isPublic(); }
-	// Escaped form ('\'-prefixed when public) / bare content.
-	std::string escaped() const;
-	std::string unescaped() const;
-};
-
-// Read-only masquerade for Cell::type. Backed by Cell::type_impl.
-// Write the type via cell->type_impl directly.
-struct RTLIL::CellTypeMasq {
-	CellTypeMasq() = default;
-	CellTypeMasq(const CellTypeMasq &) = delete;
-	CellTypeMasq(CellTypeMasq &&) = delete;
-	CellTypeMasq &operator=(const CellTypeMasq &) = delete;
-	CellTypeMasq &operator=(CellTypeMasq &&) = delete;
-	operator TwineRef() const { return ref(); }
-	operator std::string() const { return escaped(); }
-	TwineRef ref() const;
-	std::string escaped() const;
-	std::string unescaped() const;
-	bool isPublic() const { return ref().isPublic(); }
-	bool empty() const { return ref() == Twine::Null; }
-	std::string str() const { return escaped(); } // TODO deprecate
-	std::string unescape() const { return unescaped(); }
-	bool begins_with(const char *s) const { return str().starts_with(s); }
-	bool ends_with(const char *s) const { return str().ends_with(s); }
-	template <typename... Ts> bool in(Ts &&...args) const {
-		return ref().in(std::forward<Ts>(args)...);
-	}
-	std::string substr(size_t pos = 0, size_t len = std::string::npos) const {
-		return escaped().substr(pos, len);
-	}
-	size_t size() const { return str().size(); }
-	bool contains(const char *p) const { return escaped().find(p) != std::string::npos; }
-	char operator[](int n) const { return str()[n]; }
-	bool operator==(TwineRef rhs) const { return ref() == rhs; }
-	bool operator!=(TwineRef rhs) const { return ref() != rhs; }
-	bool operator==(const std::string &rhs) const { return escaped() == rhs; }
-	bool operator!=(const std::string &rhs) const { return escaped() != rhs; }
-	bool operator==(const CellTypeMasq &rhs) const { return ref() == rhs.ref(); }
-	bool operator!=(const CellTypeMasq &rhs) const { return ref() != rhs.ref(); }
-	[[nodiscard]] Hasher hash_into(Hasher h) const { return ref().hash_into(h); }
-};
-inline bool operator==(TwineRef lhs, const RTLIL::CellTypeMasq &rhs) { return lhs == rhs.ref(); }
-inline bool operator!=(TwineRef lhs, const RTLIL::CellTypeMasq &rhs) { return lhs != rhs.ref(); }
+// The name/type masquerades that keep `wire->name`, `cell->type` and
+// `module->name` working on top of TwineRef storage. Part one: the class
+// definitions, needed before Wire/Cell/Memory/Process/Module embed them as
+// [[no_unique_address]] members. Part two (the accessor bodies) is pulled in
+// near the end of this header, once Design and Module are complete.
+#define RTLIL_TWINE_COMPAT_DECLS
+#include "kernel/rtlil_twine_compat.h"
 
 struct RTLIL::SigChunk
 {
@@ -2381,30 +2275,6 @@ public:
 	RTLIL::SigBit Oai4Gate   (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, const RTLIL::SigBit &sig_d, TwineRef src = Twine::Null);
 };
 
-// Zero-size masquerade for Module::name. Same contract as WireNameMasq,
-// plus a write path via operator=(TwineRef). Shadows NamedObject::name
-// at the Module-instance scope; static_cast<NamedObject*>(module)->name
-// still hits the (now-unused) inline base field. Writing requires
-// module->design to be set first.
-struct RTLIL::ModuleNameMasq : RTLIL::NameMasqBase<RTLIL::ModuleNameMasq> {
-	// Copying/moving is forbidden: a ModuleNameMasq derives its identity from
-	// `this` via offsetof(Module, name), so any instance not embedded in a
-	// Module would resolve to garbage. All conversions go through
-	// operator TwineRef() at the embedded location.
-	ModuleNameMasq() = default;
-	ModuleNameMasq(const ModuleNameMasq&) = delete;
-	ModuleNameMasq(ModuleNameMasq&&) = delete;
-	operator TwineRef() const;
-	ModuleNameMasq& operator=(TwineRef id);
-	// Without this, `new_mod->name = src_mod->name` invokes the implicit
-	// copy-assign (no-op) instead of operator=(TwineRef), so the meta
-	// never gets written.
-	ModuleNameMasq& operator=(const ModuleNameMasq& other) { return *this = other.ref(); }
-	TwineRef ref() const;
-	std::string escaped() const;
-	std::string unescaped() const;
-};
-
 struct RTLIL::Module : public RTLIL::AttrObject, public CellAdderMixin<RTLIL::Module>
 {
 	friend struct RTLIL::Cell;
@@ -2755,17 +2625,6 @@ void RTLIL::Process::rewrite_sigspecs2(T &functor)
 		it->rewrite_sigspecs2(functor);
 }
 
-// The masq accessors below recover their containing Wire/Cell/Module by
-// Prefer these over the pool-free log_id(TwineRef) (which can only render
-// static constids): a masquerade knows the Design its name lives in.
-template<typename Derived>
-inline const char *log_id(const RTLIL::NameMasqBase<Derived> &name) {
-	return log_id_str(static_cast<const Derived &>(name).unescaped());
-}
-inline const char *log_id(const RTLIL::CellTypeMasq &type) {
-	return log_id_str(type.unescaped());
-}
-
 // Uniform way to reach the owning Design of any RTLIL object, so pool-dependent
 // helpers can be written generically over Module/Wire/Cell/Memory/Process.
 namespace RTLIL {
@@ -2776,105 +2635,10 @@ namespace RTLIL {
 	inline RTLIL::Design *design_of(const RTLIL::Process *p) { return p && p->module ? p->module->design : nullptr; }
 }
 
-// subtracting offsetof from `this`. Those types are non-standard-layout (base
-// classes + virtuals), so offsetof is conditionally-supported, but it is
-// well-defined on GCC/Clang for these fixed field offsets.
-#ifdef __GNUC__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Winvalid-offsetof"
-#endif
-// Shared by Wire/Cell/Memory/Process (see ObjNameMasq's declaration above):
-// all four resolve their Design via ->module->design and read ->meta_->name.
-template<typename Owner>
-inline TwineRef RTLIL::ObjNameMasq<Owner>::ref() const {
-	const Owner *o = reinterpret_cast<const Owner *>(
-		reinterpret_cast<const char *>(this) - offsetof(Owner, name));
-	if (!o->module || !o->module->design || !o->meta_)
-		return Twine::Null;
-	return o->meta_->name;
-}
-
-template<typename Owner>
-inline std::string RTLIL::ObjNameMasq<Owner>::escaped() const {
-	const Owner *o = reinterpret_cast<const Owner *>(
-		reinterpret_cast<const char *>(this) - offsetof(Owner, name));
-	TwineRef id = ref();
-	if (id == Twine::Null)
-		return std::string();
-	return o->module->design->twines.str(id);
-}
-
-template<typename Owner>
-inline std::string RTLIL::ObjNameMasq<Owner>::unescaped() const {
-	const Owner *o = reinterpret_cast<const Owner *>(
-		reinterpret_cast<const char *>(this) - offsetof(Owner, name));
-	TwineRef id = ref();
-	if (id == Twine::Null)
-		return std::string();
-	return o->module->design->twines.unescaped_str(id);
-}
-
-inline TwineRef RTLIL::CellTypeMasq::ref() const {
-	const RTLIL::Cell *c = reinterpret_cast<const RTLIL::Cell *>(
-		reinterpret_cast<const char *>(this) - offsetof(RTLIL::Cell, type));
-	return c->type_impl;
-}
-
-inline std::string RTLIL::CellTypeMasq::escaped() const {
-	const RTLIL::Cell *c = reinterpret_cast<const RTLIL::Cell *>(
-		reinterpret_cast<const char *>(this) - offsetof(RTLIL::Cell, type));
-	TwineRef id = c->type_impl;
-	if (id == Twine::Null)
-		return std::string();
-	if (c->module && c->module->design)
-		return c->module->design->twines.str(id);
-	// Static (ID::) refs are pool-independent; assert non-local ref.
-	log_assert(twine_untag(id) < STATIC_TWINE_END);
-	return TwinePool{}.str(id);
-}
-
-inline std::string RTLIL::CellTypeMasq::unescaped() const {
-	const RTLIL::Cell *c = reinterpret_cast<const RTLIL::Cell *>(
-		reinterpret_cast<const char *>(this) - offsetof(RTLIL::Cell, type));
-	TwineRef id = c->type_impl;
-	if (id == Twine::Null)
-		return std::string();
-	if (c->module && c->module->design)
-		return c->module->design->twines.unescaped_str(id);
-	log_assert(twine_untag(id) < STATIC_TWINE_END);
-	return TwinePool{}.unescaped_str(id);
-}
-
-inline TwineRef RTLIL::ModuleNameMasq::ref() const {
-	const RTLIL::Module *m = reinterpret_cast<const RTLIL::Module *>(
-		reinterpret_cast<const char *>(this) - offsetof(RTLIL::Module, name));
-	if (!m->design || !m->meta_)
-		return Twine::Null;
-	return m->meta_->name;
-}
-
-inline std::string RTLIL::ModuleNameMasq::escaped() const {
-	const RTLIL::Module *m = reinterpret_cast<const RTLIL::Module *>(
-		reinterpret_cast<const char *>(this) - offsetof(RTLIL::Module, name));
-	TwineRef id = ref();
-	if (id == Twine::Null)
-		return std::string();
-	return m->design->twines.str(id);
-}
-
-inline std::string RTLIL::ModuleNameMasq::unescaped() const {
-	const RTLIL::Module *m = reinterpret_cast<const RTLIL::Module *>(
-		reinterpret_cast<const char *>(this) - offsetof(RTLIL::Module, name));
-	TwineRef id = ref();
-	if (id == Twine::Null)
-		return std::string();
-	return m->design->twines.unescaped_str(id);
-}
-#ifdef __GNUC__
-#pragma GCC diagnostic pop
-#endif // -Winvalid-offsetof for masq accessors
-
-inline RTLIL::ModuleNameMasq::operator TwineRef() const { return ref(); }
+// Part two of the masquerade compat layer: the accessor bodies, which need
+// Design and Module to be complete (see kernel/rtlil_twine_compat.h).
+#define RTLIL_TWINE_COMPAT_IMPL
+#include "kernel/rtlil_twine_compat.h"
 
 // Carry source locations across a rewrite: combine the src of every cell in
 // `sources` into a single twine and set it on every cell in `targets`. When

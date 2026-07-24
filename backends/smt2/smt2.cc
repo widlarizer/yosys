@@ -1542,7 +1542,7 @@ struct Smt2Worker
 				hiername.push_back("\\" + token);
 		}
 		if (hiername.empty())
-			hiername.push_back(wire->name.str());
+			hiername.push_back(wire->name.unescape());
 
 		std::string line = "; yosys-smt2-witness ";
 		(json11::Json { json11::Json::object {

@@ -934,7 +934,7 @@ struct SimInstance
 		{
 			for (auto cell : formal_database)
 			{
-				string label = cell->name.str();
+				string label = cell->name.unescape();
 				if (cell->has_attribute(ID::src))
 					label = cell->get_src_attribute();
 

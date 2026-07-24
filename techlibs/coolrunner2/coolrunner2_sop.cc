@@ -94,7 +94,7 @@ struct Coolrunner2SopPass : public Pass {
 					auto sop_width = cell->getParam(ID::WIDTH).as_int();
 					auto sop_table = cell->getParam(ID::TABLE);
 
-					auto sop_output_wire_name = sop_output.wire->name.str();
+					auto sop_output_wire_name = sop_output.wire->name.unescape();
 
 					// Check for a $_NOT_ at the output
 					bool has_invert = false;

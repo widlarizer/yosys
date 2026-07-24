@@ -317,7 +317,7 @@ struct SetundefPass : public Pass {
 							wire = c.wire;
 							wire->port_input = true;
 						} else {
-							string name = c.wire->name.str() + "$[" + std::to_string(c.width + c.offset) + ":" + std::to_string(c.offset) + "]";
+							string name = c.wire->name.unescape() + "$[" + std::to_string(c.width + c.offset) + ":" + std::to_string(c.offset) + "]";
 							wire = add_wire(module, name, c.width, true, false);
 							module->connect(RTLIL::SigSig(c, wire));
 						}

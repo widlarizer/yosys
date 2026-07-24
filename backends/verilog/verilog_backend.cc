@@ -1021,7 +1021,7 @@ std::string cellname(RTLIL::Cell *cell)
 		if (wire->name[0] != '\\')
 			goto no_special_reg_name;
 
-		std::string cell_name = wire->name.str();
+		std::string cell_name = wire->name.unescape();
 
 		size_t pos = cell_name.find('[');
 		if (pos != std::string::npos)

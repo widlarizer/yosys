@@ -98,7 +98,7 @@ struct TableBackend : public Backend {
 			for (auto conn : cell->connections())
 			{
 				*f << module->name.str() << "\t";
-				*f << cell->name.str() << "\t";
+				*f << cell->name.unescape() << "\t";
 				*f << cell->type.unescaped() << "\t";
 				*f << design->twines.str(conn.first) << "\t";
 

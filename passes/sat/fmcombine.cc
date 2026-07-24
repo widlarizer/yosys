@@ -53,7 +53,7 @@ struct FmcombineWorker
 		SigSpec newsig;
 		for (auto chunk : sig.chunks()) {
 			if (chunk.wire != nullptr)
-				chunk.wire = module->wire(design->twines.add(std::string{chunk.wire->name.str() + suffix}));
+				chunk.wire = module->wire(design->twines.add(std::string{chunk.wire->name.unescape() + suffix}));
 			newsig.append(chunk);
 		}
 		return newsig;
@@ -61,7 +61,7 @@ struct FmcombineWorker
 
 	Cell *import_prim_cell(Cell *cell, const string &suffix)
 	{
-		Cell *c = module->addCell(Twine{cell->name.str() + suffix}, cell->type_impl);
+		Cell *c = module->addCell(Twine{cell->name.unescape() + suffix}, cell->type_impl);
 		c->parameters = cell->parameters;
 		c->attributes = cell->attributes;
 
@@ -82,7 +82,7 @@ struct FmcombineWorker
 		FmcombineWorker sub_worker(design, cell->type_impl, opts);
 		sub_worker.generate();
 
-		Cell *c = module->addCell(Twine{cell->name.str() + "_combined"}, sub_worker.combined_type);
+		Cell *c = module->addCell(Twine{cell->name.unescape() + "_combined"}, sub_worker.combined_type);
 		// c->parameters = cell->parameters;
 		c->attributes = cell->attributes;
 
@@ -103,8 +103,8 @@ struct FmcombineWorker
 		module = design->addModule(combined_type);
 
 		for (auto wire : original->wires()) {
-			module->addWire(Twine{wire->name.str() + "_gold"}, wire);
-			module->addWire(Twine{wire->name.str() + "_gate"}, wire);
+			module->addWire(Twine{wire->name.unescape() + "_gold"}, wire);
+			module->addWire(Twine{wire->name.unescape() + "_gate"}, wire);
 		}
 		module->fixup_ports();
 

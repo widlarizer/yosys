@@ -750,7 +750,7 @@ void replace_const_cells(RTLIL::Design *design, RTLIL::Module *module, bool cons
 		{
 			if (cell->type == ID($reduce_xnor)) {
 				log_debug("Replacing %s cell `%s' in module `%s' with $not cell.\n",
-						cell->type.unescape(), cell->name.str(), module);
+						cell->type.unescape(), cell->name.unescape(), module);
 				cell->type_impl = ID::$not;
 				did_something = true;
 			} else {
@@ -771,7 +771,7 @@ void replace_const_cells(RTLIL::Design *design, RTLIL::Module *module, bool cons
 			if (a_fully_const != b_fully_const)
 			{
 				log_debug("Replacing %s cell `%s' in module `%s' having one fully constant input\n",
-						cell->type.unescape(), cell->name.str(), module);
+						cell->type.unescape(), cell->name.unescape(), module);
 				RTLIL::SigSpec sig_y = assign_map(cell->getPort(ID::Y));
 
 				int width = GetSize(cell->getPort(ID::Y));

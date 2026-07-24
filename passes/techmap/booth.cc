@@ -715,7 +715,7 @@ struct BoothPassWorker {
 				module->connect(result[n], ha_op);
 
 #ifdef DEBUG_CPA
-				printf("CPA bit [%d] Cell %s IPs [%s] [%s] \n", n, ha_cell->name.str().c_str(), s_vec[n]->name.str().c_str(),
+				printf("CPA bit [%d] Cell %s IPs [%s] [%s] \n", n, ha_cell->name.unescape().c_str(), s_vec[n]->name.str().c_str(),
 				       c_vec[n - 1]->name.str().c_str());
 #endif
 
@@ -734,7 +734,7 @@ struct BoothPassWorker {
 				carry = carry_out;
 
 #ifdef DEBUG_CPA
-				printf("CPA bit [%d] Cell %s IPs [%s] [%s] [%s]\n", n, fa_cell->name.str().c_str(), s_vec[n]->name.str().c_str(),
+				printf("CPA bit [%d] Cell %s IPs [%s] [%s] [%s]\n", n, fa_cell->name.unescape().c_str(), s_vec[n]->name.str().c_str(),
 				       c_vec[n - 1]->name.str().c_str(), carry->name.str().c_str());
 #endif
 				if (n + 1 < GetSize(result)) {
@@ -761,7 +761,7 @@ struct BoothPassWorker {
 				);
 				carry = carry_out;
 #ifdef DEBUG_CPA
-				printf("CPA bit [%d] Cell %s IPs [%s] [%s] [%s]\n", n, fa_cell->name.str().c_str(), s_vec[n]->name.str().c_str(),
+				printf("CPA bit [%d] Cell %s IPs [%s] [%s] [%s]\n", n, fa_cell->name.unescape().c_str(), s_vec[n]->name.str().c_str(),
 				       c_vec[n - 1]->name.str().c_str(), carry->name.str().c_str());
 #endif
 			}

@@ -942,8 +942,8 @@ static char *readline_obj_generator(const char *text, int state)
 			}
 
 			for (auto cell : module->cells())
-				if (cell->name.str().compare(0, len, text) == 0)
-					obj_names.push_back(strdup(cell->name.str().c_str()));
+				if (cell->name.unescape().compare(0, len, text) == 0)
+					obj_names.push_back(strdup(cell->name.unescape().c_str()));
 
 			for (auto &it : module->processes) {
 				std::string proc_name = design->twines.str(it.first);

@@ -142,7 +142,7 @@ struct TribufWorker {
 
 						auto conflict = module->And(NEW_ID, cell_s, other_s);
 
-						std::string name = stringf("$tribuf_conflict$%s", cell->name.str());
+						std::string name = stringf("$tribuf_conflict$%s", cell->name.unescape());
 						auto assert_cell = module->addAssert(Twine{name}, module->Not(NEW_ID, conflict), SigSpec(true));
 
 						assert_cell->adopt_src_from(cell);

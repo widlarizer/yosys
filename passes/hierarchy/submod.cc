@@ -152,7 +152,7 @@ struct SubmodWorker
 			if (!flags.is_int_driven.is_fully_zero() && flags.is_ext_driven)
 				new_wire_port_input = true, new_wire_port_output = true;
 
-			std::string new_wire_name = wire->name.str();
+			std::string new_wire_name = wire->name.unescape();
 			if (new_wire_port_input || new_wire_port_output) {
 				if (new_wire_name[0] == '$')
 					while (1) {

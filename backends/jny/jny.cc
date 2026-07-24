@@ -368,7 +368,7 @@ struct JnyWriter
         log_assert(cell != nullptr);
 
         f << _indent << "  {\n";
-        f << stringf("    %s\"name\": \"%s\"", _indent, escape_string(cell->name.str()));
+        f << stringf("    %s\"name\": \"%s\"", _indent, escape_string(cell->name.unescape()));
 
         if (_include_connections) {
             f << ",\n" << _indent << "    \"connections\": [\n";

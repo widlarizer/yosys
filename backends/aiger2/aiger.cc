@@ -563,7 +563,7 @@ struct Index {
 				if (!cell)
 					ret += design->twines.str(minfo.module->meta_->name);
 				else
-					ret += cell->name.str();
+					ret += cell->name.unescape();
 				first = false;
 			}
 			return ret;

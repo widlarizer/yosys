@@ -72,7 +72,7 @@ struct UniquifyPass : public Pass {
 				{
 					Module *tmod = design->module(cell->type_impl);
 					std::string tmod_name_str(tmod->name.str());
-					std::string newname = module->name.str() + "." + cell->name.str();
+					std::string newname = module->name.str() + "." + cell->name.unescape();
 
 					if (tmod == nullptr)
 						continue;

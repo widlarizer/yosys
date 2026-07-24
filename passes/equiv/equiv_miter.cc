@@ -161,7 +161,7 @@ struct EquivMiterWorker
 				vector<SigChunk> chunks = sig.chunks();
 				for (auto &c : chunks)
 					if (c.wire != NULL)
-						c.wire = mod->wire(search->find(c.wire->name.str()));
+						c.wire = mod->wire(search->find(c.wire->name.unescape()));
 				sig = chunks;
 			}
 		};

@@ -490,7 +490,7 @@ struct EdifBackend : public Backend {
 				for (auto &p : cell->connections()) {
 					RTLIL::SigSpec sig = sigmap(p.second);
 					std::string port_name_str = design->twines.str(p.first);
-					std::string cell_name_str = cell->name.str();
+					std::string cell_name_str = cell->name.unescape();
 					for (int i = 0; i < GetSize(sig); i++)
 						if (sig[i].wire == NULL && sig[i] != RTLIL::State::S0 && sig[i] != RTLIL::State::S1)
 							log_warning("Bit %d of cell port %s.%s.%s driven by %s will be left unconnected in EDIF output.\n",

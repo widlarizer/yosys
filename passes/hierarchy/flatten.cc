@@ -55,12 +55,12 @@ struct module_ptr_compare {
 std::pair<std::string, std::string> hier_name_parts(RTLIL::Cell *cell, std::string_view object_name_view, const std::string &separator)
 {
 	if (!object_name_view.empty() && object_name_view[0] == '\\')
-		return {cell->name.str() + separator, std::string(object_name_view.substr(1))};
+		return {cell->name.unescape() + separator, std::string(object_name_view.substr(1))};
 
 	constexpr std::string_view prefix = "$flatten";
 	if (object_name_view.substr(0, prefix.size()) == prefix)
 		object_name_view.remove_prefix(prefix.size());
-	return {"$flatten" + cell->name.str() + separator, std::string(object_name_view)};
+	return {"$flatten" + cell->name.unescape() + separator, std::string(object_name_view)};
 }
 
 std::string concat_name(RTLIL::Cell *cell, std::string_view object_name_view, const std::string &separator = ".")
@@ -79,7 +79,7 @@ TwineRef remap_flattened_name(RTLIL::Design *design, TwineRef obj_ref,
 	TwineRef result;
 	if (node.is_suffix()) {
 		const Twine::Suffix &sfx = node.suffix();
-		TwineRef prefix = remap_flattened_name(design, twine_tag(sfx.prefix, obj_ref.is_public()),
+		TwineRef prefix = remap_flattened_name(design, twine_tag(sfx.prefix, obj_ref.isPublic()),
 				pub_prefix_ref, priv_prefix_ref, separator, memo);
 		result = design->twines.add(Twine{Twine::Suffix{prefix, sfx.tail}});
 	} else {
@@ -165,7 +165,7 @@ struct FlattenWorker
 		// Copy the contents of the flattened cell
 
 		TwineRef pub_prefix_ref = cell->name.ref();
-		TwineRef priv_prefix_ref = design->twines.add("$flatten" + cell->name.str() + separator);
+		TwineRef priv_prefix_ref = design->twines.add("$flatten" + cell->name.unescape() + separator);
 		dict<TwineRef, TwineRef> remap_memo;
 		auto make_name = [&](TwineRef obj_ref) -> TwineRef {
 			return module->uniquify(remap_flattened_name(design, obj_ref, pub_prefix_ref, priv_prefix_ref, separator, remap_memo));
@@ -187,7 +187,7 @@ struct FlattenWorker
 
 			RTLIL::Wire *new_wire = nullptr;
 			if (tpl_wire->name[0] == '\\') {
-				std::string wire_name = concat_name(cell, tpl_wire->name.str(), separator);
+				std::string wire_name = concat_name(cell, tpl_wire->name.unescape(), separator);
 				auto hwit = hier_wires.find(wire_name);
 				RTLIL::Wire *hier_wire = (hwit != hier_wires.end()) ? hwit->second : nullptr;
 				if (hier_wire != nullptr && hier_wire->get_bool_attribute(ID::hierconn)) {
@@ -267,7 +267,7 @@ struct FlattenWorker
 				std::string port_name_str = design->twines.str(port_name);
 				if (!port_name_str.empty() && port_name_str[0] == '$')
 					log_error("Can't map port `%s' of cell `%s' to template `%s'!\n",
-						std::string(port_name_str).c_str(), cell->name.str().c_str(), tpl->name.str().c_str());
+						std::string(port_name_str).c_str(), cell->name.unescape().c_str(), tpl->name.str().c_str());
 				continue;
 			}
 
@@ -362,7 +362,7 @@ struct FlattenWorker
 		dict<std::string, RTLIL::Wire*> hier_wires;
 		for (auto wire : module->wires())
 			if (wire->get_bool_attribute(ID::hierconn))
-				hier_wires[wire->name.str()] = wire;
+				hier_wires[wire->name.unescape()] = wire;
 
 		std::vector<RTLIL::Cell*> worklist = module->selected_cells();
 		while (!worklist.empty())

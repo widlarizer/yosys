@@ -78,7 +78,7 @@ struct PrintAttrsPass : public Pass {
 			}
 
 			for (auto cell : mod->selected_cells()) {
-				log("%s%s\n", get_indent_str(indent), cell->name.str());
+				log("%s%s\n", get_indent_str(indent), cell->name.unescape());
 				indent += 2;
 				log_src(design, cell, indent);
 				for (auto &it : cell->attributes)

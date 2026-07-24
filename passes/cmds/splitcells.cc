@@ -95,7 +95,7 @@ struct SplitcellsWorker
 				int slice_msb = slices[i]-1;
 				int slice_lsb = slices[i-1];
 
-				std::string s = cell->name.str() + (slice_msb == slice_lsb ?
+				std::string s = cell->name.unescape() + (slice_msb == slice_lsb ?
 						stringf("%c%d%c", format[0], slice_lsb, format[1]) :
 						stringf("%c%d%c%d%c", format[0], slice_msb, format[2], slice_lsb, format[1]));
 				TwineRef slice_name = module->uniquify(module->design->twines.add(std::move(s)));
@@ -163,7 +163,7 @@ struct SplitcellsWorker
 				int slice_lsb = slices[i-1];
 
 				TwinePool &twines = module->design->twines;
-				std::string s = cell->name.str() + (slice_msb == slice_lsb ?
+				std::string s = cell->name.unescape() + (slice_msb == slice_lsb ?
 						stringf("%c%d%c", format[0], slice_lsb, format[1]) :
 						stringf("%c%d%c%d%c", format[0], slice_msb, format[2], slice_lsb, format[1]));
 				TwineRef slice_name = module->uniquify(twines.add(std::move(s)));

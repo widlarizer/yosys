@@ -186,7 +186,7 @@ void RTLIL_BACKEND::dump_sigchunk(std::ostream &f, const RTLIL::SigChunk &chunk,
 	} else {
 		TwineRef wref = chunk.wire->name.ref();
 		std::string name = (mode == DumpMode::Readable || twine_untag(wref) < STATIC_TWINE_END)
-			? chunk.wire->name.str() : twine_handle(wref);
+			? chunk.wire->name.unescape() : twine_handle(wref);
 		if (chunk.width == chunk.wire->width && chunk.offset == 0)
 			f << name;
 		else if (chunk.width == 1)

@@ -41,7 +41,7 @@ pool<std::string> validate_design_and_get_inputs(RTLIL::Module *module, bool ass
 	for (auto wire : module->wires()) {
 		if (wire->port_input) {
 			found_input = true;
-			input_wires.insert(wire->name.str());
+			input_wires.insert(wire->name.unescape());
 		}
 		if (wire->port_output && wire->width == 1)
 			found_1bit_output = true;

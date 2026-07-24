@@ -89,13 +89,13 @@ static TwineRef derive_name_from_cell_output_wire(const RTLIL::Cell *cell, strin
 	std::string name = "";
 	for (auto &chunk : output->chunks()) {
 		// Skip cells that drive privately named wires
-		if (!chunk.wire || chunk.wire->name.str()[0] == '$')
+		if (!chunk.wire || chunk.wire->name.unescape()[0] == '$')
 			return cell->name;
 
 		if (name != "")
 			name += "$";
 
-		name += chunk.wire->name.str();
+		name += chunk.wire->name.unescape();
 		if (chunk.wire->width != chunk.width) {
 			int lhs = chunk.wire->to_hdl_index(chunk.offset + chunk.width - 1);
 			int rhs = chunk.wire->to_hdl_index(chunk.offset);
@@ -437,7 +437,7 @@ struct RenamePass : public Pass {
 									}
 								}
 							}
-							module->rename(found_wire, module->design->twines.add(std::string{found_wire->name.str() + wire_suffix}));
+							module->rename(found_wire, module->design->twines.add(std::string{found_wire->name.unescape() + wire_suffix}));
 						}
 					}
 					module->rename(cell, new_name);
@@ -583,7 +583,7 @@ struct RenamePass : public Pass {
 				dict<RTLIL::Cell *, TwineRef> new_cell_names;
 
 				for (auto wire : module->selected_wires()) {
-					auto name = wire->name.str();
+					auto name = wire->name.unescape();
 					if (name[0] != '\\')
 						continue;
 					name = name.substr(1);
@@ -596,7 +596,7 @@ struct RenamePass : public Pass {
 				}
 
 				for (auto cell : module->selected_cells()) {
-					auto name = cell->name.str();
+					auto name = cell->name.unescape();
 					if (name[0] != '\\')
 						continue;
 					name = name.substr(1);

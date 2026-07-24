@@ -78,7 +78,7 @@ struct HierDirtyFlags
 		for (Cell *cell : module->cells()) {
 			Module *mod = module->design->module(cell->type_impl);
 			if (mod) children[cell->name] = new HierDirtyFlags(mod, cell->name, this,
-					prefix + cid(cell->name) + ".", log_prefix + "." + prefix + cell->name.str());
+					prefix + cid(cell->name) + ".", log_prefix + "." + prefix + cell->name.unescape());
 		}
 	}
 
@@ -580,7 +580,7 @@ struct SimplecWorker
 						if (cell == nullptr || topoidx.at(cell) < topoidx.at(c))
 							cell = c;
 
-					string hiername = work->log_prefix + "." + cell->name.str();
+					string hiername = work->log_prefix + "." + cell->name.unescape();
 
 					if (verbose)
 						log("    Evaluating %s (%s, best of %d).\n", hiername, cell->type.unescaped(), GetSize(work->dirty_cells));

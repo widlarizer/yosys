@@ -498,7 +498,7 @@ class FunctionalIRConstruction {
 			for(auto const &[name, sigspec] : cell->connections())
 				if(driver_map.celltypes.cell_output(cell->type, name)) {
 					auto node = factory.create_pending(sigspec.size());
-					factory.suggest_name(node, design->twines.add(cell->name.str() + "$" + design->twines.str(name)));
+					factory.suggest_name(node, design->twines.add(cell->name.unescape() + "$" + design->twines.str(name)));
 					cell_outputs.emplace({cell, name}, node);
 					if(name == port_name)
 						rv = node;

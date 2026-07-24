@@ -235,7 +235,7 @@ struct IFExpander
 	                  const RTLIL::SigSpec &conn_signals)
 	{
 		// Check if the connected wire is a potential interface in the parent module
-		std::string interface_name_str = conn_signals[0].wire->name.str();
+		std::string interface_name_str = conn_signals[0].wire->name.unescape();
 		// Strip the prefix '$dummywireforinterface' from the dummy wire to get the name
 		interface_name_str.replace(0,23,"");
 		interface_name_str = "\\" + interface_name_str;
@@ -307,7 +307,7 @@ struct IFExpander
 			conn_signals.size() != 1 ||
 			conn_signals[0].wire == nullptr ||
 			conn_signals[0].wire->get_bool_attribute(ID::is_interface) == false ||
-			conn_signals[0].wire->name.str().find("$dummywireforinterface") != 0
+			conn_signals[0].wire->name.unescape().find("$dummywireforinterface") != 0
 		)
 			return;
 
@@ -328,7 +328,7 @@ struct IFExpander
 			log_error("Unable to connect `%s' to submodule `%s' with positional interface argument `%s'!\n",
 				module.name.str().data(),
 				submodule.name.str().data(),
-				conn_signals[0].wire->name.str().substr(23)
+				conn_signals[0].wire->name.unescape().substr(23)
 			);
 		} else {
 			// Lookup connection by name
@@ -765,7 +765,7 @@ RTLIL::Module *check_if_top_has_changed(Design *design, Module *top_mod)
 // Find a matching wire for an implicit port connection; traversing generate block scope
 RTLIL::Wire *find_implicit_port_wire(Module *module, Cell *cell, const std::string& port)
 {
-	const std::string &cellname = cell->name.str();
+	const std::string &cellname = cell->name.unescape();
 	size_t idx = cellname.size();
 	TwineSearch search(&module->design->twines);
 	while ((idx = cellname.find_last_of('.', idx-1)) != std::string::npos) {
@@ -1230,7 +1230,7 @@ struct HierarchyPass : public Pass {
 						src += ": ";
 
 					log_error("%sProperty `%s' in module `%s' uses unsupported SVA constructs. See frontend warnings for details, run `chformal -remove a:unsupported_sva' to ignore.\n",
-						src, cell->name.str(), mod->name.str().data());
+						src, cell->name.unescape(), mod->name.str().data());
 				}
 			}
 		}
@@ -1346,7 +1346,7 @@ struct HierarchyPass : public Pass {
 					if (old_connections.count(wire->meta_->name))
 						continue;
 					// Make sure a wire of correct name exists in the parent
-					Wire* parent_wire = find_implicit_port_wire(module, cell, wire->name.str());
+					Wire* parent_wire = find_implicit_port_wire(module, cell, wire->name.unescape());
 
 					// Missing wires are OK when a default value is set
 					if (!nodefaults && parent_wire == nullptr && defaults_db.count(cell->type) && defaults_db.at(cell->type).count(wire->name))
