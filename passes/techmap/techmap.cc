@@ -1293,8 +1293,6 @@ struct TechmapPass : public Pass {
 					}
 					auto saved = saved_designs.at(fn.substr(1));
 					for (auto mod : saved->modules())
-						// mod->name is a ref into the saved design's pool; intern it
-						// into map's pool before looking it up there
 						if (!map->module(map->twines.copy_from(saved->twines, mod->name.ref())))
 							mod->clone(map);
 				} else {

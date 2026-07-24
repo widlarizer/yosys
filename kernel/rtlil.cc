@@ -3699,9 +3699,6 @@ RTLIL::Process *RTLIL::Module::addProcess(Twine &&name)
 }
 
 namespace {
-	// Re-intern a bare src/name IdString carried directly on a process node
-	// (not via an AttrObject meta slot) from the source design's pool into
-	// dst's. Same-pool refs stay valid, so pass them through untouched.
 	IdString migrate_process_id(IdString id, const RTLIL::Design *src_design, RTLIL::Design *dst_design)
 	{
 		if (id == Twine::Null || src_design == dst_design)
@@ -3718,13 +3715,6 @@ namespace {
 			d_acts[i].src = migrate_process_id(s_acts[i].src, src_design, dst_design);
 	}
 
-	// Walk two process trees in parallel and transfer src across the
-	// design boundary for every AttrObject (CaseRule, SwitchRule,
-	// MemWriteAction) as well as the bare src IdStrings carried by
-	// CaseRule::compare_src, SyncAction::src and MemWriteAction::memid.
-	// Process::clone() copies these verbatim, which leaves refs into the
-	// source design's pool; this re-interns them now that both designs
-	// are known.
 	void migrate_process_tree_src(const RTLIL::Process *src, const RTLIL::Design *src_design,
 			RTLIL::Process *dst, RTLIL::Design *dst_design)
 	{

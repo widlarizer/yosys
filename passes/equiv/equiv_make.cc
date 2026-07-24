@@ -43,10 +43,6 @@ struct EquivMakeWorker
 
 	void read_blacklists()
 	{
-		// A name from the file must resolve to the ref an existing object
-		// already carries, which may be a structurally built (suffix) node
-		// rather than a plain leaf -- twines.add would intern a fresh leaf
-		// that never compares equal. TwineSearch resolves by content.
 		TwineSearch search(&gold_mod->design->twines);
 		for (auto fn : blacklists)
 		{

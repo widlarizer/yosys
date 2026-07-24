@@ -375,7 +375,7 @@ static void extract_fsm(RTLIL::Wire *wire)
 	fsm_cell->parameters[ID::ARST_POLARITY] = arst_polarity ? State::S1 : State::S0;
 	fsm_cell->setPort(ID::CTRL_IN, ctrl_in);
 	fsm_cell->setPort(ID::CTRL_OUT, ctrl_out);
-	fsm_cell->parameters[ID::NAME] = RTLIL::Const(wire->name.unescape());
+	fsm_cell->parameters[ID::NAME] = RTLIL::Const(wire->name.str());
 	fsm_cell->attributes = wire->attributes;
 	if(fsm_cell->attributes.count(ID::hdlname)) {
 		auto hdlname = fsm_cell->get_hdlname_attribute();

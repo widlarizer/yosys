@@ -302,8 +302,10 @@ struct SimInstance
 		}
 
 		memories = Mem::get_all_memories(module);
+		dict<std::string, IdString> memid_by_name;
 		for (auto &mem : memories) {
 			auto &mdb = mem_database[mem.memid];
+			memid_by_name[module->design->twines.unescaped_str(mem.memid)] = mem.memid;
 			mdb.mem = &mem;
 			for (auto &port : mem.wr_ports) {
 				mdb.past_wr_clk.push_back(Const(State::Sx));
@@ -352,7 +354,9 @@ struct SimInstance
 			if (cell->is_mem_cell())
 			{
 				std::string name_str = cell->parameters.at(ID::MEMID).decode_string();
-				IdString name = module->design->twines.add(std::string(name_str));
+				auto mit = memid_by_name.find(RTLIL::unescape_id(name_str));
+				IdString name = mit != memid_by_name.end() ? mit->second
+						: module->design->twines.add(std::string(name_str));
 				mem_cells[cell] = name;
 				if (shared->fst)
 					fst_memories[name] = shared->fst->getMemoryHandles(scope + "." + RTLIL::unescape_id(name_str));

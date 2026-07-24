@@ -1346,7 +1346,7 @@ struct HierarchyPass : public Pass {
 					if (old_connections.count(wire->meta_->name))
 						continue;
 					// Make sure a wire of correct name exists in the parent
-					Wire* parent_wire = find_implicit_port_wire(module, cell, wire->name.unescape());
+					Wire* parent_wire = find_implicit_port_wire(module, cell, wire->name.str());
 
 					// Missing wires are OK when a default value is set
 					if (!nodefaults && parent_wire == nullptr && defaults_db.count(cell->type) && defaults_db.at(cell->type).count(wire->name))

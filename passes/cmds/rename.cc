@@ -583,7 +583,7 @@ struct RenamePass : public Pass {
 				dict<RTLIL::Cell *, IdString> new_cell_names;
 
 				for (auto wire : module->selected_wires()) {
-					auto name = wire->name.unescape();
+					auto name = wire->name.str();
 					if (name[0] != '\\')
 						continue;
 					name = name.substr(1);
@@ -596,7 +596,7 @@ struct RenamePass : public Pass {
 				}
 
 				for (auto cell : module->selected_cells()) {
-					auto name = cell->name.unescape();
+					auto name = cell->name.str();
 					if (name[0] != '\\')
 						continue;
 					name = name.substr(1);

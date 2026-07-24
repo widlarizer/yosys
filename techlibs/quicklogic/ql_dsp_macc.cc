@@ -72,7 +72,7 @@ static void create_ql_macc_dsp(ql_dsp_macc_pm &pm)
         return;
     }
 
-    type = pm.module->design->twines.add(Twine{RTLIL::escape_id(cell_base_name + cell_size_name + "_cfg_ports")});
+    type = pm.module->design->twines.add(std::string{RTLIL::escape_id(cell_base_name + cell_size_name + "_cfg_ports")});
     log("Inferring MACC %zux%zu->%zu as %s from:\n", a_width, b_width, z_width, pm.module->design->twines.unescaped_str(type));
 
     for (auto cell : {st.mul, st.add, st.mux, st.ff})
