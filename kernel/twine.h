@@ -32,7 +32,7 @@ struct IdString {
 	static constexpr size_t kTagMask   = kLocalBit | kPublicBit;
 	static constexpr size_t kNull      = ~size_t{0};
 
-	constexpr IdString() : value(0) {}
+	constexpr IdString() : value(kNull) {}
 	constexpr IdString(size_t val) : value(val) {}
 	constexpr operator size_t() const { return value; }
 
