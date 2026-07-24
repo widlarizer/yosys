@@ -765,7 +765,7 @@ RTLIL::Module *check_if_top_has_changed(Design *design, Module *top_mod)
 // Find a matching wire for an implicit port connection; traversing generate block scope
 RTLIL::Wire *find_implicit_port_wire(Module *module, Cell *cell, const std::string& port)
 {
-	const std::string &cellname = cell->name.unescape();
+	const std::string &cellname = cell->name.str();
 	size_t idx = cellname.size();
 	TwineSearch search(&module->design->twines);
 	while ((idx = cellname.find_last_of('.', idx-1)) != std::string::npos) {
