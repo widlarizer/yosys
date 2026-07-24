@@ -309,7 +309,7 @@ struct BufnormPass : public Pass {
 				if (output_mode && wire->port_output)
 					return true;
 
-				if (public_mode && wire->name.is_public())
+				if (public_mode && wire->name.isPublic())
 					return true;
 
 				if (!nokeep_mode && wire->get_bool_attribute(ID::keep))
@@ -354,8 +354,8 @@ struct BufnormPass : public Pass {
 				}
 
 				// Nets with public names first
-				if (a->name.is_public() != b->name.is_public())
-					return a->name.is_public();
+				if (a->name.isPublic() != b->name.isPublic())
+					return a->name.isPublic();
 
 				// Otherwise just sort by name alphanumerically
 				return a->name.str() < b->name.str();
@@ -390,7 +390,7 @@ struct BufnormPass : public Pass {
 						}
 					}
 
-					if (w->name.is_public())
+					if (w->name.isPublic())
 						log("  directly driven by cell %s port %s: %s\n",
 								cell, design->twines.unescaped_str(conn.first), w);
 

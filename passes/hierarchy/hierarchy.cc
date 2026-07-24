@@ -277,7 +277,7 @@ struct IFExpander
 			TwineRef signal_name2_ref = AST::intern_hier_name(&design, signal_name2);
 			if(module.wire(signal_name2_ref) == nullptr) {
 				log_error("Could not find signal '%s' in '%s'\n",
-					  signal_name2.c_str(), design.twines.str(module.meta_->name).data());
+					  signal_name2.c_str(), module.name.str().data());
 			}
 			else {
 				RTLIL::Wire *wire_in_parent = module.wire(signal_name2_ref);
@@ -326,8 +326,8 @@ struct IFExpander
 			 * parent and child).
 			 */
 			log_error("Unable to connect `%s' to submodule `%s' with positional interface argument `%s'!\n",
-				design.twines.str(module.meta_->name).data(),
-				design.twines.str(submodule.meta_->name).data(),
+				module.name.str().data(),
+				submodule.name.str().data(),
 				conn_signals[0].wire->name.str().substr(23)
 			);
 		} else {
@@ -377,12 +377,12 @@ RTLIL::Module *get_module(RTLIL::Design                  &design,
                           bool                            check,
                           const std::vector<std::string> &libdirs)
 {
-	std::string cell_type = design.twines.str(cell.type.ref());
+	std::string cell_type = design.twines.str(cell.type);
 	RTLIL::Module *abs_mod = design.module(design.twines.find(Twine{"$abstract" + cell_type}));
 	if (abs_mod) {
 		cell.type_impl = design.twines.add(std::string{design.twines.str(abs_mod->derive(&design, cell.parameters))});
 		cell.parameters.clear();
-		RTLIL::Module *mod = design.module(cell.type.ref());
+		RTLIL::Module *mod = design.module(cell.type);
 		log_assert(mod);
 		return mod;
 	}
@@ -406,7 +406,7 @@ RTLIL::Module *get_module(RTLIL::Design                  &design,
 				continue;
 
 			Frontend::frontend_call(&design, NULL, filename, ext.second);
-			RTLIL::Module *mod = design.module(cell.type.ref());
+			RTLIL::Module *mod = design.module(cell.type);
 			if (!mod)
 				log_error("File `%s' from libdir does not declare module `%s'.\n",
 				          filename.c_str(), cell_type.c_str());
@@ -417,7 +417,7 @@ RTLIL::Module *get_module(RTLIL::Design                  &design,
 	// We couldn't find the module anywhere. Complain if check is set.
 	if (check)
 		log_error("Module `%s' referenced in module `%s' in cell `%s' is not part of the design.\n",
-		          cell_type.c_str(), parent.design->twines.str(parent.meta_->name).data(), cell.name);
+		          cell_type.c_str(), parent.name.str().data(), cell.name);
 
 	return nullptr;
 }
@@ -537,7 +537,7 @@ bool expand_module(RTLIL::Design *design, RTLIL::Module *module, bool flag_check
 		if (mod->get_blackbox_attribute()) {
 			if (flag_simcheck || (flag_smtcheck && !mod->get_bool_attribute(ID::smtlib2_module)))
 				log_error("Module `%s' referenced in module `%s' in cell `%s' is a blackbox/whitebox module.\n",
-						cell->type, design->twines.str(module->meta_->name).data(), cell->name);
+						cell->type, module->name.str().data(), cell->name);
 			continue;
 		}
 
@@ -648,9 +648,9 @@ void hierarchy_worker(RTLIL::Design *design, std::set<RTLIL::Module*> &used, RTL
 		return;
 
 	if (indent == 0)
-		log("Top module:  %s\n", mod->design->twines.str(mod->meta_->name).data());
+		log("Top module:  %s\n", mod->name.str().data());
 	else if (!mod->get_blackbox_attribute())
-		log("Used module: %*s%s\n", indent, "", mod->design->twines.str(mod->meta_->name).data());
+		log("Used module: %*s%s\n", indent, "", mod->name.str().data());
 	used.insert(mod);
 
 	for (auto cell : mod->cells()) {
@@ -658,7 +658,7 @@ void hierarchy_worker(RTLIL::Design *design, std::set<RTLIL::Module*> &used, RTL
 		if (cell->type.begins_with("$array:"))
 			cm = design->module(design->twines.find(basic_cell_type(cell->type.str())));
 		else
-			cm = design->module(cell->type.ref());
+			cm = design->module(cell->type);
 		if (cm)
 			hierarchy_worker(design, used, cm, indent+4);
 	}
@@ -692,7 +692,7 @@ void hierarchy_clean(RTLIL::Design *design, RTLIL::Module *top, bool purge_lib)
 	for (auto mod : del_modules) {
 		if (!purge_lib && mod->get_blackbox_attribute())
 			continue;
-		log("Removing unused module `%s'.\n", mod->design->twines.str(mod->meta_->name).data());
+		log("Removing unused module `%s'.\n", mod->name.str().data());
 		design->remove(mod);
 		del_counter++;
 	}
@@ -706,7 +706,7 @@ bool set_keep_print(std::map<RTLIL::Module*, bool> &cache, RTLIL::Module *mod)
 		for (auto c : mod->cells()) {
 			if (mod->meta_->name == c->type)
 				continue;
-			RTLIL::Module *m = mod->design->module(c->type.ref());
+			RTLIL::Module *m = mod->design->module(c->type);
 			if ((m != nullptr && set_keep_print(cache, m)) || c->type == ID::$print)
 				return cache[mod] = true;
 		}
@@ -719,7 +719,7 @@ bool set_keep_assert(std::map<RTLIL::Module*, bool> &cache, RTLIL::Module *mod)
 		for (auto c : mod->cells()) {
 			if (mod->meta_->name == c->type)
 				continue;
-			RTLIL::Module *m = mod->design->module(c->type.ref());
+			RTLIL::Module *m = mod->design->module(c->type);
 			if ((m != nullptr && set_keep_assert(cache, m)) || c->type.in(ID::$check, ID::$assert, ID::$assume, ID::$live, ID::$fair, ID::$cover))
 				return cache[mod] = true;
 		}
@@ -737,7 +737,7 @@ int find_top_mod_score(Design *design, Module *module, dict<Module*, int> &db)
 			if (cell->type.begins_with("$array:"))
 				instModule = design->module(TwineSearch(&design->twines).find(basic_cell_type(cell->type.str())));
 			else
-				instModule = design->module(cell->type.ref());
+				instModule = design->module(cell->type);
 			// If there is no instance for this, issue a warning.
 			if (instModule != nullptr) {
 				score = max(score, find_top_mod_score(design, instModule, db) + 1);
@@ -1078,7 +1078,7 @@ struct HierarchyPass : public Pass {
 		{
 			std::vector<TwineRef> abstract_ids;
 			for (auto module : design->modules()) {
-				std::string mod_name = design->twines.str(module->meta_->name);
+				std::string mod_name = module->name.str();
 				if (!mod_name.empty() && mod_name[0] == '$' && mod_name.substr(0, 9) == "$abstract")
 					abstract_ids.push_back(module->meta_->name);
 			}
@@ -1101,7 +1101,7 @@ struct HierarchyPass : public Pass {
 				log("Automatically selected %s as design top module.\n", top_mod);
 		}
 
-		std::string top_mod_name = top_mod ? design->twines.str(top_mod->meta_->name) : std::string("");
+		std::string top_mod_name = top_mod ? top_mod->name.str() : std::string("");
 		if (top_mod != nullptr && !top_mod_name.empty() && top_mod_name[0] == '$' && top_mod_name.substr(0, 9) == "$abstract") {
 			TwineRef top_name = design->twines.add(top_mod_name.substr(strlen("$abstract")));
 
@@ -1230,7 +1230,7 @@ struct HierarchyPass : public Pass {
 						src += ": ";
 
 					log_error("%sProperty `%s' in module `%s' uses unsupported SVA constructs. See frontend warnings for details, run `chformal -remove a:unsupported_sva' to ignore.\n",
-						src, cell->module->design->twines.str(cell->meta_->name), design->twines.str(mod->meta_->name).data());
+						src, cell->name.str(), mod->name.str().data());
 				}
 			}
 		}

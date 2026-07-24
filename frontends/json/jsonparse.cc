@@ -315,7 +315,7 @@ void json_import(Design *design, string &modname, JsonNode *node)
 	module->meta_->name = design->twines.add(RTLIL::escape_id(modname));
 
 	if (design->module(module->meta_->name))
-		log_error("Re-definition of module %s.\n", design->twines.str(module->meta_->name));
+		log_error("Re-definition of module %s.\n", module->name.str());
 
 	design->add(module);
 

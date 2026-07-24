@@ -190,7 +190,7 @@ struct EdifBackend : public Backend {
 		if (top_module_name.empty())
 			for (auto module : design->modules())
 				if (module->get_bool_attribute(ID::top))
-					top_module_name = design->twines.str(module->meta_->name);
+					top_module_name = module->name.str();
 
 		for (auto module : design->modules())
 		{
@@ -207,12 +207,12 @@ struct EdifBackend : public Backend {
 				continue;
 
 			if (top_module_name.empty())
-				top_module_name = design->twines.str(module->meta_->name);
+				top_module_name = module->name.str();
 
 			if (module->processes.size() != 0)
-				log_error("Found unmapped processes in module %s: unmapped processes are not supported in EDIF backend!\n", design->twines.str(module->meta_->name));
+				log_error("Found unmapped processes in module %s: unmapped processes are not supported in EDIF backend!\n", module->name.str());
 			if (module->memories.size() != 0)
-				log_error("Found unmapped memories in module %s: unmapped memories are not supported in EDIF backend!\n", design->twines.str(module->meta_->name));
+				log_error("Found unmapped memories in module %s: unmapped memories are not supported in EDIF backend!\n", module->name.str());
 
 			for (auto cell : module->cells())
 			{
@@ -364,7 +364,7 @@ struct EdifBackend : public Backend {
 			SigMap sigmap(module);
 			std::map<RTLIL::SigSpec, std::set<std::pair<std::string, bool>>> net_join_db;
 
-			std::string module_name_str = design->twines.str(module->meta_->name);
+			std::string module_name_str = module->name.str();
 			*f << stringf("    (cell %s\n", EDIF_DEF_STR(module_name_str));
 			*f << stringf("      (cellType GENERIC)\n");
 			*f << stringf("      (view VIEW_NETLIST\n");
@@ -399,8 +399,8 @@ struct EdifBackend : public Backend {
 					}
 
 					{
-						int c1 = w1->name.is_public();
-						int c2 = w2->name.is_public();
+						int c1 = w1->name.isPublic();
+						int c2 = w2->name.isPublic();
 
 						if (c1 > c2) goto promote;
 						if (c1 < c2) goto nopromote;

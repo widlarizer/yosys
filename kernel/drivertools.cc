@@ -537,8 +537,8 @@ DriverMap::BitMode DriverMap::bit_mode(DriveBit const &bit)
 		}
 		case DriveType::PORT: {
 			auto const &port = bit.port();
-			bool driver = celltypes.cell_output(port.cell->type.ref(), port.port);
-			bool driven = celltypes.cell_input(port.cell->type.ref(), port.port);
+			bool driver = celltypes.cell_output(port.cell->type, port.port);
+			bool driven = celltypes.cell_input(port.cell->type, port.port);
 			if (driver && !driven)
 				return BitMode::DRIVER;
 			else if (driven && !driver)

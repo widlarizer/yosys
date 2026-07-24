@@ -706,13 +706,13 @@ struct SatHelper
 		fprintf(f, "$end\n");
 		fprintf(f, "$comment\n");
 		fprintf(f, "    Generated from SAT problem in module %s (declared at %s)\n",
-			module->design->twines.str(module->meta_->name).c_str(), module_fname.c_str());
+			module->name.str().c_str(), module_fname.c_str());
 		fprintf(f, "$end\n");
 
 		// VCD has some limits on internal (non-display) identifier names, so make legal ones
 		std::map<std::string, std::string> vcdnames;
 
-		fprintf(f, "$scope module %s $end\n", module->design->twines.str(module->meta_->name).c_str());
+		fprintf(f, "$scope module %s $end\n", module->name.str().c_str());
 		for (auto &info : modelInfo)
 		{
 			if (vcdnames.find(info.description) != vcdnames.end())
@@ -1419,7 +1419,7 @@ struct SatPass : public Pass {
 
 		if (show_public) {
 			for (auto wire : module->wires())
-				if (wire->name.is_public())
+				if (wire->name.isPublic())
 					shows.push_back(wire->name.str());
 		}
 

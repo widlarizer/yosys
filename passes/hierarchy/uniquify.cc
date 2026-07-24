@@ -71,8 +71,8 @@ struct UniquifyPass : public Pass {
 				for (auto cell : module->selected_cells())
 				{
 					Module *tmod = design->module(cell->type_impl);
-					std::string tmod_name_str(design->twines.str(tmod->meta_->name));
-					std::string newname = design->twines.str(module->meta_->name) + "." + cell->module->design->twines.str(cell->meta_->name);
+					std::string tmod_name_str(tmod->name.str());
+					std::string newname = module->name.str() + "." + cell->name.str();
 
 					if (tmod == nullptr)
 						continue;

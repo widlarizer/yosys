@@ -134,7 +134,7 @@ void check(RTLIL::Design *design, bool dff_mode)
 						Const init = Q.wire->attributes.at(ID::init, State::Sx);
 						log_assert(GetSize(init) == 1);
 					}
-					else if (unsupported.count(derived_cell->type.ref()))
+					else if (unsupported.count(derived_cell->type))
 						log_error("Whitebox '%s' with (* abc9_flop *) contains a %s cell, which is not supported for sequential synthesis.\n", derived_module, derived_cell->type.unescape());
 				}
 			}
@@ -277,7 +277,7 @@ void prep_bypass(RTLIL::Design *design)
 	pool<TwineRef> processed;
 	for (auto module : design->selected_modules())
 		for (auto cell : module->cells()) {
-			if (!processed.insert(cell->type.ref()).second)
+			if (!processed.insert(cell->type).second)
 				continue;
 			auto inst_module = design->module(cell->type_impl);
 			if (!inst_module)
@@ -319,7 +319,7 @@ void prep_bypass(RTLIL::Design *design)
 
 			// Copy inst_module into map_design, with the same interface
 			//   and duplicate $abc9$* wires for its output ports
-			auto map_module = map_design->addModule(to_map(cell->type.ref()));
+			auto map_module = map_design->addModule(to_map(cell->type));
 			for (auto port_name : inst_module->ports) {
 				auto w = map_module->addWire(to_map(port_name), inst_module->wire(port_name));
 				if (w->port_output)
@@ -460,7 +460,7 @@ void prep_dff(RTLIL::Design *design)
 
 	for (auto module : design->selected_modules())
 		for (auto cell : module->cells()) {
-			if (modules_sel.selected_whole_module(cell->type.ref()))
+			if (modules_sel.selected_whole_module(cell->type))
 				continue;
 			auto inst_module = design->module(cell->type_impl);
 			if (!inst_module)
@@ -474,7 +474,7 @@ void prep_dff(RTLIL::Design *design)
 				// be instantiating the derived module which will have had any parameters constant-propagated.
 				// This task is expected to be performed by `abc9_ops -prep_hier`, but it looks like it failed to do so for this design.
 				// Please file a bug report!
-				log_error("Not expecting parameters on cell '%s' instantiating module '%s' marked (* abc9_flop *)\n", cell->module->design->twines.str(cell->meta_->name), cell->type.unescaped());
+				log_error("Not expecting parameters on cell '%s' instantiating module '%s' marked (* abc9_flop *)\n", cell->name.str(), cell->type.unescaped());
 			}
 			modules_sel.select(inst_module);
 		}
@@ -651,7 +651,7 @@ void prep_delays(RTLIL::Design *design, bool dff_mode)
 						//   as delays will be captured in the flop box
 			}
 
-			if (!timing.count(cell->type.ref()))
+			if (!timing.count(cell->type))
 				timing.setup_module(inst_module);
 
 			cells.emplace_back(cell);
@@ -668,7 +668,7 @@ void prep_delays(RTLIL::Design *design, bool dff_mode)
 		auto inst_module = design->module(cell->type_impl);
 		log_assert(inst_module);
 
-		for (auto &i : timing.at(cell->type.ref()).required) {
+		for (auto &i : timing.at(cell->type).required) {
 			auto port_wire = inst_module->wire(i.first.name);
 			if (!port_wire)
 				log_error("Port %s in cell %s (type %s) from module %s does not actually exist",
@@ -734,7 +734,7 @@ void prep_xaiger(RTLIL::Module *module, bool dff)
 			continue;
 
 		if (inst_module && inst_module->get_bool_attribute(ID::abc9_box)) {
-			auto r = box_ports.insert(cell->type.ref());
+			auto r = box_ports.insert(cell->type);
 			if (r.second) {
 				// Make carry in the last PI, and carry out the last PO
 				//   since ABC requires it this way
@@ -908,7 +908,7 @@ void prep_xaiger(RTLIL::Module *module, bool dff)
 					Pass::call_on_module(design, box_module, "proc -noopt");
 
 				int box_inputs = 0;
-				for (auto port_name : box_ports.at(cell->type.ref())) {
+				for (auto port_name : box_ports.at(cell->type)) {
 					RTLIL::Wire *w = box_module->wire(port_name);
 					log_assert(w);
 					log_assert(!w->port_input || !w->port_output);
@@ -934,7 +934,7 @@ void prep_xaiger(RTLIL::Module *module, bool dff)
 				log_assert(holes_cell == nullptr);
 		}
 
-		for (auto port_name : box_ports.at(cell->type.ref())) {
+		for (auto port_name : box_ports.at(cell->type)) {
 			RTLIL::Wire *w = box_module->wire(port_name);
 			log_assert(w);
 			if (!w->port_output)

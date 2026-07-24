@@ -1215,7 +1215,7 @@ struct TestCellPass : public Pass {
 						CellCosts costs(design);
 						Pass::call(design, "select gold");
 						for (auto mod : design->selected_modules()) {
-							log_assert(design->twines.str(mod->meta_->name) == "\\gold");
+							log_assert(mod->name.str() == "\\gold");
 							// Expected to run once
 							int num_cells_estimate = costs.get(uut);
 							if (num_cells <= num_cells_estimate) {

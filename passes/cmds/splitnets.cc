@@ -178,9 +178,9 @@ struct SplitnetsPass : public Pass {
 				for (auto c : module->cells())
 				for (auto &p : c->connections())
 				{
-					if (!ct.cell_known(c->type.ref()))
+					if (!ct.cell_known(c->type))
 						continue;
-					if (!ct.cell_output(c->type.ref(), p.first))
+					if (!ct.cell_output(c->type, p.first))
 						continue;
 
 					RTLIL::SigSpec sig = p.second;

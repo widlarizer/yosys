@@ -401,7 +401,7 @@ void parse_blif(RTLIL::Design *design, std::istream &f, TwineRef dff_name, bool 
 
 				TwineRef celltype = design->twines.add(RTLIL::escape_id(p));
 				RTLIL::Cell *cell = module->addCell(NEW_ID, celltype);
-				RTLIL::Module *cell_mod = design->module(cell->type.ref());
+				RTLIL::Module *cell_mod = design->module(cell->type);
 
 				dict<TwineRef, dict<int, SigBit>> cell_wideports_cache;
 

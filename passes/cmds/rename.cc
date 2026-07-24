@@ -141,7 +141,7 @@ static bool rename_witness(RTLIL::Design *design, dict<RTLIL::Module *, int> &ca
 		if (impl != nullptr) {
 			bool witness_in_cell = rename_witness(design, cache, impl);
 			has_witness_signals |= witness_in_cell;
-			if (witness_in_cell && !cell->name.is_public()) {
+			if (witness_in_cell && !cell->name.isPublic()) {
 				std::string name = cell->name.unescaped();
 				for (auto &c : name)
 					if ((c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && (c < '0' || c > '9') && c != '_')
@@ -163,7 +163,7 @@ static bool rename_witness(RTLIL::Design *design, dict<RTLIL::Module *, int> &ca
 			auto sig_out = cell->getPort(QY == ID::D ? ID::D : (QY == ID::Q ? ID::Q : ID::Y));
 
 			for (auto chunk : sig_out.chunks()) {
-				if (chunk.is_wire() && !chunk.wire->name.is_public()) {
+				if (chunk.is_wire() && !chunk.wire->name.isPublic()) {
 					std::string name = stringf("%s_%s", cell->type.unescape(), cell->name.unescape());
 					for (auto &c : name)
 						if ((c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && (c < '0' || c > '9') && c != '_')
@@ -184,7 +184,7 @@ static bool rename_witness(RTLIL::Design *design, dict<RTLIL::Module *, int> &ca
 
 		if (cell->type.in(ID($assert), ID($assume), ID($cover), ID($live), ID($fair), ID($check))) {
 			has_witness_signals = true;
-			if (cell->name.is_public())
+			if (cell->name.isPublic())
 				continue;
 			std::string name = stringf("%s_%s", cell->type.unescape(), cell->name.unescape());
 			for (auto &c : name)
@@ -508,11 +508,11 @@ struct RenamePass : public Pass {
 				dict<RTLIL::Cell *, TwineRef> new_cell_names;
 
 				for (auto wire : module->selected_wires())
-					if (wire->name.is_public() && wire->port_id == 0)
+					if (wire->name.isPublic() && wire->port_id == 0)
 						new_wire_names[wire] = module->design->twines.add(NEW_ID);
 
 				for (auto cell : module->selected_cells())
-					if (cell->name.is_public())
+					if (cell->name.isPublic())
 						new_cell_names[cell] = module->design->twines.add(NEW_ID);
 
 				for (auto &it : new_wire_names)
@@ -637,7 +637,7 @@ struct RenamePass : public Pass {
 
 				RTLIL::Module *module_to_rename = nullptr;
 				for (auto module : design->modules()) {
-					std::string module_name_str = module->design->twines.str(module->meta_->name);
+					std::string module_name_str = module->name.str();
 					if (module_name_str == from_name || RTLIL::unescape_id(module_name_str) == from_name) {
 						module_to_rename = module;
 						break;

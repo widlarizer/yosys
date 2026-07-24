@@ -904,7 +904,7 @@ struct AST_INTERNAL::ProcessGenerator
 				}
 
 				Fmt fmt;
-				fmt.parse_verilog(args, /*sformat_like=*/false, default_base, /*task_name=*/ast->str, current_module->design->twines.str(current_module->meta_->name));
+				fmt.parse_verilog(args, /*sformat_like=*/false, default_base, /*task_name=*/ast->str, current_module->name.str());
 				if (ast->str.substr(0, 8) == "$display")
 					fmt.append_literal("\n");
 				fmt.emit_rtlil(cell);
@@ -2290,7 +2290,7 @@ RTLIL::SigSpec AstNode::genRTLIL(int width_hint, bool sign_hint)
 			}
 
 			// Set attribute 'module_not_derived' which will be cleared again after the hierarchy pass
-			if (cell->type.is_public())
+			if (cell->type.isPublic())
 				cell->set_bool_attribute(ID::module_not_derived);
 
 			for (auto &attr : attributes) {

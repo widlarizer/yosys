@@ -44,7 +44,7 @@ void manufacture_info(InputType flop, OutputType& info, FfInitVals *initvals) {
 	} else {
 		static_assert(std::is_same_v<InputType, Cell*>);
 		cell = flop;
-		type = flop->type.ref();
+		type = flop->type;
 	}
 	if constexpr (have_cell) {
 		info.sig_q = cell->getPort(ID::Q);
@@ -820,7 +820,7 @@ void FfData::flip_bits(const pool<int> &bits) {
 	Wire *new_q = module->addWire(NEW_ID, width);
 
 	if (has_sr && cell) {
-		log_warning("Flipping D/Q/init and inserting priority fixup to legalize %s.%s [%s].\n", module->design->twines.str(module->meta_->name).c_str(), cell->name, cell->type.unescape());
+		log_warning("Flipping D/Q/init and inserting priority fixup to legalize %s.%s [%s].\n", module->name.str().c_str(), cell->name, cell->type.unescape());
 	}
 
 	if (is_fine) {

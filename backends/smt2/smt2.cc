@@ -1003,7 +1003,7 @@ struct Smt2Worker
 			if (is_smtlib2_comb_expr && !is_smtlib2_module)
 				log_error("smtlib2_comb_expr is only valid in a module with the smtlib2_module attribute: wire %s.%s", module,
 					  wire);
-			if (wire->port_id || is_register || contains_clock || wire->get_bool_attribute(ID::keep) || (wiresmode && wire->name.is_public())) {
+			if (wire->port_id || is_register || contains_clock || wire->get_bool_attribute(ID::keep) || (wiresmode && wire->name.isPublic())) {
 				RTLIL::SigSpec sig = sigmap(wire);
 				std::vector<std::string> comments;
 				if (wire->port_input)
@@ -1012,7 +1012,7 @@ struct Smt2Worker
 					comments.push_back(stringf("; yosys-smt2-output %s %d\n", get_id(wire), wire->width));
 				if (is_register)
 					comments.push_back(stringf("; yosys-smt2-register %s %d\n", get_id(wire), wire->width));
-				if (wire->get_bool_attribute(ID::keep) || (wiresmode && wire->name.is_public()))
+				if (wire->get_bool_attribute(ID::keep) || (wiresmode && wire->name.isPublic()))
 					comments.push_back(stringf("; yosys-smt2-wire %s %d\n", get_id(wire), wire->width));
 				if (contains_clock && GetSize(wire) == 1 && (clock_posedge.count(sig) || clock_negedge.count(sig)))
 					comments.push_back(stringf("; yosys-smt2-clock %s%s%s\n", get_id(wire),
@@ -1523,7 +1523,7 @@ struct Smt2Worker
 
 	template<class T> static std::vector<std::string> witness_path(T *obj) {
 		std::vector<std::string> path;
-		if (obj->name.is_public()) {
+		if (obj->name.isPublic()) {
 			auto hdlname = obj->get_string_attribute(ID::hdlname);
 			for (auto token : split_tokens(hdlname))
 				path.push_back("\\" + token);
@@ -1536,7 +1536,7 @@ struct Smt2Worker
 	std::string witness_signal(const char *type, int width, int offset, const std::string &smtname, int smtid, RTLIL::Wire *wire, int smtoffset = 0)
 	{
 		std::vector<std::string> hiername;
-		if (wire->meta_->name.is_public()) {
+		if (wire->meta_->name.isPublic()) {
 			auto hdlname = wire->get_string_attribute(ID::hdlname);
 			for (auto token : split_tokens(hdlname))
 				hiername.push_back("\\" + token);

@@ -86,7 +86,7 @@ struct TorderPass : public Pass {
 				if (stop_db.count(TwineRef(cell->type)) && stop_db.at(TwineRef(cell->type)).count(conn.first))
 					continue;
 
-				if (!noautostop && yosys_celltypes.cell_known(cell->type.ref())) {
+				if (!noautostop && yosys_celltypes.cell_known(cell->type)) {
 					if (conn.first.in(ID::Q, ID::CTRL_OUT, ID::RD_DATA))
 						continue;
 					if (cell->type.in(ID($memrd), ID($memrd_v2)) && conn.first == ID::DATA)

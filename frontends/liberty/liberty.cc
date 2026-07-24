@@ -215,7 +215,7 @@ static void create_ff(RTLIL::Module *module, const LibertyAst *node)
 	auto [iq_sig, iqn_sig] = find_latch_ff_wires(module, node);
 	RTLIL::SigSpec clk_sig, data_sig, clear_sig, preset_sig;
 	bool clk_polarity = true, clear_polarity = true, preset_polarity = true;
-	const std::string name = module->design->twines.str(module->meta_->name);
+	const std::string name = module->name.str();
 
 	std::optional<char> clear_preset_var1;
 	std::optional<char> clear_preset_var2;

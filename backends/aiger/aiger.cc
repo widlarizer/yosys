@@ -93,7 +93,7 @@ struct AigerWriter
 					continue;
 				for (size_t j = i; j < next_loop_check; ++j) {
 					report_bit = bit2aig_stack[j];
-					if (report_bit.is_wire() && report_bit.wire->name.is_public())
+					if (report_bit.is_wire() && report_bit.wire->name.isPublic())
 						break;
 				}
 				log_error("Found combinational logic loop while processing signal %s.\n", log_signal(report_bit));
@@ -139,7 +139,7 @@ struct AigerWriter
 
 		// promote public wires
 		for (auto wire : module->wires())
-			if (wire->name.is_public())
+			if (wire->name.isPublic())
 				sigmap.add(wire);
 
 		// promote output wires

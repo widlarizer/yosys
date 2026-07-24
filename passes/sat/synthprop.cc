@@ -68,12 +68,12 @@ void SynthPropWorker::tracing(RTLIL::Module *mod, int depth, TrackingData &traci
 			log("%*sFound assert %s..\n", 2*(depth+1), "", cell);
 			tracing_data[mod].assertion_cells.emplace(cell);
 			if (!or_outputs) {
-				tracing_data[mod].names.push_back(hier_path + "." + cell->module->design->twines.str(cell->meta_->name));
+				tracing_data[mod].names.push_back(hier_path + "." + cell->name.str());
 			}
 			cnt++;
 		}
 		else if (RTLIL::Module *submod = design->module(cell->type_impl)) {
-			tracing(submod, depth+1, tracing_data, hier_path + "." + cell->module->design->twines.str(cell->meta_->name));
+			tracing(submod, depth+1, tracing_data, hier_path + "." + cell->name.str());
 			if (!or_outputs) {
 				for (size_t i = 0; i < tracing_data[submod].names.size(); i++)
 					tracing_data[mod].names.push_back(tracing_data[submod].names[i]);

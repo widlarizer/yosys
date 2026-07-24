@@ -109,7 +109,7 @@ struct Index {
 		int pos = index_wires(info, m);
 
 		for (auto cell : m->cells()) {
-			if (known_ops(cell->type.ref()) || cell->type.in(ID::$scopeinfo, ID::$specify2, ID::$specify3, ID::$input_port))
+			if (known_ops(cell->type) || cell->type.in(ID::$scopeinfo, ID::$specify2, ID::$specify3, ID::$input_port))
 				continue;
 
 			Module *submodule = m->design->module(cell->type_impl);
@@ -563,7 +563,7 @@ struct Index {
 				if (!cell)
 					ret += design->twines.str(minfo.module->meta_->name);
 				else
-					ret += design->twines.str(cell->meta_->name);
+					ret += cell->name.str();
 				first = false;
 			}
 			return ret;
@@ -628,7 +628,7 @@ struct Index {
 			// an output of a cell
 			Cell *driver = bit.wire->driverCell();
 
-			if (known_ops(driver->type.ref())) {
+			if (known_ops(driver->type)) {
 				ret = impl_op(cursor, driver, bit.wire->driverPort(), bit.offset);
 			} else {
 				Module *def = cursor.enter(*this, driver);
@@ -899,7 +899,7 @@ struct XAigerAnalysis : Index<XAigerAnalysis, int, 0, 0> {
 			return false;
 
 		Cell *driver = bit.wire->driverCell();
-		Module *mod = design->module(driver->type.ref());
+		Module *mod = design->module(driver->type);
 		if (!mod || !mod->has_attribute(ID::abc9_box_id))
 			return false;
 
@@ -935,7 +935,7 @@ struct XAigerAnalysis : Index<XAigerAnalysis, int, 0, 0> {
 
 		HierCursor cursor;
 		for (auto box : top_minfo->found_blackboxes) {
-			Module *def = design->module(box->type.ref());
+			Module *def = design->module(box->type);
 			if (!(def && def->has_attribute(ID::abc9_box_id)))
 				for (auto &conn : box->connections_)
 					if (box->port_dir(conn.first) != RTLIL::PD_INPUT)
@@ -951,7 +951,7 @@ struct XAigerAnalysis : Index<XAigerAnalysis, int, 0, 0> {
 		}
 
 		for (auto box : top_minfo->found_blackboxes) {
-			Module *def = design->module(box->type.ref());
+			Module *def = design->module(box->type);
 			if (!(def && def->has_attribute(ID::abc9_box_id)))
 				for (auto &conn : box->connections_)
 					if (box->port_dir(conn.first) == RTLIL::PD_INPUT)
@@ -1035,7 +1035,7 @@ struct XAigerWriter : AigerWriter {
 					if (map_file.is_open()) {
 						log_assert(cursor.is_top());
 						map_file << "pseudopo " << proper_pos_counter << " " << bitp
-							<< " " << design->twines.str(box->meta_->name).c_str()
+							<< " " << box->name.str().c_str()
 							<< " " << design->twines.str(conn.first).c_str() << "\n";
 					}
 					proper_pos_counter++;
@@ -1092,7 +1092,7 @@ struct XAigerWriter : AigerWriter {
 						  box,
 						  box->type.unescaped());
 
-				Module *box_module = design->module(box->type.ref()), *box_derived;
+				Module *box_module = design->module(box->type), *box_derived;
 
 				if (box_module && !box->parameters.empty()) {
 					// TODO: This is potentially costly even if a cached derivation exists
@@ -1129,7 +1129,7 @@ struct XAigerWriter : AigerWriter {
 		nonopaque_boxes.clear();
 		for (auto box : boxes_order) {
 			HierCursor cursor;
-			Module *def = design->module(box->type.ref());
+			Module *def = design->module(box->type);
 			nonopaque_boxes.push_back(std::make_tuple(cursor, box, def));
 		}
 
@@ -1140,7 +1140,7 @@ struct XAigerWriter : AigerWriter {
 
 			if (map_file.is_open()) {
 				log_assert(cursor.is_top());
-				map_file << "box " << box_seq << " " << design->twines.str(box->meta_->name).c_str() << "\n";
+				map_file << "box " << box_seq << " " << box->name.str().c_str() << "\n";
 			}
 			box_seq++;
 

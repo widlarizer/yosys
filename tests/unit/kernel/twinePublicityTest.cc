@@ -109,8 +109,8 @@ TEST(TwinePublicityTest, WireNameMasquerade)
 	RTLIL::Wire *pub = mod->addWire(design.twines.add(std::string("\\sig")));
 	RTLIL::Wire *priv = mod->addWire(design.twines.add(std::string("$sig")));
 
-	EXPECT_TRUE(pub->name.is_public());
-	EXPECT_FALSE(priv->name.is_public());
+	EXPECT_TRUE(pub->name.isPublic());
+	EXPECT_FALSE(priv->name.isPublic());
 	EXPECT_EQ(pub->name.escaped(), "\\sig");
 	EXPECT_EQ(pub->name.unescaped(), "sig");
 	EXPECT_EQ(pub->name.str(), "\\sig");

@@ -65,10 +65,10 @@ struct ConstEvalAig
 	ConstEvalAig(RTLIL::Module *module) : module(module)
 	{
 		for (auto &it : module->cells_) {
-			if (!yosys_celltypes.cell_known(it.second->type.ref()))
+			if (!yosys_celltypes.cell_known(it.second->type))
 				continue;
 			for (auto &it2 : it.second->connections())
-				if (yosys_celltypes.cell_output(it.second->type.ref(), it2.first)) {
+				if (yosys_celltypes.cell_output(it.second->type, it2.first)) {
 					auto r = sig2driver.insert(std::make_pair(it2.second, it.second));
 					log_assert(r.second);
 				}
@@ -214,7 +214,7 @@ AigerReader::AigerReader(RTLIL::Design *design, std::istream &f, TwineRef module
 	module->design = design;
 	module->meta_->name = module_name;
 	if (design->module(module->meta_->name))
-		log_error("Duplicate definition of module %s!\n", design->twines.str(module->meta_->name).c_str());
+		log_error("Duplicate definition of module %s!\n", module->name.str().c_str());
 }
 
 void AigerReader::parse_aiger()
@@ -715,7 +715,7 @@ void AigerReader::parse_aiger_ascii()
 		RTLIL::Wire *o_wire = createWireIfNotExists(module, l1);
 		RTLIL::Wire *i1_wire = createWireIfNotExists(module, l2);
 		RTLIL::Wire *i2_wire = createWireIfNotExists(module, l3);
-		module->addAndGate(Twine{stringf("$and%s", design->twines.str(o_wire->meta_->name).c_str())}, i1_wire, i2_wire, o_wire);
+		module->addAndGate(Twine{stringf("$and%s", o_wire->name.str().c_str())}, i1_wire, i2_wire, o_wire);
 	}
 }
 
@@ -840,7 +840,7 @@ void AigerReader::parse_aiger_binary()
 		RTLIL::Wire *o_wire = createWireIfNotExists(module, l1);
 		RTLIL::Wire *i1_wire = createWireIfNotExists(module, l2);
 		RTLIL::Wire *i2_wire = createWireIfNotExists(module, l3);
-		module->addAndGate(Twine{stringf("$and%s", design->twines.str(o_wire->meta_->name).c_str())}, i1_wire, i2_wire, o_wire);
+		module->addAndGate(Twine{stringf("$and%s", o_wire->name.str().c_str())}, i1_wire, i2_wire, o_wire);
 	}
 }
 

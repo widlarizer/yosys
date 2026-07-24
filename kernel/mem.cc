@@ -562,7 +562,7 @@ namespace {
 	};
 
 	Mem mem_from_memory(Module *module, RTLIL::Memory *mem, const MemIndex &index) {
-		std::string memid = module->design->twines.str(mem->meta_->name);
+		std::string memid = mem->name.str();
 		Mem res(module, mem->meta_->name, mem->width, mem->start_offset, mem->size);
 		res.packed = false;
 		res.mem = mem;

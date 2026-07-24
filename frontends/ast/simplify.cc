@@ -176,7 +176,7 @@ Fmt AstNode::processFormat(int stage, bool sformat_like, int default_base, size_
 	}
 
 	Fmt fmt;
-	fmt.parse_verilog(args, sformat_like, default_base, /*task_name=*/str, current_module->design->twines.str(current_module->meta_->name));
+	fmt.parse_verilog(args, sformat_like, default_base, /*task_name=*/str, current_module->name.str());
 	return fmt;
 }
 
@@ -1494,7 +1494,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 				const RTLIL::Wire *ref = module->wire(port_name);
 				if (ref == nullptr)
 					input_error("Cell instance refers to port %s which does not exist in module %s!.\n",
-							module->design->twines.str(port_name).c_str(), module->design->twines.str(module->meta_->name).c_str());
+							module->design->twines.str(port_name).c_str(), module->name.str().c_str());
 
 				// select the argument, if present
 				log_assert(child->children.size() <= 1);

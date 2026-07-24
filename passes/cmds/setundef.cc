@@ -305,7 +305,7 @@ struct SetundefPass : public Pass {
 					CellTypes ct(design);
 					for (auto &it : module->cells_)
 					for (auto &conn : it.second->connections())
-						if (!ct.cell_known(it.second->type.ref()) || ct.cell_output(it.second->type.ref(), conn.first))
+						if (!ct.cell_known(it.second->type) || ct.cell_output(it.second->type, conn.first))
 							undriven_signals.del(sigmap(conn.second));
 
 					RTLIL::SigSpec sig = undriven_signals.export_all();
@@ -340,7 +340,7 @@ struct SetundefPass : public Pass {
 					CellTypes ct(design);
 					for (auto &it : module->cells_)
 					for (auto &conn : it.second->connections())
-						if (!ct.cell_known(it.second->type.ref()) || ct.cell_output(it.second->type.ref(), conn.first))
+						if (!ct.cell_known(it.second->type) || ct.cell_output(it.second->type, conn.first))
 							undriven_signals.del(sigmap(conn.second));
 
 					RTLIL::SigSpec sig = undriven_signals.export_all();

@@ -55,7 +55,7 @@ struct ThresholdHierarchyKeeping {
 		module->has_processes_warn();
 
 		for (auto cell : module->cells()) {
-			if (!cell->type.is_public()) {
+			if (!cell->type.isPublic()) {
 				size += costs.get(cell);
 			} else {
 				RTLIL::Module *submodule = design->module(cell->type_impl);

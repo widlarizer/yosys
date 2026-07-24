@@ -984,7 +984,7 @@ size_t RTLIL::Design::gc_twines()
 		}
 		for (auto &[name, cell] : module->cells_) {
 			root(name);
-			root(cell->type.ref());
+			root(cell->type);
 			for (auto &conn : cell->connections())
 				root(conn.first);
 			for (auto &param : cell->parameters)
@@ -1790,8 +1790,8 @@ namespace {
 			std::stringstream buf;
 			RTLIL_BACKEND::dump_cell(buf, "  ", cell, cell->module->design);
 
-			std::string mod_name = module ? module->design->twines.str(module->meta_->name) : std::string();
-			std::string cell_name = cell->module->design->twines.str(cell->meta_->name);
+			std::string mod_name = module ? module->name.str() : std::string();
+			std::string cell_name = cell->name.str();
 			log_error("Found error in internal cell %s%s%s (%s) at %s:%d:\n%s",
 					mod_name, module ? "." : "",
 					cell_name, cell->type.str(), __FILE__, linenr, buf.str());

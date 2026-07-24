@@ -87,13 +87,13 @@ struct SubmodWorker
 
 	void handle_submodule(SubModule &submod)
 	{
-		log("Creating submodule %s (%s) of module %s.\n", submod.name, submod.full_name, design->twines.str(module->meta_->name).data());
+		log("Creating submodule %s (%s) of module %s.\n", submod.name, submod.full_name, module->name.str().data());
 
 		wire_flags.clear();
 		for (RTLIL::Cell *cell : submod.cells) {
 			if (ct.cell_known(cell->type_impl)) {
 				for (auto &conn : cell->connections())
-					flag_signal(conn.second, true, ct.cell_output(cell->type.ref(), conn.first), ct.cell_input(cell->type_impl, conn.first), false, false);
+					flag_signal(conn.second, true, ct.cell_output(cell->type, conn.first), ct.cell_input(cell->type_impl, conn.first), false, false);
 			} else {
 				log_warning("Port directions for cell %s (%s) are unknown. Assuming inout for all ports.\n", cell->name, cell->type);
 				for (auto &conn : cell->connections())
@@ -105,7 +105,7 @@ struct SubmodWorker
 				continue;
 			if (ct.cell_known(cell->type_impl)) {
 				for (auto &conn : cell->connections())
-					flag_signal(conn.second, false, false, false, ct.cell_output(cell->type.ref(), conn.first), ct.cell_input(cell->type_impl, conn.first));
+					flag_signal(conn.second, false, false, false, ct.cell_output(cell->type, conn.first), ct.cell_input(cell->type_impl, conn.first));
 			} else {
 				flag_found_something = false;
 				for (auto &conn : cell->connections())
@@ -249,12 +249,12 @@ struct SubmodWorker
 			return;
 
 		if (module->processes.size() > 0) {
-			log("Skipping module %s as it contains processes (run 'proc' pass first).\n", design->twines.str(module->meta_->name).data());
+			log("Skipping module %s as it contains processes (run 'proc' pass first).\n", module->name.str().data());
 			return;
 		}
 
 		if (module->memories.size() > 0) {
-			log("Skipping module %s as it contains memories (run 'memory' pass first).\n", design->twines.str(module->meta_->name).data());
+			log("Skipping module %s as it contains memories (run 'memory' pass first).\n", module->name.str().data());
 			return;
 		}
 
@@ -288,7 +288,7 @@ struct SubmodWorker
 
 				if (submodules.count(submod_str) == 0) {
 					submodules[submod_str].name = submod_str;
-					std::string module_name_str(design->twines.str(module->meta_->name));
+					std::string module_name_str(module->name.str());
 					submodules[submod_str].full_name = module_name_str + "_" + submod_str;
 					while (design->module(design->twines.add(std::string{submodules[submod_str].full_name})) != nullptr ||
 							module->count_id(design->twines.add(std::string{submodules[submod_str].full_name})) != 0)
@@ -410,7 +410,7 @@ struct SubmodPass : public Pass {
 			RTLIL::Module *module = nullptr;
 			for (auto mod : design->selected_modules()) {
 				if (module != nullptr)
-					log_cmd_error("More than one module selected: %s %s\n", design->twines.str(module->meta_->name).data(), design->twines.str(mod->meta_->name).data());
+					log_cmd_error("More than one module selected: %s %s\n", module->name.str().data(), mod->name.str().data());
 				module = mod;
 			}
 			if (module == nullptr)

@@ -279,7 +279,7 @@ struct SimInstance
 
 			if ((shared->fst) && !(shared->hide_internal && wire->name[0] == '$')) {
 				fstHandle id = shared->fst->getHandle(scope + "." + module->design->twines.unescaped_str(wire->name.ref()));
-				if (id==0 && wire->name.is_public())
+				if (id==0 && wire->name.isPublic())
 					log_warning("Unable to find wire %s in input file.\n", (scope + "." + module->design->twines.unescaped_str(wire->name.ref())));
 				fst_handles[wire] = id;
 			}
@@ -319,7 +319,7 @@ struct SimInstance
 			Module *mod = module->design->module(cell->type_impl);
 
 			if (mod != nullptr) {
-				dirty_children.insert(new SimInstance(shared, scope + "." + cell->module->design->twines.unescaped_str(cell->meta_->name), mod, cell, this));
+				dirty_children.insert(new SimInstance(shared, scope + "." + cell->name.unescape(), mod, cell, this));
 			}
 
 			for (auto &port : cell->connections()) {
@@ -419,7 +419,7 @@ struct SimInstance
 		if (instance != nullptr)
 			return parent->hiername() + "." + module->design->twines.unescaped_str(instance->name.ref());
 
-		return module->design->twines.str(module->meta_->name);
+		return module->name.str();
 	}
 
 	vector<std::string> witness_full_path() const
@@ -934,7 +934,7 @@ struct SimInstance
 		{
 			for (auto cell : formal_database)
 			{
-				string label = cell->module->design->twines.str(cell->meta_->name);
+				string label = cell->name.str();
 				if (cell->has_attribute(ID::src))
 					label = cell->get_src_attribute();
 
@@ -1034,7 +1034,7 @@ struct SimInstance
 	void write_output_header(std::function<void(const std::string&)> enter_scope, std::function<void()> exit_scope, std::function<void(const char*, int, Wire*, int, bool)> register_signal)
 	{
 		int exit_scopes = 1;
-		if (shared->hdlname && instance != nullptr && instance->name.is_public() && instance->has_attribute(ID::hdlname)) {
+		if (shared->hdlname && instance != nullptr && instance->name.isPublic() && instance->has_attribute(ID::hdlname)) {
 			auto hdlname = instance->get_hdlname_attribute();
 			log_assert(!hdlname.empty());
 			for (auto name : hdlname)
@@ -1057,7 +1057,7 @@ struct SimInstance
 
 		for (auto signal : signal_database)
 		{
-			if (shared->hdlname && signal.first->name.is_public() && signal.first->has_attribute(ID::hdlname)) {
+			if (shared->hdlname && signal.first->name.isPublic() && signal.first->has_attribute(ID::hdlname)) {
 				auto hdlname = signal.first->get_hdlname_attribute();
 				log_assert(!hdlname.empty());
 				auto signal_name = std::move(hdlname.back());
@@ -1079,7 +1079,7 @@ struct SimInstance
 
 			std::vector<std::string> hdlname;
 			std::string signal_name;
-			bool has_hdlname = shared->hdlname && cell != nullptr && cell->name.is_public() && cell->has_attribute(ID::hdlname);
+			bool has_hdlname = shared->hdlname && cell != nullptr && cell->name.isPublic() && cell->has_attribute(ID::hdlname);
 
 			if (has_hdlname) {
 				hdlname = cell->get_hdlname_attribute();

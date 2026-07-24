@@ -496,7 +496,7 @@ class FunctionalIRConstruction {
 			queue.emplace_back(cell);
 			std::optional<Node> rv;
 			for(auto const &[name, sigspec] : cell->connections())
-				if(driver_map.celltypes.cell_output(cell->type.ref(), name)) {
+				if(driver_map.celltypes.cell_output(cell->type, name)) {
 					auto node = factory.create_pending(sigspec.size());
 					factory.suggest_name(node, design->twines.add(cell->name.str() + "$" + design->twines.str(name)));
 					cell_outputs.emplace({cell, name}, node);
@@ -624,14 +624,14 @@ private:
 			TwineRef output_name; // for the single output case
 			int n_outputs = 0;
 			for(auto const &[name, sigspec] : cell->connections()) {
-				if(driver_map.celltypes.cell_input(cell->type.ref(), name) && sigspec.size() > 0)
+				if(driver_map.celltypes.cell_input(cell->type, name) && sigspec.size() > 0)
 					connections.insert({ name, enqueue(DriveChunkPort(cell, {name, sigspec})) });
-				if(driver_map.celltypes.cell_output(cell->type.ref(), name)) {
+				if(driver_map.celltypes.cell_output(cell->type, name)) {
 					output_name = name;
 					n_outputs++;
 				}
 			}
-			std::variant<dict<TwineRef, Node>, Node> outputs = simplifier.handle(cell->name.ref(), cell->type.ref(), cell->parameters, connections);
+			std::variant<dict<TwineRef, Node>, Node> outputs = simplifier.handle(cell->name.ref(), cell->type, cell->parameters, connections);
 			if(auto *nodep = std::get_if<Node>(&outputs); nodep != nullptr) {
 				log_assert(n_outputs == 1);
 				factory.update_pending(cell_outputs.at({cell, output_name}), *nodep);
@@ -693,7 +693,7 @@ public:
 				} else if (chunk.is_port()) {
 					DriveChunkPort port_chunk = chunk.port();
 					if (port_chunk.is_whole()) {
-						if (driver_map.celltypes.cell_output(port_chunk.cell->type.ref(), port_chunk.port)) {
+						if (driver_map.celltypes.cell_output(port_chunk.cell->type, port_chunk.port)) {
 							Node node = enqueue_cell(port_chunk.cell, port_chunk.port);
 							factory.update_pending(pending, node);
 						} else {

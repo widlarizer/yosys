@@ -1105,7 +1105,7 @@ void dump_cell_expr_check(std::ostream &f, std::string indent, const RTLIL::Cell
 {
 	std::string flavor = cell->getParam(ID(FLAVOR)).decode_string();
 	std::string label = "";
-	if (cell->name.is_public()) {
+	if (cell->name.isPublic()) {
 		label = stringf("%s: ", id(cell->name));
 	}
 
@@ -2457,7 +2457,7 @@ void dump_module(std::ostream &f, std::string indent, RTLIL::Module *module)
 	}
 
 	dump_attributes(f, indent, module, "\n", /*modattr=*/true);
-	f << stringf("%s" "module %s(", indent, id(module->design->twines.str(module->meta_->name), false));
+	f << stringf("%s" "module %s(", indent, id(module->name.str(), false));
 	int cnt = 0;
 	for (auto port : module->ports) {
 		Wire *wire = module->wire(port);
@@ -2744,10 +2744,10 @@ struct VerilogBackend : public Backend {
 				continue;
 			if (selected && !design->selected_whole_module(module->meta_->name)) {
 				if (design->selected_module(module->meta_->name))
-					log_cmd_error("Can't handle partially selected module %s!\n", design->twines.str(module->meta_->name).c_str());
+					log_cmd_error("Can't handle partially selected module %s!\n", module->name.str().c_str());
 				continue;
 			}
-			log("Dumping module `%s'.\n", design->twines.str(module->meta_->name).c_str());
+			log("Dumping module `%s'.\n", module->name.str().c_str());
 			module->sort();
 			dump_module(*f, "", module);
 		}

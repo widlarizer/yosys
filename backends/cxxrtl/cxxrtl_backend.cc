@@ -214,7 +214,7 @@ bool is_ff_cell(TwineRef type)
 
 bool is_internal_cell(TwineRef type)
 {
-	return !type.is_public() && type.untag().value < STATIC_TWINE_END;
+	return !type.isPublic() && type.untag().value < STATIC_TWINE_END;
 }
 
 bool is_effectful_cell(TwineRef type)
@@ -435,11 +435,11 @@ struct FlowGraph {
 	{
 		for (auto conn : cell->connections()) {
 			if (cell->output(conn.first)) {
-				if (is_inlinable_cell(cell->type.ref()))
+				if (is_inlinable_cell(cell->type))
 					add_defs(node, conn.second, /*is_ff=*/false, /*inlinable=*/true);
-				else if (is_ff_cell(cell->type.ref()))
+				else if (is_ff_cell(cell->type))
 					add_defs(node, conn.second, /*is_ff=*/true,  /*inlinable=*/false);
-				else if (is_internal_cell(cell->type.ref()))
+				else if (is_internal_cell(cell->type))
 					add_defs(node, conn.second, /*is_ff=*/false, /*inlinable=*/false);
 				else if (!is_cxxrtl_sync_port(cell, conn.first)) {
 					// Although at first it looks like outputs of user-defined cells may always be inlined, the reality is
@@ -648,9 +648,9 @@ std::string get_hdl_name(T *object)
 		if constexpr (std::is_same_v<T, RTLIL::Wire> || std::is_same_v<T, RTLIL::Cell>) {
 			name = object->name.str();
 		} else if constexpr (std::is_same_v<T, RTLIL::Module>) {
-			name = object->design->twines.str(object->meta_->name);
+			name = object->name.str();
 		} else if constexpr (std::is_same_v<T, RTLIL::Memory>) {
-			name = object->module->design->twines.str(object->meta_->name);
+			name = object->name.str();
 		}
 		return name.substr(1);
 	}
@@ -687,7 +687,7 @@ struct WireType {
 	}
 
 	WireType(Type type, const RTLIL::Cell *cell) : type(type), cell_subst(cell) {
-		log_assert(type == INLINE && is_inlinable_cell(cell->type.ref()));
+		log_assert(type == INLINE && is_inlinable_cell(cell->type));
 	}
 
 	WireType(Type type, RTLIL::SigSpec sig) : type(type), sig_subst(sig) {
@@ -1147,17 +1147,17 @@ struct CxxrtlWorker {
 	void dump_cell_expr(const RTLIL::Cell *cell, bool for_debug = false)
 	{
 		// Unary cells
-		if (is_unary_cell(cell->type.ref())) {
+		if (is_unary_cell(cell->type)) {
 			f << cell->type.substr(1);
-			if (is_extending_cell(cell->type.ref()))
+			if (is_extending_cell(cell->type))
 				f << '_' << (cell->getParam(ID::A_SIGNED).as_bool() ? 's' : 'u');
 			f << "<" << cell->getParam(ID::Y_WIDTH).as_int() << ">(";
 			dump_sigspec_rhs(cell->getPort(ID::A), for_debug);
 			f << ")";
 		// Binary cells
-		} else if (is_binary_cell(cell->type.ref())) {
+		} else if (is_binary_cell(cell->type)) {
 			f << cell->type.substr(1);
-			if (is_extending_cell(cell->type.ref()))
+			if (is_extending_cell(cell->type))
 				f << '_' << (cell->getParam(ID::A_SIGNED).as_bool() ? 's' : 'u') <<
 				            (cell->getParam(ID::B_SIGNED).as_bool() ? 's' : 'u');
 			f << "<" << cell->getParam(ID::Y_WIDTH).as_int() << ">(";
@@ -1377,14 +1377,14 @@ struct CxxrtlWorker {
 		dump_inlined_cells(inlined_cells);
 
 		// Elidable cells
-		if (is_inlinable_cell(cell->type.ref())) {
+		if (is_inlinable_cell(cell->type)) {
 			f << indent;
 			dump_sigspec_lhs(cell->getPort(ID::Y), for_debug);
 			f << " = ";
 			dump_cell_expr(cell, for_debug);
 			f << ";\n";
 		// Effectful cells
-		} else if (is_effectful_cell(cell->type.ref())) {
+		} else if (is_effectful_cell(cell->type)) {
 			log_assert(!for_debug);
 
 			// Sync effectful cells are grouped into EFFECT_SYNC nodes in the FlowGraph.
@@ -1416,7 +1416,7 @@ struct CxxrtlWorker {
 				f << indent << "}\n";
 			}
 		// Flip-flops
-		} else if (is_ff_cell(cell->type.ref())) {
+		} else if (is_ff_cell(cell->type)) {
 			log_assert(!for_debug);
 			// Clocks might be slices of larger signals but should only ever be single bit
 			if (cell->hasPort(ID::CLK) && is_valid_clock(cell->getPort(ID::CLK))) {
@@ -1531,7 +1531,7 @@ struct CxxrtlWorker {
 				f << (cell->getParam(ID::CLR_POLARITY).as_bool() ? "" : ".bit_not()") << ");\n";
 			}
 		// Internal cells
-		} else if (is_internal_cell(cell->type.ref())) {
+		} else if (is_internal_cell(cell->type)) {
 			log_cmd_error("Unsupported internal cell `%s'.\n", cell->type);
 		// User cells
 		} else if (for_debug) {
@@ -1711,7 +1711,7 @@ struct CxxrtlWorker {
 	void dump_process_case(const RTLIL::Process *proc, bool for_debug = false)
 	{
 		dump_attrs(proc);
-		f << indent << "// process " << proc->module->design->twines.str(proc->meta_->name) << " case\n";
+		f << indent << "// process " << proc->name.str() << " case\n";
 		// The case attributes (for root case) are always empty.
 		log_assert(proc->root_case.attributes.empty());
 		dump_case_rule(&proc->root_case, for_debug);
@@ -1720,7 +1720,7 @@ struct CxxrtlWorker {
 	void dump_process_syncs(const RTLIL::Process *proc, bool for_debug = false)
 	{
 		dump_attrs(proc);
-		f << indent << "// process " << proc->module->design->twines.str(proc->meta_->name) << " syncs\n";
+		f << indent << "// process " << proc->name.str() << " syncs\n";
 		for (auto sync : proc->syncs) {
 			log_assert(!for_debug || sync->type == RTLIL::STa);
 
@@ -2161,10 +2161,10 @@ struct CxxrtlWorker {
 			}
 			for (auto cell : module->cells()) {
 				// Async and initial effectful cells have additional state, which must be reset as well.
-				if (is_effectful_cell(cell->type.ref()))
+				if (is_effectful_cell(cell->type))
 					if (!cell->getParam(ID::TRG_ENABLE).as_bool() || cell->getParam(ID::TRG_WIDTH).as_int() == 0)
 						f << indent << mangle(cell) << " = {};\n";
-				if (is_internal_cell(cell->type.ref()))
+				if (is_internal_cell(cell->type))
 					continue;
 				f << indent << mangle(cell);
 				RTLIL::Module *cell_module = module->design->module(cell->type_impl);
@@ -2286,7 +2286,7 @@ struct CxxrtlWorker {
 					f << indent << "if (" << mangle(&mem) << ".commit(observer)) changed = true;\n";
 				}
 				for (auto cell : module->cells()) {
-					if (is_internal_cell(cell->type.ref()))
+					if (is_internal_cell(cell->type))
 						continue;
 					const char *access = is_cxxrtl_blackbox_cell(cell) ? "->" : ".";
 					f << indent << "if (" << mangle(cell) << access << "commit(observer)) changed = true;\n";
@@ -2309,7 +2309,7 @@ struct CxxrtlWorker {
 			}
 		};
 		for (auto metadata_item : metadata_map) {
-			if (!metadata_item.first.is_public())
+			if (!metadata_item.first.isPublic())
 				continue;
 			if (metadata_item.second.size() > 64 && (metadata_item.second.flags & RTLIL::CONST_FLAG_STRING) == 0) {
 				f << indent << "/* attribute " << design->twines.str(metadata_item.first).substr(1) << " is over 64 bits wide */\n";
@@ -2346,7 +2346,7 @@ struct CxxrtlWorker {
 			f << "metadata_map({\n";
 			inc_indent();
 				for (auto metadata_item : metadata_map) {
-					if (!metadata_item.first.is_public())
+					if (!metadata_item.first.isPublic())
 						continue;
 					if (metadata_item.second.size() > 64 && (metadata_item.second.flags & RTLIL::CONST_FLAG_STRING) == 0) {
 						f << indent << "/* attribute " << design->twines.str(metadata_item.first).substr(1) << " is over 64 bits wide */\n";
@@ -2441,7 +2441,7 @@ struct CxxrtlWorker {
 							// Member wire
 							std::vector<std::string> flags;
 
-							if (!wire->name.is_public())
+							if (!wire->name.isPublic())
 								flags.push_back("GENERATED");
 
 							if (wire->port_input && wire->port_output)
@@ -2565,7 +2565,7 @@ struct CxxrtlWorker {
 				}
 				if (!module->get_bool_attribute(ID(cxxrtl_blackbox))) {
 					for (auto &mem : mod_memories[module]) {
-						if (!mem.memid.is_public())
+						if (!mem.memid.isPublic())
 							continue;
 						f << indent << "items->add(path, " << escape_cxx_string(mem.packed ? get_hdl_name(mem.cell) : get_hdl_name(mem.mem)) << ", ";
 						if (mem.packed) {
@@ -2581,7 +2581,7 @@ struct CxxrtlWorker {
 			f << indent << "}\n";
 			if (!module->get_bool_attribute(ID(cxxrtl_blackbox))) {
 				for (auto cell : module->cells()) {
-					if (is_internal_cell(cell->type.ref()))
+					if (is_internal_cell(cell->type))
 						continue;
 					const char *access = is_cxxrtl_blackbox_cell(cell) ? "->" : ".";
 					f << indent << mangle(cell) << access;
@@ -2691,7 +2691,7 @@ struct CxxrtlWorker {
 				bool has_cells = false;
 				for (auto cell : module->cells()) {
 					// Async and initial effectful cells have additional state, which requires storage.
-					if (is_effectful_cell(cell->type.ref())) {
+					if (is_effectful_cell(cell->type)) {
 						if (cell->getParam(ID::TRG_ENABLE).as_bool() && cell->getParam(ID::TRG_WIDTH).as_int() == 0)
 							f << indent << "value<1> " << mangle(cell) << ";\n"; // async initial cell
 						if (!cell->getParam(ID::TRG_ENABLE).as_bool() && cell->type == ID($print))
@@ -2699,7 +2699,7 @@ struct CxxrtlWorker {
 						if (!cell->getParam(ID::TRG_ENABLE).as_bool() && cell->type == ID($check))
 							f << indent << "value<2> " << mangle(cell) << ";\n"; // {EN, A}
 					}
-					if (is_internal_cell(cell->type.ref()))
+					if (is_internal_cell(cell->type))
 						continue;
 					dump_attrs(cell);
 					RTLIL::Module *cell_module = module->design->module(cell->type_impl);
@@ -2799,8 +2799,8 @@ struct CxxrtlWorker {
 			bool operator()(const RTLIL::Module *a, const RTLIL::Module *b) const {
 				if (a == nullptr || b == nullptr)
 					return a < b;
-				auto name_a = a->design->twines.str(a->meta_->name);
-				auto name_b = b->design->twines.str(b->meta_->name);
+				auto name_a = a->name.str();
+				auto name_b = b->name.str();
 				return name_a < name_b;
 			}
 		};
@@ -2818,7 +2818,7 @@ struct CxxrtlWorker {
 
 			topo_design.node(module);
 			for (auto cell : module->cells()) {
-				if (is_internal_cell(cell->type.ref()) || is_cxxrtl_blackbox_cell(cell))
+				if (is_internal_cell(cell->type) || is_cxxrtl_blackbox_cell(cell))
 					continue;
 				RTLIL::Module *cell_module = design->module(cell->type_impl);
 				log_assert(cell_module != nullptr);
@@ -3033,7 +3033,7 @@ struct CxxrtlWorker {
 				}
 
 				// Effectful cells may be triggered on posedge/negedge events.
-				if (is_effectful_cell(cell->type.ref()) && cell->getParam(ID::TRG_ENABLE).as_bool()) {
+				if (is_effectful_cell(cell->type) && cell->getParam(ID::TRG_ENABLE).as_bool()) {
 					for (size_t i = 0; i < (size_t)cell->getParam(ID::TRG_WIDTH).as_int(); i++) {
 						RTLIL::SigBit trg = cell->getPort(ID::TRG).extract(i, 1);
 						if (is_valid_clock(trg))
@@ -3158,25 +3158,25 @@ struct CxxrtlWorker {
 
 				if (feedback_wires[wire]) continue;
 				if (wire->port_output && !module->get_bool_attribute(ID::top)) continue;
-				if (!wire->name.is_public() && !unbuffer_internal) continue;
-				if (wire->name.is_public() && !unbuffer_public) continue;
+				if (!wire->name.isPublic() && !unbuffer_internal) continue;
+				if (wire->name.isPublic() && !unbuffer_public) continue;
 				if (flow.wire_sync_defs.count(wire) > 0) continue;
 				wire_type = {WireType::MEMBER};
 
 				if (edge_wires[wire]) continue;
 				if (wire->get_bool_attribute(ID::keep)) continue;
 				if (wire->port_input || wire->port_output) continue;
-				if (!wire->name.is_public() && !localize_internal) continue;
-				if (wire->name.is_public() && !localize_public) continue;
+				if (!wire->name.isPublic() && !localize_internal) continue;
+				if (wire->name.isPublic() && !localize_public) continue;
 				wire_type = {WireType::LOCAL};
 			}
 
 			// Discover nodes reachable from primary outputs (i.e. members) and collect reachable wire users.
 			pool<FlowGraph::Node*> worklist;
 			for (auto node : flow.nodes) {
-				if (node->type == FlowGraph::Node::Type::CELL_EVAL && !is_internal_cell(node->cell->type.ref()))
+				if (node->type == FlowGraph::Node::Type::CELL_EVAL && !is_internal_cell(node->cell->type))
 					worklist.insert(node); // node evaluates a submodule
-				else if (node->type == FlowGraph::Node::Type::CELL_EVAL && is_effectful_cell(node->cell->type.ref()))
+				else if (node->type == FlowGraph::Node::Type::CELL_EVAL && is_effectful_cell(node->cell->type))
 					worklist.insert(node); // node has async effects
 				else if (node->type == FlowGraph::Node::Type::EFFECT_SYNC)
 					worklist.insert(node); // node has sync effects
@@ -3214,8 +3214,8 @@ struct CxxrtlWorker {
 					continue;
 				}
 
-				if (!wire->name.is_public() && !inline_internal) continue;
-				if (wire->name.is_public() && !inline_public) continue;
+				if (!wire->name.isPublic() && !inline_internal) continue;
+				if (wire->name.isPublic() && !inline_public) continue;
 				if (flow.is_inlinable(wire, live_wires[wire])) {
 					if (flow.wire_comb_defs[wire].size() > 1)
 						log_cmd_error("Wire %s.%s has multiple drivers!\n", module, wire);
@@ -3223,7 +3223,7 @@ struct CxxrtlWorker {
 					FlowGraph::Node *node = *flow.wire_comb_defs[wire].begin();
 					switch (node->type) {
 						case FlowGraph::Node::Type::CELL_EVAL:
-							if (!is_inlinable_cell(node->cell->type.ref())) continue;
+							if (!is_inlinable_cell(node->cell->type)) continue;
 							wire_type = {WireType::INLINE, node->cell}; // wire replaced with cell
 							break;
 						case FlowGraph::Node::Type::CONNECT:
@@ -3241,7 +3241,7 @@ struct CxxrtlWorker {
 			for (auto node : node_order)
 				if (live_nodes[node]) {
 					if (node->type == FlowGraph::Node::Type::CELL_EVAL &&
-							is_effectful_cell(node->cell->type.ref()) &&
+							is_effectful_cell(node->cell->type) &&
 							node->cell->getParam(ID::TRG_ENABLE).as_bool() &&
 							node->cell->getParam(ID::TRG_WIDTH).as_int() != 0)
 						effect_sync_cells[make_pair(node->cell->getPort(ID::TRG), node->cell->getParam(ID::TRG_POLARITY))].push_back(node->cell);
@@ -3288,7 +3288,7 @@ struct CxxrtlWorker {
 					if (!debug_info) continue;
 					if (wire->port_input || wire_type.is_buffered())
 						debug_wire_type = wire_type; // wire contains state
-					else if (!wire->name.is_public())
+					else if (!wire->name.isPublic())
 						continue; // internal and stateless
 
 					if (!debug_member) continue;
@@ -3308,7 +3308,7 @@ struct CxxrtlWorker {
 						} else if (rhs.is_wire()) {
 							if (wire_types[rhs.as_wire()].is_member())
 								debug_wire_type = {WireType::ALIAS, rhs}; // wire replaced with wire
-							else if (debug_eval && rhs.as_wire()->name.is_public())
+							else if (debug_eval && rhs.as_wire()->name.isPublic())
 								debug_wire_type = {WireType::ALIAS, rhs}; // wire replaced with outline
 							it = rhs.as_wire(); // and keep looking
 							continue;
@@ -3352,7 +3352,7 @@ struct CxxrtlWorker {
 				for (auto wire : module->wires()) {
 					const auto &wire_type = wire_types[wire];
 					auto &debug_wire_type = debug_wire_types[wire];
-					if (wire->name.is_public()) continue;
+					if (wire->name.isPublic()) continue;
 
 					if (debug_live_wires[wire].empty()) {
 						continue; // wire never used
@@ -3361,7 +3361,7 @@ struct CxxrtlWorker {
 						FlowGraph::Node *node = *flow.wire_comb_defs[wire].begin();
 						switch (node->type) {
 							case FlowGraph::Node::Type::CELL_EVAL:
-								if (!is_inlinable_cell(node->cell->type.ref())) continue;
+								if (!is_inlinable_cell(node->cell->type)) continue;
 								debug_wire_type = {WireType::INLINE, node->cell}; // wire replaced with cell
 								break;
 							case FlowGraph::Node::Type::CONNECT:

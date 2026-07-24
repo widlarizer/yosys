@@ -922,7 +922,7 @@ static char *readline_obj_generator(const char *text, int state)
 		if (design->selected_active_module == Twine::Null)
 		{
 			for (auto mod : design->modules()) {
-				std::string mod_name = design->twines.str(mod->meta_->name);
+				std::string mod_name = mod->name.str();
 				if (mod_name.compare(0, len, text) == 0)
 					obj_names.push_back(strdup(mod_name.c_str()));
 			}
@@ -932,7 +932,7 @@ static char *readline_obj_generator(const char *text, int state)
 			RTLIL::Module *module = design->module(design->selected_active_module);
 
 			for (auto w : module->wires())
-				if (design->twines.unescaped_str(w->meta_->name).compare(0, len, text) == 0)
+				if (w->name.unescape().compare(0, len, text) == 0)
 					obj_names.push_back(strdup(w->name.unescape().c_str()));
 
 			for (auto &it : module->memories) {
@@ -942,8 +942,8 @@ static char *readline_obj_generator(const char *text, int state)
 			}
 
 			for (auto cell : module->cells())
-				if (cell->module->design->twines.str(cell->meta_->name).compare(0, len, text) == 0)
-					obj_names.push_back(strdup(cell->module->design->twines.str(cell->meta_->name).c_str()));
+				if (cell->name.str().compare(0, len, text) == 0)
+					obj_names.push_back(strdup(cell->name.str().c_str()));
 
 			for (auto &it : module->processes) {
 				std::string proc_name = design->twines.str(it.first);

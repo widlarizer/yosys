@@ -47,8 +47,8 @@ struct LibertyStubber {
 	};
 	void liberty_flop(Module* base, Module* derived, std::ostream& f)
 	{
-		auto base_name = base->design->twines.str(base->meta_->name).substr(1);
-		auto derived_name = derived->design->twines.str(derived->meta_->name).substr(1);
+		auto base_name = base->name.str().substr(1);
+		auto derived_name = derived->name.str().substr(1);
 
 		FfTypeData ffType(base->meta_->name);
 		LibertyItemizer i(f);
@@ -118,7 +118,7 @@ struct LibertyStubber {
 	void liberty_cell(Module* base, Module* derived, std::ostream& f)
 	{
 		auto base_name = base->name.substr(1);
-		auto derived_name = derived->design->twines.str(derived->meta_->name).substr(1);
+		auto derived_name = derived->name.str().substr(1);
 		if (!ct.cell_types.count(base->name)) {
 			log_debug("skip skeleton for %s\n", base_name.c_str());
 			return;

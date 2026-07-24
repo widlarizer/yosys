@@ -344,7 +344,7 @@ private:
 				//with taint signals and connect the new ports to the corresponding taint signals.
 				RTLIL::Module *cell_module_def = module->design->module(cell->type_impl);
 				auto orig_ports = cell->connections();
-				log("Adding cell %s\n", module->design->twines.str(cell_module_def->meta_->name).c_str());
+				log("Adding cell %s\n", cell_module_def->name.str().c_str());
 				for (auto &it : orig_ports) {
 					RTLIL::SigSpec port = it.second;
 					RTLIL::SigSpec port_taint = get_corresponding_taint_signal(port);
@@ -580,7 +580,7 @@ struct GliftPass : public Pass {
 		struct ModuleNameCmp {
 			bool operator()(const RTLIL::Module *a, const RTLIL::Module *b) const {
 				if (a == nullptr || b == nullptr) return a < b;
-				return a->design->twines.str(a->meta_->name) < b->design->twines.str(b->meta_->name);
+				return a->name.str() < b->name.str();
 			}
 		};
 		TopoSort<RTLIL::Module*, ModuleNameCmp> topo_modules; //cribbed from passes/techmap/flatten.cc

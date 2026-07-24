@@ -194,12 +194,12 @@ struct RpcModule : RTLIL::Module {
 			dict<std::string, std::string> name_mangling;
 			bool found_derived_top = false;
 			for (auto module : derived_design->modules()) {
-				std::string original_name = derived_design->twines.str(module->meta_->name);
+				std::string original_name = module->name.str();
 				if (original_name == stripped_name) {
 					found_derived_top = true;
 					name_mangling[original_name] = derived_name;
 				} else {
-					name_mangling[original_name] = derived_name + derived_design->twines.str(module->meta_->name);
+					name_mangling[original_name] = derived_name + module->name.str();
 				}
 			}
 			if (!found_derived_top)

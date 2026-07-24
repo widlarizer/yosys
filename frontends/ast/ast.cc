@@ -1386,7 +1386,7 @@ AST_INTERNAL::process_and_replace_module(RTLIL::Design *design,
 	// a static counter to make sure we get a unique name.
 	static unsigned counter;
 	std::ostringstream new_name;
-	new_name << design->twines.str(old_module->meta_->name)
+	new_name << old_module->name.str()
 		 << "_before_process_and_replace_module_"
 		 << counter;
 	++counter;
@@ -1588,7 +1588,7 @@ void AST::explode_interface_port(AstNode *module_ast, RTLIL::Module * intfmodule
 	for (auto w : intfmodule->wires()){
 		auto loc = module_ast->location;
 		auto wire = std::make_unique<AstNode>(loc, AST_WIRE, std::make_unique<AstNode>(loc, AST_RANGE, AstNode::mkconst_int(loc, w->width -1, true), AstNode::mkconst_int(loc, 0, true)));
-		std::string origname = intfmodule->design->twines.unescaped_str(w->meta_->name);
+		std::string origname = w->name.unescape();
 		std::string newname = intfname + "." + origname;
 		wire->str = newname;
 		if (modport != NULL) {
@@ -1653,7 +1653,7 @@ void AstModule::expand_interfaces(RTLIL::Design *design, const dict<TwineRef, RT
 		RTLIL::Module *intfmodule = intf.second;
 		for (auto w : intfmodule->wires()){
 			auto wire = std::make_unique<AstNode>(loc, AST_WIRE, std::make_unique<AstNode>(loc, AST_RANGE, AstNode::mkconst_int(loc, w->width -1, true), AstNode::mkconst_int(loc, 0, true)));
-			std::string newname = design->twines.unescaped_str(w->meta_->name);
+			std::string newname = w->name.unescape();
 			newname = intfname + "." + newname;
 			wire->str = newname;
 			new_ast->children.push_back(std::move(wire));

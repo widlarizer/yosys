@@ -402,11 +402,11 @@ struct ModWalker
 
 	void add_cell(RTLIL::Cell *cell)
 	{
-		if (ct.cell_known(cell->type.ref())) {
+		if (ct.cell_known(cell->type)) {
 			for (auto &conn : cell->connections())
 				add_cell_port(cell, conn.first, sigmap(conn.second),
-						ct.cell_output(cell->type.ref(), conn.first),
-						ct.cell_input(cell->type.ref(), conn.first));
+						ct.cell_output(cell->type, conn.first),
+						ct.cell_input(cell->type, conn.first));
 		} else {
 			for (auto &conn : cell->connections())
 				add_cell_port(cell, conn.first, sigmap(conn.second), true, true);
@@ -436,7 +436,7 @@ struct ModWalker
 		for (auto &it : module->wires_)
 			add_wire(it.second);
 		for (auto &it : module->cells_)
-			if (filter_ct == NULL || filter_ct->cell_known(it.second->type.ref()))
+			if (filter_ct == NULL || filter_ct->cell_known(it.second->type))
 				add_cell(it.second);
 	}
 

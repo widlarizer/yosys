@@ -549,7 +549,7 @@ static int select_op_expand(RTLIL::Design *design, RTLIL::Selection &lhs, std::v
 		for (auto &conn : cell->connections())
 		{
 			char last_mode = '-';
-			if (eval_only && !yosys_celltypes.cell_evaluable(cell->type.ref()))
+			if (eval_only && !yosys_celltypes.cell_evaluable(cell->type))
 				goto exclude_match;
 			for (auto &rule : rules) {
 				last_mode = rule.mode;
@@ -565,8 +565,8 @@ static int select_op_expand(RTLIL::Design *design, RTLIL::Selection &lhs, std::v
 			if (last_mode == '+')
 				goto exclude_match;
 		include_match:
-			is_input = mode == 'x' || ct.cell_input(cell->type.ref(), conn.first);
-			is_output = mode == 'x' || ct.cell_output(cell->type.ref(), conn.first);
+			is_input = mode == 'x' || ct.cell_input(cell->type, conn.first);
+			is_output = mode == 'x' || ct.cell_output(cell->type, conn.first);
 			for (auto &chunk : conn.second.chunks())
 				if (chunk.wire != nullptr) {
 					if (max_objects != 0 && selected_wires.count(chunk.wire) > 0 && selected_members.count(cell->name.ref()) == 0)
@@ -967,7 +967,7 @@ static void select_stmt(RTLIL::Design *design, std::string arg, bool disable_emp
 
 				auto &muster = design->selection_vars[set_twine];
 				for (auto cell : mod->cells())
-					if (muster.selected_modules.count(cell->type.ref()))
+					if (muster.selected_modules.count(cell->type))
 						sel.selected_members[mod->meta_->name].insert(cell->name.ref());
 			} else {
 				for (auto cell : mod->cells())

@@ -47,7 +47,7 @@ struct InitValWorker
 		initvals.set(&modwalker.sigmap, module);
 
 		for (auto wire : module->wires())
-			if (wire->name.is_public() || wire->get_bool_attribute(ID::keep))
+			if (wire->name.isPublic() || wire->get_bool_attribute(ID::keep))
 				for (auto bit : SigSpec(wire))
 					used_bits[sigmap(bit)] = true;
 	}
@@ -460,7 +460,7 @@ struct PropagateWorker
 const std::vector<ReplacedPort> &HierarchyWorker::find_replaced_clk_inputs(TwineRef cell_type)
 {
 	static const std::vector<ReplacedPort> empty;
-	if (!cell_type.is_public())
+	if (!cell_type.isPublic())
 		return empty;
 
 	Module *module = design->module(cell_type);

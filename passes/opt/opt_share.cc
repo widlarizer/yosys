@@ -115,11 +115,11 @@ bool mergeable(RTLIL::Cell *a, RTLIL::Cell *b)
 	if (mergeable_type_map.empty()) {
 		mergeable_type_map.insert({ID($sub), ID($add)});
 	}
-	TwineRef a_type = a->type.ref();
+	TwineRef a_type = a->type;
 	if (mergeable_type_map.count(a_type))
 		a_type = mergeable_type_map.at(a_type);
 
-	TwineRef b_type = b->type.ref();
+	TwineRef b_type = b->type;
 	if (mergeable_type_map.count(b_type))
 		b_type = mergeable_type_map.at(b_type);
 

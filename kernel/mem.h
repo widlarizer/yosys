@@ -92,6 +92,12 @@ struct MemInit : RTLIL::AttrObject {
 struct Mem : RTLIL::AttrObject {
 	Module *module;
 	TwineRef memid;
+	// Same pattern as the RTLIL::Memory/Process name helpers in rtlil.h:
+	// memid is a bare TwineRef (no owning-object masquerade), so resolve
+	// the Design through the module back-pointer instead of spelling out
+	// `module->design->twines.str(memid)` at every call site.
+	std::string name_str() const { return module->design->twines.str(memid); }
+	std::string name_unescaped() const { return module->design->twines.unescaped_str(memid); }
 	bool packed;
 	RTLIL::Memory *mem;
 	Cell *cell;

@@ -498,7 +498,7 @@ struct XpropWorker
 				auto sig_b = cell->getPort(ID::B);
 
 				std::string name_str = module->design->twines.str(cell->name.ref());
-				TwineRef type = cell->type.ref();
+				TwineRef type = cell->type;
 				module->remove(cell);
 				if (type == ID($eqx))
 					module->addEq(Twine{name_str}, sig_a, sig_b, sig_y);
@@ -787,7 +787,7 @@ struct XpropWorker
 			SigSpec y_1 = module->addWire(NEW_ID, GetSize(sig_y));
 			SigSpec y_x = module->addWire(NEW_ID, GetSize(sig_y));
 
-			TwineRef encoded_type = cell->type == ID::$shiftx ? TwineRef{ID::$shift} : cell->type.ref();
+			TwineRef encoded_type = cell->type == ID::$shiftx ? TwineRef{ID::$shift} : cell->type;
 
 			if (cell->type == ID($shiftx)) {
 				std::swap(enc_a.is_0, enc_a.is_x);
@@ -1031,7 +1031,7 @@ struct XpropWorker
 			return;
 
 		for (auto wire : module->selected_wires()) {
-			if (wire->port_input || wire->port_output || !wire->name.is_public())
+			if (wire->port_input || wire->port_output || !wire->name.isPublic())
 				continue;
 			int index_d = 0;
 			int index_x = 0;

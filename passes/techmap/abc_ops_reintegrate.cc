@@ -477,7 +477,7 @@ void reintegrate(RTLIL::Module *module, bool dff_mode, std::string map_filename)
 				//   flop box, so that any (public) signal it drives will be
 				//   preserved
 				SigBit old_q;
-				for (const auto &port_name : box_ports.at(existing_cell->type.ref())) {
+				for (const auto &port_name : box_ports.at(existing_cell->type)) {
 					RTLIL::Wire *w = box_module->wire(port_name);
 					log_assert(w);
 					if (!w->port_output)
@@ -500,7 +500,7 @@ void reintegrate(RTLIL::Module *module, bool dff_mode, std::string map_filename)
 			}
 
 			int input_count = 0, output_count = 0;
-			for (const auto &port_name : box_ports.at(existing_cell->type.ref())) {
+			for (const auto &port_name : box_ports.at(existing_cell->type)) {
 				RTLIL::Wire *w = box_module->wire(port_name);
 				log_assert(w);
 

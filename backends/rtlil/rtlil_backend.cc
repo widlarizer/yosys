@@ -253,8 +253,8 @@ void RTLIL_BACKEND::dump_cell(std::ostream &f, std::string indent, const RTLIL::
 {
 	dump_attributes(f, indent, cell, design, mode);
 	f << stringf("%s" "cell ", indent);
-	f << twine_ref(design, cell->type.ref(), mode) << " " << twine_ref(design, cell->name.ref(), mode)
-		<< twine_cmt(design, cell->type.ref(), mode) << twine_cmt(design, cell->name.ref(), mode) << "\n";
+	f << twine_ref(design, cell->type, mode) << " " << twine_ref(design, cell->name.ref(), mode)
+		<< twine_cmt(design, cell->type, mode) << twine_cmt(design, cell->name.ref(), mode) << "\n";
 	for (const auto& [name, param] : reversed(cell->parameters)) {
 		f << stringf("%s  parameter%s%s%s %s ", indent,
 				(param.flags & RTLIL::CONST_FLAG_SIGNED) != 0 ? " signed" : "",

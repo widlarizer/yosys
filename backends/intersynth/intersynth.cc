@@ -133,18 +133,18 @@ struct IntersynthBackend : public Backend {
 
 			if (selected && !design->selected_whole_module(module->meta_->name)) {
 				if (design->selected_module(module->meta_->name))
-					log_cmd_error("Can't handle partially selected module %s!\n", design->twines.str(module->meta_->name).c_str());
+					log_cmd_error("Can't handle partially selected module %s!\n", module->name.str().c_str());
 				continue;
 			}
 
-			log("Generating netlist %s.\n", design->twines.str(module->meta_->name).c_str());
+			log("Generating netlist %s.\n", module->name.str().c_str());
 
 			if (module->memories.size() != 0 || module->processes.size() != 0)
 				log_error("Can't generate a netlist for a module with unprocessed memories or processes!\n");
 
 			std::set<std::string> constcells_code;
-			netlists_code += stringf("# Netlist of module %s\n", design->twines.str(module->meta_->name).c_str());
-			netlists_code += stringf("netlist %s\n", design->twines.str(module->meta_->name).c_str());
+			netlists_code += stringf("# Netlist of module %s\n", module->name.str().c_str());
+			netlists_code += stringf("netlist %s\n", module->name.str().c_str());
 
 			// Module Ports: "std::set<string> celltypes_code" prevents duplicate top level ports
 			for (auto wire : module->wires()) {
@@ -166,7 +166,7 @@ struct IntersynthBackend : public Backend {
 					log_error("Found unknown cell type %s in module!\n", cell->type.unescaped());
 
 				celltype_code = stringf("celltype %s", cell->type.unescaped());
-				node_code = stringf("node %s %s", cell->module->design->twines.str(cell->meta_->name), cell->type.unescaped());
+				node_code = stringf("node %s %s", cell->name.str(), cell->type.unescaped());
 				for (auto &port : cell->connections()) {
 					RTLIL::SigSpec sig = sigmap(port.second);
 					if (sig.size() != 0) {

@@ -233,7 +233,7 @@ struct JnyWriter
         const auto _indent = gen_indent(indent_level);
 
         f << _indent << "{\n";
-        f << stringf("  %s\"name\": \"%s\",\n", _indent, escape_string(mod->design->twines.str(mod->meta_->name)));
+        f << stringf("  %s\"name\": \"%s\",\n", _indent, escape_string(mod->name.str()));
         f << _indent << "  \"cell_sorts\": [\n";
 
         bool first_sort{true};
@@ -368,7 +368,7 @@ struct JnyWriter
         log_assert(cell != nullptr);
 
         f << _indent << "  {\n";
-        f << stringf("    %s\"name\": \"%s\"", _indent, escape_string(cell->module->design->twines.str(cell->meta_->name)));
+        f << stringf("    %s\"name\": \"%s\"", _indent, escape_string(cell->name.str()));
 
         if (_include_connections) {
             f << ",\n" << _indent << "    \"connections\": [\n";

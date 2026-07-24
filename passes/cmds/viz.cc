@@ -287,7 +287,7 @@ struct Graph {
 
 		for (auto wire : module->selected_wires())
 		{
-			if (!wire->name.is_public()) continue;
+			if (!wire->name.isPublic()) continue;
 			auto g = new GraphNode;
 			g->terminal = true;
 			g->names().insert(wire->name);
@@ -313,7 +313,7 @@ struct Graph {
 				continue;
 
 			for (auto wire : module->wires()) {
-				if (!wire->name.is_public()) continue;
+				if (!wire->name.isPublic()) continue;
 				if (!grp.second.selected_member(module->meta_->name, wire->name.ref())) continue;
 				for (auto bit : sigmap(wire)) {
 					auto it = wire_nodes.find(bit);
@@ -718,7 +718,7 @@ struct VizWorker
 
 	void write_dot(FILE *f)
 	{
-		fprintf(f, "digraph \"%s\" {\n", module->design->twines.unescaped_str(module->meta_->name).c_str());
+		fprintf(f, "digraph \"%s\" {\n", module->name.unescape().c_str());
 		fprintf(f, "  rankdir = LR;\n");
 
 		dict<GraphNode*, std::vector<std::vector<std::string>>> extra_lines;

@@ -151,7 +151,7 @@ struct Xaiger2Frontend : public Frontend {
 					log_error("Map file references non-existent box %s\n",
 							  name.c_str());
 
-				Module *def = design->module(box->type.ref());
+				Module *def = design->module(box->type);
 				if (def && !box->parameters.empty()) {
 					// TODO: This is potentially costly even if a cached derivation exists
 					def = design->module(def->derive(design, box->parameters));

@@ -165,7 +165,7 @@ struct SpliceWorker
 
 		for (auto cell : module->cells())
 		for (auto &conn : cell->connections())
-			if (!ct.cell_known(cell->type.ref()) || ct.cell_output(cell->type.ref(), conn.first)) {
+			if (!ct.cell_known(cell->type) || ct.cell_output(cell->type, conn.first)) {
 				RTLIL::SigSpec sig = sigmap(conn.second);
 				driven_chunks.insert(sig);
 				for (auto &bit : sig.to_sigbit_vector())
@@ -189,7 +189,7 @@ struct SpliceWorker
 			if (!sel_by_wire && !design->selected(module, cell))
 				continue;
 			for (auto &conn : cell->connections_)
-				if (ct.cell_input(cell->type.ref(), conn.first)) {
+				if (ct.cell_input(cell->type, conn.first)) {
 					if (ports.size() > 0 && !ports.count(conn.first))
 						continue;
 					if (no_ports.size() > 0 && no_ports.count(conn.first))
@@ -211,7 +211,7 @@ struct SpliceWorker
 		std::vector<Wire*> mod_wires = module->wires();
 
 		for (auto wire : mod_wires)
-			if ((!no_outputs && wire->port_output) || (do_wires && wire->name.is_public())) {
+			if ((!no_outputs && wire->port_output) || (do_wires && wire->name.isPublic())) {
 				if (!design->selected(module, wire))
 					continue;
 				RTLIL::SigSpec sig = sigmap(wire);

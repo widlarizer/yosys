@@ -39,7 +39,7 @@ struct OptBalanceTreeWorker {
 	// Only allow cells with "natural" output widths (no truncation) to prevent
 	// equivalence issues when rebalancing (see YosysHQ/yosys#5605)
 	bool is_right_type(Cell* cell, TwineRef cell_type) {
-		if (cell->type.ref() != cell_type)
+		if (cell->type != cell_type)
 			return false;
 
 		int y_width = cell->getParam(ID::Y_WIDTH).as_int();

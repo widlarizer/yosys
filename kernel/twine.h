@@ -50,7 +50,7 @@ struct TwineRef {
 	// A ref is "empty" when it names nothing at all.
 	constexpr bool empty() const { return value == kNull; }
 
-	constexpr bool is_public() const { return value != kNull && (value & kPublicBit); }
+	constexpr bool isPublic() const { return value != kNull && (value & kPublicBit); }
 	constexpr bool is_local()  const { return value != kNull && (value & kLocalBit); }
 
 	constexpr TwineRef untag() const {
@@ -105,7 +105,7 @@ struct ID {
 	static std::string str(TwineRef ref) {
 		TwineRef idx = ref.untag();
 		if (idx.value >= STATIC_TWINE_END) return {};
-		std::string result = ref.is_public() ? "\\" : "";
+		std::string result = ref.isPublic() ? "\\" : "";
 		result += static_names[idx.value];
 		return result;
 	}
@@ -153,7 +153,7 @@ struct Twine {
 	const Suffix &suffix() const { return std::get<Suffix>(data); }
 };
 
-constexpr bool twine_is_public(TwineRef ref) { return ref.is_public(); }
+constexpr bool twine_is_public(TwineRef ref) { return ref.isPublic(); }
 constexpr TwineRef twine_untag(TwineRef ref)  { return ref.untag(); }
 constexpr TwineRef twine_tag(TwineRef ref, bool is_public) { return ref.tag(is_public); }
 
@@ -218,7 +218,7 @@ struct TwinePool {
 				os << ", tail: \"" << val.tail << "\")";
 			}
 		}, twine.data);
-		if (ref.is_public())
+		if (ref.isPublic())
 			os << " pub";
 	}
 	void print(TwineRef ref, std::ostream& os = std::cout) const {

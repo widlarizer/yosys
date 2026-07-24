@@ -341,9 +341,9 @@ std::vector<TwineRef> parse_hdlname(const O* object)
 	std::vector<TwineRef> path;
 	for (auto const &item : object->get_hdlname_attribute())
 		path.push_back(twines.add("\\" + item));
-	bool synthetic = !name.is_public() && !object->name.begins_with("$paramod")
+	bool synthetic = !name.isPublic() && !object->name.begins_with("$paramod")
 			&& !object->name.begins_with("$abstract");
-	if (path.empty() && name.is_public())
+	if (path.empty() && name.isPublic())
 		path.push_back(name);
 	if (!path.empty() && synthetic) {
 		path.pop_back();
@@ -358,7 +358,7 @@ std::pair<std::vector<TwineRef>, TwineRef> parse_scopename(const O* object)
 	TwinePool &twines = RTLIL::design_of(object)->twines;
 	std::vector<TwineRef> path;
 	TwineRef trailing = object->name.ref();
-	if (trailing.is_public() || object->name.begins_with("$paramod") || object->name.begins_with("$abstract")) {
+	if (trailing.isPublic() || object->name.begins_with("$paramod") || object->name.begins_with("$abstract")) {
 		for (auto const &item : object->get_hdlname_attribute())
 			path.push_back(twines.add("\\" + item));
 		if (!path.empty()) {

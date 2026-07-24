@@ -206,7 +206,7 @@ struct OptMergeWorker
 		FfInitVals initvals;
 		initvals.set(&assign_map, module);
 
-		log("Finding identical cells in module `%s'.\n", module->design->twines.str(module->meta_->name).c_str());
+		log("Finding identical cells in module `%s'.\n", module->name.str().c_str());
 
 		// Use no more than one worker per thousand cells, rounded down, so
 		// we only start multithreading with at least 2000 cells.
@@ -241,7 +241,7 @@ struct OptMergeWorker
 		while (did_something)
 		{
 			int cells_size = module->cells_size();
-			log("Computing hashes of %d cells of `%s'.\n", cells_size, module->design->twines.str(module->meta_->name).c_str());
+			log("Computing hashes of %d cells of `%s'.\n", cells_size, module->name.str().c_str());
 			std::vector<std::vector<std::vector<CellHash>>> sharded_bucketed_cell_hashes(workers);
 
 			int cell_index = 0;
@@ -263,7 +263,7 @@ struct OptMergeWorker
 						sharded_bucketed_cell_hashes[i] = std::move(cell_hashes_queues[i].pop_front()->bucketed_cell_hashes);
 			}
 
-			log("Finding duplicate cells in `%s'.\n", module->design->twines.str(module->meta_->name).c_str());
+			log("Finding duplicate cells in `%s'.\n", module->name.str().c_str());
 			std::vector<DuplicateCell> merged_duplicates;
 			{
 				Multithreading multithreading;
@@ -310,7 +310,7 @@ struct OptMergeWorker
 						port_replacements.emplace_back(it.first, keep_sig);
 					}
 				}
-				log_debug("    Removing %s cell `%s' from module `%s'.\n", remove_cell->type, log_id(remove_cell->name), module->design->twines.str(module->meta_->name).c_str());
+				log_debug("    Removing %s cell `%s' from module `%s'.\n", remove_cell->type, log_id(remove_cell->name), module->name.str().c_str());
 				// The surviving cell now stands for both, so it carries the
 				// source locations of both (as a twine concat node).
 				merge_cell_src(module, {remove_cell, keep_cell}, {keep_cell});

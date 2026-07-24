@@ -78,7 +78,7 @@ struct HierDirtyFlags
 		for (Cell *cell : module->cells()) {
 			Module *mod = module->design->module(cell->type_impl);
 			if (mod) children[cell->name] = new HierDirtyFlags(mod, cell->name, this,
-					prefix + cid(cell->name) + ".", log_prefix + "." + prefix + cell->module->design->twines.str(cell->meta_->name));
+					prefix + cid(cell->name) + ".", log_prefix + "." + prefix + cell->name.str());
 		}
 	}
 
@@ -340,7 +340,7 @@ struct SimplecWorker
 		for (int i = 0; i < GetSize(topo.sorted); i++)
 			topoidx[mod->cell(topo.sorted[i])] = i;
 
-		string ifdef_name = stringf("yosys_simplec_%s_state_t", cid(design->twines.str(mod->meta_->name)));
+		string ifdef_name = stringf("yosys_simplec_%s_state_t", cid(mod->name.str()));
 
 		for (int i = 0; i < GetSize(ifdef_name); i++)
 			if ('a' <= ifdef_name[i] && ifdef_name[i] <= 'z')
@@ -349,7 +349,7 @@ struct SimplecWorker
 		struct_declarations.push_back("");
 		struct_declarations.push_back(stringf("#ifndef %s", ifdef_name));
 		struct_declarations.push_back(stringf("#define %s", ifdef_name));
-		struct_declarations.push_back(stringf("struct %s_state_t", cid(design->twines.str(mod->meta_->name))));
+		struct_declarations.push_back(stringf("struct %s_state_t", cid(mod->name.str())));
 		struct_declarations.push_back("{");
 
 		struct_declarations.push_back("  // Input Ports");
@@ -580,7 +580,7 @@ struct SimplecWorker
 						if (cell == nullptr || topoidx.at(cell) < topoidx.at(c))
 							cell = c;
 
-					string hiername = work->log_prefix + "." + cell->module->design->twines.str(cell->meta_->name);
+					string hiername = work->log_prefix + "." + cell->name.str();
 
 					if (verbose)
 						log("    Evaluating %s (%s, best of %d).\n", hiername, cell->type.unescaped(), GetSize(work->dirty_cells));
@@ -720,7 +720,7 @@ struct SimplecWorker
 	{
 		create_module_struct(mod);
 
-		HierDirtyFlags work(mod, TwineRef(), nullptr, "state->", mod->design->twines.str(mod->meta_->name));
+		HierDirtyFlags work(mod, TwineRef(), nullptr, "state->", mod->name.str());
 
 		make_init_func(&work);
 		make_eval_func(&work);

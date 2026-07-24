@@ -55,7 +55,7 @@ struct SplitcellsWorker
 		}
 
 		for (auto wire : module->wires()) {
-			if (!wire->name.is_public()) continue;
+			if (!wire->name.isPublic()) continue;
 			SigSpec sig(sigmap(wire));
 			for (int i = 0; i < GetSize(sig); i++) {
 				SigBit bit(sig[i]);

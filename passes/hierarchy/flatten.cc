@@ -267,7 +267,7 @@ struct FlattenWorker
 				std::string port_name_str = design->twines.str(port_name);
 				if (!port_name_str.empty() && port_name_str[0] == '$')
 					log_error("Can't map port `%s' of cell `%s' to template `%s'!\n",
-						std::string(port_name_str).c_str(), cell->name.str().c_str(), design->twines.str(tpl->meta_->name).c_str());
+						std::string(port_name_str).c_str(), cell->name.str().c_str(), tpl->name.str().c_str());
 				continue;
 			}
 
@@ -317,7 +317,7 @@ struct FlattenWorker
 		RTLIL::Cell *scopeinfo = nullptr;
 		TwineRef cell_name = cell->name;
 
-		if (create_scopeinfo && cell_name.is_public())
+		if (create_scopeinfo && cell_name.isPublic())
 		{
 			// The $scopeinfo's name will be changed below after removing the flattened cell
 			scopeinfo = module->addCell(NEW_ID, ID($scopeinfo));
@@ -340,7 +340,7 @@ struct FlattenWorker
 			if (tpl->src_id() != Twine::Null)
 				scopeinfo->attributes.emplace(design->twines.add(std::string("\\module_src")), RTLIL::Const(tpl->get_src_attribute()));
 
-			scopeinfo->attributes.emplace(ID::module, RTLIL::Const(design->twines.str(tpl->meta_->name).substr(1)));
+			scopeinfo->attributes.emplace(ID::module, RTLIL::Const(tpl->name.str().substr(1)));
 		}
 
 		module->remove(cell);
@@ -370,7 +370,7 @@ struct FlattenWorker
 			RTLIL::Cell *cell = worklist.back();
 			worklist.pop_back();
 
-			TwineRef cell_type_ref = cell->type.ref();
+			TwineRef cell_type_ref = cell->type;
 			if (!design->has(cell_type_ref))
 				continue;
 

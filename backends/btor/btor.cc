@@ -279,7 +279,7 @@ struct BtorWorker
 		}
 
 		cell_recursion_guard.insert(cell);
-		btorf_push(cell->module->design->twines.str(cell->meta_->name));
+		btorf_push(cell->name.str());
 
 		if (cell->type.in(ID($add), ID($sub), ID($mul), ID($and), ID($or), ID($xor), ID($xnor), ID($shl), ID($sshl), ID($shr), ID($sshr), ID($shift), ID($shiftx),
 				ID($concat), ID($_AND_), ID($_NAND_), ID($_OR_), ID($_NOR_), ID($_XOR_), ID($_XNOR_)))
@@ -992,7 +992,7 @@ struct BtorWorker
 		log_error("Unsupported cell type %s for cell %s.%s.\n",
 				cell->type.unescape(), module, cell);
 	okay:
-		btorf_pop(cell->module->design->twines.str(cell->meta_->name));
+		btorf_pop(cell->name.unescape());
 		cell_recursion_guard.erase(cell);
 	}
 
@@ -1299,7 +1299,7 @@ struct BtorWorker
 		{
 			if (cell->type == ID($assume))
 			{
-				btorf_push(cell->module->design->twines.str(cell->meta_->name));
+				btorf_push(cell->name.str());
 
 				int sid = get_bv_sid(1);
 				int nid_a = get_sig_nid(cell->getPort(ID::A));
@@ -1314,12 +1314,12 @@ struct BtorWorker
 
 				if (ywmap_json.active()) ywmap_assumes.emplace_back(cell);
 
-				btorf_pop(cell->module->design->twines.str(cell->meta_->name));
+				btorf_pop(cell->name.str());
 			}
 
 			if (cell->type == ID($assert))
 			{
-				btorf_push(cell->module->design->twines.str(cell->meta_->name));
+				btorf_push(cell->name.str());
 
 				int sid = get_bv_sid(1);
 				int nid_a = get_sig_nid(cell->getPort(ID::A));
@@ -1343,12 +1343,12 @@ struct BtorWorker
 					}
 				}
 
-				btorf_pop(cell->module->design->twines.str(cell->meta_->name));
+				btorf_pop(cell->name.str());
 			}
 
 			if (cell->type == ID($cover) && cover_mode)
 			{
-				btorf_push(cell->module->design->twines.str(cell->meta_->name));
+				btorf_push(cell->name.str());
 
 				int sid = get_bv_sid(1);
 				int nid_a = get_sig_nid(cell->getPort(ID::A));
@@ -1364,7 +1364,7 @@ struct BtorWorker
 					btorf("%d bad %d%s\n", nid, nid_en_and_a, getinfo(cell, true));
 				}
 
-				btorf_pop(cell->module->design->twines.str(cell->meta_->name));
+				btorf_pop(cell->name.str());
 			}
 		}
 

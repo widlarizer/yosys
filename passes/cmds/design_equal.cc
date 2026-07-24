@@ -118,8 +118,8 @@ public:
 
 	std::string compare_memories(const RTLIL::Memory *a, const RTLIL::Memory *b)
 	{
-		if (a->meta_->name != b->meta_->name)
-			return "name mismatch: " + std::string(a->module->design->twines.str(a->meta_->name)) + " != " + b->module->design->twines.str(b->meta_->name);
+		if (a->name != b->name)
+			return "name mismatch: " + a->name.str() + " != " + b->name.str();
 		if (a->width != b->width)
 			return "width mismatch: " + std::to_string(a->width) + " != " + std::to_string(b->width);
 		if (a->start_offset != b->start_offset)
@@ -135,7 +135,7 @@ public:
 	{
 		if (a->name != b->name)
 			return "name mismatch: " + std::string(a->name.unescape()) + " != " + b->name.unescape();
-		if (a->type.ref() != b->type.ref())
+		if (a->type != b->type)
 			return "type mismatch: " + std::string(a->type.unescape()) + " != " + b->type.unescape();
 		if (std::string mismatch = compare_attributes(a, b); !mismatch.empty())
 			return mismatch;
@@ -272,7 +272,7 @@ public:
 
 	std::string compare_processes(const RTLIL::Process *a, const RTLIL::Process *b)
 	{
-		if (a->meta_->name != b->meta_->name) return "name mismatch: " + std::string(a->module->design->twines.str(a->meta_->name)) + " != " + b->module->design->twines.str(b->meta_->name);
+		if (a->name != b->name) return "name mismatch: " + a->name.str() + " != " + b->name.str();
 		if (std::string mismatch = compare_attributes(a, b); !mismatch.empty())
 			return mismatch;
 		if (std::string mismatch = compare_case_rules(&a->root_case, &b->root_case); !mismatch.empty())

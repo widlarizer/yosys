@@ -266,7 +266,7 @@ struct MemoryMapWorker
 
 				RTLIL::Wire *w_out = module->addWire(design->twines.add(std::string{w_out_name}), mem.width);
 
-				if (formal && mem.packed && mem.cell->name.is_public()) {
+				if (formal && mem.packed && mem.cell->name.isPublic()) {
 					auto hdlname = mem.cell->get_hdlname_attribute();
 					if (hdlname.empty())
 						hdlname.push_back(mem.cell->name.unescaped());

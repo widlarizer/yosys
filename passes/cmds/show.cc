@@ -437,7 +437,7 @@ struct ShowWorker
 			if (wire->port_input || wire->port_output)
 				shape = "octagon";
 			const bool is_borderless = (shape == "plaintext") || (shape == "plain") || (shape == "none");
-			if (wire->name.is_public()) {
+			if (wire->name.isPublic()) {
 				std::string src_href;
 				if (href && wire->has_attribute(ID::src) > 0)
 					src_href = stringf(", href=\"%s\" ", escape(wire->get_src_attribute()));
@@ -475,7 +475,7 @@ struct ShowWorker
 			std::vector<std::string> in_label_pieces, out_label_pieces;
 
 			for (auto &conn : cell->connections()) {
-				if (!ct.cell_output(cell->type.ref(), conn.first))
+				if (!ct.cell_output(cell->type, conn.first))
 					in_ports.push_back(conn.first);
 				else
 					out_ports.push_back(conn.first);
@@ -508,7 +508,7 @@ struct ShowWorker
 			std::string code;
 			for (auto &conn : cell->connections()) {
 				code += gen_portbox(stringf("c%d:p%d", id2num(cell->name), id2num(conn.first)),
-						conn.second, ct.cell_output(cell->type.ref(), conn.first));
+						conn.second, ct.cell_output(cell->type, conn.first));
 			}
 
 			std::string src_href;

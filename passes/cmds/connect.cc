@@ -34,7 +34,7 @@ static void unset_drivers(RTLIL::Design *design, RTLIL::Module *module, SigMap &
 
 	for (auto cell : module->cells())
 	for (auto &port : cell->connections_)
-		if (ct.cell_output(cell->type.ref(), port.first))
+		if (ct.cell_output(cell->type, port.first))
 			sigmap(port.second).replace(sig, dummy_wire, &port.second);
 
 	bool need_fixup = false;
@@ -134,7 +134,7 @@ struct ConnectPass : public Pass {
 		RTLIL::Module *module = nullptr;
 		for (auto mod : design->selected_modules()) {
 			if (module != nullptr)
-				log_cmd_error("Multiple modules selected: %s, %s\n", module->design->twines.str(module->meta_->name).c_str(), module->design->twines.str(mod->meta_->name).c_str());
+				log_cmd_error("Multiple modules selected: %s, %s\n", module->name.str().c_str(), mod->name.str().c_str());
 			module = mod;
 		}
 		if (module == nullptr)

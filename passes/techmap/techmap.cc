@@ -88,10 +88,10 @@ struct PrefixApplier
 		TwineRef result;
 		if (node.is_suffix()) {
 			const Twine::Suffix &sfx = node.suffix();
-			TwineRef prefix = name(twine_tag(sfx.prefix, obj_ref.is_public()));
+			TwineRef prefix = name(twine_tag(sfx.prefix, obj_ref.isPublic()));
 			result = dst->twines.add(Twine{Twine::Suffix{prefix, sfx.tail}});
 		} else {
-			TwineRef prefix = obj_ref.is_public() ? pub_prefix : techmap_prefix();
+			TwineRef prefix = obj_ref.isPublic() ? pub_prefix : techmap_prefix();
 			result = dst->twines.add(Twine{Twine::Suffix{prefix, node.leaf()}});
 		}
 		memo[obj_ref] = result;
@@ -585,7 +585,7 @@ struct TechmapWorker
 						if (extmapper_module == nullptr)
 						{
 							extmapper_module = extmapper_design->addModule(extmapper_design->twines.add(std::string{m_name}));
-							RTLIL::Cell *extmapper_cell = extmapper_module->addCell(cell->type.ref(), cell);
+							RTLIL::Cell *extmapper_cell = extmapper_module->addCell(cell->type, cell);
 							// addCell(name, cell) already migrated src across
 							// explicit set_src_attribute round-trip here.
 
@@ -674,7 +674,7 @@ struct TechmapWorker
 				}
 
 				for (auto &conn : cell->connections()) {
-					if (!conn.first.is_public())
+					if (!conn.first.isPublic())
 						continue;
 					RTLIL::Wire *tpl_port = map_port(tpl, design, conn.first);
 					if (tpl_port != nullptr && tpl_port->port_id > 0)
@@ -693,7 +693,7 @@ struct TechmapWorker
 				if (tpl->avail_parameters.count(ID::_TECHMAP_CELLTYPE_) != 0)
 					parameters.emplace(ID::_TECHMAP_CELLTYPE_, cell->type.unescaped());
 				if (tpl->avail_parameters.count(ID::_TECHMAP_CELLNAME_) != 0)
-					parameters.emplace(ID::_TECHMAP_CELLNAME_, cell->module->design->twines.unescaped_str(cell->meta_->name));
+					parameters.emplace(ID::_TECHMAP_CELLNAME_, cell->name.unescape());
 
 				for (auto &conn : cell->connections()) {
 					if (tpl->avail_parameters.count(map->twines.add(stringf("\\_TECHMAP_CONSTMSK_%s_", design->twines.unescaped_str(conn.first)))) != 0) {

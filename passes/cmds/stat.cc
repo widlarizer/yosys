@@ -173,7 +173,7 @@ struct statdata_t {
 				local_num_port_bits += wire->width;
 			}
 
-			if (wire->name.is_public()) {
+			if (wire->name.isPublic()) {
 				num_pub_wires++;
 				local_num_pub_wires++;
 				num_pub_wire_bits += wire->width;

@@ -318,7 +318,7 @@ struct DesignPass : public Pass {
 
 			for (auto mod : copy_src_modules)
 			{
-				std::string trg_name = as_name.empty() ? copy_from_design->twines.str(mod->meta_->name) : RTLIL::escape_id(as_name);
+				std::string trg_name = as_name.empty() ? mod->name.str() : RTLIL::escape_id(as_name);
 				TwineRef trg_ref = copy_to_design->twines.add(std::string{trg_name});
 
 				if (copy_to_design->module(trg_ref) != nullptr)

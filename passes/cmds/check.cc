@@ -410,7 +410,7 @@ struct CheckPass : public Pass {
 					}
 				}
 
-				if (yosys_celltypes.cell_evaluable(cell->type.ref()) || cell->type.in(ID::$mem_v2, ID::$memrd, ID::$memrd_v2) \
+				if (yosys_celltypes.cell_evaluable(cell->type) || cell->type.in(ID::$mem_v2, ID::$memrd, ID::$memrd_v2) \
 						|| cell->is_builtin_ff()) {
 					if (!edges_db.add_edges_from_cell(cell))
 						coarsened_cells.insert(cell);
@@ -528,7 +528,7 @@ struct CheckPass : public Pass {
 						driver_src = stringf(" source: %s", src_attr);
 					}
 
-					message += stringf("    cell %s (%s)%s\n", driver, design->twines.unescaped_str(driver->type.ref()), driver_src);
+					message += stringf("    cell %s (%s)%s\n", driver, design->twines.unescaped_str(driver->type), driver_src);
 
 					if (!coarsened_cells.count(driver)) {
 						MatchingEdgePrinter printer(message, sigmap, prev, bit);
@@ -538,7 +538,7 @@ struct CheckPass : public Pass {
 						suggest_detail = true;
 					}
 
-					if (wire->name.is_public()) {
+					if (wire->name.isPublic()) {
 						std::string wire_src;
 						if (wire->has_attribute(ID::src)) {
 							std::string src_attr = wire->get_src_attribute();

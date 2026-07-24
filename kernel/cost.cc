@@ -152,26 +152,26 @@ unsigned int CellCosts::get(RTLIL::Cell *cell)
 	} else if (cell->type.in(ID($mem), ID($mem_v2))) {
 		log_debug("%s is mem\n", cell->name);
 		return cell->getParam(ID::WIDTH).as_int() * cell->getParam(ID::SIZE).as_int();
-	} else if (y_coef(cell->type.ref())) {
+	} else if (y_coef(cell->type)) {
 		// linear with Y_WIDTH or WIDTH
 		log_assert((cell->hasParam(ID::Y_WIDTH) || cell->hasParam(ID::WIDTH)) && "Unknown width");
 		auto param = cell->hasParam(ID::Y_WIDTH) ? ID::Y_WIDTH : ID::WIDTH;
 		int width = cell->getParam(param).as_int();
 		if (cell->type == ID($demux))
 			width <<= cell->getParam(ID::S_WIDTH).as_int();
-		log_debug("%s Y*coef %d * %d\n", cell->name, width, y_coef(cell->type.ref()));
-		return width * y_coef(cell->type.ref());
-	} else if (sum_coef(cell->type.ref())) {
+		log_debug("%s Y*coef %d * %d\n", cell->name, width, y_coef(cell->type));
+		return width * y_coef(cell->type);
+	} else if (sum_coef(cell->type)) {
 		// linear with sum of port widths
 		unsigned int sum = port_width_sum(cell);
-		log_debug("%s sum*coef %d * %d\n", cell->name, sum, sum_coef(cell->type.ref()));
-		return sum * sum_coef(cell->type.ref());
-	} else if (max_inp_coef(cell->type.ref())) {
+		log_debug("%s sum*coef %d * %d\n", cell->name, sum, sum_coef(cell->type));
+		return sum * sum_coef(cell->type);
+	} else if (max_inp_coef(cell->type)) {
 		// linear with largest input width
 		unsigned int max = max_inp_width(cell);
-		log_debug("%s max*coef %d * %d\n", cell->name, max, max_inp_coef(cell->type.ref()));
-		return max * max_inp_coef(cell->type.ref());
-	} else if (is_div_mod(cell->type.ref()) || cell->type == ID::$mul) {
+		log_debug("%s max*coef %d * %d\n", cell->name, max, max_inp_coef(cell->type));
+		return max * max_inp_coef(cell->type);
+	} else if (is_div_mod(cell->type) || cell->type == ID::$mul) {
 		// quadratic with sum of port widths
 		unsigned int sum = port_width_sum(cell);
 		unsigned int coef = cell->type == ID($mul) ? 3 : 5;
@@ -203,7 +203,7 @@ unsigned int CellCosts::get(RTLIL::Cell *cell)
 		int depth = cell->getParam(ID::DEPTH).as_int();
 		log_debug("%s is (2*%d + 1)*%d\n", cell->name, width, depth);
 		return (2 * width + 1) * depth;
-	} else if (is_free(cell->type.ref())) {
+	} else if (is_free(cell->type)) {
 		log_debug("%s is free\n", cell->name);
 		return 0;
 	}

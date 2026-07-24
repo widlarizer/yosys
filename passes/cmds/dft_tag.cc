@@ -98,7 +98,7 @@ struct DftTagWorker {
 		}
 
 		for (auto cell : overwrite_cells) {
-			log_debug("Applying $overwrite_tag %s for signal %s\n", cell->module->design->twines.str(cell->meta_->name), log_signal(cell->getPort(ID::A)));
+			log_debug("Applying $overwrite_tag %s for signal %s\n", cell->name.str(), log_signal(cell->getPort(ID::A)));
 			SigSpec orig_signal = cell->getPort(ID::A);
 			SigSpec interposed_signal = divert_users(orig_signal);
 			auto *set_tag_cell = module->addSetTag(NEW_ID, cell->getParam(ID::TAG).decode_string(), orig_signal, cell->getPort(ID::SET), cell->getPort(ID::CLR), interposed_signal);
@@ -471,7 +471,7 @@ struct DftTagWorker {
 		// reaching this
 		if (!warned_cells.insert(cell).second)
 			return;
-		if (cell->type.is_public())
+		if (cell->type.isPublic())
 			log_warning("Unhandled cell %s (%s) during tag propagation\n", cell, cell->type.unescape());
 		else
 			log_debug("Unhandled cell %s (%s) during tag propagation\n", cell, cell->type.unescape());
@@ -764,7 +764,7 @@ struct DftTagWorker {
 			std::vector<Wire *> public_wires;
 
 			for (auto wire : module->selected_wires())
-				if (wire->name.is_public())
+				if (wire->name.isPublic())
 					public_wires.push_back(wire);
 
 			for (auto wire : public_wires) {
