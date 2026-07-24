@@ -524,7 +524,7 @@ struct RTLILFrontendWorker {
 
 	void parse_attribute()
 	{
-		IdString id = design->twines.add(parse_id());
+		IdString id = parse_twine();
 		RTLIL::Const c = parse_const();
 		if (id == RTLIL::ID::src && (c.flags & RTLIL::CONST_FLAG_STRING)) {
 			std::string raw = c.decode_string();
@@ -692,7 +692,7 @@ struct RTLILFrontendWorker {
 
 	void parse_parameter()
 	{
-		IdString id = design->twines.add(parse_id());
+		IdString id = parse_twine();
 		current_module->avail_parameters(id);
 		if (try_parse_eol())
 			return;
@@ -878,7 +878,7 @@ struct RTLILFrontendWorker {
 				} else if (try_parse_keyword("unsized")) {
 					is_unsized = true;
 				}
-				IdString param_name = design->twines.add(parse_id());
+				IdString param_name = parse_twine();
 				RTLIL::Const val = parse_const();
 				if (is_signed)
 					val.flags |= RTLIL::CONST_FLAG_SIGNED;
@@ -1061,7 +1061,7 @@ struct RTLILFrontendWorker {
 				act.module = current_module;
 				design->absorb_attrs(&act, std::move(attrbuf));
 				flush_src(&act);
-				act.memid = design->twines.add(parse_id());
+				act.memid = parse_twine();
 				act.address = parse_sigspec();
 				act.data = parse_sigspec();
 				act.enable = parse_sigspec();
