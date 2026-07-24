@@ -43,6 +43,11 @@ struct EquivMakeWorker
 
 	void read_blacklists()
 	{
+		// A name from the file must resolve to the ref an existing object
+		// already carries, which may be a structurally built (suffix) node
+		// rather than a plain leaf -- twines.add would intern a fresh leaf
+		// that never compares equal. TwineSearch resolves by content.
+		TwineSearch search(&gold_mod->design->twines);
 		for (auto fn : blacklists)
 		{
 			std::ifstream f(fn);
@@ -55,7 +60,9 @@ struct EquivMakeWorker
 					token = next_token(line);
 					if (token.empty())
 						break;
-					blacklist_names.insert(gold_mod->design->twines.add(RTLIL::escape_id(token)));
+					IdString name = search.find(RTLIL::escape_id(token));
+					if (name != Twine::Null)
+						blacklist_names.insert(name);
 				}
 			}
 		}
@@ -63,6 +70,7 @@ struct EquivMakeWorker
 
 	void read_encfiles()
 	{
+		TwineSearch search(&gold_mod->design->twines);
 		for (auto fn : encfiles)
 		{
 			std::ifstream f(fn);
@@ -78,9 +86,9 @@ struct EquivMakeWorker
 					continue;
 
 				if (token == ".fsm") {
-					IdString modname = gold_mod->design->twines.add(RTLIL::escape_id(next_token(line)));
+					IdString modname = search.find(RTLIL::escape_id(next_token(line)));
 					(void)modname;
-					IdString signame = gold_mod->design->twines.add(RTLIL::escape_id(next_token(line)));
+					IdString signame = search.find(RTLIL::escape_id(next_token(line)));
 					if (encdata.count(signame))
 						log_cmd_error("Re-definition of signal '%s' in encfile '%s'!\n", log_id(gold_mod->design, signame), fn);
 					encdata[signame] = dict<Const, Const>();
