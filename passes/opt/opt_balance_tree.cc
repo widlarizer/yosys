@@ -48,10 +48,10 @@ struct OptBalanceTreeWorker {
 
 		// Calculate the "natural" output width for this operation
 		int natural_width;
-		if (cell_type == ID::$add) {
+		if (cell_type == ID($add)) {
 			// Addition produces max(A_WIDTH, B_WIDTH) + 1 (for carry bit)
 			natural_width = std::max(a_width, b_width) + 1;
-		} else if (cell_type == ID::$mul) {
+		} else if (cell_type == ID($mul)) {
 			// Multiplication produces A_WIDTH + B_WIDTH
 			natural_width = a_width + b_width;
 		} else {
@@ -85,9 +85,9 @@ struct OptBalanceTreeWorker {
 
 			// Create output wire
 			int out_width = cell->getParam(ID::Y_WIDTH).as_int();
-			if (cell_type == ID::$add)
+			if (cell_type == ID($add))
 				out_width = max(sources[0].size(), sources[1].size()) + 1;
-			else if (cell_type == ID::$mul)
+			else if (cell_type == ID($mul))
 				out_width = sources[0].size() + sources[1].size();
 			Wire* out_wire = module->addWire(NEW_ID, out_width);
 			
@@ -120,9 +120,9 @@ struct OptBalanceTreeWorker {
 
 		// Create output wire
 		int out_width = cell->getParam(ID::Y_WIDTH).as_int();
-		if (cell_type == ID::$add)
+		if (cell_type == ID($add))
 			out_width = max(left_tree.size(), right_tree.size()) + 1;
-		else if (cell_type == ID::$mul)
+		else if (cell_type == ID($mul))
 			out_width = left_tree.size() + right_tree.size();
 		Wire* out_wire = module->addWire(NEW_ID, out_width);
 		

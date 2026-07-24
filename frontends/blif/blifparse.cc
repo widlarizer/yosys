@@ -228,7 +228,7 @@ void parse_blif(RTLIL::Design *design, std::istream &f, TwineRef dff_name, bool 
 					vector<Cell*> remove_cells;
 
 					for (auto cell : module->cells())
-						if (cell->type == ID::$lut && cell->getParam(ID::LUT) == buffer_lut) {
+						if (cell->type == ID($lut) && cell->getParam(ID::LUT) == buffer_lut) {
 							module->connect(cell->getPort(ID::Y), cell->getPort(ID::A));
 							remove_cells.push_back(cell);
 						}
@@ -542,7 +542,7 @@ void parse_blif(RTLIL::Design *design, std::istream &f, TwineRef dff_name, bool 
 				finished_parsing_constval:
 					if (state == RTLIL::State::Sa)
 						state = RTLIL::State::S0;
-					if (output_sig.as_wire()->name == ID::$undef)
+					if (output_sig.as_wire()->name == ID($undef))
 						state = RTLIL::State::Sx;
 					module->connect(RTLIL::SigSig(output_sig, state));
 					goto continue_without_read;
@@ -550,7 +550,7 @@ void parse_blif(RTLIL::Design *design, std::istream &f, TwineRef dff_name, bool 
 
 				if (sop_mode)
 				{
-					sopcell = module->addCell(NEW_ID, ID::$sop);
+					sopcell = module->addCell(NEW_ID, ID($sop));
 					sopcell->parameters[ID::WIDTH] = RTLIL::Const(input_sig.size());
 					sopcell->parameters[ID::DEPTH] = 0;
 					sopcell->parameters[ID::TABLE] = RTLIL::Const();
@@ -566,7 +566,7 @@ void parse_blif(RTLIL::Design *design, std::istream &f, TwineRef dff_name, bool 
 				}
 				else
 				{
-					RTLIL::Cell *cell = module->addCell(NEW_ID, ID::$lut);
+					RTLIL::Cell *cell = module->addCell(NEW_ID, ID($lut));
 					cell->parameters[ID::WIDTH] = RTLIL::Const(input_sig.size());
 					cell->parameters[ID::LUT] = RTLIL::Const(RTLIL::State::Sx, 1 << input_sig.size());
 					cell->setPort(ID::A, input_sig);

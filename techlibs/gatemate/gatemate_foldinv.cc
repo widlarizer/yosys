@@ -45,30 +45,30 @@ struct FoldInvWorker {
     dict<SigBit, Cell*> inverter_input;
 
     const dict<TwineRef, LUTType> lut_types = {
-        {ID::CC_LUT2, {{
-                {ID::I0, {0, ID::INIT}},
-                {ID::I1, {1, ID::INIT}},
-            }, ID::INIT}},
-        {ID::CC_L2T4, {{
-                {ID::I0, {0, ID::INIT_L00}},
-                {ID::I1, {1, ID::INIT_L00}},
-                {ID::I2, {0, ID::INIT_L01}},
-                {ID::I3, {1, ID::INIT_L01}},
-            }, ID::INIT_L10}},
-        {ID::CC_L2T5, {{
-                {ID::I0, {0, ID::INIT_L02}},
-                {ID::I1, {1, ID::INIT_L02}},
-                {ID::I2, {0, ID::INIT_L03}},
-                {ID::I3, {1, ID::INIT_L03}},
-                {ID::I4, {0, ID::INIT_L20}},
-            }, ID::INIT_L20}},
+        {ID(CC_LUT2), {{
+                {ID(I0), {0, ID(INIT)}},
+                {ID(I1), {1, ID(INIT)}},
+            }, ID(INIT)}},
+        {ID(CC_L2T4), {{
+                {ID(I0), {0, ID(INIT_L00)}},
+                {ID(I1), {1, ID(INIT_L00)}},
+                {ID(I2), {0, ID(INIT_L01)}},
+                {ID(I3), {1, ID(INIT_L01)}},
+            }, ID(INIT_L10)}},
+        {ID(CC_L2T5), {{
+                {ID(I0), {0, ID(INIT_L02)}},
+                {ID(I1), {1, ID(INIT_L02)}},
+                {ID(I2), {0, ID(INIT_L03)}},
+                {ID(I3), {1, ID(INIT_L03)}},
+                {ID(I4), {0, ID(INIT_L20)}},
+            }, ID(INIT_L20)}},
     };
 
 
     void find_inverted_bits()
     {
         for (auto cell : module->selected_cells()) {
-            if (cell->type != ID::$__CC_NOT)
+            if (cell->type != ID($__CC_NOT))
                 continue;
             SigBit a = sigmap(cell->getPort(ID::A)[0]);
             SigBit y = sigmap(cell->getPort(ID::Y)[0]);

@@ -482,7 +482,7 @@ struct MemoryShareWorker
 		sigmap_xmux = sigmap;
 		for (auto cell : module->cells())
 		{
-			if (cell->type == ID::$mux)
+			if (cell->type == ID($mux))
 			{
 				RTLIL::SigSpec sig_a = sigmap_xmux(cell->getPort(ID::A));
 				RTLIL::SigSpec sig_b = sigmap_xmux(cell->getPort(ID::B));

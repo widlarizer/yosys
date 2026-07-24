@@ -368,17 +368,17 @@ prop rm::operator==(rm op) const { return mode == op.mode; }
 void rtlil_traits::precondition(const prop &cond)
 {
 	Cell *cell = symfpu_mod->addAssert(NEW_ID, cond.bit, State::S1);
-	cell->set_bool_attribute(ID::symfpu_pre);
+	cell->set_bool_attribute(ID(symfpu_pre));
 }
 void rtlil_traits::postcondition(const prop &cond)
 {
 	Cell *cell = symfpu_mod->addAssert(NEW_ID, cond.bit, State::S1);
-	cell->set_bool_attribute(ID::symfpu_post);
+	cell->set_bool_attribute(ID(symfpu_post));
 }
 void rtlil_traits::invariant(const prop &cond)
 {
 	Cell *cell = symfpu_mod->addAssert(NEW_ID, cond.bit, State::S1);
-	cell->set_bool_attribute(ID::symfpu_inv);
+	cell->set_bool_attribute(ID(symfpu_inv));
 }
 
 ubv input_ubv(TwineRef name, int width)
@@ -567,30 +567,30 @@ struct SymFpuPass : public Pass {
 
 		symfpu_mod = mod;
 
-		auto a_bv = input_ubv(ID::a, eb+sb);
+		auto a_bv = input_ubv(ID(a), eb+sb);
 		uf a = symfpu::unpack<rtlil_traits>(format, a_bv);
 
 		if (classify) {
-			output_prop(ID::isNormal, symfpu::isNormal(format, a));
-			output_prop(ID::isSubnormal, symfpu::isSubnormal(format, a));
-			output_prop(ID::isZero, symfpu::isZero(format, a));
-			output_prop(ID::isInfinite, symfpu::isInfinite(format, a));
-			output_prop(ID::isNaN, symfpu::isNaN(format, a));
-			output_prop(ID::isPositive, symfpu::isPositive(format, a));
-			output_prop(ID::isNegative, symfpu::isNegative(format, a));
-			output_prop(ID::isFinite, symfpu::isFinite(format, a));
+			output_prop(ID(isNormal), symfpu::isNormal(format, a));
+			output_prop(ID(isSubnormal), symfpu::isSubnormal(format, a));
+			output_prop(ID(isZero), symfpu::isZero(format, a));
+			output_prop(ID(isInfinite), symfpu::isInfinite(format, a));
+			output_prop(ID(isNaN), symfpu::isNaN(format, a));
+			output_prop(ID(isPositive), symfpu::isPositive(format, a));
+			output_prop(ID(isNegative), symfpu::isNegative(format, a));
+			output_prop(ID(isFinite), symfpu::isFinite(format, a));
 		} else if (compare) {
-			auto b_bv = input_ubv(ID::b, eb+sb);
+			auto b_bv = input_ubv(ID(b), eb+sb);
 			uf b = symfpu::unpack<rtlil_traits>(format, b_bv);
-			output_prop(ID::smtlibEqual, symfpu::smtlibEqual(format, a, b));
-			output_prop(ID::ieee754Equal, symfpu::ieee754Equal(format, a, b));
-			output_prop(ID::lessThan, symfpu::lessThan(format, a, b));
-			output_prop(ID::lessThanOrEqual, symfpu::lessThanOrEqual(format, a, b));
-			output_prop(ID::sNV, a.getNaN() || b.getNaN());
-			output_prop(ID::qNV, (a.getNaN() && is_sNaN(a_bv, sb)) || (b.getNaN() && is_sNaN(b_bv, sb)));
+			output_prop(ID(smtlibEqual), symfpu::smtlibEqual(format, a, b));
+			output_prop(ID(ieee754Equal), symfpu::ieee754Equal(format, a, b));
+			output_prop(ID(lessThan), symfpu::lessThan(format, a, b));
+			output_prop(ID(lessThanOrEqual), symfpu::lessThanOrEqual(format, a, b));
+			output_prop(ID(sNV), a.getNaN() || b.getNaN());
+			output_prop(ID(qNV), (a.getNaN() && is_sNaN(a_bv, sb)) || (b.getNaN() && is_sNaN(b_bv, sb)));
 		} else {
-			auto b_bv = input_ubv(ID::b, eb+sb);
-			auto c_bv = input_ubv(ID::c, eb+sb);
+			auto b_bv = input_ubv(ID(b), eb+sb);
+			auto c_bv = input_ubv(ID(c), eb+sb);
 			uf b = symfpu::unpack<rtlil_traits>(format, b_bv);
 			uf c = symfpu::unpack<rtlil_traits>(format, c_bv);
 
@@ -639,13 +639,13 @@ struct SymFpuPass : public Pass {
 
 			// calling this more than once will fail
 			auto output_fpu = [&signals_invalid, &format](const uf_flagged &o_flagged) {
-				output_prop(ID::NV, o_flagged.nv || signals_invalid);
-				output_prop(ID::DZ, o_flagged.dz);
-				output_prop(ID::OF, o_flagged.of);
-				output_prop(ID::UF, o_flagged.uf);
-				output_prop(ID::NX, o_flagged.nx);
+				output_prop(ID(NV), o_flagged.nv || signals_invalid);
+				output_prop(ID(DZ), o_flagged.dz);
+				output_prop(ID(OF), o_flagged.of);
+				output_prop(ID(UF), o_flagged.uf);
+				output_prop(ID(NX), o_flagged.nx);
 
-				output_ubv(ID::o, symfpu::pack<rtlil_traits>(format, o_flagged.val));
+				output_ubv(ID(o), symfpu::pack<rtlil_traits>(format, o_flagged.val));
 			};
 
 			if (rounding.compare("DYN") != 0)
@@ -767,7 +767,7 @@ struct SymFpuConvertPass : public Pass {
 		fpt i_format(i_exp, i_size-i_exp);
 		fpt o_format(o_exp, o_size-o_exp);
 
-		auto i_bv = input_ubv(ID::i, i_size);
+		auto i_bv = input_ubv(ID(i), i_size);
 		uf i_f = symfpu::unpack<rtlil_traits>(i_format, i_bv);
 		prop i_sNaN(i_f.getNaN() && is_sNaN(i_bv, i_size-i_exp));
 
@@ -776,26 +776,26 @@ struct SymFpuConvertPass : public Pass {
 		};
 
 		uf_flagged o_ff = symfpu::convertFloatToFloat_flagged(i_format, o_format, rounding_mode, i_f);
-		output_ubv(ID::o_ff, symfpu::pack<rtlil_traits>(o_format, o_ff.val));
-		output_flags(ID::flags_ff, o_ff.nv || i_sNaN, o_ff.nx, o_ff.of, o_ff.uf);
+		output_ubv(ID(o_ff), symfpu::pack<rtlil_traits>(o_format, o_ff.val));
+		output_flags(ID(flags_ff), o_ff.nv || i_sNaN, o_ff.nx, o_ff.of, o_ff.uf);
 
-		auto is_signed = input_prop(ID::is_signed);
+		auto is_signed = input_prop(ID(is_signed));
 
 		// use riscv behavior for invalid inputs
 		ubv o_signed_default = symfpu::ITE(i_f.getSign(), ubv::one(1).append(ubv::zero(o_size-1)), ubv::zero(1).append(ubv::allOnes(o_size-1)));
 		ubv o_unsigned_default = symfpu::ITE(i_f.getSign(), ubv::zero(o_size), ubv::allOnes(o_size));
 		auto o_fi_signed = symfpu::convertFloatToSBV_flagged(i_format, rounding_mode, i_f, o_size, o_signed_default);
 		auto o_fi_unsigned = symfpu::convertFloatToUBV_flagged(i_format, rounding_mode, i_f, o_size, o_unsigned_default);
-		output_ubv(ID::o_fi, symfpu::ITE(is_signed, o_fi_signed.val.toUnsigned(), o_fi_unsigned.val));
-		output_flags(ID::flags_fi,
+		output_ubv(ID(o_fi), symfpu::ITE(is_signed, o_fi_signed.val.toUnsigned(), o_fi_unsigned.val));
+		output_flags(ID(flags_fi),
 			symfpu::ITE(is_signed, o_fi_signed.nv, o_fi_unsigned.nv),
 			symfpu::ITE(is_signed, o_fi_signed.nx, o_fi_unsigned.nx));
 
 		uf_flagged o_if(uf_flagged_ite::iteOp(is_signed,
 			symfpu::convertSBVToFloat_flagged<rtlil_traits>(o_format, rounding_mode, i_bv),
 			symfpu::convertUBVToFloat_flagged<rtlil_traits>(o_format, rounding_mode, i_bv)));
-		output_ubv(ID::o_if, symfpu::pack<rtlil_traits>(o_format, o_if.val));
-		output_flags(ID::flags_if, o_if.nv, o_if.nx, o_if.of);
+		output_ubv(ID(o_if), symfpu::pack<rtlil_traits>(o_format, o_if.val));
+		output_flags(ID(flags_if), o_if.nv, o_if.nx, o_if.of);
 
 		symfpu_mod->fixup_ports();
 	}

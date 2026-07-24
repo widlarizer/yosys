@@ -153,7 +153,7 @@ struct AlumaccWorker
 	{
 		for (auto cell : module->selected_cells())
 		{
-			if (!cell->type.in(ID::$pos, ID::$neg, ID::$add, ID::$sub, ID::$mul))
+			if (!cell->type.in(ID($pos), ID($neg), ID($add), ID($sub), ID($mul)))
 				continue;
 
 			log("  creating $macc model for %s (%s).\n", cell, cell->type.unescaped());
@@ -168,15 +168,15 @@ struct AlumaccWorker
 			for (auto bit : n->y)
 				n->users = max(n->users, bit_users.at(bit) - 1);
 
-			if (cell->type.in(ID::$pos, ID::$neg))
+			if (cell->type.in(ID($pos), ID($neg)))
 			{
 				new_term.in_a = sigmap(cell->getPort(ID::A));
 				new_term.is_signed = cell->getParam(ID::A_SIGNED).as_bool();
-				new_term.do_subtract = cell->type == ID::$neg;
+				new_term.do_subtract = cell->type == ID($neg);
 				n->macc.terms.push_back(new_term);
 			}
 
-			if (cell->type.in(ID::$add, ID::$sub))
+			if (cell->type.in(ID($add), ID($sub)))
 			{
 				new_term.in_a = sigmap(cell->getPort(ID::A));
 				new_term.is_signed = cell->getParam(ID::A_SIGNED).as_bool();
@@ -185,11 +185,11 @@ struct AlumaccWorker
 
 				new_term.in_a = sigmap(cell->getPort(ID::B));
 				new_term.is_signed = cell->getParam(ID::B_SIGNED).as_bool();
-				new_term.do_subtract = cell->type == ID::$sub;
+				new_term.do_subtract = cell->type == ID($sub);
 				n->macc.terms.push_back(new_term);
 			}
 
-			if (cell->type.in(ID::$mul))
+			if (cell->type.in(ID($mul)))
 			{
 				new_term.in_a = sigmap(cell->getPort(ID::A));
 				new_term.in_b = sigmap(cell->getPort(ID::B));
@@ -379,7 +379,7 @@ struct AlumaccWorker
 		for (auto &it : sig_macc)
 		{
 			auto n = it.second;
-			auto cell = module->addCell(NEW_ID, ID::$macc);
+			auto cell = module->addCell(NEW_ID, ID($macc));
 
 			macc_counter++;
 
@@ -404,9 +404,9 @@ struct AlumaccWorker
 
 		for (auto cell : module->selected_cells())
 		{
-			if (cell->type.in(ID::$lt, ID::$le, ID::$ge, ID::$gt))
+			if (cell->type.in(ID($lt), ID($le), ID($ge), ID($gt)))
 				lge_cells.push_back(cell);
-			if (cell->type.in(ID::$eq, ID::$eqx, ID::$ne, ID::$nex))
+			if (cell->type.in(ID($eq), ID($eqx), ID($ne), ID($nex)))
 				eq_cells.push_back(cell);
 		}
 
@@ -414,8 +414,8 @@ struct AlumaccWorker
 		{
 			log("  creating $alu model for %s (%s):", cell, cell->type.unescaped());
 
-			bool cmp_less = cell->type.in(ID::$lt, ID::$le);
-			bool cmp_equal = cell->type.in(ID::$le, ID::$ge);
+			bool cmp_less = cell->type.in(ID($lt), ID($le));
+			bool cmp_equal = cell->type.in(ID($le), ID($ge));
 			bool is_signed = cell->getParam(ID::A_SIGNED).as_bool();
 
 			RTLIL::SigSpec A = sigmap(cell->getPort(ID::A));
@@ -460,7 +460,7 @@ struct AlumaccWorker
 
 		for (auto cell : eq_cells)
 		{
-			bool cmp_equal = cell->type.in(ID::$eq, ID::$eqx);
+			bool cmp_equal = cell->type.in(ID($eq), ID($eqx));
 			bool is_signed = cell->getParam(ID::A_SIGNED).as_bool();
 
 			RTLIL::SigSpec A = sigmap(cell->getPort(ID::A));
@@ -509,7 +509,7 @@ struct AlumaccWorker
 				goto delete_node;
 			}
 
-			n->alu_cell = module->addCell(NEW_ID, ID::$alu);
+			n->alu_cell = module->addCell(NEW_ID, ID($alu));
 			alu_counter++;
 
 			log("  creating $alu cell for ");

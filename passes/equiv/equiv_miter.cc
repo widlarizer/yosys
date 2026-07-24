@@ -47,7 +47,7 @@ struct EquivMiterWorker
 		if (cone.count(c))
 			return;
 
-		if (c->type == ID::$equiv && !seed_cells.count(c)) {
+		if (c->type == ID($equiv) && !seed_cells.count(c)) {
 			leaves.insert(c);
 			return;
 		}
@@ -57,7 +57,7 @@ struct EquivMiterWorker
 		for (auto &conn : c->connections()) {
 			if (!ct.cell_input(c->type_impl, conn.first))
 				continue;
-			if (c->type == ID::$equiv && (conn.first == ID::A) != gold_mode)
+			if (c->type == ID($equiv) && (conn.first == ID::A) != gold_mode)
 				continue;
 			for (auto bit : sigmap(conn.second))
 				if (bit_to_driver.count(bit))
@@ -81,7 +81,7 @@ struct EquivMiterWorker
 		// find seed cells
 
 		for (auto c : source_module->selected_cells())
-			if (c->type == ID::$equiv) {
+			if (c->type == ID($equiv)) {
 				log("Seed $equiv cell: %s\n", c);
 				seed_cells.insert(c);
 			}
@@ -217,7 +217,7 @@ struct EquivMiterWorker
 		vector<Cell*> equiv_cells;
 
 		for (auto c : miter_module->cells())
-			if (c->type == ID::$equiv && c->getPort(ID::A) != c->getPort(ID::B))
+			if (c->type == ID($equiv) && c->getPort(ID::A) != c->getPort(ID::B))
 				equiv_cells.push_back(c);
 
 		for (auto c : equiv_cells)

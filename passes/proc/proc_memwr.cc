@@ -42,7 +42,7 @@ void proc_memwr(RTLIL::Module *mod, RTLIL::Process *proc, dict<TwineRef, int> &n
 					priority_mask.set(prev_port_ids[i], State::S1);
 			prev_port_ids.push_back(port_id);
 
-			RTLIL::Cell *cell = mod->addCell(NEW_ID, ID::$memwr_v2);
+			RTLIL::Cell *cell = mod->addCell(NEW_ID, ID($memwr_v2));
 			cell->attributes = memwr.attributes;
 			cell->setParam(ID::MEMID, Const(mod->design->twines.str(memwr.memid)));
 			cell->setParam(ID::ABITS, GetSize(memwr.address));
@@ -102,8 +102,8 @@ struct ProcMemWrPass : public Pass {
 		for (auto mod : design->all_selected_modules()) {
 			dict<TwineRef, int> next_port_id;
 			for (auto cell : mod->cells()) {
-				if (cell->type.in(ID::$memwr, ID::$memwr_v2)) {
-					bool is_compat = cell->type == ID::$memwr;
+				if (cell->type.in(ID($memwr), ID($memwr_v2))) {
+					bool is_compat = cell->type == ID($memwr);
 					TwineRef memid = mod->design->twines.add(cell->parameters.at(ID::MEMID).decode_string());
 					int port_id = cell->parameters.at(is_compat ? ID::PRIORITY : ID::PORTID).as_int();
 					if (port_id >= next_port_id[memid])

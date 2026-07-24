@@ -77,50 +77,50 @@ struct OptLutInsPass : public Pass {
 				std::vector<SigBit> output;
 				bool ignore_const = false;
 				if (techname == "") {
-					if (cell->type != ID::$lut)
+					if (cell->type != ID($lut))
 						continue;
 					inputs = cell->getPort(ID::A);
 					output = cell->getPort(ID::Y);
 					lut = cell->getParam(ID::LUT);
 				} else if (techname == "xilinx" || techname == "gowin" || techname == "analogdevices") {
-					if (cell->type == ID::LUT1) {
+					if (cell->type == ID(LUT1)) {
 						inputs = {
-							cell->getPort(ID::I0),
+							cell->getPort(ID(I0)),
 						};
-					} else if (cell->type == ID::LUT2) {
+					} else if (cell->type == ID(LUT2)) {
 						inputs = {
-							cell->getPort(ID::I0),
-							cell->getPort(ID::I1),
+							cell->getPort(ID(I0)),
+							cell->getPort(ID(I1)),
 						};
-					} else if (cell->type == ID::LUT3) {
+					} else if (cell->type == ID(LUT3)) {
 						inputs = {
-							cell->getPort(ID::I0),
-							cell->getPort(ID::I1),
-							cell->getPort(ID::I2),
+							cell->getPort(ID(I0)),
+							cell->getPort(ID(I1)),
+							cell->getPort(ID(I2)),
 						};
-					} else if (cell->type == ID::LUT4) {
+					} else if (cell->type == ID(LUT4)) {
 						inputs = {
-							cell->getPort(ID::I0),
-							cell->getPort(ID::I1),
-							cell->getPort(ID::I2),
-							cell->getPort(ID::I3),
+							cell->getPort(ID(I0)),
+							cell->getPort(ID(I1)),
+							cell->getPort(ID(I2)),
+							cell->getPort(ID(I3)),
 						};
-					} else if (cell->type == ID::LUT5) {
+					} else if (cell->type == ID(LUT5)) {
 						inputs = {
-							cell->getPort(ID::I0),
-							cell->getPort(ID::I1),
-							cell->getPort(ID::I2),
-							cell->getPort(ID::I3),
-							cell->getPort(ID::I4),
+							cell->getPort(ID(I0)),
+							cell->getPort(ID(I1)),
+							cell->getPort(ID(I2)),
+							cell->getPort(ID(I3)),
+							cell->getPort(ID(I4)),
 						};
-					} else if (cell->type == ID::LUT6) {
+					} else if (cell->type == ID(LUT6)) {
 						inputs = {
-							cell->getPort(ID::I0),
-							cell->getPort(ID::I1),
-							cell->getPort(ID::I2),
-							cell->getPort(ID::I3),
-							cell->getPort(ID::I4),
-							cell->getPort(ID::I5),
+							cell->getPort(ID(I0)),
+							cell->getPort(ID(I1)),
+							cell->getPort(ID(I2)),
+							cell->getPort(ID(I3)),
+							cell->getPort(ID(I4)),
+							cell->getPort(ID(I5)),
 						};
 					} else {
 						// Not a LUT.
@@ -132,7 +132,7 @@ struct OptLutInsPass : public Pass {
 					else
 						output = cell->getPort(ID::F);
 				} else if (techname == "lattice") {
-					if (cell->type == ID::LUT4) {
+					if (cell->type == ID(LUT4)) {
 						inputs = {
 							cell->getPort(ID::A),
 							cell->getPort(ID::B),
@@ -140,7 +140,7 @@ struct OptLutInsPass : public Pass {
 							cell->getPort(ID::D),
 						};
 						lut = cell->getParam(ID::INIT);
-						output = cell->getPort(ID::Z);
+						output = cell->getPort(ID(Z));
 						ignore_const = true;
 					} else {
 						// Not a LUT.
@@ -255,23 +255,23 @@ struct OptLutInsPass : public Pass {
 							cell->type_impl = ID::LUT6;
 						else
 							log_assert(0);
-						cell->unsetPort(ID::I0);
-						cell->unsetPort(ID::I1);
-						cell->unsetPort(ID::I2);
-						cell->unsetPort(ID::I3);
-						cell->unsetPort(ID::I4);
-						cell->unsetPort(ID::I5);
-						cell->setPort(ID::I0, new_inputs[0]);
+						cell->unsetPort(ID(I0));
+						cell->unsetPort(ID(I1));
+						cell->unsetPort(ID(I2));
+						cell->unsetPort(ID(I3));
+						cell->unsetPort(ID(I4));
+						cell->unsetPort(ID(I5));
+						cell->setPort(ID(I0), new_inputs[0]);
 						if (GetSize(new_inputs) >= 2)
-							cell->setPort(ID::I1, new_inputs[1]);
+							cell->setPort(ID(I1), new_inputs[1]);
 						if (GetSize(new_inputs) >= 3)
-							cell->setPort(ID::I2, new_inputs[2]);
+							cell->setPort(ID(I2), new_inputs[2]);
 						if (GetSize(new_inputs) >= 4)
-							cell->setPort(ID::I3, new_inputs[3]);
+							cell->setPort(ID(I3), new_inputs[3]);
 						if (GetSize(new_inputs) >= 5)
-							cell->setPort(ID::I4, new_inputs[4]);
+							cell->setPort(ID(I4), new_inputs[4]);
 						if (GetSize(new_inputs) >= 6)
-							cell->setPort(ID::I5, new_inputs[5]);
+							cell->setPort(ID(I5), new_inputs[5]);
 					}
 				}
 			}

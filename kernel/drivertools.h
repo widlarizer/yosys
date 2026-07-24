@@ -1255,7 +1255,7 @@ public:
 private:
 	bool keep_wire(Wire *wire) {
 		// TODO configurable
-		return wire->has_attribute(ID::keep);
+		return wire->has_attribute(ID(keep));
 	}
 };
 

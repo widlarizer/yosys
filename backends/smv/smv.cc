@@ -227,7 +227,7 @@ struct SmvWorker
 		{
 			// FIXME: $slice, $concat, $mem
 
-			if (cell->type.in(ID::$assert))
+			if (cell->type.in(ID($assert)))
 			{
 				SigSpec sig_a = cell->getPort(ID::A);
 				SigSpec sig_en = cell->getPort(ID::EN);
@@ -237,7 +237,7 @@ struct SmvWorker
 				continue;
 			}
 
-			if (cell->type.in(ID::$shl, ID::$shr, ID::$sshl, ID::$sshr, ID::$shift, ID::$shiftx))
+			if (cell->type.in(ID($shl), ID($shr), ID($sshl), ID($sshr), ID($shift), ID($shiftx)))
 			{
 				SigSpec sig_a = cell->getPort(ID::A);
 				SigSpec sig_b = cell->getPort(ID::B);
@@ -256,10 +256,10 @@ struct SmvWorker
 
 				bool signed_a = cell->getParam(ID::A_SIGNED).as_bool();
 				bool signed_b = cell->getParam(ID::B_SIGNED).as_bool();
-				string op = cell->type.in(ID::$shl, ID::$sshl) ? "<<" : ">>";
+				string op = cell->type.in(ID($shl), ID($sshl)) ? "<<" : ">>";
 				string expr, expr_a;
 
-				if (cell->type == ID::$sshr && signed_a)
+				if (cell->type == ID($sshr) && signed_a)
 				{
 					expr_a = rvalue_s(sig_a, width);
 					expr = stringf("resize(unsigned(%s %s %s), %d)", expr_a, op, rvalue(sig_b.extract(0, shift_b_width)), width_y);
@@ -268,7 +268,7 @@ struct SmvWorker
 								rvalue(sig_b.extract(shift_b_width, GetSize(sig_b) - shift_b_width)), GetSize(sig_b) - shift_b_width,
 								rvalue(sig_a[GetSize(sig_a)-1]), width_y, width_y, expr.c_str());
 				}
-				else if (cell->type.in(ID::$shift, ID::$shiftx) && signed_b)
+				else if (cell->type.in(ID($shift), ID($shiftx)) && signed_b)
 				{
 					expr_a = rvalue_u(sig_a, width);
 
@@ -292,7 +292,7 @@ struct SmvWorker
 				}
 				else
 				{
-					if (cell->type.in(ID::$shift, ID::$shiftx) || !signed_a)
+					if (cell->type.in(ID($shift), ID($shiftx)) || !signed_a)
 						expr_a = rvalue_u(sig_a, width);
 					else
 						expr_a = stringf("resize(unsigned(%s), %d)", rvalue_s(sig_a, width_ay), width);
@@ -308,14 +308,14 @@ struct SmvWorker
 				continue;
 			}
 
-			if (cell->type.in(ID::$not, ID::$pos, ID::$neg))
+			if (cell->type.in(ID($not), ID($pos), ID($neg)))
 			{
 				int width = GetSize(cell->getPort(ID::Y));
 				string expr_a, op;
 
-				if (cell->type == ID::$not)  op = "!";
-				if (cell->type == ID::$pos)  op = "";
-				if (cell->type == ID::$neg)  op = "-";
+				if (cell->type == ID($not))  op = "!";
+				if (cell->type == ID($pos))  op = "";
+				if (cell->type == ID($neg))  op = "-";
 
 				if (cell->getParam(ID::A_SIGNED).as_bool())
 				{
@@ -331,18 +331,18 @@ struct SmvWorker
 				continue;
 			}
 
-			if (cell->type.in(ID::$add, ID::$sub, ID::$mul, ID::$and, ID::$or, ID::$xor, ID::$xnor))
+			if (cell->type.in(ID($add), ID($sub), ID($mul), ID($and), ID($or), ID($xor), ID($xnor)))
 			{
 				int width = GetSize(cell->getPort(ID::Y));
 				string expr_a, expr_b, op;
 
-				if (cell->type == ID::$add)  op = "+";
-				if (cell->type == ID::$sub)  op = "-";
-				if (cell->type == ID::$mul)  op = "*";
-				if (cell->type == ID::$and)  op = "&";
-				if (cell->type == ID::$or)   op = "|";
-				if (cell->type == ID::$xor)  op = "xor";
-				if (cell->type == ID::$xnor) op = "xnor";
+				if (cell->type == ID($add))  op = "+";
+				if (cell->type == ID($sub))  op = "-";
+				if (cell->type == ID($mul))  op = "*";
+				if (cell->type == ID($and))  op = "&";
+				if (cell->type == ID($or))   op = "|";
+				if (cell->type == ID($xor))  op = "xor";
+				if (cell->type == ID($xnor)) op = "xnor";
 
 				if (cell->getParam(ID::A_SIGNED).as_bool())
 				{
@@ -359,15 +359,15 @@ struct SmvWorker
 			}
 
 			// SMV has a "mod" operator, but its semantics don't seem to be well-defined - to be safe, don't generate it at all
-			if (cell->type.in(ID::$div/*, ID::$mod, ID::$modfloor*/))
+			if (cell->type.in(ID($div)/*, ID($mod), ID($modfloor)*/))
 			{
 				int width_y = GetSize(cell->getPort(ID::Y));
 				int width = max(width_y, GetSize(cell->getPort(ID::A)));
 				width = max(width, GetSize(cell->getPort(ID::B)));
 				string expr_a, expr_b, op;
 
-				if (cell->type == ID::$div)  op = "/";
-				//if (cell->type == ID::$mod)  op = "mod";
+				if (cell->type == ID($div))  op = "/";
+				//if (cell->type == ID($mod))  op = "mod";
 
 				if (cell->getParam(ID::A_SIGNED).as_bool())
 				{
@@ -383,19 +383,19 @@ struct SmvWorker
 				continue;
 			}
 
-			if (cell->type.in(ID::$eq, ID::$ne, ID::$eqx, ID::$nex, ID::$lt, ID::$le, ID::$ge, ID::$gt))
+			if (cell->type.in(ID($eq), ID($ne), ID($eqx), ID($nex), ID($lt), ID($le), ID($ge), ID($gt)))
 			{
 				int width = max(GetSize(cell->getPort(ID::A)), GetSize(cell->getPort(ID::B)));
 				string expr_a, expr_b, op;
 
-				if (cell->type == ID::$eq)  op = "=";
-				if (cell->type == ID::$ne)  op = "!=";
-				if (cell->type == ID::$eqx) op = "=";
-				if (cell->type == ID::$nex) op = "!=";
-				if (cell->type == ID::$lt)  op = "<";
-				if (cell->type == ID::$le)  op = "<=";
-				if (cell->type == ID::$ge)  op = ">=";
-				if (cell->type == ID::$gt)  op = ">";
+				if (cell->type == ID($eq))  op = "=";
+				if (cell->type == ID($ne))  op = "!=";
+				if (cell->type == ID($eqx)) op = "=";
+				if (cell->type == ID($nex)) op = "!=";
+				if (cell->type == ID($lt))  op = "<";
+				if (cell->type == ID($le))  op = "<=";
+				if (cell->type == ID($ge))  op = ">=";
+				if (cell->type == ID($gt))  op = ">";
 
 				if (cell->getParam(ID::A_SIGNED).as_bool())
 				{
@@ -414,7 +414,7 @@ struct SmvWorker
 				continue;
 			}
 
-			if (cell->type.in(ID::$reduce_and, ID::$reduce_or, ID::$reduce_bool))
+			if (cell->type.in(ID($reduce_and), ID($reduce_or), ID($reduce_bool)))
 			{
 				int width_a = GetSize(cell->getPort(ID::A));
 				int width_y = GetSize(cell->getPort(ID::Y));
@@ -422,15 +422,15 @@ struct SmvWorker
 				const char *expr_y = lvalue(cell->getPort(ID::Y));
 				string expr;
 
-				if (cell->type == ID::$reduce_and)  expr = stringf("%s = !0ub%d_0", expr_a, width_a);
-				if (cell->type == ID::$reduce_or)   expr = stringf("%s != 0ub%d_0", expr_a, width_a);
-				if (cell->type == ID::$reduce_bool) expr = stringf("%s != 0ub%d_0", expr_a, width_a);
+				if (cell->type == ID($reduce_and))  expr = stringf("%s = !0ub%d_0", expr_a, width_a);
+				if (cell->type == ID($reduce_or))   expr = stringf("%s != 0ub%d_0", expr_a, width_a);
+				if (cell->type == ID($reduce_bool)) expr = stringf("%s != 0ub%d_0", expr_a, width_a);
 
 				definitions.push_back(stringf("%s := resize(word1(%s), %d);", expr_y, expr, width_y));
 				continue;
 			}
 
-			if (cell->type.in(ID::$reduce_xor, ID::$reduce_xnor))
+			if (cell->type.in(ID($reduce_xor), ID($reduce_xnor)))
 			{
 				int width_y = GetSize(cell->getPort(ID::Y));
 				const char *expr_y = lvalue(cell->getPort(ID::Y));
@@ -442,14 +442,14 @@ struct SmvWorker
 					expr += rvalue(bit);
 				}
 
-				if (cell->type == ID::$reduce_xnor)
+				if (cell->type == ID($reduce_xnor))
 					expr = "!(" + expr + ")";
 
 				definitions.push_back(stringf("%s := resize(%s, %d);", expr_y, expr, width_y));
 				continue;
 			}
 
-			if (cell->type.in(ID::$logic_and, ID::$logic_or))
+			if (cell->type.in(ID($logic_and), ID($logic_or)))
 			{
 				int width_a = GetSize(cell->getPort(ID::A));
 				int width_b = GetSize(cell->getPort(ID::B));
@@ -460,14 +460,14 @@ struct SmvWorker
 				const char *expr_y = lvalue(cell->getPort(ID::Y));
 
 				string expr;
-				if (cell->type == ID::$logic_and) expr = expr_a + " & " + expr_b;
-				if (cell->type == ID::$logic_or)  expr = expr_a + " | " + expr_b;
+				if (cell->type == ID($logic_and)) expr = expr_a + " & " + expr_b;
+				if (cell->type == ID($logic_or))  expr = expr_a + " | " + expr_b;
 
 				definitions.push_back(stringf("%s := resize(word1(%s), %d);", expr_y, expr, width_y));
 				continue;
 			}
 
-			if (cell->type.in(ID::$logic_not))
+			if (cell->type.in(ID($logic_not)))
 			{
 				int width_a = GetSize(cell->getPort(ID::A));
 				int width_y = GetSize(cell->getPort(ID::Y));
@@ -479,7 +479,7 @@ struct SmvWorker
 				continue;
 			}
 
-			if (cell->type.in(ID::$mux, ID::$pmux))
+			if (cell->type.in(ID($mux), ID($pmux)))
 			{
 				int width = GetSize(cell->getPort(ID::Y));
 				SigSpec sig_a = cell->getPort(ID::A);
@@ -495,34 +495,34 @@ struct SmvWorker
 				continue;
 			}
 
-			if (cell->type == ID::$dff)
+			if (cell->type == ID($dff))
 			{
 				vars.push_back(stringf("%s : unsigned word[%d]; -- %s", lvalue(cell->getPort(ID::Q)), GetSize(cell->getPort(ID::Q)), log_signal(cell->getPort(ID::Q))));
 				assignments.push_back(stringf("next(%s) := %s;", lvalue(cell->getPort(ID::Q)), rvalue(cell->getPort(ID::D))));
 				continue;
 			}
 
-			if (cell->type.in(ID::$_BUF_, ID::$_NOT_))
+			if (cell->type.in(ID($_BUF_), ID($_NOT_)))
 			{
-				string op = cell->type == ID::$_NOT_ ? "!" : "";
+				string op = cell->type == ID($_NOT_) ? "!" : "";
 				definitions.push_back(stringf("%s := %s%s;", lvalue(cell->getPort(ID::Y)), op, rvalue(cell->getPort(ID::A))));
 				continue;
 			}
 
-			if (cell->type.in(ID::$_AND_, ID::$_NAND_, ID::$_OR_, ID::$_NOR_, ID::$_XOR_, ID::$_XNOR_, ID::$_ANDNOT_, ID::$_ORNOT_))
+			if (cell->type.in(ID($_AND_), ID($_NAND_), ID($_OR_), ID($_NOR_), ID($_XOR_), ID($_XNOR_), ID($_ANDNOT_), ID($_ORNOT_)))
 			{
 				string op;
 
-				if (cell->type.in(ID::$_AND_, ID::$_NAND_, ID::$_ANDNOT_)) op = "&";
-				if (cell->type.in(ID::$_OR_, ID::$_NOR_, ID::$_ORNOT_)) op = "|";
-				if (cell->type.in(ID::$_XOR_))  op = "xor";
-				if (cell->type.in(ID::$_XNOR_))  op = "xnor";
+				if (cell->type.in(ID($_AND_), ID($_NAND_), ID($_ANDNOT_))) op = "&";
+				if (cell->type.in(ID($_OR_), ID($_NOR_), ID($_ORNOT_))) op = "|";
+				if (cell->type.in(ID($_XOR_)))  op = "xor";
+				if (cell->type.in(ID($_XNOR_)))  op = "xnor";
 
-				if (cell->type.in(ID::$_ANDNOT_, ID::$_ORNOT_))
+				if (cell->type.in(ID($_ANDNOT_), ID($_ORNOT_)))
 					definitions.push_back(stringf("%s := %s %s (!%s);", lvalue(cell->getPort(ID::Y)),
 							rvalue(cell->getPort(ID::A)), op.c_str(), rvalue(cell->getPort(ID::B))));
 				else
-				if (cell->type.in(ID::$_NAND_, ID::$_NOR_))
+				if (cell->type.in(ID($_NAND_), ID($_NOR_)))
 					definitions.push_back(stringf("%s := !(%s %s %s);", lvalue(cell->getPort(ID::Y)),
 							rvalue(cell->getPort(ID::A)), op.c_str(), rvalue(cell->getPort(ID::B))));
 				else
@@ -531,61 +531,61 @@ struct SmvWorker
 				continue;
 			}
 
-			if (cell->type == ID::$_MUX_)
+			if (cell->type == ID($_MUX_))
 			{
 				definitions.push_back(stringf("%s := bool(%s) ? %s : %s;", lvalue(cell->getPort(ID::Y)),
 						rvalue(cell->getPort(ID::S)), rvalue(cell->getPort(ID::B)), rvalue(cell->getPort(ID::A))));
 				continue;
 			}
 
-			if (cell->type == ID::$_NMUX_)
+			if (cell->type == ID($_NMUX_))
 			{
 				definitions.push_back(stringf("%s := !(bool(%s) ? %s : %s);", lvalue(cell->getPort(ID::Y)),
 						rvalue(cell->getPort(ID::S)), rvalue(cell->getPort(ID::B)), rvalue(cell->getPort(ID::A))));
 				continue;
 			}
 
-			if (cell->type == ID::$_AOI3_)
+			if (cell->type == ID($_AOI3_))
 			{
 				definitions.push_back(stringf("%s := !((%s & %s) | %s);", lvalue(cell->getPort(ID::Y)),
 						rvalue(cell->getPort(ID::A)), rvalue(cell->getPort(ID::B)), rvalue(cell->getPort(ID::C))));
 				continue;
 			}
 
-			if (cell->type == ID::$_OAI3_)
+			if (cell->type == ID($_OAI3_))
 			{
 				definitions.push_back(stringf("%s := !((%s | %s) & %s);", lvalue(cell->getPort(ID::Y)),
 						rvalue(cell->getPort(ID::A)), rvalue(cell->getPort(ID::B)), rvalue(cell->getPort(ID::C))));
 				continue;
 			}
 
-			if (cell->type == ID::$_AOI4_)
+			if (cell->type == ID($_AOI4_))
 			{
 				definitions.push_back(stringf("%s := !((%s & %s) | (%s & %s));", lvalue(cell->getPort(ID::Y)),
 						rvalue(cell->getPort(ID::A)), rvalue(cell->getPort(ID::B)), rvalue(cell->getPort(ID::C)), rvalue(cell->getPort(ID::D))));
 				continue;
 			}
 
-			if (cell->type == ID::$_OAI4_)
+			if (cell->type == ID($_OAI4_))
 			{
 				definitions.push_back(stringf("%s := !((%s | %s) & (%s | %s));", lvalue(cell->getPort(ID::Y)),
 						rvalue(cell->getPort(ID::A)), rvalue(cell->getPort(ID::B)), rvalue(cell->getPort(ID::C)), rvalue(cell->getPort(ID::D))));
 				continue;
 			}
 
-			if (cell->type == ID::$scopeinfo)
+			if (cell->type == ID($scopeinfo))
 				continue;
 
 			if (cell->type[0] == '$') {
-				if (cell->type.in(ID::$dffe, ID::$sdff, ID::$sdffe, ID::$sdffce) || cell->type.str().substr(0, 6) == "$_SDFF" || (cell->type.str().substr(0, 6) == "$_DFFE" && cell->type.str().size() == 10)) {
+				if (cell->type.in(ID($dffe), ID($sdff), ID($sdffe), ID($sdffce)) || cell->type.str().substr(0, 6) == "$_SDFF" || (cell->type.str().substr(0, 6) == "$_DFFE" && cell->type.str().size() == 10)) {
 					log_error("Unsupported cell type %s for cell %s.%s -- please run `dffunmap` before `write_smv`.\n",
 							cell->type.unescape(), module, cell);
 				}
-				if (cell->type.in(ID::$adff, ID::$adffe, ID::$aldff, ID::$aldffe, ID::$dffsr, ID::$dffsre) || cell->type.str().substr(0, 5) == "$_DFF" || cell->type.str().substr(0, 7) == "$_ALDFF") {
+				if (cell->type.in(ID($adff), ID($adffe), ID($aldff), ID($aldffe), ID($dffsr), ID($dffsre)) || cell->type.str().substr(0, 5) == "$_DFF" || cell->type.str().substr(0, 7) == "$_ALDFF") {
 					log_error("Unsupported cell type %s for cell %s.%s -- please run `async2sync; dffunmap` or `clk2fflogic` before `write_smv`.\n",
 							cell->type.unescape(), module, cell);
 				}
-				if (cell->type.in(ID::$sr, ID::$dlatch, ID::$adlatch, ID::$dlatchsr) || cell->type.str().substr(0, 8) == "$_DLATCH" || cell->type.str().substr(0, 5) == "$_SR_") {
+				if (cell->type.in(ID($sr), ID($dlatch), ID($adlatch), ID($dlatchsr)) || cell->type.str().substr(0, 8) == "$_DLATCH" || cell->type.str().substr(0, 5) == "$_SR_") {
 					log_error("Unsupported cell type %s for cell %s.%s -- please run `clk2fflogic` before `write_smv`.\n",
 							cell->type.unescape(), module, cell);
 				}

@@ -294,18 +294,18 @@ struct XpropWorker
 	}
 
 	void mark_maybe_x(Cell *cell) {
-		if (cell->type.in(ID::$bweqx, ID::$eqx, ID::$nex, ID::$initstate, ID::$assert, ID::$assume, ID::$cover, ID::$anyseq, ID::$anyconst))
+		if (cell->type.in(ID($bweqx), ID($eqx), ID($nex), ID($initstate), ID($assert), ID($assume), ID($cover), ID($anyseq), ID($anyconst)))
 			return;
 
-		if (cell->type.in(ID::$pmux)) {
+		if (cell->type.in(ID($pmux))) {
 			mark_outputs_maybe_x(cell);
 			return;
 		}
 
-		if (cell->is_builtin_ff() || cell->type == ID::$anyinit) {
+		if (cell->is_builtin_ff() || cell->type == ID($anyinit)) {
 			FfData ff(&initvals, cell);
 
-			if (cell->type != ID::$anyinit)
+			if (cell->type != ID($anyinit))
 				for (int i = 0; i < ff.width; i++)
 					if (ff.val_init[i] == State::Sx)
 						mark_maybe_x(ff.sig_q[i]);
@@ -318,7 +318,7 @@ struct XpropWorker
 				return;
 		}
 
-		if (cell->type == ID::$not) {
+		if (cell->type == ID($not)) {
 			auto &sig_y = cell->getPort(ID::Y);
 			auto sig_a = cell->getPort(ID::A); sig_a.extend_u0(GetSize(sig_y), cell->getParam(ID::A_SIGNED).as_bool());
 			for (int i = 0; i < GetSize(sig_y); i++)
@@ -327,7 +327,7 @@ struct XpropWorker
 			return;
 		}
 
-		if (cell->type.in(ID::$and, ID::$or, ID::$xor, ID::$xnor)) {
+		if (cell->type.in(ID($and), ID($or), ID($xor), ID($xnor))) {
 			auto &sig_y = cell->getPort(ID::Y);
 			auto sig_a = cell->getPort(ID::A); sig_a.extend_u0(GetSize(sig_y), cell->getParam(ID::A_SIGNED).as_bool());
 			auto sig_b = cell->getPort(ID::B); sig_b.extend_u0(GetSize(sig_y), cell->getParam(ID::B_SIGNED).as_bool());
@@ -337,7 +337,7 @@ struct XpropWorker
 			return;
 		}
 
-		if (cell->type.in(ID::$bwmux)) {
+		if (cell->type.in(ID($bwmux))) {
 			auto &sig_y = cell->getPort(ID::Y);
 			auto &sig_a = cell->getPort(ID::A);
 			auto &sig_b = cell->getPort(ID::B);
@@ -348,7 +348,7 @@ struct XpropWorker
 			return;
 		}
 
-		if (cell->type.in(ID::$_MUX_, ID::$mux, ID::$bmux)) {
+		if (cell->type.in(ID($_MUX_), ID($mux), ID($bmux))) {
 			auto &sig_y = cell->getPort(ID::Y);
 			auto &sig_a = cell->getPort(ID::A);
 			auto &sig_b = cell->getPort(ID::B);
@@ -372,7 +372,7 @@ struct XpropWorker
 			return;
 		}
 
-		if (cell->type.in(ID::$demux)) {
+		if (cell->type.in(ID($demux))) {
 			auto &sig_y = cell->getPort(ID::Y);
 			auto &sig_a = cell->getPort(ID::A);
 			auto &sig_s = cell->getPort(ID::S);
@@ -387,7 +387,7 @@ struct XpropWorker
 			return;
 		}
 
-		if (cell->type.in(ID::$shl, ID::$shr, ID::$sshl, ID::$sshr, ID::$shift)) {
+		if (cell->type.in(ID($shl), ID($shr), ID($sshl), ID($sshr), ID($shift))) {
 			auto &sig_b = cell->getPort(ID::B);
 			auto &sig_y = cell->getPort(ID::Y);
 
@@ -407,7 +407,7 @@ struct XpropWorker
 			return;
 		}
 
-		if (cell->type.in(ID::$shiftx)) {
+		if (cell->type.in(ID($shiftx))) {
 			auto &sig_b = cell->getPort(ID::B);
 			auto &sig_y = cell->getPort(ID::Y);
 
@@ -438,24 +438,24 @@ struct XpropWorker
 			return;
 		}
 
-		if (cell->type.in(ID::$add, ID::$sub, ID::$mul, ID::$neg)) {
+		if (cell->type.in(ID($add), ID($sub), ID($mul), ID($neg))) {
 			if (inputs_maybe_x(cell))
 				mark_outputs_maybe_x(cell);
 			return;
 		}
 
-		if (cell->type.in(ID::$div, ID::$mod, ID::$divfloor, ID::$modfloor)) {
+		if (cell->type.in(ID($div), ID($mod), ID($divfloor), ID($modfloor))) {
 			mark_outputs_maybe_x(cell);
 			return;
 		}
 
 		if (cell->type.in(
-			ID::$le, ID::$lt, ID::$ge, ID::$gt,
-			ID::$reduce_and, ID::$reduce_or, ID::$reduce_xor, ID::$reduce_xnor,
-			ID::$reduce_bool, ID::$logic_not, ID::$logic_or, ID::$logic_and,
-			ID::$eq, ID::$ne,
+			ID($le), ID($lt), ID($ge), ID($gt),
+			ID($reduce_and), ID($reduce_or), ID($reduce_xor), ID($reduce_xnor),
+			ID($reduce_bool), ID($logic_not), ID($logic_or), ID($logic_and),
+			ID($eq), ID($ne),
 
-			ID::$_NOT_, ID::$_AND_, ID::$_NAND_, ID::$_ANDNOT_, ID::$_OR_, ID::$_NOR_, ID::$_ORNOT_, ID::$_XOR_, ID::$_XNOR_
+			ID($_NOT_), ID($_AND_), ID($_NAND_), ID($_ANDNOT_), ID($_OR_), ID($_NOR_), ID($_ORNOT_), ID($_XOR_), ID($_XNOR_)
 		)) {
 			auto &sig_y = cell->getPort(ID::Y);
 			if (inputs_maybe_x(cell))
@@ -463,7 +463,7 @@ struct XpropWorker
 			return;
 		}
 
-		if (cell->type.in(ID::$scopeinfo)) {
+		if (cell->type.in(ID($scopeinfo))) {
 			return;
 		}
 
@@ -481,7 +481,7 @@ struct XpropWorker
 	{
 		if (!ports_maybe_x(cell)) {
 
-			if (cell->type == ID::$bweq) {
+			if (cell->type == ID($bweq)) {
 				auto sig_y = cell->getPort(ID::Y);
 				auto sig_a = cell->getPort(ID::A);
 				auto sig_b = cell->getPort(ID::B);
@@ -492,7 +492,7 @@ struct XpropWorker
 				return;
 			}
 
-			if (cell->type.in(ID::$nex, ID::$eqx)) {
+			if (cell->type.in(ID($nex), ID($eqx))) {
 				auto sig_y = cell->getPort(ID::Y);
 				auto sig_a = cell->getPort(ID::A);
 				auto sig_b = cell->getPort(ID::B);
@@ -500,7 +500,7 @@ struct XpropWorker
 				std::string name_str = module->design->twines.str(cell->name.ref());
 				TwineRef type = cell->type.ref();
 				module->remove(cell);
-				if (type == ID::$eqx)
+				if (type == ID($eqx))
 					module->addEq(Twine{name_str}, sig_a, sig_b, sig_y);
 				else
 					module->addNe(Twine{name_str}, sig_a, sig_b, sig_y);
@@ -510,10 +510,10 @@ struct XpropWorker
 			return;
 		}
 
-		if (cell->type.in(ID::$not, ID::$_NOT_)) {
+		if (cell->type.in(ID($not), ID($_NOT_))) {
 			auto &sig_y = cell->getPort(ID::Y);
 			auto sig_a = cell->getPort(ID::A);
-			if (cell->type == ID::$not)
+			if (cell->type == ID($not))
 				sig_a.extend_u0(GetSize(sig_y), cell->getParam(ID::A_SIGNED).as_bool());
 
 			auto enc_a = encoded(sig_a);
@@ -527,11 +527,11 @@ struct XpropWorker
 			return;
 		}
 
-		if (cell->type.in(ID::$and, ID::$or, ID::$_AND_, ID::$_OR_, ID::$_NAND_, ID::$_NOR_, ID::$_ANDNOT_, ID::$_ORNOT_)) {
+		if (cell->type.in(ID($and), ID($or), ID($_AND_), ID($_OR_), ID($_NAND_), ID($_NOR_), ID($_ANDNOT_), ID($_ORNOT_))) {
 			auto &sig_y = cell->getPort(ID::Y);
 			auto sig_a = cell->getPort(ID::A);
 			auto sig_b = cell->getPort(ID::B);
-			if (cell->type.in(ID::$and, ID::$or)) {
+			if (cell->type.in(ID($and), ID($or))) {
 				sig_a.extend_u0(GetSize(sig_y), cell->getParam(ID::A_SIGNED).as_bool());
 				sig_b.extend_u0(GetSize(sig_y), cell->getParam(ID::B_SIGNED).as_bool());
 			}
@@ -540,11 +540,11 @@ struct XpropWorker
 			auto enc_b = encoded(sig_b);
 			auto enc_y = encoded(sig_y, true);
 
-			if (cell->type.in(ID::$or, ID::$_OR_, ID::$_NOR_, ID::$_ORNOT_))
+			if (cell->type.in(ID($or), ID($_OR_), ID($_NOR_), ID($_ORNOT_)))
 				enc_a.invert(), enc_b.invert(), enc_y.invert();
-			if (cell->type.in(ID::$_NAND_, ID::$_NOR_))
+			if (cell->type.in(ID($_NAND_), ID($_NOR_)))
 				enc_y.invert();
-			if (cell->type.in(ID::$_ANDNOT_, ID::$_ORNOT_))
+			if (cell->type.in(ID($_ANDNOT_), ID($_ORNOT_)))
 				enc_b.invert();
 
 			enc_y.connect_0(module->Or(NEW_ID, enc_a.is_0, enc_b.is_0));
@@ -554,7 +554,7 @@ struct XpropWorker
 			return;
 		}
 
-		if (cell->type.in(ID::$reduce_and, ID::$reduce_or, ID::$reduce_bool, ID::$logic_not)) {
+		if (cell->type.in(ID($reduce_and), ID($reduce_or), ID($reduce_bool), ID($logic_not))) {
 			auto &sig_y = cell->getPort(ID::Y);
 			auto &sig_a = cell->getPort(ID::A);
 
@@ -563,9 +563,9 @@ struct XpropWorker
 
 			enc_y.connect_as_bool();
 
-			if (cell->type.in(ID::$reduce_or, ID::$reduce_bool))
+			if (cell->type.in(ID($reduce_or), ID($reduce_bool)))
 				enc_a.invert(), enc_y.invert();
-			if (cell->type == ID::$logic_not)
+			if (cell->type == ID($logic_not))
 				enc_a.invert();
 
 			enc_y.connect_0(module->ReduceOr(NEW_ID, enc_a.is_0));
@@ -576,7 +576,7 @@ struct XpropWorker
 			return;
 		}
 
-		if (cell->type.in(ID::$reduce_xor, ID::$reduce_xnor)) {
+		if (cell->type.in(ID($reduce_xor), ID($reduce_xnor))) {
 			auto &sig_y = cell->getPort(ID::Y);
 			auto &sig_a = cell->getPort(ID::A);
 
@@ -584,7 +584,7 @@ struct XpropWorker
 			auto enc_y = encoded(sig_y, true);
 
 			enc_y.connect_as_bool();
-			if (cell->type == ID::$reduce_xnor)
+			if (cell->type == ID($reduce_xnor))
 				enc_y.invert();
 
 
@@ -596,7 +596,7 @@ struct XpropWorker
 			return;
 		}
 
-		if (cell->type.in(ID::$logic_and, ID::$logic_or)) {
+		if (cell->type.in(ID($logic_and), ID($logic_or))) {
 			auto &sig_y = cell->getPort(ID::Y);
 			auto &sig_a = cell->getPort(ID::A);
 			auto &sig_b = cell->getPort(ID::B);
@@ -612,7 +612,7 @@ struct XpropWorker
 			auto b_is_1 = module->ReduceOr(NEW_ID, enc_b.is_1);
 			auto b_is_0 = module->ReduceAnd(NEW_ID, enc_b.is_0);
 
-			if (cell->type == ID::$logic_or)
+			if (cell->type == ID($logic_or))
 				 enc_y.invert(), std::swap(a_is_0, a_is_1), std::swap(b_is_0, b_is_1);
 
 			enc_y.connect_0(module->Or(NEW_ID, a_is_0, b_is_0));
@@ -622,11 +622,11 @@ struct XpropWorker
 			return;
 		}
 
-		if (cell->type.in(ID::$xor, ID::$xnor, ID::$_XOR_, ID::$_XNOR_)) {
+		if (cell->type.in(ID($xor), ID($xnor), ID($_XOR_), ID($_XNOR_))) {
 			auto &sig_y = cell->getPort(ID::Y);
 			auto sig_a = cell->getPort(ID::A);
 			auto sig_b = cell->getPort(ID::B);
-			if (cell->type.in(ID::$xor, ID::$xnor)) {
+			if (cell->type.in(ID($xor), ID($xnor))) {
 				sig_a.extend_u0(GetSize(sig_y), cell->getParam(ID::A_SIGNED).as_bool());
 				sig_b.extend_u0(GetSize(sig_y), cell->getParam(ID::B_SIGNED).as_bool());
 			}
@@ -635,7 +635,7 @@ struct XpropWorker
 			auto enc_b = encoded(sig_b);
 			auto enc_y = encoded(sig_y, true);
 
-			if (cell->type.in(ID::$xnor, ID::$_XNOR_))
+			if (cell->type.in(ID($xnor), ID($_XNOR_)))
 				enc_y.invert();
 
 			enc_y.connect_x(module->Or(NEW_ID, enc_a.is_x, enc_b.is_x));
@@ -645,7 +645,7 @@ struct XpropWorker
 			return;
 		}
 
-		if (cell->type.in(ID::$eq, ID::$ne)) {
+		if (cell->type.in(ID($eq), ID($ne))) {
 			auto &sig_y = cell->getPort(ID::Y);
 			auto sig_a = cell->getPort(ID::A);
 			auto sig_b = cell->getPort(ID::B);
@@ -658,7 +658,7 @@ struct XpropWorker
 			auto enc_y = encoded(sig_y, true);
 			enc_y.connect_as_bool();
 
-			if (cell->type == ID::$ne)
+			if (cell->type == ID($ne))
 				enc_y.invert();
 
 			auto delta = module->Xor(NEW_ID, enc_a.is_1, enc_b.is_1);
@@ -671,7 +671,7 @@ struct XpropWorker
 			return;
 		}
 
-		if (cell->type.in(ID::$eqx, ID::$nex)) {
+		if (cell->type.in(ID($eqx), ID($nex))) {
 			auto &sig_y = cell->getPort(ID::Y);
 			auto sig_a = cell->getPort(ID::A);
 			auto sig_b = cell->getPort(ID::B);
@@ -687,7 +687,7 @@ struct XpropWorker
 
 			auto eq = module->ReduceAnd(NEW_ID, {delta_0, delta_1});
 
-			auto res = cell->type == ID::$nex ? module->Not(NEW_ID, eq) : eq;
+			auto res = cell->type == ID($nex) ? module->Not(NEW_ID, eq) : eq;
 
 			module->connect(sig_y[0], res);
 			if (GetSize(sig_y) > 1)
@@ -696,7 +696,7 @@ struct XpropWorker
 			return;
 		}
 
-		if (cell->type.in(ID::$bweqx)) {
+		if (cell->type.in(ID($bweqx))) {
 			auto &sig_y = cell->getPort(ID::Y);
 			auto &sig_a = cell->getPort(ID::A);
 			auto &sig_b = cell->getPort(ID::B);
@@ -711,13 +711,13 @@ struct XpropWorker
 			return;
 		}
 
-		if (cell->type.in(ID::$_MUX_, ID::$mux, ID::$bwmux)) {
+		if (cell->type.in(ID($_MUX_), ID($mux), ID($bwmux))) {
 			auto &sig_y = cell->getPort(ID::Y);
 			auto &sig_a = cell->getPort(ID::A);
 			auto &sig_b = cell->getPort(ID::B);
 			auto sig_s = cell->getPort(ID::S);
 
-			if (cell->type == ID::$mux)
+			if (cell->type == ID($mux))
 				sig_s = SigSpec(sig_s[0], GetSize(sig_y));
 
 			auto enc_a = encoded(sig_a);
@@ -736,7 +736,7 @@ struct XpropWorker
 			return;
 		}
 
-		if (cell->type.in(ID::$pmux)) {
+		if (cell->type.in(ID($pmux))) {
 			auto &sig_y = cell->getPort(ID::Y);
 			auto &sig_a = cell->getPort(ID::A);
 			auto &sig_b = cell->getPort(ID::B);
@@ -771,7 +771,7 @@ struct XpropWorker
 			return;
 		}
 
-		if (cell->type.in(ID::$shl, ID::$shr, ID::$sshl, ID::$sshr, ID::$shift, ID::$shiftx)) {
+		if (cell->type.in(ID($shl), ID($shr), ID($sshl), ID($sshr), ID($shift), ID($shiftx))) {
 			auto &sig_y = cell->getPort(ID::Y);
 			auto &sig_a = cell->getPort(ID::A);
 			auto &sig_b = cell->getPort(ID::B);
@@ -789,7 +789,7 @@ struct XpropWorker
 
 			TwineRef encoded_type = cell->type == ID::$shiftx ? TwineRef{ID::$shift} : cell->type.ref();
 
-			if (cell->type == ID::$shiftx) {
+			if (cell->type == ID($shiftx)) {
 				std::swap(enc_a.is_0, enc_a.is_x);
 			}
 
@@ -813,7 +813,7 @@ struct XpropWorker
 
 			SigSpec y_0 = module->Not(NEW_ID, y_not_0);
 
-			if (cell->type == ID::$shiftx)
+			if (cell->type == ID($shiftx))
 				std::swap(y_0, y_x);
 
 			enc_y.connect_0(module->And(NEW_ID, y_0, SigSpec(not_all_x, GetSize(sig_y))));
@@ -824,7 +824,7 @@ struct XpropWorker
 			return;
 		}
 
-		if (cell->type.in(ID::$ff)) {
+		if (cell->type.in(ID($ff))) {
 			auto &sig_d = cell->getPort(ID::D);
 			auto &sig_q = cell->getPort(ID::Q);
 
@@ -857,7 +857,7 @@ struct XpropWorker
 			return;
 		}
 
-		if (cell->is_builtin_ff() || cell->type == ID::$anyinit) {
+		if (cell->is_builtin_ff() || cell->type == ID($anyinit)) {
 			FfData ff(&initvals, cell);
 
 			if ((ff.has_clk || ff.has_gclk) && !ff.has_ce && !ff.has_aload && !ff.has_srst && !ff.has_arst && !ff.has_sr) {
@@ -913,9 +913,9 @@ struct XpropWorker
 
 		// Celltypes where any input x bit makes the whole output x
 		if (cell->type.in(
-			ID::$neg,
-			ID::$le, ID::$lt, ID::$ge, ID::$gt,
-			ID::$add, ID::$sub, ID::$mul, ID::$div, ID::$mod, ID::$divfloor, ID::$modfloor
+			ID($neg),
+			ID($le), ID($lt), ID($ge), ID($gt),
+			ID($add), ID($sub), ID($mul), ID($div), ID($mod), ID($divfloor), ID($modfloor)
 		)) {
 
 			SigSpec inbits_x;
@@ -927,7 +927,7 @@ struct XpropWorker
 				}
 			}
 
-			if (cell->type.in(ID::$div, ID::$mod, ID::$divfloor, ID::$modfloor)) {
+			if (cell->type.in(ID($div), ID($mod), ID($divfloor), ID($modfloor))) {
 				auto sig_b = cell->getPort(ID::B);
 				auto invalid = module->LogicNot(NEW_ID, sig_b);
 				inbits_x.append(invalid);
@@ -937,7 +937,7 @@ struct XpropWorker
 
 			SigBit outbits_x = (GetSize(inbits_x) == 1 ? inbits_x : module->ReduceOr(NEW_ID, inbits_x));
 
-			bool bool_out = cell->type.in(ID::$le, ID::$lt, ID::$ge, ID::$gt);
+			bool bool_out = cell->type.in(ID($le), ID($lt), ID($ge), ID($gt));
 
 			for (auto &conn : cell->connections()) {
 				if (cell->output(conn.first)) {
@@ -958,9 +958,9 @@ struct XpropWorker
 			return;
 		}
 
-		if (cell->type == ID::$bmux) // TODO might want to support bmux natively anyway
+		if (cell->type == ID($bmux)) // TODO might want to support bmux natively anyway
 			log("Running 'bmuxmap' preserves x-propagation and can be run before 'xprop'.\n");
-		if (cell->type == ID::$demux) // TODO might want to support demux natively anyway
+		if (cell->type == ID($demux)) // TODO might want to support demux natively anyway
 			log("Running 'demuxmap' preserves x-propagation and can be run before 'xprop'.\n");
 
 		if (options.required)

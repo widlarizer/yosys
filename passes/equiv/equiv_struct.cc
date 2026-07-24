@@ -124,7 +124,7 @@ struct EquivStructWorker
 		pool<TwineRef> cells;
 
 		for (auto cell : module->selected_cells())
-			if (cell->type == ID::$equiv) {
+			if (cell->type == ID($equiv)) {
 				SigBit sig_a = sigmap(cell->getPort(ID::A).as_bit());
 				SigBit sig_b = sigmap(cell->getPort(ID::B).as_bit());
 				equiv_bits.add(sig_b, sig_a);
@@ -137,7 +137,7 @@ struct EquivStructWorker
 			}
 
 		for (auto cell : module->selected_cells())
-			if (cell->type == ID::$equiv) {
+			if (cell->type == ID($equiv)) {
 				SigBit sig_a = sigmap(cell->getPort(ID::A).as_bit());
 				SigBit sig_b = sigmap(cell->getPort(ID::B).as_bit());
 				SigBit sig_y = sigmap(cell->getPort(ID::Y).as_bit());

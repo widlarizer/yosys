@@ -66,8 +66,8 @@ struct EstimateSta {
 	// and to account for the AIG model not being balanced
 	int cell_type_factor(TwineRef type)
 	{
-		if (type.in(ID::$gt, ID::$ge, ID::$lt, ID::$le, ID::$add, ID::$sub,
-					ID::$logic_not, ID::$reduce_and, ID::$reduce_or, ID::$eq))
+		if (type.in(ID($gt), ID($ge), ID($lt), ID($le), ID($add), ID($sub),
+					ID($logic_not), ID($reduce_and), ID($reduce_or), ID($eq)))
 			return 1;
 		else
 			return 2;
@@ -112,7 +112,7 @@ struct EstimateSta {
 			} else if (cell->is_mem_cell()) {
 				// memories handled separately
 				continue;
-			} else if (cell->type == ID::$scopeinfo) {
+			} else if (cell->type == ID($scopeinfo)) {
 				continue;
 			} else {
 				// find or build AIG model of combinational cell

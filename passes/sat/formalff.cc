@@ -110,9 +110,9 @@ struct InitValWorker
 			return ff.val_init[portbit.offset];
 		}
 
-		if (cell->type.in(ID::$mux, ID::$and, ID::$or, ID::$eq, ID::$eqx, ID::$initstate))
+		if (cell->type.in(ID($mux), ID($and), ID($or), ID($eq), ID($eqx), ID($initstate)))
 		{
-			if (cell->type == ID::$mux)
+			if (cell->type == ID($mux))
 			{
 				SigBit sig_s = sigmap(cell->getPort(ID::S));
 				State init_s = initconst(sig_s);
@@ -131,16 +131,16 @@ struct InitValWorker
 				return init_y;
 			}
 
-			if (cell->type.in(ID::$and, ID::$or))
+			if (cell->type.in(ID($and), ID($or)))
 			{
 				State init_a = initconst(bit_in_port(cell, ID::A, ID::A_SIGNED, portbit.offset));
 				State init_b = initconst(bit_in_port(cell, ID::B, ID::B_SIGNED, portbit.offset));
 				State init_y;
 				if (init_a == init_b)
 					init_y = init_a;
-				else if (cell->type == ID::$and && (init_a == State::S0 || init_b == State::S0))
+				else if (cell->type == ID($and) && (init_a == State::S0 || init_b == State::S0))
 					init_y = State::S0;
-				else if (cell->type == ID::$or && (init_a == State::S1 || init_b == State::S1))
+				else if (cell->type == ID($or) && (init_a == State::S1 || init_b == State::S1))
 					init_y = State::S1;
 				else
 					init_y = State::Sx;
@@ -149,7 +149,7 @@ struct InitValWorker
 				return init_y;
 			}
 
-			if (cell->type.in(ID::$eq, ID::$eqx)) // Treats $eqx as $eq
+			if (cell->type.in(ID($eq), ID($eqx))) // Treats $eqx as $eq
 			{
 				if (portbit.offset > 0) {
 					initconst_bits[bit] = State::S0;
@@ -178,7 +178,7 @@ struct InitValWorker
 				return init_y;
 			}
 
-			if (cell->type == ID::$initstate)
+			if (cell->type == ID($initstate))
 			{
 				initconst_bits[bit] = State::S1;
 				return State::S1;
@@ -224,7 +224,7 @@ struct InitValWorker
 
 		for (auto portbit : portbits) {
 			RTLIL::Cell *cell = portbit.cell;
-			if (!cell->type.in(ID::$mux, ID::$and, ID::$or, ID::$mem_v2) && !cell->is_builtin_ff()) {
+			if (!cell->type.in(ID($mux), ID($and), ID($or), ID($mem_v2)) && !cell->is_builtin_ff()) {
 				return true;
 			}
 		}
@@ -244,7 +244,7 @@ struct InitValWorker
 
 				return true;
 			}
-			else if (cell->type == ID::$mux)
+			else if (cell->type == ID($mux))
 			{
 				State init_s = initconst(cell->getPort(ID::S).as_bit());
 				if (init_s == State::S0 && portbit.port == ID::B)
@@ -256,14 +256,14 @@ struct InitValWorker
 				if (is_initval_used(sig_y[portbit.offset]))
 					return true;
 			}
-			else if (cell->type.in(ID::$and, ID::$or))
+			else if (cell->type.in(ID($and), ID($or)))
 			{
 				auto sig_a = cell->getPort(ID::A);
 				auto sig_b = cell->getPort(ID::B);
 				auto sig_y = cell->getPort(ID::Y);
 				if (GetSize(sig_y) != GetSize(sig_a) || GetSize(sig_y) != GetSize(sig_b))
 					return true; // TODO handle more of this
-				State absorbing = cell->type == ID::$and ? State::S0 : State::S1;
+				State absorbing = cell->type == ID($and) ? State::S0 : State::S1;
 				if (portbit.port == ID::A && initconst(sig_b[portbit.offset]) == absorbing)
 					continue;
 				if (portbit.port == ID::B && initconst(sig_a[portbit.offset]) == absorbing)
@@ -272,7 +272,7 @@ struct InitValWorker
 				if (is_initval_used(sig_y[portbit.offset]))
 					return true;
 			}
-			else if (cell->type == ID::$mem_v2)
+			else if (cell->type == ID($mem_v2))
 			{
 				// TODO Use mem.h instead to uniformily cover all cases, most
 				// likely requires processing all memories when initializing
@@ -369,7 +369,7 @@ struct PropagateWorker
 				replace_clk_bit(SigBit(wire), wire->attributes[ID::replaced_by_gclk].at(0) == State::S1, false);
 
 		for (auto cell : module->cells()) {
-			if (cell->type.in(ID::$not, ID::$_NOT_)) {
+			if (cell->type.in(ID($not), ID($_NOT_))) {
 				auto sig_a = cell->getPort(ID::A);
 				auto &sig_y = cell->getPort(ID::Y);
 				sig_a.extend_u0(GetSize(sig_y), cell->hasParam(ID::A_SIGNED) && cell->parameters.at(ID::A_SIGNED).as_bool());
@@ -394,7 +394,7 @@ struct PropagateWorker
 		}
 
 		for (auto cell : module->cells()) {
-			if (cell->type.in(ID::$not, ID::$_NOT_))
+			if (cell->type.in(ID($not), ID($_NOT_)))
 				continue;
 			for (auto &conn : cell->connections()) {
 				if (!cell->output(conn.first))
@@ -648,7 +648,7 @@ struct FormalFfPass : public Pass {
 							continue;
 						SigBit clk = sigmap(ff.sig_clk);
 						clk_bits[{clk, ff.pol_clk}].push_back(cell);
-					} else if (cell->type == ID::$mem_v2) {
+					} else if (cell->type == ID($mem_v2)) {
 						auto const &mem = memories.at(cell->name);
 						for (auto &rd_port : mem.rd_ports)
 							if (rd_port.clk_enable)
@@ -709,7 +709,7 @@ struct FormalFfPass : public Pass {
 					auto driver = *found->second.begin();
 
 					bool is_gate =
-					  pol_clk ? driver.cell->type.in(ID::$and, ID::$_AND_) : driver.cell->type.in(ID::$or, ID::$_OR_);
+					  pol_clk ? driver.cell->type.in(ID($and), ID($_AND_)) : driver.cell->type.in(ID($or), ID($_OR_));
 
 					if (!is_gate) {
 						log_debug("unsupported gating logic %s.%s (%s) for clock %s %s.%s\n", module,
@@ -795,7 +795,7 @@ struct FormalFfPass : public Pass {
 								ff.has_ce = true;
 								ff.sig_clk = gate_clock;
 								ff.emit();
-							} else if (clocked_cell->type == ID::$mem_v2) {
+							} else if (clocked_cell->type == ID($mem_v2)) {
 								auto &mem = memories.at(clocked_cell->name);
 								bool changed = false;
 								for (auto &rd_port : mem.rd_ports) {
@@ -869,7 +869,7 @@ struct FormalFfPass : public Pass {
 
 			for (auto cell : module->selected_cells())
 			{
-				if (flag_anyinit2ff && cell->type == ID::$anyinit)
+				if (flag_anyinit2ff && cell->type == ID($anyinit))
 				{
 					FfData ff(&initvals, cell);
 					ff.remove();

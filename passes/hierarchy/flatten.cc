@@ -127,7 +127,7 @@ struct FlattenWorker
 				std::string new_hdlname;
 
 				if (cell->has_attribute(ID::hdlname)) {
-					new_hdlname = cell->get_string_attribute(ID::hdlname);
+					new_hdlname = cell->get_string_attribute(ID(hdlname));
 				} else {
 					log_assert(!cell->name.empty());
 					new_hdlname = cell->name.unescaped();
@@ -135,24 +135,24 @@ struct FlattenWorker
 				new_hdlname += ' ';
 
 				if (object->has_attribute(ID::hdlname)) {
-					new_hdlname += object->get_string_attribute(ID::hdlname);
+					new_hdlname += object->get_string_attribute(ID(hdlname));
 				} else {
 					log_assert(!orig_object_name.empty());
 					new_hdlname += orig_object_name.substr(1);
 				}
-				object->set_string_attribute(ID::hdlname, new_hdlname);
-			} else if (object->has_attribute(ID::scopename)) {
+				object->set_string_attribute(ID(hdlname), new_hdlname);
+			} else if (object->has_attribute(ID(scopename))) {
 				std::string new_scopename;
 
 				if (cell->has_attribute(ID::hdlname)) {
-					new_scopename = cell->get_string_attribute(ID::hdlname);
+					new_scopename = cell->get_string_attribute(ID(hdlname));
 				} else {
 					log_assert(!cell->name.empty());
 					new_scopename = cell->name.unescaped();
 				}
 				new_scopename += ' ';
-				new_scopename += object->get_string_attribute(ID::scopename);
-				object->set_string_attribute(ID::scopename, new_scopename);
+				new_scopename += object->get_string_attribute(ID(scopename));
+				object->set_string_attribute(ID(scopename), new_scopename);
 			} else if (create_scopename) {
 				log_assert(!cell->name.empty());
 				object->set_string_attribute(ID::scopename, cell->name.unescaped());
@@ -320,7 +320,7 @@ struct FlattenWorker
 		if (create_scopeinfo && cell_name.is_public())
 		{
 			// The $scopeinfo's name will be changed below after removing the flattened cell
-			scopeinfo = module->addCell(NEW_ID, ID::$scopeinfo);
+			scopeinfo = module->addCell(NEW_ID, ID($scopeinfo));
 			scopeinfo->setParam(ID::TYPE, RTLIL::Const("module"));
 
 			for (auto const &attr : cell->attributes)

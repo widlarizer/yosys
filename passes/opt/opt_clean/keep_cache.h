@@ -75,7 +75,7 @@ struct KeepCache
 	{
 		if (keep_cell(cell, purge_mode))
 			return true;
-		if (cell->type.in(ID::$specify2, ID::$specify3, ID::$specrule))
+		if (cell->type.in(ID($specify2), ID($specify3), ID($specrule)))
 			return true;
 		if (cell->module && cell->module->design) {
 			RTLIL::Module *cell_module = cell->module->design->module(cell->type_impl);
@@ -145,19 +145,19 @@ private:
 
 	static bool keep_cell(Cell *cell, bool purge_mode)
 	{
-		if (cell->type.in(ID::$assert, ID::$assume, ID::$live, ID::$fair, ID::$cover))
+		if (cell->type.in(ID($assert), ID($assume), ID($live), ID($fair), ID($cover)))
 			return true;
 
-		if (cell->type.in(ID::$overwrite_tag))
+		if (cell->type.in(ID($overwrite_tag)))
 			return true;
 
-		if (cell->type == ID::$print || cell->type == ID::$check)
+		if (cell->type == ID($print) || cell->type == ID($check))
 			return true;
 
 		if (cell->has_keep_attr())
 			return true;
 
-		if (!purge_mode && cell->type == ID::$scopeinfo)
+		if (!purge_mode && cell->type == ID($scopeinfo))
 			return true;
 		return false;
 	}

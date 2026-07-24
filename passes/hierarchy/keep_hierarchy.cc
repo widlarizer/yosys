@@ -35,10 +35,10 @@ struct ThresholdHierarchyKeeping {
 		: design(design), costs(design), threshold(threshold) {}
 
 	uint64_t visit(RTLIL::Module *module) {
-		if (module->has_attribute(ID::gate_cost_equivalent))
-			return module->attributes[ID::gate_cost_equivalent].as_int();
+		if (module->has_attribute(ID(gate_cost_equivalent)))
+			return module->attributes[ID(gate_cost_equivalent)].as_int();
 
-		if (module->has_attribute(ID::keep_hierarchy))
+		if (module->has_attribute(ID(keep_hierarchy)))
 			return 0;
 
 		if (module->get_blackbox_attribute())

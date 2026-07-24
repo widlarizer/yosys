@@ -266,11 +266,11 @@ namespace Functional {
 		bool has_output(TwineRef name, TwineRef kind) const { return _outputs.count({name, kind}); }
 		bool has_state(TwineRef name, TwineRef kind) const { return _states.count({name, kind}); }
 		vector<IRInput const*> inputs(TwineRef kind) const;
-		vector<IRInput const*> inputs() const { return inputs(ID::$input); }
+		vector<IRInput const*> inputs() const { return inputs(ID($input)); }
 		vector<IROutput const*> outputs(TwineRef kind) const;
-		vector<IROutput const*> outputs() const { return outputs(ID::$output); }
+		vector<IROutput const*> outputs() const { return outputs(ID($output)); }
 		vector<IRState const*> states(TwineRef kind) const;
-		vector<IRState const*> states() const { return states(ID::$state); }
+		vector<IRState const*> states() const { return states(ID($state)); }
 		vector<IRInput const*> all_inputs() const;
 		vector<IROutput const*> all_outputs() const;
 		vector<IRState const*> all_states() const;

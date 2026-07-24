@@ -599,7 +599,7 @@ struct FirrtlWorker
 			string y_id = make_id(cell->name);
 			std::string cellFileinfo = getFileinfo(cell);
 
-			if (cell->type.in(ID::$not, ID::$logic_not, ID::$_NOT_, ID::$neg, ID::$reduce_and, ID::$reduce_or, ID::$reduce_xor, ID::$reduce_bool, ID::$reduce_xnor))
+			if (cell->type.in(ID($not), ID($logic_not), ID($_NOT_), ID($neg), ID($reduce_and), ID($reduce_or), ID($reduce_xor), ID($reduce_bool), ID($reduce_xnor)))
 			{
 				string a_expr = make_expr(cell->getPort(ID::A));
 				wire_decls.push_back(stringf("%swire %s: UInt<%d> %s\n", indent, y_id, y_width, cellFileinfo));
@@ -609,29 +609,29 @@ struct FirrtlWorker
 				}
 
 				// Don't use the results of logical operations (a single bit) to control padding
-				if (!(cell->type.in(ID::$eq, ID::$eqx, ID::$gt, ID::$ge, ID::$lt, ID::$le, ID::$ne, ID::$nex, ID::$reduce_bool, ID::$logic_not) && y_width == 1) ) {
+				if (!(cell->type.in(ID($eq), ID($eqx), ID($gt), ID($ge), ID($lt), ID($le), ID($ne), ID($nex), ID($reduce_bool), ID($logic_not)) && y_width == 1) ) {
 					a_expr = stringf("pad(%s, %d)", a_expr, y_width);
 				}
 
 				// Assume the FIRRTL width is a single bit.
 				firrtl_width = 1;
-				if (cell->type.in(ID::$not, ID::$_NOT_)) primop = "not";
-				else if (cell->type == ID::$neg) {
+				if (cell->type.in(ID($not), ID($_NOT_))) primop = "not";
+				else if (cell->type == ID($neg)) {
 					primop = "neg";
 					firrtl_is_signed = true;	// Result of "neg" is signed (an SInt).
 					firrtl_width = a_width;
-				} else if (cell->type == ID::$logic_not) {
+				} else if (cell->type == ID($logic_not)) {
 					primop = "eq";
 					a_expr = stringf("%s, UInt(0)", a_expr);
 				}
-				else if (cell->type == ID::$reduce_and) primop = "andr";
-				else if (cell->type == ID::$reduce_or) primop = "orr";
-				else if (cell->type == ID::$reduce_xor) primop = "xorr";
-				else if (cell->type == ID::$reduce_xnor) {
+				else if (cell->type == ID($reduce_and)) primop = "andr";
+				else if (cell->type == ID($reduce_or)) primop = "orr";
+				else if (cell->type == ID($reduce_xor)) primop = "xorr";
+				else if (cell->type == ID($reduce_xnor)) {
 					primop = "not";
 					a_expr = stringf("xorr(%s)", a_expr);
 				}
-				else if (cell->type == ID::$reduce_bool) {
+				else if (cell->type == ID($reduce_bool)) {
 					primop = "neq";
 					// Use the sign of the a_expr and its width as the type (UInt/SInt) and width of the comparand.
 					a_expr = stringf("%s, %cInt<%d>(0)", a_expr, a_signed ? 'S' : 'U', a_width);
@@ -647,9 +647,9 @@ struct FirrtlWorker
 
 				continue;
 			}
-			if (cell->type.in(ID::$add, ID::$sub, ID::$mul, ID::$div, ID::$mod, ID::$xor, ID::$_XOR_, ID::$xnor, ID::$and, ID::$_AND_, ID::$or, ID::$_OR_, ID::$eq, ID::$eqx,
-                                        ID::$gt, ID::$ge, ID::$lt, ID::$le, ID::$ne, ID::$nex, ID::$shr, ID::$sshr, ID::$sshl, ID::$shl,
-                                        ID::$logic_and, ID::$logic_or, ID::$pow))
+			if (cell->type.in(ID($add), ID($sub), ID($mul), ID($div), ID($mod), ID($xor), ID($_XOR_), ID($xnor), ID($and), ID($_AND_), ID($or), ID($_OR_), ID($eq), ID($eqx),
+                                        ID($gt), ID($ge), ID($lt), ID($le), ID($ne), ID($nex), ID($shr), ID($sshr), ID($sshl), ID($shl),
+                                        ID($logic_and), ID($logic_or), ID($pow)))
 			{
 				string a_expr = make_expr(cell->getPort(ID::A));
 				string b_expr = make_expr(cell->getPort(ID::B));
@@ -666,7 +666,7 @@ struct FirrtlWorker
 				}
 				// Shift amount is always unsigned, and needn't be padded to result width,
 				//  otherwise, we need to cast the b_expr appropriately
-				if (b_signed && !cell->type.in(ID::$shr, ID::$sshr, ID::$shl, ID::$sshl, ID::$pow)) {
+				if (b_signed && !cell->type.in(ID($shr), ID($sshr), ID($shl), ID($sshl), ID($pow))) {
 					b_expr = "asSInt(" + b_expr + ")";
 					// Expand the "B" operand to the result width
 					if (b_width < y_width) {
@@ -677,7 +677,7 @@ struct FirrtlWorker
 
 				// For the arithmetic ops, expand operand widths to result widths befor performing the operation.
 				// This corresponds (according to iverilog) to what verilog compilers implement.
-				if (cell->type.in(ID::$add, ID::$sub, ID::$mul, ID::$div, ID::$mod, ID::$xor, ID::$_XOR_, ID::$xnor, ID::$and, ID::$_AND_, ID::$or, ID::$_OR_))
+				if (cell->type.in(ID($add), ID($sub), ID($mul), ID($div), ID($mod), ID($xor), ID($_XOR_), ID($xnor), ID($and), ID($_AND_), ID($or), ID($_OR_)))
 				{
 					if (a_width < y_width) {
 						a_expr = stringf("pad(%s, %d)", a_expr, y_width);
@@ -692,79 +692,79 @@ struct FirrtlWorker
 				firrtl_width = a_width;
 				auto a_sig = cell->getPort(ID::A);
 
-				if (cell->type == ID::$add) {
+				if (cell->type == ID($add)) {
 					primop = "add";
 					firrtl_is_signed = a_signed | b_signed;
 					firrtl_width = max(a_width, b_width);
-				} else if (cell->type == ID::$sub) {
+				} else if (cell->type == ID($sub)) {
 					primop = "sub";
 					firrtl_is_signed = true;
 					int a_widthInc = (!a_signed && b_signed) ? 2 : (a_signed && !b_signed) ? 1 : 0;
 					int b_widthInc = (a_signed && !b_signed) ? 2 : (!a_signed && b_signed) ? 1 : 0;
 					firrtl_width = max(a_width + a_widthInc, b_width + b_widthInc);
-				} else if (cell->type == ID::$mul) {
+				} else if (cell->type == ID($mul)) {
 					primop = "mul";
 					firrtl_is_signed = a_signed | b_signed;
 					firrtl_width = a_width + b_width;
-				} else if (cell->type == ID::$div) {
+				} else if (cell->type == ID($div)) {
 					primop = "div";
 					firrtl_is_signed = a_signed | b_signed;
 					firrtl_width = a_width;
-				} else if (cell->type == ID::$mod) {
+				} else if (cell->type == ID($mod)) {
 					// "rem" = truncating modulo
 					primop = "rem";
 					firrtl_width = min(a_width, b_width);
-				} else if (cell->type.in(ID::$and, ID::$_AND_)) {
+				} else if (cell->type.in(ID($and), ID($_AND_))) {
 					primop = "and";
 					always_uint = true;
 					firrtl_width = max(a_width, b_width);
 				}
-				else if (cell->type.in(ID::$or, ID::$_OR_)) {
+				else if (cell->type.in(ID($or), ID($_OR_))) {
 					primop =  "or";
 					always_uint = true;
 					firrtl_width = max(a_width, b_width);
 				}
-				else if (cell->type.in(ID::$xor, ID::$_XOR_)) {
+				else if (cell->type.in(ID($xor), ID($_XOR_))) {
 					primop = "xor";
 					always_uint = true;
 					firrtl_width = max(a_width, b_width);
 				}
-				else if (cell->type == ID::$xnor) {
+				else if (cell->type == ID($xnor)) {
 					primop = "xnor";
 					always_uint = true;
 					firrtl_width = max(a_width, b_width);
 				}
-				else if ((cell->type == ID::$eq) || (cell->type == ID::$eqx)) {
+				else if ((cell->type == ID($eq)) || (cell->type == ID($eqx))) {
 					primop = "eq";
 					always_uint = true;
 					firrtl_width = 1;
 				}
-				else if ((cell->type == ID::$ne) || (cell->type == ID::$nex)) {
+				else if ((cell->type == ID($ne)) || (cell->type == ID($nex))) {
 					primop = "neq";
 					always_uint = true;
 					firrtl_width = 1;
 				}
-				else if (cell->type == ID::$gt) {
+				else if (cell->type == ID($gt)) {
 					primop = "gt";
 					always_uint = true;
 					firrtl_width = 1;
 				}
-				else if (cell->type == ID::$ge) {
+				else if (cell->type == ID($ge)) {
 					primop = "geq";
 					always_uint = true;
 					firrtl_width = 1;
 				}
-				else if (cell->type == ID::$lt) {
+				else if (cell->type == ID($lt)) {
 					primop = "lt";
 					always_uint = true;
 					firrtl_width = 1;
 				}
-				else if (cell->type == ID::$le) {
+				else if (cell->type == ID($le)) {
 					primop = "leq";
 					always_uint = true;
 					firrtl_width = 1;
 				}
-				else if ((cell->type == ID::$shl) || (cell->type == ID::$sshl)) {
+				else if ((cell->type == ID($shl)) || (cell->type == ID($sshl))) {
 					// FIRRTL will widen the result (y) by the amount of the shift.
 					// We'll need to offset this by extracting the un-widened portion as Verilog would do.
 					extract_y_bits = true;
@@ -782,7 +782,7 @@ struct FirrtlWorker
 						firrtl_width = a_width + (1 << b_width) - 1;
 					}
 				}
-				else if ((cell->type == ID::$shr) || (cell->type == ID::$sshr)) {
+				else if ((cell->type == ID($shr)) || (cell->type == ID($sshr))) {
 					// We don't need to extract a specific range of bits.
 					extract_y_bits = false;
 					// Is the shift amount constant?
@@ -799,26 +799,26 @@ struct FirrtlWorker
 					// We'll need to do some special fixups if the source (and thus result) is signed.
 					if (firrtl_is_signed) {
 						// If this is a "logical" shift right, pretend the source is unsigned.
-						if (cell->type == ID::$shr) {
+						if (cell->type == ID($shr)) {
 							a_expr = "asUInt(" + a_expr + ")";
 						}
 					}
 				}
-				else if ((cell->type == ID::$logic_and)) {
+				else if ((cell->type == ID($logic_and))) {
 					primop = "and";
 					a_expr = "neq(" + a_expr + ", UInt(0))";
 					b_expr = "neq(" + b_expr + ", UInt(0))";
 					always_uint = true;
 					firrtl_width = 1;
 				}
-				else if ((cell->type == ID::$logic_or)) {
+				else if ((cell->type == ID($logic_or))) {
 					primop = "or";
 					a_expr = "neq(" + a_expr + ", UInt(0))";
 					b_expr = "neq(" + b_expr + ", UInt(0))";
 					always_uint = true;
 					firrtl_width = 1;
 				}
-				else if ((cell->type == ID::$pow)) {
+				else if ((cell->type == ID($pow))) {
 					if (a_sig.is_fully_const() && a_sig.as_int() == 2) {
 						// We'll convert this to a shift. To simplify things, change the a_expr to "1"
 						//	so we can use b_expr directly as a shift amount.
@@ -878,7 +878,7 @@ struct FirrtlWorker
 				continue;
 			}
 
-			if (cell->type.in(ID::$mux, ID::$_MUX_))
+			if (cell->type.in(ID($mux), ID($_MUX_)))
 			{
 				auto it = cell->parameters.find(ID::WIDTH);
 				int width = it == cell->parameters.end()? 1 : it->second.as_int();
@@ -901,7 +901,7 @@ struct FirrtlWorker
 				continue;
 			}
 
-			if (cell->type.in(ID::$dff))
+			if (cell->type.in(ID($dff)))
 			{
 				bool clkpol = cell->parameters.at(ID::CLK_POLARITY).as_bool();
 				if (clkpol == false)
@@ -919,7 +919,7 @@ struct FirrtlWorker
 				continue;
 			}
 
-			if (cell->type == ID::$shiftx) {
+			if (cell->type == ID($shiftx)) {
 				// assign y = a[b +: y_width];
 				// We'll extract the correct bits as part of the primop.
 
@@ -940,7 +940,7 @@ struct FirrtlWorker
 				register_reverse_wire_map(y_id, cell->getPort(ID::Y));
 				continue;
 			}
-			if (cell->type == ID::$shift) {
+			if (cell->type == ID($shift)) {
 				// assign y = a >> b;
 				//  where b may be negative
 
@@ -966,7 +966,7 @@ struct FirrtlWorker
 				register_reverse_wire_map(y_id, cell->getPort(ID::Y));
 				continue;
 			}
-			if (cell->type == ID::$pos) {
+			if (cell->type == ID($pos)) {
 				// assign y = a;
 //				printCell(cell);
 				string a_expr = make_expr(cell->getPort(ID::A));
@@ -981,7 +981,7 @@ struct FirrtlWorker
 				continue;
 			}
 
-			if (cell->type == ID::$scopeinfo)
+			if (cell->type == ID($scopeinfo))
 				continue;
 			log_error("Cell type not supported: %s (%s.%s)\n", cell->type.unescaped(), module, cell);
 		}

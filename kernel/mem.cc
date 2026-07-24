@@ -123,7 +123,7 @@ void Mem::emit() {
 		if (!cell) {
 			if (memid.empty())
 				memid = module->design->twines.add(NEW_ID);
-			cell = module->addCell(memid, ID::$mem_v2);
+			cell = module->addCell(memid, ID($mem_v2));
 		}
 		cell->type_impl = ID::$mem_v2;
 		cell->attributes = attributes;
@@ -300,7 +300,7 @@ void Mem::emit() {
 		mem->attributes = attributes;
 		for (auto &port : rd_ports) {
 			if (!port.cell)
-				port.cell = module->addCell(NEW_ID, ID::$memrd_v2);
+				port.cell = module->addCell(NEW_ID, ID($memrd_v2));
 			port.cell->type_impl = ID::$memrd_v2;
 			port.cell->attributes = port.attributes;
 			port.cell->parameters[ID::MEMID] = module->design->twines.str(memid);
@@ -325,7 +325,7 @@ void Mem::emit() {
 		int idx = 0;
 		for (auto &port : wr_ports) {
 			if (!port.cell)
-				port.cell = module->addCell(NEW_ID, ID::$memwr_v2);
+				port.cell = module->addCell(NEW_ID, ID($memwr_v2));
 			port.cell->type_impl = ID::$memwr_v2;
 			port.cell->attributes = port.attributes;
 			if (port.cell->parameters.count(ID::PRIORITY))
@@ -551,11 +551,11 @@ namespace {
 		dict<std::string, pool<Cell *>> inits;
 		MemIndex (Module *module) {
 			for (auto cell: module->cells()) {
-				if (cell->type.in(ID::$memwr, ID::$memwr_v2))
+				if (cell->type.in(ID($memwr), ID($memwr_v2)))
 					wr_ports[cell->parameters.at(ID::MEMID).decode_string()].insert(cell);
-				else if (cell->type.in(ID::$memrd, ID::$memrd_v2))
+				else if (cell->type.in(ID($memrd), ID($memrd_v2)))
 					rd_ports[cell->parameters.at(ID::MEMID).decode_string()].insert(cell);
-				else if (cell->type.in(ID::$meminit, ID::$meminit_v2))
+				else if (cell->type.in(ID($meminit), ID($meminit_v2)))
 					inits[cell->parameters.at(ID::MEMID).decode_string()].insert(cell);
 			}
 		}
@@ -572,7 +572,7 @@ namespace {
 		if (index.rd_ports.count(memid)) {
 			for (auto cell : index.rd_ports.at(memid)) {
 				MemRd mrd;
-				bool is_compat = cell->type == ID::$memrd;
+				bool is_compat = cell->type == ID($memrd);
 				mrd.cell = cell;
 				mrd.attributes = cell->attributes;
 				mrd.clk_enable = cell->parameters.at(ID::CLK_ENABLE).as_bool();
@@ -616,7 +616,7 @@ namespace {
 			std::vector<std::pair<int, MemWr>> ports;
 			for (auto cell : index.wr_ports.at(memid)) {
 				MemWr mwr;
-				bool is_compat = cell->type == ID::$memwr;
+				bool is_compat = cell->type == ID($memwr);
 				mwr.cell = cell;
 				mwr.attributes = cell->attributes;
 				mwr.clk_enable = cell->parameters.at(ID::CLK_ENABLE).as_bool();
@@ -635,7 +635,7 @@ namespace {
 			}
 			for (int i = 0; i < GetSize(res.wr_ports); i++) {
 				auto &port = res.wr_ports[i];
-				bool is_compat = port.cell->type == ID::$memwr;
+				bool is_compat = port.cell->type == ID($memwr);
 				if (is_compat) {
 					port.priority_mask.resize(GetSize(res.wr_ports));
 					for (int j = 0; j < i; j++) {
@@ -671,7 +671,7 @@ namespace {
 					log_error("Non-constant data %s in memory initialization %s.\n", log_signal(data), cell);
 				init.addr = addr.as_const();
 				init.data = data.as_const();
-				if (cell->type == ID::$meminit_v2) {
+				if (cell->type == ID($meminit_v2)) {
 					auto en = cell->getPort(ID::EN);
 					if (!en.is_fully_const())
 						log_error("Non-constant enable %s in memory initialization %s.\n", log_signal(en), cell);
@@ -687,7 +687,7 @@ namespace {
 		}
 		for (int i = 0; i < GetSize(res.rd_ports); i++) {
 			auto &port = res.rd_ports[i];
-			bool is_compat = port.cell->type == ID::$memrd;
+			bool is_compat = port.cell->type == ID($memrd);
 			if (is_compat) {
 				port.transparency_mask.resize(GetSize(res.wr_ports));
 				port.collision_x_mask.resize(GetSize(res.wr_ports));
@@ -724,7 +724,7 @@ namespace {
 			cell->parameters.at(ID::OFFSET).as_int(),
 			cell->parameters.at(ID::SIZE).as_int()
 		);
-		bool is_compat = cell->type == ID::$mem;
+		bool is_compat = cell->type == ID($mem);
 		int abits = cell->parameters.at(ID::ABITS).as_int();
 		res.packed = true;
 		res.cell = cell;
@@ -864,7 +864,7 @@ std::vector<Mem> Mem::get_all_memories(Module *module) {
 		res.push_back(mem_from_memory(module, it.second, index));
 	}
 	for (auto cell: module->cells()) {
-		if (cell->type.in(ID::$mem, ID::$mem_v2))
+		if (cell->type.in(ID($mem), ID($mem_v2)))
 			res.push_back(mem_from_cell(cell));
 	}
 	return res;
@@ -878,7 +878,7 @@ std::vector<Mem> Mem::get_selected_memories(Module *module) {
 			res.push_back(mem_from_memory(module, it.second, index));
 	}
 	for (auto cell: module->selected_cells()) {
-		if (cell->type.in(ID::$mem, ID::$mem_v2))
+		if (cell->type.in(ID($mem), ID($mem_v2)))
 			res.push_back(mem_from_cell(cell));
 	}
 	return res;

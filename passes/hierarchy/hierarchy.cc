@@ -1219,9 +1219,9 @@ struct HierarchyPass : public Pass {
 		if (flag_simcheck || flag_smtcheck) {
 			for (auto mod : design->modules()) {
 				for (auto cell : mod->cells()) {
-					if (!cell->type.in(ID::$check, ID::$assert, ID::$assume, ID::$live, ID::$fair, ID::$cover))
+					if (!cell->type.in(ID($check), ID($assert), ID($assume), ID($live), ID($fair), ID($cover)))
 						continue;
-					if (!cell->has_attribute(ID::unsupported_sva))
+					if (!cell->has_attribute(ID(unsupported_sva)))
 						continue;
 
 					auto src = cell->get_src_attribute();

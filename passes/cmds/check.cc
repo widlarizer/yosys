@@ -203,7 +203,7 @@ struct CheckPass : public Pass {
 			if (latchonly) {
 				for (auto cell : module->cells())
 					if (
-						cell->type.in(ID::$dlatch, ID::$adlatch, ID::$dlatchsr) ||
+						cell->type.in(ID($dlatch), ID($adlatch), ID($dlatchsr)) ||
 						cell->type.begins_with("$_DLATCH_") || cell->type.begins_with("$_DLATCHSR_")
 					) {
 						log_warning("Cell %s.%s is a latch of type %s.\n", module, cell, cell->type.unescape());
@@ -287,14 +287,14 @@ struct CheckPass : public Pass {
 					// Only those cell types for which the edge data can expode quadratically
 					// in port widths are those for us to check.
 					if (!cell->type.in(
-							ID::$add, ID::$sub,
-							ID::$shl, ID::$shr, ID::$sshl, ID::$sshr, ID::$shift, ID::$shiftx,
-							ID::$pmux, ID::$bmux))
+							ID($add), ID($sub),
+							ID($shl), ID($shr), ID($sshl), ID($sshr), ID($shift), ID($shiftx),
+							ID($pmux), ID($bmux)))
 						return false;
 
 					int in_widths = 0, out_widths = 0;
 
-					if (cell->type.in(ID::$pmux, ID::$bmux)) {
+					if (cell->type.in(ID($pmux), ID($bmux))) {
 						// We're skipping inputs A and B, since each of their bits contributes only one edge
 						in_widths = GetSize(cell->getPort(ID::S));
 						out_widths = GetSize(cell->getPort(ID::Y));
@@ -351,7 +351,7 @@ struct CheckPass : public Pass {
 			for (auto cell : module->cells())
 			{
 				if (mapped && cell->type.begins_with("$") && design->module(cell->type_impl) == nullptr) {
-					if (allow_tbuf && cell->type == ID::$_TBUF_) goto cell_allowed;
+					if (allow_tbuf && cell->type == ID($_TBUF_)) goto cell_allowed;
 					log_warning("Cell %s.%s is an unmapped internal cell of type %s.\n", module, cell, cell->type.unescaped());
 					counter++;
 				cell_allowed:;
@@ -359,7 +359,7 @@ struct CheckPass : public Pass {
 
 				if (
 					nolatches && (
-					cell->type.in(ID::$dlatch, ID::$adlatch, ID::$dlatchsr) ||
+					cell->type.in(ID($dlatch), ID($adlatch), ID($dlatchsr)) ||
 					cell->type.begins_with("$_DLATCH_") || cell->type.begins_with("$_DLATCHSR_"))
 				) {
 					log_warning("Cell %s.%s is a latch of type %s.\n", module, cell, cell->type.unescape());

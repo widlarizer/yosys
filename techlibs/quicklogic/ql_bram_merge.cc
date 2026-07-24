@@ -44,8 +44,8 @@ struct QlBramMergeWorker {
 		for (RTLIL::Cell* cell : module->selected_cells())
 		{
 			if(cell->type != split_cell_type) continue;
-			if(!cell->hasParam(ID::OPTION_SPLIT)) continue;
-			if(cell->getParam(ID::OPTION_SPLIT) != RTLIL::Const(1)) continue;
+			if(!cell->hasParam(ID(OPTION_SPLIT))) continue;
+			if(cell->getParam(ID(OPTION_SPLIT)) != RTLIL::Const(1)) continue;
 			mergeable_groups[get_key(cell)].insert(cell);
 		}
 	}
@@ -61,18 +61,18 @@ struct QlBramMergeWorker {
 	const dict<TwineRef, TwineRef>& param_map(bool second)
 	{
 		static const dict<TwineRef, TwineRef> bram1_map = {
-			{ ID::INIT,                     ID::INIT1 },
-			{ ID::PORT_A_WIDTH,             ID::PORT_A1_WIDTH },
-			{ ID::PORT_B_WIDTH,             ID::PORT_B1_WIDTH },
-			{ ID::PORT_A_WR_BE_WIDTH,       ID::PORT_A1_WR_BE_WIDTH },
-			{ ID::PORT_B_WR_BE_WIDTH,       ID::PORT_B1_WR_BE_WIDTH }
+			{ ID(INIT),                     ID(INIT1) },
+			{ ID(PORT_A_WIDTH),             ID(PORT_A1_WIDTH) },
+			{ ID(PORT_B_WIDTH),             ID(PORT_B1_WIDTH) },
+			{ ID(PORT_A_WR_BE_WIDTH),       ID(PORT_A1_WR_BE_WIDTH) },
+			{ ID(PORT_B_WR_BE_WIDTH),       ID(PORT_B1_WR_BE_WIDTH) }
 		};
 		static const dict<TwineRef, TwineRef> bram2_map = {
-			{ ID::INIT,                     ID::INIT2 },
-			{ ID::PORT_A_WIDTH,             ID::PORT_A2_WIDTH },
-			{ ID::PORT_B_WIDTH,             ID::PORT_B2_WIDTH },
-			{ ID::PORT_A_WR_BE_WIDTH,       ID::PORT_A2_WR_BE_WIDTH },
-			{ ID::PORT_B_WR_BE_WIDTH,       ID::PORT_B2_WR_BE_WIDTH }
+			{ ID(INIT),                     ID(INIT2) },
+			{ ID(PORT_A_WIDTH),             ID(PORT_A2_WIDTH) },
+			{ ID(PORT_B_WIDTH),             ID(PORT_B2_WIDTH) },
+			{ ID(PORT_A_WR_BE_WIDTH),       ID(PORT_A2_WR_BE_WIDTH) },
+			{ ID(PORT_B_WR_BE_WIDTH),       ID(PORT_B2_WR_BE_WIDTH) }
 		};
 
 		if(second)
@@ -84,36 +84,36 @@ struct QlBramMergeWorker {
 	const dict<TwineRef, TwineRef>& port_map(bool second)
 	{
 		static const dict<TwineRef, TwineRef> bram1_map = {
-			{ ID::PORT_A_CLK,       ID::PORT_A1_CLK },
-			{ ID::PORT_B_CLK,       ID::PORT_B1_CLK },
-			{ ID::PORT_A_CLK_EN,    ID::PORT_A1_CLK_EN },
-			{ ID::PORT_B_CLK_EN,    ID::PORT_B1_CLK_EN },
-			{ ID::PORT_A_ADDR,      ID::PORT_A1_ADDR },
-			{ ID::PORT_B_ADDR,      ID::PORT_B1_ADDR },
-			{ ID::PORT_A_WR_DATA,   ID::PORT_A1_WR_DATA },
-			{ ID::PORT_B_WR_DATA,   ID::PORT_B1_WR_DATA },
-			{ ID::PORT_A_WR_EN,     ID::PORT_A1_WR_EN },
-			{ ID::PORT_B_WR_EN,     ID::PORT_B1_WR_EN },
-			{ ID::PORT_A_WR_BE,     ID::PORT_A1_WR_BE },
-			{ ID::PORT_B_WR_BE,     ID::PORT_B1_WR_BE },
-			{ ID::PORT_A_RD_DATA,   ID::PORT_A1_RD_DATA },
-			{ ID::PORT_B_RD_DATA,   ID::PORT_B1_RD_DATA }
+			{ ID(PORT_A_CLK),       ID(PORT_A1_CLK) },
+			{ ID(PORT_B_CLK),       ID(PORT_B1_CLK) },
+			{ ID(PORT_A_CLK_EN),    ID(PORT_A1_CLK_EN) },
+			{ ID(PORT_B_CLK_EN),    ID(PORT_B1_CLK_EN) },
+			{ ID(PORT_A_ADDR),      ID(PORT_A1_ADDR) },
+			{ ID(PORT_B_ADDR),      ID(PORT_B1_ADDR) },
+			{ ID(PORT_A_WR_DATA),   ID(PORT_A1_WR_DATA) },
+			{ ID(PORT_B_WR_DATA),   ID(PORT_B1_WR_DATA) },
+			{ ID(PORT_A_WR_EN),     ID(PORT_A1_WR_EN) },
+			{ ID(PORT_B_WR_EN),     ID(PORT_B1_WR_EN) },
+			{ ID(PORT_A_WR_BE),     ID(PORT_A1_WR_BE) },
+			{ ID(PORT_B_WR_BE),     ID(PORT_B1_WR_BE) },
+			{ ID(PORT_A_RD_DATA),   ID(PORT_A1_RD_DATA) },
+			{ ID(PORT_B_RD_DATA),   ID(PORT_B1_RD_DATA) }
 		};
 		static const dict<TwineRef, TwineRef> bram2_map = {
-			{ ID::PORT_A_CLK,       ID::PORT_A2_CLK },
-			{ ID::PORT_B_CLK,       ID::PORT_B2_CLK },
-			{ ID::PORT_A_CLK_EN,    ID::PORT_A2_CLK_EN },
-			{ ID::PORT_B_CLK_EN,    ID::PORT_B2_CLK_EN },
-			{ ID::PORT_A_ADDR,      ID::PORT_A2_ADDR },
-			{ ID::PORT_B_ADDR,      ID::PORT_B2_ADDR },
-			{ ID::PORT_A_WR_DATA,   ID::PORT_A2_WR_DATA },
-			{ ID::PORT_B_WR_DATA,   ID::PORT_B2_WR_DATA },
-			{ ID::PORT_A_WR_EN,     ID::PORT_A2_WR_EN },
-			{ ID::PORT_B_WR_EN,     ID::PORT_B2_WR_EN },
-			{ ID::PORT_A_WR_BE,     ID::PORT_A2_WR_BE },
-			{ ID::PORT_B_WR_BE,     ID::PORT_B2_WR_BE },
-			{ ID::PORT_A_RD_DATA,   ID::PORT_A2_RD_DATA },
-			{ ID::PORT_B_RD_DATA,   ID::PORT_B2_RD_DATA }
+			{ ID(PORT_A_CLK),       ID(PORT_A2_CLK) },
+			{ ID(PORT_B_CLK),       ID(PORT_B2_CLK) },
+			{ ID(PORT_A_CLK_EN),    ID(PORT_A2_CLK_EN) },
+			{ ID(PORT_B_CLK_EN),    ID(PORT_B2_CLK_EN) },
+			{ ID(PORT_A_ADDR),      ID(PORT_A2_ADDR) },
+			{ ID(PORT_B_ADDR),      ID(PORT_B2_ADDR) },
+			{ ID(PORT_A_WR_DATA),   ID(PORT_A2_WR_DATA) },
+			{ ID(PORT_B_WR_DATA),   ID(PORT_B2_WR_DATA) },
+			{ ID(PORT_A_WR_EN),     ID(PORT_A2_WR_EN) },
+			{ ID(PORT_B_WR_EN),     ID(PORT_B2_WR_EN) },
+			{ ID(PORT_A_WR_BE),     ID(PORT_A2_WR_BE) },
+			{ ID(PORT_B_WR_BE),     ID(PORT_B2_WR_BE) },
+			{ ID(PORT_A_RD_DATA),   ID(PORT_A2_RD_DATA) },
+			{ ID(PORT_B_RD_DATA),   ID(PORT_B2_RD_DATA) }
 		};
 
 		if(second)

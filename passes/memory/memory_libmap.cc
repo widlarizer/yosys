@@ -163,7 +163,7 @@ struct MapWorker {
 	MapWorker(Module *module) : module(module), modwalker(module->design, module), sigmap(module), sigmap_xmux(module), initvals(&sigmap, module) {
 		for (auto cell : module->cells())
 		{
-			if (cell->type == ID::$mux)
+			if (cell->type == ID($mux))
 			{
 				RTLIL::SigSpec sig_a = sigmap_xmux(cell->getPort(ID::A));
 				RTLIL::SigSpec sig_b = sigmap_xmux(cell->getPort(ID::B));

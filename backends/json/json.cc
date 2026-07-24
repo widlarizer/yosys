@@ -198,7 +198,7 @@ struct JsonWriter
 		for (auto c : module->cells()) {
 			if (use_selection && !module->selected(c))
 				continue;
-			if (!scopeinfo_mode && c->type == ID::$scopeinfo)
+			if (!scopeinfo_mode && c->type == ID($scopeinfo))
 				continue;
 			f << stringf("%s\n", first ? "" : ",");
 			f << stringf("        %s: {\n", get_name(c->name));

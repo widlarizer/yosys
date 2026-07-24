@@ -1847,7 +1847,7 @@ struct VerificSvaImporter
 				if (mode_cover) c = module->addCover(root_name, sig_a_q, sig_en_q);
 
 				if (c) {
-					c->set_bool_attribute(ID::keep);
+					c->set_bool_attribute(ID(keep));
 					importer->import_attributes(c->attributes, root);
 				}
 			}
@@ -1879,7 +1879,7 @@ struct VerificSvaImporter
 
 				if (c) {
 					importer->import_attributes(c->attributes, root);
-					c->set_bool_attribute(ID::unsupported_sva);
+					c->set_bool_attribute(ID(unsupported_sva));
 				}
 
 				importer->num_sva_continue++;

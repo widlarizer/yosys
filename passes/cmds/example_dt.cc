@@ -77,13 +77,13 @@ struct ExampleDtPass : public Pass
 			auto enqueue = [&](DriveSpec const &spec) {
 				int index = queue(spec);
 				if (index == GetSize(graph_nodes))
-					graph_nodes.emplace_back(compute_graph.add(ID::$pending, index).index());
+					graph_nodes.emplace_back(compute_graph.add(ID($pending), index).index());
 				//if (index >= GetSize(graph_nodes))
 				return compute_graph[graph_nodes[index]];
 			};
 
 			for (auto cell : module->cells()) {
-				if (cell->type.in(ID::$assert, ID::$assume, ID::$cover, ID::$check))
+				if (cell->type.in(ID($assert), ID($assume), ID($cover), ID($check)))
 					enqueue(DriveBitMarker(cells(cell), 0));
 			}
 
@@ -127,7 +127,7 @@ struct ExampleDtPass : public Pass
 						DriveChunkPort port_chunk = chunk.port();
 						if (port_chunk.is_whole()) {
 							if (dm.celltypes.cell_output(port_chunk.cell->type_impl, port_chunk.port)) {
-								if (port_chunk.cell->type.in(ID::$dff, ID::$ff))
+								if (port_chunk.cell->type.in(ID($dff), ID($ff)))
 								{
 									Cell *cell = port_chunk.cell;
 									node.set_function(ExampleFn(ID($$state), {{cell->name, {}}}));

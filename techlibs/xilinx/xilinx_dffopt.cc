@@ -145,30 +145,30 @@ struct XilinxDffOptPass : public Pass {
 						bit_uses[sigmap(bit)]++;
 				if (cell->get_bool_attribute(ID::keep))
 					continue;
-				if (cell->type == ID::INV) {
+				if (cell->type == ID(INV)) {
 					SigBit sigout = sigmap(cell->getPort(ID::O));
 					SigBit sigin = sigmap(cell->getPort(ID::I));
 					bit_to_lut[sigout] = make_pair(LutData(Const(1, 2), {sigin}), cell);
-				} else if (cell->type.in(ID::LUT1, ID::LUT2, ID::LUT3, ID::LUT4, ID::LUT5, ID::LUT6)) {
+				} else if (cell->type.in(ID(LUT1), ID(LUT2), ID(LUT3), ID(LUT4), ID(LUT5), ID(LUT6))) {
 					SigBit sigout = sigmap(cell->getPort(ID::O));
 					const Const &init = cell->getParam(ID::INIT);
 					std::vector<SigBit> sigin;
-					sigin.push_back(sigmap(cell->getPort(ID::I0)));
-					if (cell->type == ID::LUT1)
+					sigin.push_back(sigmap(cell->getPort(ID(I0))));
+					if (cell->type == ID(LUT1))
 						goto lut_sigin_done;
-					sigin.push_back(sigmap(cell->getPort(ID::I1)));
-					if (cell->type == ID::LUT2)
+					sigin.push_back(sigmap(cell->getPort(ID(I1))));
+					if (cell->type == ID(LUT2))
 						goto lut_sigin_done;
-					sigin.push_back(sigmap(cell->getPort(ID::I2)));
-					if (cell->type == ID::LUT3)
+					sigin.push_back(sigmap(cell->getPort(ID(I2))));
+					if (cell->type == ID(LUT3))
 						goto lut_sigin_done;
-					sigin.push_back(sigmap(cell->getPort(ID::I3)));
-					if (cell->type == ID::LUT4)
+					sigin.push_back(sigmap(cell->getPort(ID(I3))));
+					if (cell->type == ID(LUT4))
 						goto lut_sigin_done;
-					sigin.push_back(sigmap(cell->getPort(ID::I4)));
-					if (cell->type == ID::LUT5)
+					sigin.push_back(sigmap(cell->getPort(ID(I4))));
+					if (cell->type == ID(LUT5))
 						goto lut_sigin_done;
-					sigin.push_back(sigmap(cell->getPort(ID::I5)));
+					sigin.push_back(sigmap(cell->getPort(ID(I5))));
 lut_sigin_done:
 					bit_to_lut[sigout] = make_pair(LutData(init, sigin), cell);
 				}
@@ -182,13 +182,13 @@ lut_sigin_done:
 			for (auto cell : module->selected_cells())
 			{
 				bool has_s = false, has_r = false;
-				if (cell->type.in(ID::FDCE, ID::FDPE, ID::FDCPE, ID::FDCE_1, ID::FDPE_1, ID::FDCPE_1)) {
+				if (cell->type.in(ID(FDCE), ID(FDPE), ID(FDCPE), ID(FDCE_1), ID(FDPE_1), ID(FDCPE_1))) {
 					// Async reset.
-				} else if (cell->type.in(ID::FDRE, ID::FDRE_1)) {
+				} else if (cell->type.in(ID(FDRE), ID(FDRE_1))) {
 					has_r = true;
-				} else if (cell->type.in(ID::FDSE, ID::FDSE_1)) {
+				} else if (cell->type.in(ID(FDSE), ID(FDSE_1))) {
 					has_s = true;
-				} else if (cell->type.in(ID::FDRSE, ID::FDRSE_1)) {
+				} else if (cell->type.in(ID(FDRSE), ID(FDRSE_1))) {
 					has_r = true;
 					has_s = true;
 				} else {
@@ -209,7 +209,7 @@ lut_sigin_done:
 					continue;
 				LutData lut_d = it_D->second.first;
 				Cell *cell_d = it_D->second.second;
-				if (cell->hasParam(ID::IS_D_INVERTED) && cell->getParam(ID::IS_D_INVERTED).as_bool()) {
+				if (cell->hasParam(ID(IS_D_INVERTED)) && cell->getParam(ID(IS_D_INVERTED)).as_bool()) {
 					// Flip all bits in the LUT.
 					for (auto bit : lut_d.first)
 						bit = (bit == State::S1) ? State::S0 : State::S1;
@@ -224,7 +224,7 @@ lut_sigin_done:
 
 				// First, unmap CE.
 				SigBit sig_Q = sigmap(cell->getPort(ID::Q));
-				SigBit sig_CE = sigmap(cell->getPort(ID::CE));
+				SigBit sig_CE = sigmap(cell->getPort(ID(CE)));
 				LutData lut_ce = LutData(Const(2, 2), {sig_CE});
 				auto it_CE = bit_to_lut.find(sig_CE);
 				if (it_CE != bit_to_lut.end())
@@ -249,7 +249,7 @@ lut_sigin_done:
 				if (has_s) {
 					SigBit sig_S = sigmap(cell->getPort(ID::S));
 					LutData lut_s = LutData(Const(2, 2), {sig_S});
-					bool inv_s = cell->hasParam(ID::IS_S_INVERTED) && cell->getParam(ID::IS_S_INVERTED).as_bool();
+					bool inv_s = cell->hasParam(ID(IS_S_INVERTED)) && cell->getParam(ID(IS_S_INVERTED)).as_bool();
 					auto it_S = bit_to_lut.find(sig_S);
 					if (it_S != bit_to_lut.end())
 						lut_s = it_S->second.first;
@@ -271,7 +271,7 @@ lut_sigin_done:
 				if (has_r) {
 					SigBit sig_R = sigmap(cell->getPort(ID::R));
 					LutData lut_r = LutData(Const(2, 2), {sig_R});
-					bool inv_r = cell->hasParam(ID::IS_R_INVERTED) && cell->getParam(ID::IS_R_INVERTED).as_bool();
+					bool inv_r = cell->hasParam(ID(IS_R_INVERTED)) && cell->getParam(ID(IS_R_INVERTED)).as_bool();
 					auto it_R = bit_to_lut.find(sig_R);
 					if (it_R != bit_to_lut.end())
 						lut_r = it_R->second.first;
@@ -309,36 +309,36 @@ unmap:
 
 				// Okay, we're doing it.  Unmap ports.
 				if (worthy_post_r) {
-					cell->unsetParam(ID::IS_R_INVERTED);
+					cell->unsetParam(ID(IS_R_INVERTED));
 					cell->setPort(ID::R, Const(0, 1));
 				}
 				if (has_s && (worthy_post_r || worthy_post_s)) {
-					cell->unsetParam(ID::IS_S_INVERTED);
+					cell->unsetParam(ID(IS_S_INVERTED));
 					cell->setPort(ID::S, Const(0, 1));
 				}
-				cell->setPort(ID::CE, Const(1, 1));
-				cell->unsetParam(ID::IS_D_INVERTED);
+				cell->setPort(ID(CE), Const(1, 1));
+				cell->unsetParam(ID(IS_D_INVERTED));
 
 				// Create the new LUT.
 				Cell *lut_cell = 0;
 				switch (GetSize(final_lut.second)) {
 					case 1:
-						lut_cell = module->addCell(NEW_ID, ID::LUT1);
+						lut_cell = module->addCell(NEW_ID, ID(LUT1));
 						break;
 					case 2:
-						lut_cell = module->addCell(NEW_ID, ID::LUT2);
+						lut_cell = module->addCell(NEW_ID, ID(LUT2));
 						break;
 					case 3:
-						lut_cell = module->addCell(NEW_ID, ID::LUT3);
+						lut_cell = module->addCell(NEW_ID, ID(LUT3));
 						break;
 					case 4:
-						lut_cell = module->addCell(NEW_ID, ID::LUT4);
+						lut_cell = module->addCell(NEW_ID, ID(LUT4));
 						break;
 					case 5:
-						lut_cell = module->addCell(NEW_ID, ID::LUT5);
+						lut_cell = module->addCell(NEW_ID, ID(LUT5));
 						break;
 					case 6:
-						lut_cell = module->addCell(NEW_ID, ID::LUT6);
+						lut_cell = module->addCell(NEW_ID, ID(LUT6));
 						break;
 					default:
 						log_assert(!"unknown lut size");
@@ -348,17 +348,17 @@ unmap:
 				lut_cell->setParam(ID::INIT, final_lut.first);
 				cell->setPort(ID::D, lut_out);
 				lut_cell->setPort(ID::O, lut_out);
-				lut_cell->setPort(ID::I0, final_lut.second[0]);
+				lut_cell->setPort(ID(I0), final_lut.second[0]);
 				if (GetSize(final_lut.second) >= 2)
-					lut_cell->setPort(ID::I1, final_lut.second[1]);
+					lut_cell->setPort(ID(I1), final_lut.second[1]);
 				if (GetSize(final_lut.second) >= 3)
-					lut_cell->setPort(ID::I2, final_lut.second[2]);
+					lut_cell->setPort(ID(I2), final_lut.second[2]);
 				if (GetSize(final_lut.second) >= 4)
-					lut_cell->setPort(ID::I3, final_lut.second[3]);
+					lut_cell->setPort(ID(I3), final_lut.second[3]);
 				if (GetSize(final_lut.second) >= 5)
-					lut_cell->setPort(ID::I4, final_lut.second[4]);
+					lut_cell->setPort(ID(I4), final_lut.second[4]);
 				if (GetSize(final_lut.second) >= 6)
-					lut_cell->setPort(ID::I5, final_lut.second[5]);
+					lut_cell->setPort(ID(I5), final_lut.second[5]);
 			}
 		}
 	}

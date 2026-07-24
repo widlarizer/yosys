@@ -55,7 +55,7 @@ ret_false:
 	sig2driver.find(sig, cellport_list);
 	for (auto &cellport : cellport_list)
 	{
-		if ((cellport.first->type != ID::$mux && cellport.first->type != ID::$pmux) || cellport.second != ID::Y) {
+		if ((cellport.first->type != ID($mux) && cellport.first->type != ID($pmux)) || cellport.second != ID::Y) {
 			goto ret_false;
 		}
 
@@ -99,7 +99,7 @@ static bool check_state_users(RTLIL::SigSpec sig)
 		RTLIL::Cell *cell = cellport.first;
 		if (muxtree_cells.count(cell) > 0)
 			continue;
-		if (cell->type == ID::$logic_not && assign_map(cell->getPort(ID::A)) == sig)
+		if (cell->type == ID($logic_not) && assign_map(cell->getPort(ID::A)) == sig)
 			continue;
 		if (cellport.second != ID::A && cellport.second != ID::B)
 			return false;
@@ -143,7 +143,7 @@ static void detect_fsm(RTLIL::Wire *wire, bool ignore_self_reset=false)
 
 	for (auto &cellport : cellport_list)
 	{
-		if ((cellport.first->type != ID::$dff && cellport.first->type != ID::$adff) || cellport.second != ID::Q)
+		if ((cellport.first->type != ID($dff) && cellport.first->type != ID($adff)) || cellport.second != ID::Q)
 			continue;
 
 		muxtree_cells.clear();
@@ -173,10 +173,10 @@ static void detect_fsm(RTLIL::Wire *wire, bool ignore_self_reset=false)
 			RTLIL::Cell *cell = cellport.first;
 			bool set_output = false, clr_output = false;
 
-			if (cell->type.in(ID::$ne, ID::$reduce_or, ID::$reduce_bool))
+			if (cell->type.in(ID($ne), ID($reduce_or), ID($reduce_bool)))
 				set_output = true;
 
-			if (cell->type.in(ID::$eq, ID::$logic_not, ID::$reduce_and))
+			if (cell->type.in(ID($eq), ID($logic_not), ID($reduce_and)))
 				clr_output = true;
 
 			if (set_output || clr_output) {
@@ -200,7 +200,7 @@ static void detect_fsm(RTLIL::Wire *wire, bool ignore_self_reset=false)
 
 		SigSpec sig_y = sig_d, sig_undef;
 		if (!ignore_self_reset) {
-			if (cellport.first->type == ID::$adff) {
+			if (cellport.first->type == ID($adff)) {
 				SigSpec sig_arst = assign_map(cellport.first->getPort(ID::ARST));
 				if (ce.eval(sig_arst, sig_undef))
 					is_self_resetting = true;

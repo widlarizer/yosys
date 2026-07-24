@@ -57,11 +57,11 @@ void reduce_chain(test_pmgen_pm &pm)
 
 	Cell *c;
 
-	if (last_cell->type == ID::$_AND_)
+	if (last_cell->type == ID($_AND_))
 		c = pm.module->addReduceAnd(NEW_ID, A, Y);
-	else if (last_cell->type == ID::$_OR_)
+	else if (last_cell->type == ID($_OR_))
 		c = pm.module->addReduceOr(NEW_ID, A, Y);
-	else if (last_cell->type == ID::$_XOR_)
+	else if (last_cell->type == ID($_XOR_))
 		c = pm.module->addReduceXor(NEW_ID, A, Y);
 	else
 		log_abort();
@@ -86,11 +86,11 @@ void reduce_tree(test_pmgen_pm &pm)
 
 	Cell *c;
 
-	if (st.first->type == ID::$_AND_)
+	if (st.first->type == ID($_AND_))
 		c = pm.module->addReduceAnd(NEW_ID, A, Y);
-	else if (st.first->type == ID::$_OR_)
+	else if (st.first->type == ID($_OR_))
 		c = pm.module->addReduceOr(NEW_ID, A, Y);
-	else if (st.first->type == ID::$_XOR_)
+	else if (st.first->type == ID($_XOR_))
 		c = pm.module->addReduceXor(NEW_ID, A, Y);
 	else
 		log_abort();

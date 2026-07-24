@@ -53,17 +53,17 @@ struct OnehotDatabase
 			vector<SigSpec> inputs;
 			SigSpec output;
 
-			if (cell->type.in(ID::$adff, ID::$adffe, ID::$dff, ID::$dffe, ID::$sdff, ID::$sdffe, ID::$sdffce, ID::$dlatch, ID::$adlatch, ID::$ff))
+			if (cell->type.in(ID($adff), ID($adffe), ID($dff), ID($dffe), ID($sdff), ID($sdffe), ID($sdffce), ID($dlatch), ID($adlatch), ID($ff)))
 			{
 				output = cell->getPort(ID::Q);
-				if (cell->type.in(ID::$adff, ID::$adffe, ID::$adlatch))
+				if (cell->type.in(ID($adff), ID($adffe), ID($adlatch)))
 					inputs.push_back(cell->getParam(ID::ARST_VALUE));
-				if (cell->type.in(ID::$sdff, ID::$sdffe, ID::$sdffce))
+				if (cell->type.in(ID($sdff), ID($sdffe), ID($sdffce)))
 					inputs.push_back(cell->getParam(ID::SRST_VALUE));
 				inputs.push_back(cell->getPort(ID::D));
 			}
 
-			if (cell->type.in(ID::$mux, ID::$pmux))
+			if (cell->type.in(ID($mux), ID($pmux)))
 			{
 				output = cell->getPort(ID::Y);
 				inputs.push_back(cell->getPort(ID::A));
@@ -284,7 +284,7 @@ struct Pmux2ShiftxPass : public Pass {
 
 			for (auto cell : module->cells())
 			{
-				if (cell->type == ID::$eq)
+				if (cell->type == ID($eq))
 				{
 					dict<SigBit, State> bits;
 
@@ -332,7 +332,7 @@ struct Pmux2ShiftxPass : public Pass {
 					goto next_cell;
 				}
 
-				if (cell->type == ID::$logic_not)
+				if (cell->type == ID($logic_not))
 				{
 					dict<SigBit, State> bits;
 
@@ -358,7 +358,7 @@ struct Pmux2ShiftxPass : public Pass {
 
 			for (auto cell : module->selected_cells())
 			{
-				if (cell->type != ID::$pmux)
+				if (cell->type != ID($pmux))
 					continue;
 
 				TwineRef src = cell->src_id();
@@ -773,7 +773,7 @@ struct OnehotPass : public Pass {
 
 			for (auto cell : module->selected_cells())
 			{
-				if (cell->type != ID::$eq)
+				if (cell->type != ID($eq))
 					continue;
 
 				SigSpec A = sigmap(cell->getPort(ID::A));

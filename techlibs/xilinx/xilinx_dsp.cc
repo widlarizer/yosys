@@ -31,36 +31,36 @@ PRIVATE_NAMESPACE_BEGIN
 #include "techlibs/xilinx/xilinx_dsp_cascade_pm.h"
 
 static Cell* addDsp(Module *module) {
-	Cell *cell = module->addCell(NEW_ID, ID::DSP48E1);
-	cell->setParam(ID::ACASCREG, 0);
-	cell->setParam(ID::ADREG, 0);
-	cell->setParam(ID::A_INPUT, Const("DIRECT"));
-	cell->setParam(ID::ALUMODEREG, 0);
-	cell->setParam(ID::AREG, 0);
-	cell->setParam(ID::BCASCREG, 0);
-	cell->setParam(ID::B_INPUT, Const("DIRECT"));
-	cell->setParam(ID::BREG, 0);
-	cell->setParam(ID::CARRYINREG, 0);
-	cell->setParam(ID::CARRYINSELREG, 0);
-	cell->setParam(ID::CREG, 0);
-	cell->setParam(ID::DREG, 0);
-	cell->setParam(ID::INMODEREG, 0);
-	cell->setParam(ID::MREG, 0);
-	cell->setParam(ID::OPMODEREG, 0);
-	cell->setParam(ID::PREG, 0);
-	cell->setParam(ID::USE_MULT, Const("NONE"));
-	cell->setParam(ID::USE_SIMD, Const("ONE48"));
-	cell->setParam(ID::USE_DPORT, Const("FALSE"));
+	Cell *cell = module->addCell(NEW_ID, ID(DSP48E1));
+	cell->setParam(ID(ACASCREG), 0);
+	cell->setParam(ID(ADREG), 0);
+	cell->setParam(ID(A_INPUT), Const("DIRECT"));
+	cell->setParam(ID(ALUMODEREG), 0);
+	cell->setParam(ID(AREG), 0);
+	cell->setParam(ID(BCASCREG), 0);
+	cell->setParam(ID(B_INPUT), Const("DIRECT"));
+	cell->setParam(ID(BREG), 0);
+	cell->setParam(ID(CARRYINREG), 0);
+	cell->setParam(ID(CARRYINSELREG), 0);
+	cell->setParam(ID(CREG), 0);
+	cell->setParam(ID(DREG), 0);
+	cell->setParam(ID(INMODEREG), 0);
+	cell->setParam(ID(MREG), 0);
+	cell->setParam(ID(OPMODEREG), 0);
+	cell->setParam(ID(PREG), 0);
+	cell->setParam(ID(USE_MULT), Const("NONE"));
+	cell->setParam(ID(USE_SIMD), Const("ONE48"));
+	cell->setParam(ID(USE_DPORT), Const("FALSE"));
 
 	cell->setPort(ID::D, Const(0, 25));
-	cell->setPort(ID::INMODE, Const(0, 5));
-	cell->setPort(ID::ALUMODE, Const(0, 4));
-	cell->setPort(ID::OPMODE, Const(0, 7));
-	cell->setPort(ID::CARRYINSEL, Const(0, 3));
-	cell->setPort(ID::ACIN, Const(0, 30));
-	cell->setPort(ID::BCIN, Const(0, 18));
-	cell->setPort(ID::PCIN, Const(0, 48));
-	cell->setPort(ID::CARRYIN, Const(0, 1));
+	cell->setPort(ID(INMODE), Const(0, 5));
+	cell->setPort(ID(ALUMODE), Const(0, 4));
+	cell->setPort(ID(OPMODE), Const(0, 7));
+	cell->setPort(ID(CARRYINSEL), Const(0, 3));
+	cell->setPort(ID(ACIN), Const(0, 30));
+	cell->setPort(ID(BCIN), Const(0, 18));
+	cell->setPort(ID(PCIN), Const(0, 48));
+	cell->setPort(ID(CARRYIN), Const(0, 1));
 	return cell;
 }
 
@@ -116,7 +116,7 @@ void xilinx_simd_pack(Module *module, SigMap* sigmap, const std::vector<Cell*> &
 	SigPool simds = simd_signals(module, sigmap);
 
 	for (auto cell : selected_cells) {
-		if (!cell->type.in(ID::$add, ID::$sub))
+		if (!cell->type.in(ID($add), ID($sub)))
 			continue;
 		SigSpec Y = cell->getPort(ID::Y);
 		if (!is_allowed(Y, simds))
@@ -130,9 +130,9 @@ void xilinx_simd_pack(Module *module, SigMap* sigmap, const std::vector<Cell*> &
 				continue;
 			if (GetSize(B) > 12)
 				continue;
-			if (cell->type == ID::$add)
+			if (cell->type == ID($add))
 				simd12_add.push_back(cell);
-			else if (cell->type == ID::$sub)
+			else if (cell->type == ID($sub))
 				simd12_sub.push_back(cell);
 		}
 		else if (GetSize(Y) <= 25) {
@@ -140,9 +140,9 @@ void xilinx_simd_pack(Module *module, SigMap* sigmap, const std::vector<Cell*> &
 				continue;
 			if (GetSize(B) > 24)
 				continue;
-			if (cell->type == ID::$add)
+			if (cell->type == ID($add))
 				simd24_add.push_back(cell);
-			else if (cell->type == ID::$sub)
+			else if (cell->type == ID($sub))
 				simd24_sub.push_back(cell);
 		}
 		else
@@ -187,11 +187,11 @@ void xilinx_simd_pack(Module *module, SigMap* sigmap, const std::vector<Cell*> &
 			log("Analysing %s.%s for Xilinx DSP SIMD12 packing.\n", module, lane1);
 
 			Cell *cell = addDsp(module);
-			cell->setParam(ID::USE_SIMD, Const("FOUR12"));
+			cell->setParam(ID(USE_SIMD), Const("FOUR12"));
 			// X = A:B
 			// Y = 0
 			// Z = C
-			cell->setPort(ID::OPMODE, Const::from_string("0110011"));
+			cell->setPort(ID(OPMODE), Const::from_string("0110011"));
 
 			log_assert(lane1);
 			log_assert(lane2);
@@ -222,9 +222,9 @@ void xilinx_simd_pack(Module *module, SigMap* sigmap, const std::vector<Cell*> &
 			cell->setPort(ID::B, AB.extract(0, 18));
 			cell->setPort(ID::C, C);
 			cell->setPort(ID::P, P);
-			cell->setPort(ID::CARRYOUT, CARRYOUT);
-			if (lane1->type == ID::$sub)
-				cell->setPort(ID::ALUMODE, Const::from_string("0011"));
+			cell->setPort(ID(CARRYOUT), CARRYOUT);
+			if (lane1->type == ID($sub))
+				cell->setPort(ID(ALUMODE), Const::from_string("0011"));
 
 			module->remove(lane1);
 			module->remove(lane2);
@@ -268,11 +268,11 @@ void xilinx_simd_pack(Module *module, SigMap* sigmap, const std::vector<Cell*> &
 			log("Analysing %s.%s for Xilinx DSP SIMD24 packing.\n", module, lane1);
 
 			Cell *cell = addDsp(module);
-			cell->setParam(ID::USE_SIMD, Const("TWO24"));
+			cell->setParam(ID(USE_SIMD), Const("TWO24"));
 			// X = A:B
 			// Y = 0
 			// Z = C
-			cell->setPort(ID::OPMODE, Const::from_string("0110011"));
+			cell->setPort(ID(OPMODE), Const::from_string("0110011"));
 
 			log_assert(lane1);
 			log_assert(lane2);
@@ -286,9 +286,9 @@ void xilinx_simd_pack(Module *module, SigMap* sigmap, const std::vector<Cell*> &
 			cell->setPort(ID::B, AB.extract(0, 18));
 			cell->setPort(ID::C, C);
 			cell->setPort(ID::P, P);
-			cell->setPort(ID::CARRYOUT, CARRYOUT);
-			if (lane1->type == ID::$sub)
-				cell->setPort(ID::ALUMODE, Const::from_string("0011"));
+			cell->setPort(ID(CARRYOUT), CARRYOUT);
+			if (lane1->type == ID($sub))
+				cell->setPort(ID(ALUMODE), Const::from_string("0011"));
 
 			module->remove(lane1);
 			module->remove(lane2);
@@ -335,30 +335,30 @@ void xilinx_dsp_pack(xilinx_dsp_pm &pm)
 		st.sigD.extend_u0(25, D_SIGNED);
 		cell->setPort(ID::A, st.sigA);
 		cell->setPort(ID::D, st.sigD);
-		if (preAdder->type == ID::$add)
-			cell->setPort(ID::INMODE, Const::from_string("00100"));
+		if (preAdder->type == ID($add))
+			cell->setPort(ID(INMODE), Const::from_string("00100"));
 		else
-			cell->setPort(ID::INMODE, Const::from_string("01100"));
+			cell->setPort(ID(INMODE), Const::from_string("01100"));
 
 		if (st.ffAD) {
-			if (st.ffAD->type.in(ID::$dffe, ID::$sdffe)) {
+			if (st.ffAD->type.in(ID($dffe), ID($sdffe))) {
 				bool pol = st.ffAD->getParam(ID::EN_POLARITY).as_bool();
 				SigSpec S = st.ffAD->getPort(ID::EN);
-				cell->setPort(ID::CEAD, pol ? S : pm.module->Not(NEW_ID, S));
+				cell->setPort(ID(CEAD), pol ? S : pm.module->Not(NEW_ID, S));
 			}
 			else
-				cell->setPort(ID::CEAD, State::S1);
-			cell->setParam(ID::ADREG, 1);
+				cell->setPort(ID(CEAD), State::S1);
+			cell->setParam(ID(ADREG), 1);
 		}
 
-		cell->setParam(ID::USE_DPORT, Const("TRUE"));
+		cell->setParam(ID(USE_DPORT), Const("TRUE"));
 
 		pm.autoremove(preAdder);
 	}
 	if (st.postAdd) {
 		log("  postadder %s (%s)\n", st.postAdd, pm.module->design->twines.unescaped_str(st.postAdd->type_impl));
 
-		SigSpec &opmode = cell->connections_.at(ID::OPMODE);
+		SigSpec &opmode = cell->connections_.at(ID(OPMODE));
 		if (st.postAddMux) {
 			log_assert(st.ffP);
 			opmode[4] = st.postAddMux->getPort(ID::S);
@@ -383,11 +383,11 @@ void xilinx_dsp_pack(xilinx_dsp_pm &pm)
 	}
 	if (st.overflow) {
 		log("  overflow %s (%s)\n", st.overflow, pm.module->design->twines.unescaped_str(st.overflow->type_impl));
-		cell->setParam(ID::USE_PATTERN_DETECT, Const("PATDET"));
-		cell->setParam(ID::SEL_PATTERN, Const("PATTERN"));
-		cell->setParam(ID::SEL_MASK, Const("MASK"));
+		cell->setParam(ID(USE_PATTERN_DETECT), Const("PATDET"));
+		cell->setParam(ID(SEL_PATTERN), Const("PATTERN"));
+		cell->setParam(ID(SEL_MASK), Const("MASK"));
 
-		if (st.overflow->type == ID::$ge) {
+		if (st.overflow->type == ID($ge)) {
 			Const B = st.overflow->getPort(ID::B).as_const();
 			log_assert(std::count(B.begin(), B.end(), State::S1) == 1);
 			// Since B is an exact power of 2, subtract 1
@@ -401,9 +401,9 @@ void xilinx_dsp_pack(xilinx_dsp_pm &pm)
 				}
 			B.extu(48);
 
-			cell->setParam(ID::MASK, B);
-			cell->setParam(ID::PATTERN, Const(0, 48));
-			cell->setPort(ID::OVERFLOW, st.overflow->getPort(ID::Y));
+			cell->setParam(ID(MASK), B);
+			cell->setParam(ID(PATTERN), Const(0, 48));
+			cell->setPort(ID(OVERFLOW), st.overflow->getPort(ID::Y));
 		}
 		else log_abort();
 
@@ -420,7 +420,7 @@ void xilinx_dsp_pack(xilinx_dsp_pm &pm)
 			if (!A.empty())
 				A.replace(Q, D);
 			if (rstport != Twine::Null) {
-				if (ff->type.in(ID::$sdff, ID::$sdffe)) {
+				if (ff->type.in(ID($sdff), ID($sdffe))) {
 					SigSpec srst = ff->getPort(ID::SRST);
 					bool rstpol = ff->getParam(ID::SRST_POLARITY).as_bool();
 					cell->setPort(rstport, rstpol ? srst : pm.module->Not(NEW_ID, srst));
@@ -428,7 +428,7 @@ void xilinx_dsp_pack(xilinx_dsp_pm &pm)
 					cell->setPort(rstport, State::S0);
 				}
 			}
-			if (ff->type.in(ID::$dffe, ID::$sdffe)) {
+			if (ff->type.in(ID($dffe), ID($sdffe))) {
 				SigSpec ce = ff->getPort(ID::EN);
 				bool cepol = ff->getParam(ID::EN_POLARITY).as_bool();
 				cell->setPort(ceport, cepol ? ce : pm.module->Not(NEW_ID, ce));
@@ -449,52 +449,52 @@ void xilinx_dsp_pack(xilinx_dsp_pm &pm)
 
 		if (st.ffA2) {
 			SigSpec A = cell->getPort(ID::A);
-			f(A, st.ffA2, ID::CEA2, ID::RSTA);
+			f(A, st.ffA2, ID(CEA2), ID(RSTA));
 			if (st.ffA1) {
 				f(A, st.ffA1, ID::CEA1, Twine::Null);
-				cell->setParam(ID::AREG, 2);
-				cell->setParam(ID::ACASCREG, 2);
+				cell->setParam(ID(AREG), 2);
+				cell->setParam(ID(ACASCREG), 2);
 			}
 			else {
-				cell->setParam(ID::AREG, 1);
-				cell->setParam(ID::ACASCREG, 1);
+				cell->setParam(ID(AREG), 1);
+				cell->setParam(ID(ACASCREG), 1);
 			}
 			pm.add_siguser(A, cell);
 			cell->setPort(ID::A, A);
 		}
 		if (st.ffB2) {
 			SigSpec B = cell->getPort(ID::B);
-			f(B, st.ffB2, ID::CEB2, ID::RSTB);
+			f(B, st.ffB2, ID(CEB2), ID(RSTB));
 			if (st.ffB1) {
 				f(B, st.ffB1, ID::CEB1, Twine::Null);
-				cell->setParam(ID::BREG, 2);
-				cell->setParam(ID::BCASCREG, 2);
+				cell->setParam(ID(BREG), 2);
+				cell->setParam(ID(BCASCREG), 2);
 			}
 			else {
-				cell->setParam(ID::BREG, 1);
-				cell->setParam(ID::BCASCREG, 1);
+				cell->setParam(ID(BREG), 1);
+				cell->setParam(ID(BCASCREG), 1);
 			}
 			pm.add_siguser(B, cell);
 			cell->setPort(ID::B, B);
 		}
 		if (st.ffD) {
 			SigSpec D = cell->getPort(ID::D);
-			f(D, st.ffD, ID::CED, ID::RSTD);
+			f(D, st.ffD, ID(CED), ID(RSTD));
 			pm.add_siguser(D, cell);
 			cell->setPort(ID::D, D);
-			cell->setParam(ID::DREG, 1);
+			cell->setParam(ID(DREG), 1);
 		}
 		if (st.ffM) {
 			SigSpec M; // unused
-			f(M, st.ffM, ID::CEM, ID::RSTM);
+			f(M, st.ffM, ID(CEM), ID(RSTM));
 			st.ffM->connections_.at(ID::Q).replace(st.sigM, pm.module->addWire(NEW_ID, GetSize(st.sigM)));
-			cell->setParam(ID::MREG, State::S1);
+			cell->setParam(ID(MREG), State::S1);
 		}
 		if (st.ffP) {
 			SigSpec P; // unused
-			f(P, st.ffP, ID::CEP, ID::RSTP);
+			f(P, st.ffP, ID(CEP), ID(RSTP));
 			st.ffP->connections_.at(ID::Q).replace(st.sigP, pm.module->addWire(NEW_ID, GetSize(st.sigP)));
-			cell->setParam(ID::PREG, State::S1);
+			cell->setParam(ID(PREG), State::S1);
 		}
 
 		log("  clock: %s (%s)", log_signal(st.clock), "posedge");
@@ -552,7 +552,7 @@ void xilinx_dsp48a_pack(xilinx_dsp48a_pm &pm)
 	log_debug("ffP:        %s\n", st.ffP ? pm.module->design->twines.unescaped_str(st.ffP->name.ref()) : "--");
 
 	Cell *cell = st.dsp;
-	SigSpec &opmode = cell->connections_.at(ID::OPMODE);
+	SigSpec &opmode = cell->connections_.at(ID(OPMODE));
 
 	if (st.preAdd) {
 		log("  preadder %s (%s)\n", st.preAdd, pm.module->design->twines.unescaped_str(st.preAdd->type_impl));
@@ -563,9 +563,9 @@ void xilinx_dsp48a_pack(xilinx_dsp48a_pm &pm)
 		cell->setPort(ID::B, st.sigB);
 		cell->setPort(ID::D, st.sigD);
 		opmode[4] = State::S1;
-		if (st.preAdd->type == ID::$add)
+		if (st.preAdd->type == ID($add))
 			opmode[6] = State::S0;
-		else if (st.preAdd->type == ID::$sub)
+		else if (st.preAdd->type == ID($sub))
 			opmode[6] = State::S1;
 		else
 			log_assert(!"strange pre-adder type");
@@ -607,7 +607,7 @@ void xilinx_dsp48a_pack(xilinx_dsp48a_pm &pm)
 			if (!A.empty())
 				A.replace(Q, D);
 			if (rstport != Twine::Null) {
-				if (ff->type.in(ID::$sdff, ID::$sdffe)) {
+				if (ff->type.in(ID($sdff), ID($sdffe))) {
 					SigSpec srst = ff->getPort(ID::SRST);
 					bool rstpol = ff->getParam(ID::SRST_POLARITY).as_bool();
 					cell->setPort(rstport, rstpol ? srst : pm.module->Not(NEW_ID, srst));
@@ -615,7 +615,7 @@ void xilinx_dsp48a_pack(xilinx_dsp48a_pm &pm)
 					cell->setPort(rstport, State::S0);
 				}
 			}
-			if (ff->type.in(ID::$dffe, ID::$sdffe)) {
+			if (ff->type.in(ID($dffe), ID($sdffe))) {
 				SigSpec ce = ff->getPort(ID::EN);
 				bool cepol = ff->getParam(ID::EN_POLARITY).as_bool();
 				cell->setPort(ceport, cepol ? ce : pm.module->Not(NEW_ID, ce));
@@ -637,12 +637,12 @@ void xilinx_dsp48a_pack(xilinx_dsp48a_pm &pm)
 		if (st.ffA0 || st.ffA1) {
 			SigSpec A = cell->getPort(ID::A);
 			if (st.ffA1) {
-				f(A, st.ffA1, ID::CEA, ID::RSTA);
-				cell->setParam(ID::A1REG, 1);
+				f(A, st.ffA1, ID(CEA), ID(RSTA));
+				cell->setParam(ID(A1REG), 1);
 			}
 			if (st.ffA0) {
-				f(A, st.ffA0, ID::CEA, ID::RSTA);
-				cell->setParam(ID::A0REG, 1);
+				f(A, st.ffA0, ID(CEA), ID(RSTA));
+				cell->setParam(ID(A0REG), 1);
 			}
 			pm.add_siguser(A, cell);
 			cell->setPort(ID::A, A);
@@ -650,34 +650,34 @@ void xilinx_dsp48a_pack(xilinx_dsp48a_pm &pm)
 		if (st.ffB0 || st.ffB1) {
 			SigSpec B = cell->getPort(ID::B);
 			if (st.ffB1) {
-				f(B, st.ffB1, ID::CEB, ID::RSTB);
-				cell->setParam(ID::B1REG, 1);
+				f(B, st.ffB1, ID(CEB), ID(RSTB));
+				cell->setParam(ID(B1REG), 1);
 			}
 			if (st.ffB0) {
-				f(B, st.ffB0, ID::CEB, ID::RSTB);
-				cell->setParam(ID::B0REG, 1);
+				f(B, st.ffB0, ID(CEB), ID(RSTB));
+				cell->setParam(ID(B0REG), 1);
 			}
 			pm.add_siguser(B, cell);
 			cell->setPort(ID::B, B);
 		}
 		if (st.ffD) {
 			SigSpec D = cell->getPort(ID::D);
-			f(D, st.ffD, ID::CED, ID::RSTD);
+			f(D, st.ffD, ID(CED), ID(RSTD));
 			pm.add_siguser(D, cell);
 			cell->setPort(ID::D, D);
-			cell->setParam(ID::DREG, 1);
+			cell->setParam(ID(DREG), 1);
 		}
 		if (st.ffM) {
 			SigSpec M; // unused
-			f(M, st.ffM, ID::CEM, ID::RSTM);
+			f(M, st.ffM, ID(CEM), ID(RSTM));
 			st.ffM->connections_.at(ID::Q).replace(st.sigM, pm.module->addWire(NEW_ID, GetSize(st.sigM)));
-			cell->setParam(ID::MREG, State::S1);
+			cell->setParam(ID(MREG), State::S1);
 		}
 		if (st.ffP) {
 			SigSpec P; // unused
-			f(P, st.ffP, ID::CEP, ID::RSTP);
+			f(P, st.ffP, ID(CEP), ID(RSTP));
 			st.ffP->connections_.at(ID::Q).replace(st.sigP, pm.module->addWire(NEW_ID, GetSize(st.sigP)));
-			cell->setParam(ID::PREG, State::S1);
+			cell->setParam(ID(PREG), State::S1);
 		}
 
 		log("  clock: %s (%s)", log_signal(st.clock), "posedge");
@@ -730,7 +730,7 @@ void xilinx_dsp_packC(xilinx_dsp_CREG_pm &pm)
 			if (!A.empty())
 				A.replace(Q, D);
 			if (rstport != Twine::Null) {
-				if (ff->type.in(ID::$sdff, ID::$sdffe)) {
+				if (ff->type.in(ID($sdff), ID($sdffe))) {
 					SigSpec srst = ff->getPort(ID::SRST);
 					bool rstpol = ff->getParam(ID::SRST_POLARITY).as_bool();
 					cell->setPort(rstport, rstpol ? srst : pm.module->Not(NEW_ID, srst));
@@ -738,7 +738,7 @@ void xilinx_dsp_packC(xilinx_dsp_CREG_pm &pm)
 					cell->setPort(rstport, State::S0);
 				}
 			}
-			if (ff->type.in(ID::$dffe, ID::$sdffe)) {
+			if (ff->type.in(ID($dffe), ID($sdffe))) {
 				SigSpec ce = ff->getPort(ID::EN);
 				bool cepol = ff->getParam(ID::EN_POLARITY).as_bool();
 				cell->setPort(ceport, cepol ? ce : pm.module->Not(NEW_ID, ce));
@@ -759,10 +759,10 @@ void xilinx_dsp_packC(xilinx_dsp_CREG_pm &pm)
 
 		if (st.ffC) {
 			SigSpec C = cell->getPort(ID::C);
-			f(C, st.ffC, ID::CEC, ID::RSTC);
+			f(C, st.ffC, ID(CEC), ID(RSTC));
 			pm.add_siguser(C, cell);
 			cell->setPort(ID::C, C);
-			cell->setParam(ID::CREG, 1);
+			cell->setParam(ID(CREG), 1);
 		}
 
 		log("  clock: %s (%s)", log_signal(st.clock), "posedge");

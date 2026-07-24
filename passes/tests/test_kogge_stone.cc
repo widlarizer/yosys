@@ -12,7 +12,7 @@ static void build_lcu_adder(Module *module, SigSpec a, SigSpec b, SigSpec y)
 	SigSpec g = module->And(NEW_ID, a, b);
 
 	SigSpec co = module->addWire(NEW_ID, width);
-	Cell *lcu = module->addCell(NEW_ID, ID::$lcu);
+	Cell *lcu = module->addCell(NEW_ID, ID($lcu));
 	lcu->setParam(ID::WIDTH, width);
 	lcu->setPort(ID::P, p);
 	lcu->setPort(ID::G, g);
@@ -29,11 +29,11 @@ static Module *make_module(Design *design, TwineRef name, int width)
 {
 	Module *module = design->addModule(name);
 
-	Wire *a = module->addWire(ID::a, width);
+	Wire *a = module->addWire(ID(a), width);
 	a->port_input = true;
-	Wire *b = module->addWire(ID::b, width);
+	Wire *b = module->addWire(ID(b), width);
 	b->port_input = true;
-	Wire *y = module->addWire(ID::y, width);
+	Wire *y = module->addWire(ID(y), width);
 	y->port_output = true;
 	module->fixup_ports();
 
@@ -91,10 +91,10 @@ struct TestKoggeStonePass : public Pass {
 		log_header(design, "Executing TEST_KOGGE_STONE pass (width=%d).\n", width);
 
 		Module *gold = make_module(design, gold_name, width);
-		build_lcu_adder(gold, gold->wire(ID::a), gold->wire(ID::b), gold->wire(ID::y));
+		build_lcu_adder(gold, gold->wire(ID(a)), gold->wire(ID(b)), gold->wire(ID(y)));
 
 		Module *gate = make_module(design, gate_name, width);
-		CompressorTree::emit_kogge_stone(gate, gate->wire(ID::a), gate->wire(ID::b), gate->wire(ID::y));
+		CompressorTree::emit_kogge_stone(gate, gate->wire(ID(a)), gate->wire(ID(b)), gate->wire(ID(y)));
 	}
 } TestKoggeStonePass;
 

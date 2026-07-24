@@ -98,7 +98,7 @@ struct TimingInfo
 		auto &t = r.first->second;
 
 		for (auto cell : module->cells()) {
-			if (cell->type == ID::$specify2) {
+			if (cell->type == ID($specify2)) {
 				auto en = cell->getPort(ID::EN);
 				if (en.is_fully_const() && !en.as_bool())
 					continue;
@@ -136,7 +136,7 @@ struct TimingInfo
 					}
 				}
 			}
-			else if (cell->type == ID::$specify3) {
+			else if (cell->type == ID($specify3)) {
 				auto src = cell->getPort(ID::SRC).as_bit();
 				auto dst = cell->getPort(ID::DST);
 				if (!src.wire || !src.wire->port_input)
@@ -160,7 +160,7 @@ struct TimingInfo
 					}
 				}
 			}
-			else if (cell->type == ID::$specrule) {
+			else if (cell->type == ID($specrule)) {
 				std::string type = cell->getParam(ID::TYPE).decode_string();
 				if (type != "$setup" && type != "$setuphold")
 					continue;

@@ -466,8 +466,8 @@ void VerificImporter::import_attributes(dict<TwineRef, RTLIL::Const> &attributes
 				bottom_const.flags |= RTLIL::CONST_FLAG_SIGNED;
 				top_const.flags |= RTLIL::CONST_FLAG_SIGNED;
 			}
-			attributes.emplace(ID::bottom_bound, bottom_const);
-			attributes.emplace(ID::top_bound, top_const);
+			attributes.emplace(ID(bottom_bound), bottom_const);
+			attributes.emplace(ID(top_bound), top_const);
 		}
 		if (!type_range->IsTypeEnum())
 			return;
@@ -1423,7 +1423,7 @@ void VerificImporter::merge_past_ffs(pool<RTLIL::Cell*> &candidates)
 
 	for (auto cell : candidates)
 	{
-		if (cell->type != ID::$dff) continue;
+		if (cell->type != ID($dff)) continue;
 		SigBit clock = cell->getPort(ID::CLK);
 		bool clock_pol = cell->getParam(ID::CLK_POLARITY).as_bool();
 		database[make_pair(clock, int(clock_pol))].insert(cell);
@@ -1491,7 +1491,7 @@ void VerificImporter::recurse_mem_dimensions(RTLIL::Module *module, RTLIL::Memor
 				log_error("Address %s on RAM for identifier '%s' too wide!\n", log_signal(next_sig), net->Name());
 			auto next_idx = next_sig.as_int();
 			if (initval_valid) {
-				RTLIL::Cell *cell = module->addCell(new_verific_id(net), ID::$meminit);
+				RTLIL::Cell *cell = module->addCell(new_verific_id(net), ID($meminit));
 				cell->parameters[ID::WORDS] = 1;
 				cell->setPort(ID::ADDR, next_idx);
 				cell->setPort(ID::DATA, initval);
@@ -1563,12 +1563,12 @@ void VerificImporter::import_netlist(RTLIL::Design *design, Netlist *nl, std::ma
 	import_attributes(module->attributes, nl, nl);
 	if (module->name.is_public())
 		module->set_string_attribute(ID::hdlname, nl->CellBaseName());
-	module->set_string_attribute(ID::library, nl->Owner()->Owner()->Name());
+	module->set_string_attribute(ID(library), nl->Owner()->Owner()->Name());
 #ifdef VERIFIC_VHDL_SUPPORT
 	if (nl->IsFromVhdl()) {
 		NameSpace name_space(0);
 		char *architecture_name = name_space.ReName(nl->Name()) ;
-		module->set_string_attribute(ID::architecture, (architecture_name) ? architecture_name : nl->Name());
+		module->set_string_attribute(ID(architecture), (architecture_name) ? architecture_name : nl->Name());
 	}
 #endif
 	const char *param_name ;

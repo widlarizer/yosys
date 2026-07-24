@@ -37,26 +37,26 @@ void create_ice40_wrapcarry(ice40_wrapcarry_pm &pm)
 
 	log("  replacing SB_LUT + SB_CARRY with $__ICE40_CARRY_WRAPPER cell.\n");
 
-	Cell *cell = pm.module->addCell(NEW_ID, ID::$__ICE40_CARRY_WRAPPER);
+	Cell *cell = pm.module->addCell(NEW_ID, ID($__ICE40_CARRY_WRAPPER));
 	pm.module->swap_names(cell, st.carry);
 
-	cell->setPort(ID::A, st.carry->getPort(ID::I0));
-	cell->setPort(ID::B, st.carry->getPort(ID::I1));
+	cell->setPort(ID::A, st.carry->getPort(ID(I0)));
+	cell->setPort(ID::B, st.carry->getPort(ID(I1)));
 	auto CI = st.carry->getPort(ID::CI);
 	cell->setPort(ID::CI, CI);
 	cell->setPort(ID::CO, st.carry->getPort(ID::CO));
 
-	cell->setPort(ID::I0, st.lut->getPort(ID::I0));
-	auto I3 = st.lut->getPort(ID::I3);
+	cell->setPort(ID(I0), st.lut->getPort(ID(I0)));
+	auto I3 = st.lut->getPort(ID(I3));
 	if ((*pm.sigmap)(CI) == (*pm.sigmap)(I3)) {
-		cell->setParam(ID::I3_IS_CI, State::S1);
+		cell->setParam(ID(I3_IS_CI), State::S1);
 		I3 = State::Sx;
 	}
 	else
-		cell->setParam(ID::I3_IS_CI, State::S0);
-	cell->setPort(ID::I3, I3);
+		cell->setParam(ID(I3_IS_CI), State::S0);
+	cell->setPort(ID(I3), I3);
 	cell->setPort(ID::O, st.lut->getPort(ID::O));
-	cell->setParam(ID::LUT, st.lut->getParam(ID::LUT_INIT));
+	cell->setParam(ID::LUT, st.lut->getParam(ID(LUT_INIT)));
 
 	TwinePool &twines = cell->module->design->twines;
 	for (const auto &a : st.carry->attributes)
@@ -128,12 +128,12 @@ struct Ice40WrapCarryPass : public Pass {
 				ice40_wrapcarry_pm(module, &sigmap, module->selected_cells()).run_ice40_wrapcarry(create_ice40_wrapcarry);
 			} else {
 				for (auto cell : module->selected_cells()) {
-					if (cell->type != ID::$__ICE40_CARRY_WRAPPER)
+					if (cell->type != ID($__ICE40_CARRY_WRAPPER))
 						continue;
 
-					auto carry = module->addCell(NEW_ID, ID::SB_CARRY);
-					carry->setPort(ID::I0, cell->getPort(ID::A));
-					carry->setPort(ID::I1, cell->getPort(ID::B));
+					auto carry = module->addCell(NEW_ID, ID(SB_CARRY));
+					carry->setPort(ID(I0), cell->getPort(ID::A));
+					carry->setPort(ID(I1), cell->getPort(ID::B));
 					carry->setPort(ID::CI, cell->getPort(ID::CI));
 					carry->setPort(ID::CO, cell->getPort(ID::CO));
 					module->swap_names(carry, cell);
@@ -143,8 +143,8 @@ struct Ice40WrapCarryPass : public Pass {
 					auto lut = module->addCell(module->design->twines.add(std::string{lut_name}), ID::$lut);
 					lut->setParam(ID::WIDTH, 4);
 					lut->setParam(ID::LUT, cell->getParam(ID::LUT));
-					auto I3 = cell->getPort(cell->getParam(ID::I3_IS_CI).as_bool() ? ID::CI : ID::I3);
-					lut->setPort(ID::A, { I3, cell->getPort(ID::B), cell->getPort(ID::A), cell->getPort(ID::I0) });
+					auto I3 = cell->getPort(cell->getParam(ID(I3_IS_CI)).as_bool() ? ID::CI : ID(I3));
+					lut->setPort(ID::A, { I3, cell->getPort(ID::B), cell->getPort(ID::A), cell->getPort(ID(I0)) });
 					lut->setPort(ID::Y, cell->getPort(ID::O));
 
 					std::string carry_src, lut_src, fallback_src;

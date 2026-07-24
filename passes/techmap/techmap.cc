@@ -659,7 +659,7 @@ struct TechmapWorker
 						}
 
 						if (extmapper_name == "maccmap") {
-							if (!cell->type.in(ID::$macc, ID::$macc_v2))
+							if (!cell->type.in(ID($macc), ID($macc_v2)))
 								log_error("The maccmap mapper can only map $macc/$macc_v2 (not %s) cells!\n", cell->type.unescaped());
 							maccmap(module, cell);
 						}

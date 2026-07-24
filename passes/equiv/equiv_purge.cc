@@ -104,7 +104,7 @@ struct EquivPurgeWorker
 
 		for (auto cell : module->cells())
 		{
-			if (cell->type != ID::$equiv) {
+			if (cell->type != ID($equiv)) {
 				for (auto &port : cell->connections()) {
 					if (cell->input(port.first))
 						for (auto bit : sigmap(port.second))
@@ -169,7 +169,7 @@ struct EquivPurgeWorker
 				rewrite_sigmap.add(chunk, make_input(chunk));
 
 		for (auto cell : module->cells())
-			if (cell->type == ID::$equiv)
+			if (cell->type == ID($equiv))
 				cell->setPort(ID::Y, rewrite_sigmap(sigmap(cell->getPort(ID::Y))));
 
 		module->fixup_ports();

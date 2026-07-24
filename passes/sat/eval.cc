@@ -153,11 +153,11 @@ struct VlogHammerReporter
 
 		ez->assume(satgen.signals_eq(recorded_set_vars, recorded_set_vals));
 
-		std::vector<int> y_vec = satgen.importDefSigSpec(module->wire(ID::y));
+		std::vector<int> y_vec = satgen.importDefSigSpec(module->wire(ID(y)));
 		std::vector<bool> y_values;
 
 		if (model_undef) {
-			std::vector<int> y_undef_vec = satgen.importUndefSigSpec(module->wire(ID::y));
+			std::vector<int> y_undef_vec = satgen.importUndefSigSpec(module->wire(ID(y)));
 			y_vec.insert(y_vec.end(), y_undef_vec.begin(), y_undef_vec.end());
 		}
 
@@ -269,10 +269,10 @@ struct VlogHammerReporter
 					}
 				}
 
-				if (module->wire(ID::y) == nullptr)
+				if (module->wire(ID(y)) == nullptr)
 					log_error("No output wire (y) found in module %s!\n", design->twines.unescaped_str(module->name));
 
-				RTLIL::SigSpec sig(module->wire(ID::y));
+				RTLIL::SigSpec sig(module->wire(ID(y)));
 				RTLIL::SigSpec undef;
 
 				while (!ce.eval(sig, undef)) {

@@ -152,12 +152,12 @@ static bool rename_witness(RTLIL::Design *design, dict<RTLIL::Module *, int> &ca
 			}
 		}
 
-		if (cell->type.in(ID::$anyconst, ID::$anyseq, ID::$anyinit, ID::$allconst, ID::$allseq)) {
+		if (cell->type.in(ID($anyconst), ID($anyseq), ID($anyinit), ID($allconst), ID($allseq))) {
 			has_witness_signals = true;
 			TwineRef QY;
 			bool clk2fflogic = false;
-			if (cell->type == ID::$anyinit)
-				QY = (clk2fflogic = cell->get_bool_attribute(ID::clk2fflogic)) ? ID::D : ID::Q;
+			if (cell->type == ID($anyinit))
+				QY = (clk2fflogic = cell->get_bool_attribute(ID(clk2fflogic))) ? ID::D : ID::Q;
 			else
 				QY = ID::Y;
 			auto sig_out = cell->getPort(QY == ID::D ? ID::D : (QY == ID::Q ? ID::Q : ID::Y));
@@ -182,7 +182,7 @@ static bool rename_witness(RTLIL::Design *design, dict<RTLIL::Module *, int> &ca
 		}
 
 
-		if (cell->type.in(ID::$assert, ID::$assume, ID::$cover, ID::$live, ID::$fair, ID::$check)) {
+		if (cell->type.in(ID($assert), ID($assume), ID($cover), ID($live), ID($fair), ID($check))) {
 			has_witness_signals = true;
 			if (cell->name.is_public())
 				continue;

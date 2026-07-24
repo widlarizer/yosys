@@ -211,7 +211,7 @@ struct Smt2Worker
 
 			if (cell->type.in(ID::$dff, ID::$_DFF_P_, ID::$_DFF_N_) && (conn.first == ID::CLK || conn.first == ID::C))
 			{
-				bool posedge = (cell->type == ID::$_DFF_N_) || (cell->type == ID::$dff && cell->getParam(ID::CLK_POLARITY).as_bool());
+				bool posedge = (cell->type == ID($_DFF_N_)) || (cell->type == ID($dff) && cell->getParam(ID::CLK_POLARITY).as_bool());
 				for (auto bit : sigmap(conn.second)) {
 					if (posedge)
 						clock_posedge.insert(bit);
@@ -557,7 +557,7 @@ struct Smt2Worker
 		exported_cells.insert(cell);
 		recursive_cells.insert(cell);
 
-		if (cell->type == ID::$initstate)
+		if (cell->type == ID($initstate))
 		{
 			SigBit bit = sigmap(cell->getPort(ID::Y).as_bit());
 			decls.push_back(stringf("(define-fun |%s#%d| ((state |%s_s|)) Bool (|%s_is| state)) ; %s\n",
@@ -567,7 +567,7 @@ struct Smt2Worker
 			return;
 		}
 
-		if (cell->type.in(ID::$_FF_, ID::$_DFF_P_, ID::$_DFF_N_))
+		if (cell->type.in(ID($_FF_), ID($_DFF_P_), ID($_DFF_N_)))
 		{
 			registers.insert(cell);
 			SigBit q_bit = cell->getPort(ID::Q);
@@ -579,28 +579,28 @@ struct Smt2Worker
 			return;
 		}
 
-		if (cell->type == ID::$_BUF_) return export_gate(cell, "A");
-		if (cell->type == ID::$_NOT_) return export_gate(cell, "(not A)");
-		if (cell->type == ID::$_AND_) return export_gate(cell, "(and A B)");
-		if (cell->type == ID::$_NAND_) return export_gate(cell, "(not (and A B))");
-		if (cell->type == ID::$_OR_) return export_gate(cell, "(or A B)");
-		if (cell->type == ID::$_NOR_) return export_gate(cell, "(not (or A B))");
-		if (cell->type == ID::$_XOR_) return export_gate(cell, "(xor A B)");
-		if (cell->type == ID::$_XNOR_) return export_gate(cell, "(not (xor A B))");
-		if (cell->type == ID::$_ANDNOT_) return export_gate(cell, "(and A (not B))");
-		if (cell->type == ID::$_ORNOT_) return export_gate(cell, "(or A (not B))");
-		if (cell->type == ID::$_MUX_) return export_gate(cell, "(ite S B A)");
-		if (cell->type == ID::$_NMUX_) return export_gate(cell, "(not (ite S B A))");
-		if (cell->type == ID::$_AOI3_) return export_gate(cell, "(not (or (and A B) C))");
-		if (cell->type == ID::$_OAI3_) return export_gate(cell, "(not (and (or A B) C))");
-		if (cell->type == ID::$_AOI4_) return export_gate(cell, "(not (or (and A B) (and C D)))");
-		if (cell->type == ID::$_OAI4_) return export_gate(cell, "(not (and (or A B) (or C D)))");
+		if (cell->type == ID($_BUF_)) return export_gate(cell, "A");
+		if (cell->type == ID($_NOT_)) return export_gate(cell, "(not A)");
+		if (cell->type == ID($_AND_)) return export_gate(cell, "(and A B)");
+		if (cell->type == ID($_NAND_)) return export_gate(cell, "(not (and A B))");
+		if (cell->type == ID($_OR_)) return export_gate(cell, "(or A B)");
+		if (cell->type == ID($_NOR_)) return export_gate(cell, "(not (or A B))");
+		if (cell->type == ID($_XOR_)) return export_gate(cell, "(xor A B)");
+		if (cell->type == ID($_XNOR_)) return export_gate(cell, "(not (xor A B))");
+		if (cell->type == ID($_ANDNOT_)) return export_gate(cell, "(and A (not B))");
+		if (cell->type == ID($_ORNOT_)) return export_gate(cell, "(or A (not B))");
+		if (cell->type == ID($_MUX_)) return export_gate(cell, "(ite S B A)");
+		if (cell->type == ID($_NMUX_)) return export_gate(cell, "(not (ite S B A))");
+		if (cell->type == ID($_AOI3_)) return export_gate(cell, "(not (or (and A B) C))");
+		if (cell->type == ID($_OAI3_)) return export_gate(cell, "(not (and (or A B) C))");
+		if (cell->type == ID($_AOI4_)) return export_gate(cell, "(not (or (and A B) (and C D)))");
+		if (cell->type == ID($_OAI4_)) return export_gate(cell, "(not (and (or A B) (or C D)))");
 
 		// FIXME: $lut
 
 		if (bvmode)
 		{
-			if (cell->type.in(ID::$ff, ID::$dff))
+			if (cell->type.in(ID($ff), ID($dff)))
 			{
 				registers.insert(cell);
 				int smtoffset = 0;
@@ -615,9 +615,9 @@ struct Smt2Worker
 				return;
 			}
 
-			if (cell->type.in(ID::$anyconst, ID::$anyseq, ID::$anyinit, ID::$allconst, ID::$allseq))
+			if (cell->type.in(ID($anyconst), ID($anyseq), ID($anyinit), ID($allconst), ID($allseq)))
 			{
-				auto QY = cell->type == ID::$anyinit ? ID::Q : ID::Y;
+				auto QY = cell->type == ID($anyinit) ? ID::Q : ID::Y;
 				registers.insert(cell);
 				string infostr;
 				if (cell->has_attribute(ID::src)) {
@@ -637,8 +637,8 @@ struct Smt2Worker
 					log("Wire %s is minimized\n", cell->getPort(QY).as_wire()->name.str());
 				}
 
-				bool init_only = cell->type.in(ID::$anyconst, ID::$anyinit, ID::$allconst);
-				bool clk2fflogic = cell->type == ID::$anyinit && cell->get_bool_attribute(ID::clk2fflogic);
+				bool init_only = cell->type.in(ID($anyconst), ID($anyinit), ID($allconst));
+				bool clk2fflogic = cell->type == ID($anyinit) && cell->get_bool_attribute(ID(clk2fflogic));
 				int smtoffset = 0;
 				for (auto chunk : cell->getPort(clk2fflogic ? ID::D : QY).chunks()) {
 					if (chunk.is_wire())
@@ -647,27 +647,27 @@ struct Smt2Worker
 				}
 
 				makebits(stringf("%s#%d", get_id(module), idcounter), GetSize(cell->getPort(QY)), log_signal(cell->getPort(QY)));
-				if (cell->type == ID::$anyseq)
+				if (cell->type == ID($anyseq))
 					ex_input_eq.push_back(stringf("  (= (|%s#%d| state) (|%s#%d| other_state))", get_id(module), idcounter, get_id(module), idcounter));
 				register_bv(cell->getPort(QY), idcounter++);
 				recursive_cells.erase(cell);
 				return;
 			}
 
-			if (cell->type == ID::$and) return export_bvop(cell, "(bvand A B)");
-			if (cell->type == ID::$or) return export_bvop(cell, "(bvor A B)");
-			if (cell->type == ID::$xor) return export_bvop(cell, "(bvxor A B)");
-			if (cell->type == ID::$xnor) return export_bvop(cell, "(bvxnor A B)");
+			if (cell->type == ID($and)) return export_bvop(cell, "(bvand A B)");
+			if (cell->type == ID($or)) return export_bvop(cell, "(bvor A B)");
+			if (cell->type == ID($xor)) return export_bvop(cell, "(bvxor A B)");
+			if (cell->type == ID($xnor)) return export_bvop(cell, "(bvxnor A B)");
 
-			if (cell->type == ID::$bweqx) return export_bvop(cell, "(bvxnor A B)", 'U');
-			if (cell->type == ID::$bwmux) return export_bvop(cell, "(bvor (bvand A (bvnot S)) (bvand B S))", 'U');
+			if (cell->type == ID($bweqx)) return export_bvop(cell, "(bvxnor A B)", 'U');
+			if (cell->type == ID($bwmux)) return export_bvop(cell, "(bvor (bvand A (bvnot S)) (bvand B S))", 'U');
 
-			if (cell->type == ID::$shl) return export_bvop(cell, "(bvshl A B)", 's');
-			if (cell->type == ID::$shr) return export_bvop(cell, "(bvlshr A B)", 's');
-			if (cell->type == ID::$sshl) return export_bvop(cell, "(bvshl A B)", 's');
-			if (cell->type == ID::$sshr) return export_bvop(cell, "(bvLshr A B)", 's');
+			if (cell->type == ID($shl)) return export_bvop(cell, "(bvshl A B)", 's');
+			if (cell->type == ID($shr)) return export_bvop(cell, "(bvlshr A B)", 's');
+			if (cell->type == ID($sshl)) return export_bvop(cell, "(bvshl A B)", 's');
+			if (cell->type == ID($sshr)) return export_bvop(cell, "(bvLshr A B)", 's');
 
-			if (cell->type.in(ID::$shift, ID::$shiftx)) {
+			if (cell->type.in(ID($shift), ID($shiftx))) {
 				if (cell->getParam(ID::B_SIGNED).as_bool()) {
 					return export_bvop(cell, stringf("(ite (bvsge P #b%0*d) "
 							"(bvlshr A B) (bvshl A (bvneg B)))",
@@ -677,28 +677,28 @@ struct Smt2Worker
 				}
 			}
 
-			if (cell->type == ID::$lt) return export_bvop(cell, "(bvUlt A B)", 'b');
-			if (cell->type == ID::$le) return export_bvop(cell, "(bvUle A B)", 'b');
-			if (cell->type == ID::$ge) return export_bvop(cell, "(bvUge A B)", 'b');
-			if (cell->type == ID::$gt) return export_bvop(cell, "(bvUgt A B)", 'b');
+			if (cell->type == ID($lt)) return export_bvop(cell, "(bvUlt A B)", 'b');
+			if (cell->type == ID($le)) return export_bvop(cell, "(bvUle A B)", 'b');
+			if (cell->type == ID($ge)) return export_bvop(cell, "(bvUge A B)", 'b');
+			if (cell->type == ID($gt)) return export_bvop(cell, "(bvUgt A B)", 'b');
 
-			if (cell->type == ID::$ne) return export_bvop(cell, "(distinct A B)", 'b');
-			if (cell->type == ID::$nex) return export_bvop(cell, "(distinct A B)", 'b');
-			if (cell->type == ID::$eq) return export_bvop(cell, "(= A B)", 'b');
-			if (cell->type == ID::$eqx) return export_bvop(cell, "(= A B)", 'b');
+			if (cell->type == ID($ne)) return export_bvop(cell, "(distinct A B)", 'b');
+			if (cell->type == ID($nex)) return export_bvop(cell, "(distinct A B)", 'b');
+			if (cell->type == ID($eq)) return export_bvop(cell, "(= A B)", 'b');
+			if (cell->type == ID($eqx)) return export_bvop(cell, "(= A B)", 'b');
 
-			if (cell->type == ID::$not) return export_bvop(cell, "(bvnot A)");
-			if (cell->type == ID::$pos) return export_bvop(cell, "A");
-			if (cell->type == ID::$neg) return export_bvop(cell, "(bvneg A)");
+			if (cell->type == ID($not)) return export_bvop(cell, "(bvnot A)");
+			if (cell->type == ID($pos)) return export_bvop(cell, "A");
+			if (cell->type == ID($neg)) return export_bvop(cell, "(bvneg A)");
 
-			if (cell->type == ID::$add) return export_bvop(cell, "(bvadd A B)");
-			if (cell->type == ID::$sub) return export_bvop(cell, "(bvsub A B)");
-			if (cell->type == ID::$mul) return export_bvop(cell, "(bvmul A B)");
-			if (cell->type == ID::$div) return export_bvop(cell, "(bvUdiv A B)", 'd');
+			if (cell->type == ID($add)) return export_bvop(cell, "(bvadd A B)");
+			if (cell->type == ID($sub)) return export_bvop(cell, "(bvsub A B)");
+			if (cell->type == ID($mul)) return export_bvop(cell, "(bvmul A B)");
+			if (cell->type == ID($div)) return export_bvop(cell, "(bvUdiv A B)", 'd');
 			// "rem" = truncating modulo
-			if (cell->type == ID::$mod) return export_bvop(cell, "(bvUrem A B)", 'd');
+			if (cell->type == ID($mod)) return export_bvop(cell, "(bvUrem A B)", 'd');
 			// "mod" = flooring modulo
-			if (cell->type == ID::$modfloor) {
+			if (cell->type == ID($modfloor)) {
 				// bvumod doesn't exist because it's the same as bvurem
 				if (cell->getParam(ID::A_SIGNED).as_bool()) {
 					return export_bvop(cell, "(bvsmod A B)", 'd');
@@ -707,7 +707,7 @@ struct Smt2Worker
 				}
 			}
 			// "div" = flooring division
-			if (cell->type == ID::$divfloor) {
+			if (cell->type == ID($divfloor)) {
 				if (cell->getParam(ID::A_SIGNED).as_bool()) {
 					// bvsdiv is truncating division, so we can't use it here.
 					int width = max(GetSize(cell->getPort(ID::A)), GetSize(cell->getPort(ID::B)));
@@ -728,24 +728,24 @@ struct Smt2Worker
 				}
 			}
 
-			if (cell->type.in(ID::$reduce_and, ID::$reduce_or, ID::$reduce_bool) &&
+			if (cell->type.in(ID($reduce_and), ID($reduce_or), ID($reduce_bool)) &&
 					2*GetSize(cell->getPort(ID::A).chunks()) < GetSize(cell->getPort(ID::A))) {
-				bool is_and = cell->type == ID::$reduce_and;
+				bool is_and = cell->type == ID($reduce_and);
 				string bits(GetSize(cell->getPort(ID::A)), is_and ? '1' : '0');
 				return export_bvop(cell, stringf("(%s A #b%s)", is_and ? "=" : "distinct", bits), 'b');
 			}
 
-			if (cell->type == ID::$reduce_and) return export_reduce(cell, "(and A)", true);
-			if (cell->type == ID::$reduce_or) return export_reduce(cell, "(or A)", false);
-			if (cell->type == ID::$reduce_xor) return export_reduce(cell, "(xor A)", false);
-			if (cell->type == ID::$reduce_xnor) return export_reduce(cell, "(not (xor A))", false);
-			if (cell->type == ID::$reduce_bool) return export_reduce(cell, "(or A)", false);
+			if (cell->type == ID($reduce_and)) return export_reduce(cell, "(and A)", true);
+			if (cell->type == ID($reduce_or)) return export_reduce(cell, "(or A)", false);
+			if (cell->type == ID($reduce_xor)) return export_reduce(cell, "(xor A)", false);
+			if (cell->type == ID($reduce_xnor)) return export_reduce(cell, "(not (xor A))", false);
+			if (cell->type == ID($reduce_bool)) return export_reduce(cell, "(or A)", false);
 
-			if (cell->type == ID::$logic_not) return export_reduce(cell, "(not (or A))", false);
-			if (cell->type == ID::$logic_and) return export_reduce(cell, "(and (or A) (or B))", false);
-			if (cell->type == ID::$logic_or) return export_reduce(cell, "(or A B)", false);
+			if (cell->type == ID($logic_not)) return export_reduce(cell, "(not (or A))", false);
+			if (cell->type == ID($logic_and)) return export_reduce(cell, "(and (or A) (or B))", false);
+			if (cell->type == ID($logic_or)) return export_reduce(cell, "(or A B)", false);
 
-			if (cell->type.in(ID::$mux, ID::$pmux))
+			if (cell->type.in(ID($mux), ID($pmux)))
 			{
 				int width = GetSize(cell->getPort(ID::Y));
 				std::string processed_expr = get_bv(cell->getPort(ID::A));
@@ -936,15 +936,15 @@ struct Smt2Worker
 			return;
 		}
 
-		if (cell->type.in(ID::$dffe, ID::$sdff, ID::$sdffe, ID::$sdffce) || cell->type.str().substr(0, 6) == "$_SDFF" || (cell->type.str().substr(0, 6) == "$_DFFE" && cell->type.str().size() == 10)) {
+		if (cell->type.in(ID($dffe), ID($sdff), ID($sdffe), ID($sdffce)) || cell->type.str().substr(0, 6) == "$_SDFF" || (cell->type.str().substr(0, 6) == "$_DFFE" && cell->type.str().size() == 10)) {
 			log_error("Unsupported cell type %s for cell %s.%s -- please run `dffunmap` before `write_smt2`.\n",
 					cell->type.unescape(), module, cell);
 		}
-		if (cell->type.in(ID::$adff, ID::$adffe, ID::$aldff, ID::$aldffe, ID::$dffsr, ID::$dffsre) || cell->type.str().substr(0, 5) == "$_DFF" || cell->type.str().substr(0, 7) == "$_ALDFF") {
+		if (cell->type.in(ID($adff), ID($adffe), ID($aldff), ID($aldffe), ID($dffsr), ID($dffsre)) || cell->type.str().substr(0, 5) == "$_DFF" || cell->type.str().substr(0, 7) == "$_ALDFF") {
 			log_error("Unsupported cell type %s for cell %s.%s -- please run `async2sync; dffunmap` or `clk2fflogic` before `write_smt2`.\n",
 					cell->type.unescape(), module, cell);
 		}
-		if (cell->type.in(ID::$sr, ID::$dlatch, ID::$adlatch, ID::$dlatchsr) || cell->type.str().substr(0, 8) == "$_DLATCH" || cell->type.str().substr(0, 5) == "$_SR_") {
+		if (cell->type.in(ID($sr), ID($dlatch), ID($adlatch), ID($dlatchsr)) || cell->type.str().substr(0, 8) == "$_DLATCH" || cell->type.str().substr(0, 5) == "$_SR_") {
 			log_error("Unsupported cell type %s for cell %s.%s -- please run `clk2fflogic` before `write_smt2`.\n",
 					cell->type, module, cell);
 		}
@@ -973,7 +973,7 @@ struct Smt2Worker
 
 		pool<SigBit> reg_bits;
 		for (auto cell : module->cells())
-			if (cell->type.in(ID::$ff, ID::$dff, ID::$_FF_, ID::$_DFF_P_, ID::$_DFF_N_, ID::$anyinit)) {
+			if (cell->type.in(ID($ff), ID($dff), ID($_FF_), ID($_DFF_P_), ID($_DFF_N_), ID($anyinit))) {
 				// not using sigmap -- we want the net directly at the dff output
 				for (auto bit : cell->getPort(ID::Q))
 					reg_bits.insert(bit);
@@ -1117,15 +1117,15 @@ struct Smt2Worker
 
 		for (auto cell : module->cells())
 		{
-			if (cell->type.in(ID::$assert, ID::$assume, ID::$cover))
+			if (cell->type.in(ID($assert), ID($assume), ID($cover)))
 			{
-				int &id = cell->type == ID::$assert ? assert_id :
-						cell->type == ID::$assume ? assume_id :
-						cell->type == ID::$cover ? cover_id : *(int*)nullptr;
+				int &id = cell->type == ID($assert) ? assert_id :
+						cell->type == ID($assume) ? assume_id :
+						cell->type == ID($cover) ? cover_id : *(int*)nullptr;
 
-				char postfix = cell->type == ID::$assert ? 'a' :
-						cell->type == ID::$assume ? 'u' :
-						cell->type == ID::$cover ? 'c' : 0;
+				char postfix = cell->type == ID($assert) ? 'a' :
+						cell->type == ID($assume) ? 'u' :
+						cell->type == ID($cover) ? 'c' : 0;
 
 				string name_a = get_bool(cell->getPort(ID::A));
 				string name_en = get_bool(cell->getPort(ID::EN));
@@ -1147,16 +1147,16 @@ struct Smt2Worker
 				else
 					decls.push_back(stringf("; yosys-smt2-%s %d %s\n", cell->type.unescape(), id, get_id(cell)));
 
-				if (cell->type == ID::$cover)
+				if (cell->type == ID($cover))
 					decls.push_back(stringf("(define-fun |%s_%c %d| ((state |%s_s|)) Bool (and %s %s)) ; %s\n",
 							get_id(module), postfix, id, get_id(module), name_a.c_str(), name_en.c_str(), get_id(cell)));
 				else
 					decls.push_back(stringf("(define-fun |%s_%c %d| ((state |%s_s|)) Bool (or %s (not %s))) ; %s\n",
 							get_id(module), postfix, id, get_id(module), name_a.c_str(), name_en.c_str(), get_id(cell)));
 
-				if (cell->type == ID::$assert)
+				if (cell->type == ID($assert))
 					assert_list.push_back(stringf("(|%s_a %d| state)", get_id(module), id));
-				else if (cell->type == ID::$assume)
+				else if (cell->type == ID($assume))
 					assume_list.push_back(stringf("(|%s_u %d| state)", get_id(module), id));
 
 				id++;
@@ -1212,7 +1212,7 @@ struct Smt2Worker
 
 			for (auto cell : this_regs)
 			{
-				if (cell->type.in(ID::$_FF_, ID::$_DFF_P_, ID::$_DFF_N_))
+				if (cell->type.in(ID($_FF_), ID($_DFF_P_), ID($_DFF_N_)))
 				{
 					std::string expr_d = get_bool(cell->getPort(ID::D));
 					std::string expr_q = get_bool(cell->getPort(ID::Q), "next_state");
@@ -1220,7 +1220,7 @@ struct Smt2Worker
 					ex_state_eq.push_back(stringf("(= %s %s)", get_bool(cell->getPort(ID::Q)), get_bool(cell->getPort(ID::Q), "other_state")));
 				}
 
-				if (cell->type.in(ID::$ff, ID::$dff, ID::$anyinit))
+				if (cell->type.in(ID($ff), ID($dff), ID($anyinit)))
 				{
 					std::string expr_d = get_bv(cell->getPort(ID::D));
 					std::string expr_q = get_bv(cell->getPort(ID::Q), "next_state");
@@ -1228,12 +1228,12 @@ struct Smt2Worker
 					ex_state_eq.push_back(stringf("(= %s %s)", get_bv(cell->getPort(ID::Q)), get_bv(cell->getPort(ID::Q), "other_state")));
 				}
 
-				if (cell->type.in(ID::$anyconst, ID::$allconst))
+				if (cell->type.in(ID($anyconst), ID($allconst)))
 				{
 					std::string expr_d = get_bv(cell->getPort(ID::Y));
 					std::string expr_q = get_bv(cell->getPort(ID::Y), "next_state");
 					trans.push_back(stringf("  (= %s %s) ; %s %s\n", expr_d, expr_q, get_id(cell), log_signal(cell->getPort(ID::Y))));
-					if (cell->type == ID::$anyconst)
+					if (cell->type == ID($anyconst))
 						ex_state_eq.push_back(stringf("(= %s %s)", get_bv(cell->getPort(ID::Y)), get_bv(cell->getPort(ID::Y), "other_state")));
 				}
 			}
@@ -1899,7 +1899,7 @@ struct Smt2Backend : public Backend {
 
 		for (auto module : sorted_modules)
 			for (auto cell : module->cells())
-				if (cell->type.in(ID::$allconst, ID::$allseq))
+				if (cell->type.in(ID($allconst), ID($allseq)))
 					goto found_forall;
 		if (0) {
 	found_forall:

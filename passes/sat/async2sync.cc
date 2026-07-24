@@ -79,16 +79,16 @@ struct Async2syncPass : public Pass {
 
 			for (auto cell : vector<Cell*>(module->selected_cells()))
 			{
-				if (cell->type.in(ID::$print, ID::$check))
+				if (cell->type.in(ID($print), ID($check)))
 				{
-					if (cell->type == ID::$check)
+					if (cell->type == ID($check))
 						have_check_cells = true;
 
-					bool trg_enable = cell->getParam(ID::TRG_ENABLE).as_bool();
+					bool trg_enable = cell->getParam(ID(TRG_ENABLE)).as_bool();
 					if (!trg_enable)
 						continue;
 
-					int trg_width = cell->getParam(ID::TRG_WIDTH).as_int();
+					int trg_width = cell->getParam(ID(TRG_WIDTH)).as_int();
 
 					if (trg_width > 1)
 						log_error("$check cell %s with TRG_WIDTH > 1 is not support by async2sync, use clk2fflogic.\n", cell);
@@ -102,7 +102,7 @@ struct Async2syncPass : public Pass {
 					} else {
 						SigBit sig_en = cell->getPort(ID::EN);
 						SigSpec sig_args = cell->getPort(ID::ARGS);
-						bool trg_polarity = cell->getParam(ID::TRG_POLARITY).as_bool();
+						bool trg_polarity = cell->getParam(ID(TRG_POLARITY)).as_bool();
 						SigBit sig_trg = cell->getPort(ID::TRG);
 						Wire *sig_en_q = module->addWire(NEW_ID);
 						Wire *sig_args_q = module->addWire(NEW_ID, GetSize(sig_args));
@@ -111,7 +111,7 @@ struct Async2syncPass : public Pass {
 						module->addDff(NEW_ID, sig_trg, sig_args, sig_args_q, trg_polarity, cell->src_ref());
 						cell->setPort(ID::EN, sig_en_q);
 						cell->setPort(ID::ARGS, sig_args_q);
-						if (cell->type == ID::$check) {
+						if (cell->type == ID($check)) {
 							SigBit sig_a = cell->getPort(ID::A);
 							Wire *sig_a_q = module->addWire(NEW_ID);
 							sig_a_q->attributes.emplace(ID::init, State::S1);
@@ -125,7 +125,7 @@ struct Async2syncPass : public Pass {
 					cell->setParam(ID::TRG_ENABLE, false);
 					cell->setParam(ID::TRG_WIDTH, 0);
 					cell->setParam(ID::TRG_POLARITY, false);
-					cell->set_bool_attribute(ID::trg_on_gclk);
+					cell->set_bool_attribute(ID(trg_on_gclk));
 					continue;
 				}
 

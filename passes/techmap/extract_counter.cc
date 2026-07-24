@@ -258,7 +258,7 @@ int counter_tryextract(
 		return 9;
 	Cell* count_mux = *y_loads.begin();
 	extract.count_mux = count_mux;
-	if(count_mux->type != ID::$mux)
+	if(count_mux->type != ID($mux))
 		return 10;
 	if(!is_full_bus(aluy, index, cell, ID::Y, count_mux, ID::A))
 		return 11;
@@ -287,9 +287,9 @@ int counter_tryextract(
 	Cell* overflow_cell = NULL;
 	for(auto c : muxsel_conns)
 	{
-		if(extract.count_is_up && c->type != ID::$eq)
+		if(extract.count_is_up && c->type != ID($eq))
 			continue;
-		if(!extract.count_is_up && c->type != ID::$logic_not)
+		if(!extract.count_is_up && c->type != ID($logic_not))
 			continue;
 		if(!is_full_bus(muxsel, index, c, ID::Y, count_mux, ID::S, true))
 			continue;
@@ -311,7 +311,7 @@ int counter_tryextract(
 	Cell* count_reg = muxload;
 	Cell* cemux = NULL;
 	RTLIL::SigSpec cey;
-	if(muxload->type == ID::$mux)
+	if(muxload->type == ID($mux))
 	{
 		//This mux is probably a clock enable mux.
 		//Find our count register (should be our only load)
@@ -349,9 +349,9 @@ int counter_tryextract(
 		extract.has_ce = false;
 
 	extract.count_reg = count_reg;
-	if(count_reg->type == ID::$dff)
+	if(count_reg->type == ID($dff))
 		extract.has_reset = false;
-	else if(count_reg->type == ID::$adff)
+	else if(count_reg->type == ID($adff))
 	{
 		if (!settings.allow_arst)
 			return 25;
@@ -517,7 +517,7 @@ void counter_worker(
 	SigMap& sigmap = index.sigmap;
 
 	//Core of the counter must be an ALU
-	if (cell->type != ID::$alu)
+	if (cell->type != ID($alu))
 		return;
 
 	//A input is the count value. Check if it has COUNT_EXTRACT set.
@@ -533,7 +533,7 @@ void counter_worker(
 	bool force_extract = false;
 	bool never_extract = false;
 	string count_reg_src = port_wire->get_src_attribute().c_str();
-	if(port_wire->attributes.find(ID::COUNT_EXTRACT) != port_wire->attributes.end())
+	if(port_wire->attributes.find(ID(COUNT_EXTRACT)) != port_wire->attributes.end())
 	{
 		string extract_value = port_wire->get_string_attribute(ID::COUNT_EXTRACT);
 		if(!extract_value.empty())
@@ -632,65 +632,65 @@ void counter_worker(
 	if(extract.has_reset)
 	{
 		//TODO: support other kinds of reset
-		cell->setParam(ID::RESET_MODE, RTLIL::Const("LEVEL"));
+		cell->setParam(ID(RESET_MODE), RTLIL::Const("LEVEL"));
 
 		//If the reset is active low, infer an inverter ($__COUNT_ cells always have active high reset)
 		if(extract.rst_inverted)
 		{
 			auto realreset = cell->module->addWire(NEW_ID);
 			cell->module->addNot(NEW_ID, extract.rst, RTLIL::SigSpec(realreset));
-			cell->setPort(ID::RST, realreset);
+			cell->setPort(ID(RST), realreset);
 		}
 		else
-			cell->setPort(ID::RST, extract.rst);
+			cell->setPort(ID(RST), extract.rst);
 	}
 	else
 	{
-		cell->setParam(ID::RESET_MODE, RTLIL::Const("RISING"));
-		cell->setPort(ID::RST, RTLIL::SigSpec(false));
+		cell->setParam(ID(RESET_MODE), RTLIL::Const("RISING"));
+		cell->setPort(ID(RST), RTLIL::SigSpec(false));
 	}
 
 	//Hook up other stuff
-	//cell->setParam(ID::CLKIN_DIVIDE, RTLIL::Const(1));
-	cell->setParam(ID::COUNT_TO, RTLIL::Const(extract.count_value));
+	//cell->setParam(ID(CLKIN_DIVIDE), RTLIL::Const(1));
+	cell->setParam(ID(COUNT_TO), RTLIL::Const(extract.count_value));
 	cell->setParam(ID::WIDTH, RTLIL::Const(extract.width));
 	cell->setPort(ID::CLK, extract.clk);
-	cell->setPort(ID::OUT, extract.outsig);
+	cell->setPort(ID(OUT), extract.outsig);
 
 	//Hook up clock enable
 	if(extract.has_ce)
 	{
-		cell->setParam(ID::HAS_CE, RTLIL::Const(1));
+		cell->setParam(ID(HAS_CE), RTLIL::Const(1));
 		if(extract.ce_inverted)
 		{
 			auto realce = cell->module->addWire(NEW_ID);
 			cell->module->addNot(NEW_ID, extract.ce, RTLIL::SigSpec(realce));
-			cell->setPort(ID::CE, realce);
+			cell->setPort(ID(CE), realce);
 		}
 		else
-			cell->setPort(ID::CE, extract.ce);
+			cell->setPort(ID(CE), extract.ce);
 	}
 	else
 	{
-		cell->setParam(ID::HAS_CE, RTLIL::Const(0));
-		cell->setPort(ID::CE, RTLIL::Const(1));
+		cell->setParam(ID(HAS_CE), RTLIL::Const(0));
+		cell->setPort(ID(CE), RTLIL::Const(1));
 	}
 
 	if(extract.count_is_up)
 	{
-		cell->setParam(ID::DIRECTION, RTLIL::Const("UP"));
+		cell->setParam(ID(DIRECTION), RTLIL::Const("UP"));
 		//XXX: What is this supposed to do?
-		cell->setPort(ID::UP, RTLIL::Const(1));
+		cell->setPort(ID(UP), RTLIL::Const(1));
 	}
 	else
 	{
-		cell->setParam(ID::DIRECTION, RTLIL::Const("DOWN"));
-		cell->setPort(ID::UP, RTLIL::Const(0));
+		cell->setParam(ID(DIRECTION), RTLIL::Const("DOWN"));
+		cell->setPort(ID(UP), RTLIL::Const(0));
 	}
 
 	//Hook up hard-wired ports, default to no parallel output
-	cell->setParam(ID::HAS_POUT, RTLIL::Const(0));
-	cell->setParam(ID::RESET_TO_MAX, RTLIL::Const(0));
+	cell->setParam(ID(HAS_POUT), RTLIL::Const(0));
+	cell->setParam(ID(RESET_TO_MAX), RTLIL::Const(0));
 
 	//Hook up any parallel outputs
 	for(auto load : extract.pouts)
@@ -700,8 +700,8 @@ void counter_worker(
 	if(extract.has_pout)
 	{
 		//Connect it to our parallel output
-		cell->setPort(ID::POUT, extract.poutsig);
-		cell->setParam(ID::HAS_POUT, RTLIL::Const(1));
+		cell->setPort(ID(POUT), extract.poutsig);
+		cell->setParam(ID(HAS_POUT), RTLIL::Const(1));
 	}
 
 	//Delete the cells we've replaced (let opt_clean handle deleting the now-redundant wires)

@@ -40,7 +40,7 @@ void simplemap_not(RTLIL::Module *module, RTLIL::Cell *cell)
 	sig_a.extend_u0(GetSize(sig_y), cell->parameters.at(ID::A_SIGNED).as_bool());
 
 	for (int i = 0; i < GetSize(sig_y); i++) {
-		RTLIL::Cell *gate = module->addCell(NEW_ID, ID::$_NOT_);
+		RTLIL::Cell *gate = module->addCell(NEW_ID, ID($_NOT_));
 		transfer_src(gate, cell);
 		gate->setPort(ID::A, sig_a[i]);
 		gate->setPort(ID::Y, sig_y[i]);
@@ -164,7 +164,7 @@ void simplemap_reduce(RTLIL::Module *module, RTLIL::Cell *cell)
 
 	if (cell->type.in(TwineRef{ID::$reduce_xnor})) {
 		RTLIL::SigSpec sig_t = module->addWire(NEW_ID);
-		RTLIL::Cell *gate = module->addCell(NEW_ID, ID::$_NOT_);
+		RTLIL::Cell *gate = module->addCell(NEW_ID, ID($_NOT_));
 		transfer_src(gate, cell);
 		gate->setPort(ID::A, sig_a);
 		gate->setPort(ID::Y, sig_t);
@@ -192,7 +192,7 @@ static void logic_reduce(RTLIL::Module *module, RTLIL::SigSpec &sig, RTLIL::Cell
 				continue;
 			}
 
-			RTLIL::Cell *gate = module->addCell(NEW_ID, ID::$_OR_);
+			RTLIL::Cell *gate = module->addCell(NEW_ID, ID($_OR_));
 			transfer_src(gate, cell);
 			gate->setPort(ID::A, sig[i]);
 			gate->setPort(ID::B, sig[i+1]);
@@ -221,7 +221,7 @@ void simplemap_lognot(RTLIL::Module *module, RTLIL::Cell *cell)
 		sig_y = sig_y.extract(0, 1);
 	}
 
-	RTLIL::Cell *gate = module->addCell(NEW_ID, ID::$_NOT_);
+	RTLIL::Cell *gate = module->addCell(NEW_ID, ID($_NOT_));
 	transfer_src(gate, cell);
 	gate->setPort(ID::A, sig_a);
 	gate->setPort(ID::Y, sig_y);
@@ -292,7 +292,7 @@ void simplemap_mux(RTLIL::Module *module, RTLIL::Cell *cell)
 	RTLIL::SigSpec sig_y = cell->getPort(ID::Y);
 
 	for (int i = 0; i < GetSize(sig_y); i++) {
-		RTLIL::Cell *gate = module->addCell(NEW_ID, ID::$_MUX_);
+		RTLIL::Cell *gate = module->addCell(NEW_ID, ID($_MUX_));
 		transfer_src(gate, cell);
 		gate->setPort(ID::A, sig_a[i]);
 		gate->setPort(ID::B, sig_b[i]);
@@ -309,7 +309,7 @@ void simplemap_bwmux(RTLIL::Module *module, RTLIL::Cell *cell)
 	RTLIL::SigSpec sig_y = cell->getPort(ID::Y);
 
 	for (int i = 0; i < GetSize(sig_y); i++) {
-		RTLIL::Cell *gate = module->addCell(NEW_ID, ID::$_MUX_);
+		RTLIL::Cell *gate = module->addCell(NEW_ID, ID($_MUX_));
 		transfer_src(gate, cell);
 		gate->setPort(ID::A, sig_a[i]);
 		gate->setPort(ID::B, sig_b[i]);
@@ -325,7 +325,7 @@ void simplemap_tribuf(RTLIL::Module *module, RTLIL::Cell *cell)
 	RTLIL::SigSpec sig_y = cell->getPort(ID::Y);
 
 	for (int i = 0; i < GetSize(sig_y); i++) {
-		RTLIL::Cell *gate = module->addCell(NEW_ID, ID::$_TBUF_);
+		RTLIL::Cell *gate = module->addCell(NEW_ID, ID($_TBUF_));
 		transfer_src(gate, cell);
 		gate->setPort(ID::A, sig_a[i]);
 		gate->setPort(ID::E, sig_e);
@@ -343,7 +343,7 @@ void simplemap_bmux(RTLIL::Module *module, RTLIL::Cell *cell)
 		SigSpec new_data = module->addWire(NEW_ID, GetSize(data)/2);
 		for (int i = 0; i < GetSize(new_data); i += width) {
 			for (int k = 0; k < width; k++) {
-				RTLIL::Cell *gate = module->addCell(NEW_ID, ID::$_MUX_);
+				RTLIL::Cell *gate = module->addCell(NEW_ID, ID($_MUX_));
 				transfer_src(gate, cell);
 				gate->setPort(ID::A, data[i*2+k]);
 				gate->setPort(ID::B, data[i*2+width+k]);
@@ -366,7 +366,7 @@ void simplemap_lut(RTLIL::Module *module, RTLIL::Cell *cell)
 	for (int idx = 0; GetSize(lut_data) > 1; idx++) {
 		SigSpec new_lut_data = module->addWire(NEW_ID, GetSize(lut_data)/2);
 		for (int i = 0; i < GetSize(lut_data); i += 2) {
-			RTLIL::Cell *gate = module->addCell(NEW_ID, ID::$_MUX_);
+			RTLIL::Cell *gate = module->addCell(NEW_ID, ID($_MUX_));
 			transfer_src(gate, cell);
 			gate->setPort(ID::A, lut_data[i]);
 			gate->setPort(ID::B, lut_data[i+1]);
@@ -454,7 +454,7 @@ void simplemap_pmux(RTLIL::Module *module, RTLIL::Cell *cell)
 
 		// Implement: B_AND_BITS = B_AND_S[WIDTH*j+i]
 		for (int j = 0; j < s_width; j++) {
-			RTLIL::Cell *and_gate = module->addCell(NEW_ID, ID::$_AND_);
+			RTLIL::Cell *and_gate = module->addCell(NEW_ID, ID($_AND_));
 			transfer_src(and_gate, cell);
 			and_gate->setPort(ID::A, sig_b[j * width + i]);
 			and_gate->setPort(ID::B, sig_s[j]);
@@ -468,7 +468,7 @@ void simplemap_pmux(RTLIL::Module *module, RTLIL::Cell *cell)
 		logic_reduce(module, b_and_bits, cell);
 
 		// Implement: Y[i] = |S ? Y_B[i] : A[i]
-		RTLIL::Cell *mux_gate = module->addCell(NEW_ID, ID::$_MUX_);
+		RTLIL::Cell *mux_gate = module->addCell(NEW_ID, ID($_MUX_));
 		transfer_src(mux_gate, cell);
 		mux_gate->setPort(ID::A, sig_a[i]);
 		mux_gate->setPort(ID::B, b_and_bits);
@@ -479,51 +479,51 @@ void simplemap_pmux(RTLIL::Module *module, RTLIL::Cell *cell)
 
 void simplemap_get_mappers(dict<TwineRef, void(*)(RTLIL::Module*, RTLIL::Cell*)> &mappers)
 {
-	mappers[ID::$not]         = simplemap_not;
-	mappers[ID::$pos]         = simplemap_pos;
-	mappers[ID::$buf]         = simplemap_buf;
-	mappers[ID::$and]         = simplemap_bitop;
-	mappers[ID::$or]          = simplemap_bitop;
-	mappers[ID::$xor]         = simplemap_bitop;
-	mappers[ID::$xnor]        = simplemap_bitop;
-	mappers[ID::$bweqx]       = simplemap_bitop;
-	mappers[ID::$reduce_and]  = simplemap_reduce;
-	mappers[ID::$reduce_or]   = simplemap_reduce;
-	mappers[ID::$reduce_xor]  = simplemap_reduce;
-	mappers[ID::$reduce_xnor] = simplemap_reduce;
-	mappers[ID::$reduce_bool] = simplemap_reduce;
-	mappers[ID::$logic_not]   = simplemap_lognot;
-	mappers[ID::$logic_and]   = simplemap_logbin;
-	mappers[ID::$logic_or]    = simplemap_logbin;
-	mappers[ID::$eq]          = simplemap_eqne;
-	mappers[ID::$eqx]         = simplemap_eqne;
-	mappers[ID::$ne]          = simplemap_eqne;
-	mappers[ID::$nex]         = simplemap_eqne;
-	mappers[ID::$mux]         = simplemap_mux;
-	mappers[ID::$pmux]        = simplemap_pmux;
-	mappers[ID::$bwmux]       = simplemap_bwmux;
-	mappers[ID::$tribuf]      = simplemap_tribuf;
-	mappers[ID::$bmux]        = simplemap_bmux;
-	mappers[ID::$lut]         = simplemap_lut;
-	mappers[ID::$sop]         = simplemap_sop;
-	mappers[ID::$slice]       = simplemap_slice;
-	mappers[ID::$concat]      = simplemap_concat;
-	mappers[ID::$sr]          = simplemap_ff;
-	mappers[ID::$ff]          = simplemap_ff;
-	mappers[ID::$dff]         = simplemap_ff;
-	mappers[ID::$dffe]        = simplemap_ff;
-	mappers[ID::$dffsr]       = simplemap_ff;
-	mappers[ID::$dffsre]      = simplemap_ff;
-	mappers[ID::$adff]        = simplemap_ff;
-	mappers[ID::$sdff]        = simplemap_ff;
-	mappers[ID::$adffe]       = simplemap_ff;
-	mappers[ID::$sdffe]       = simplemap_ff;
-	mappers[ID::$sdffce]      = simplemap_ff;
-	mappers[ID::$aldff]       = simplemap_ff;
-	mappers[ID::$aldffe]      = simplemap_ff;
-	mappers[ID::$dlatch]      = simplemap_ff;
-	mappers[ID::$adlatch]     = simplemap_ff;
-	mappers[ID::$dlatchsr]    = simplemap_ff;
+	mappers[ID($not)]         = simplemap_not;
+	mappers[ID($pos)]         = simplemap_pos;
+	mappers[ID($buf)]         = simplemap_buf;
+	mappers[ID($and)]         = simplemap_bitop;
+	mappers[ID($or)]          = simplemap_bitop;
+	mappers[ID($xor)]         = simplemap_bitop;
+	mappers[ID($xnor)]        = simplemap_bitop;
+	mappers[ID($bweqx)]       = simplemap_bitop;
+	mappers[ID($reduce_and)]  = simplemap_reduce;
+	mappers[ID($reduce_or)]   = simplemap_reduce;
+	mappers[ID($reduce_xor)]  = simplemap_reduce;
+	mappers[ID($reduce_xnor)] = simplemap_reduce;
+	mappers[ID($reduce_bool)] = simplemap_reduce;
+	mappers[ID($logic_not)]   = simplemap_lognot;
+	mappers[ID($logic_and)]   = simplemap_logbin;
+	mappers[ID($logic_or)]    = simplemap_logbin;
+	mappers[ID($eq)]          = simplemap_eqne;
+	mappers[ID($eqx)]         = simplemap_eqne;
+	mappers[ID($ne)]          = simplemap_eqne;
+	mappers[ID($nex)]         = simplemap_eqne;
+	mappers[ID($mux)]         = simplemap_mux;
+	mappers[ID($pmux)]        = simplemap_pmux;
+	mappers[ID($bwmux)]       = simplemap_bwmux;
+	mappers[ID($tribuf)]      = simplemap_tribuf;
+	mappers[ID($bmux)]        = simplemap_bmux;
+	mappers[ID($lut)]         = simplemap_lut;
+	mappers[ID($sop)]         = simplemap_sop;
+	mappers[ID($slice)]       = simplemap_slice;
+	mappers[ID($concat)]      = simplemap_concat;
+	mappers[ID($sr)]          = simplemap_ff;
+	mappers[ID($ff)]          = simplemap_ff;
+	mappers[ID($dff)]         = simplemap_ff;
+	mappers[ID($dffe)]        = simplemap_ff;
+	mappers[ID($dffsr)]       = simplemap_ff;
+	mappers[ID($dffsre)]      = simplemap_ff;
+	mappers[ID($adff)]        = simplemap_ff;
+	mappers[ID($sdff)]        = simplemap_ff;
+	mappers[ID($adffe)]       = simplemap_ff;
+	mappers[ID($sdffe)]       = simplemap_ff;
+	mappers[ID($sdffce)]      = simplemap_ff;
+	mappers[ID($aldff)]       = simplemap_ff;
+	mappers[ID($aldffe)]      = simplemap_ff;
+	mappers[ID($dlatch)]      = simplemap_ff;
+	mappers[ID($adlatch)]     = simplemap_ff;
+	mappers[ID($dlatchsr)]    = simplemap_ff;
 }
 
 void simplemap(RTLIL::Module *module, RTLIL::Cell *cell)

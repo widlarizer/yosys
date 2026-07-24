@@ -70,7 +70,7 @@ static bool find_states(RTLIL::SigSpec sig, const RTLIL::SigSpec &dff_out, RTLIL
 	for (auto &cellport : cellport_list)
 	{
 		RTLIL::Cell *cell = module->cell(cellport.first);
-		if ((cell->type != ID::$mux && cell->type != ID::$pmux) || cellport.second != ID::Y) {
+		if ((cell->type != ID($mux) && cell->type != ID($pmux)) || cellport.second != ID::Y) {
 			log("  unexpected cell type %s (%s) found in state selection tree.\n", cell->type, log_id(cell));
 			return false;
 		}
@@ -272,14 +272,14 @@ static void extract_fsm(RTLIL::Wire *wire)
 	sig2driver.find(dff_out, cellport_list);
 	for (auto &cellport : cellport_list) {
 		RTLIL::Cell *cell = module->cell(cellport.first);
-		if ((cell->type != ID::$dff && cell->type != ID::$adff) || cellport.second != ID::Q)
+		if ((cell->type != ID($dff) && cell->type != ID($adff)) || cellport.second != ID::Q)
 			continue;
 		log("  found %s cell for state register: %s\n", cell->type, log_id(cell));
 		RTLIL::SigSpec sig_q = assign_map(cell->getPort(ID::Q));
 		RTLIL::SigSpec sig_d = assign_map(cell->getPort(ID::D));
 		clk = cell->getPort(ID::CLK);
 		clk_polarity = cell->parameters[ID::CLK_POLARITY].as_bool();
-		if (cell->type == ID::$adff) {
+		if (cell->type == ID($adff)) {
 			arst = cell->getPort(ID::ARST);
 			arst_polarity = cell->parameters[ID::ARST_POLARITY].as_bool();
 			reset_state = cell->parameters[ID::ARST_VALUE];
@@ -381,7 +381,7 @@ static void extract_fsm(RTLIL::Wire *wire)
 		auto hdlname = fsm_cell->get_hdlname_attribute();
 		hdlname.pop_back();
 		fsm_cell->set_hdlname_attribute(hdlname);
-		fsm_cell->set_string_attribute(ID::scopename, fsm_cell->get_string_attribute(ID::hdlname));
+		fsm_cell->set_string_attribute(ID(scopename), fsm_cell->get_string_attribute(ID::hdlname));
 		fsm_cell->attributes.erase(ID::hdlname);
 	}
 	fsm_data.copy_to_cell(fsm_cell);
@@ -394,7 +394,7 @@ static void extract_fsm(RTLIL::Wire *wire)
 		auto hdlname = wire->get_hdlname_attribute();
 		hdlname.pop_back();
 		wire->set_hdlname_attribute(hdlname);
-		wire->set_string_attribute(ID::scopename, wire->get_string_attribute(ID::hdlname));
+		wire->set_string_attribute(ID(scopename), wire->get_string_attribute(ID::hdlname));
 		wire->attributes.erase(ID::hdlname);
 	}
 
@@ -458,7 +458,7 @@ struct FsmExtractPass : public Pass {
 						sig2trigger.insert(sig, sig2driver_entry_t(cell->meta_->name, conn_it.first));
 					}
 				}
-				if (cell->type == ID::$pmux) {
+				if (cell->type == ID($pmux)) {
 					RTLIL::SigSpec sel_sig = assign_map(cell->getPort(ID::S));
 					for (auto &bit1 : sel_sig)
 					for (auto &bit2 : sel_sig)

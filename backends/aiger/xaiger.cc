@@ -188,7 +188,7 @@ struct XAigerWriter
 
 		for (auto cell : module->cells()) {
 			if (!cell->has_keep_attr()) {
-				if (cell->type == ID::$_NOT_)
+				if (cell->type == ID($_NOT_))
 				{
 					SigBit A = sigmap(cell->getPort(ID::A).as_bit());
 					SigBit Y = sigmap(cell->getPort(ID::Y).as_bit());
@@ -198,7 +198,7 @@ struct XAigerWriter
 					continue;
 				}
 
-				if (cell->type == ID::$_AND_)
+				if (cell->type == ID($_AND_))
 				{
 					SigBit A = sigmap(cell->getPort(ID::A).as_bit());
 					SigBit B = sigmap(cell->getPort(ID::B).as_bit());
@@ -210,7 +210,7 @@ struct XAigerWriter
 					continue;
 				}
 
-				if (dff_mode && cell->type.in(ID::$_DFF_N_, ID::$_DFF_P_) && !cell->get_bool_attribute(ID::abc9_keep))
+				if (dff_mode && cell->type.in(ID($_DFF_N_), ID($_DFF_P_)) && !cell->get_bool_attribute(ID::abc9_keep))
 				{
 					SigBit D = sigmap(cell->getPort(ID::D).as_bit());
 					SigBit Q = sigmap(cell->getPort(ID::Q).as_bit());
@@ -221,7 +221,7 @@ struct XAigerWriter
 					continue;
 				}
 
-				if (cell->type.in(ID::$specify2, ID::$specify3, ID::$specrule))
+				if (cell->type.in(ID($specify2), ID($specify3), ID($specrule)))
 					continue;
 			}
 

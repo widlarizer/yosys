@@ -58,9 +58,9 @@ struct ExtractReducePass : public Pass
 
 	inline bool IsRightType(Cell* cell, GateType gt)
 	{
-		return (cell->type == ID::$_AND_ && gt == GateType::And) ||
-				(cell->type == ID::$_OR_ && gt == GateType::Or) ||
-				(cell->type == ID::$_XOR_ && gt == GateType::Xor);
+		return (cell->type == ID($_AND_) && gt == GateType::And) ||
+				(cell->type == ID($_OR_) && gt == GateType::Or) ||
+				(cell->type == ID($_XOR_) && gt == GateType::Xor);
 	}
 
 	void execute(std::vector<std::string> args, RTLIL::Design *design) override
@@ -124,11 +124,11 @@ struct ExtractReducePass : public Pass
 
 				GateType gt;
 
-				if (cell->type == ID::$_AND_)
+				if (cell->type == ID($_AND_))
 					gt = GateType::And;
-				else if (cell->type == ID::$_OR_)
+				else if (cell->type == ID($_OR_))
 					gt = GateType::Or;
-				else if (cell->type == ID::$_XOR_)
+				else if (cell->type == ID($_XOR_))
 					gt = GateType::Xor;
 				else
 					continue;
@@ -261,7 +261,7 @@ struct ExtractReducePass : public Pass
 						SigSpec input;
 						for (auto it : sources) {
 							bool cond;
-							if (head_cell->type == ID::$_XOR_)
+							if (head_cell->type == ID($_XOR_))
 								cond = it.second & 1;
 							else
 								cond = it.second != 0;
@@ -269,11 +269,11 @@ struct ExtractReducePass : public Pass
 								input.append(it.first);
 						}
 
-						if (head_cell->type == ID::$_AND_) {
+						if (head_cell->type == ID($_AND_)) {
 							module->addReduceAnd(NEW_ID, input, output);
-						} else if (head_cell->type == ID::$_OR_) {
+						} else if (head_cell->type == ID($_OR_)) {
 							module->addReduceOr(NEW_ID, input, output);
-						} else if (head_cell->type == ID::$_XOR_) {
+						} else if (head_cell->type == ID($_XOR_)) {
 							module->addReduceXor(NEW_ID, input, output);
 						} else {
 							log_assert(false);

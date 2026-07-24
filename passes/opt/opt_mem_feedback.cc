@@ -293,7 +293,7 @@ struct OptMemFeedbackWorker
 
 		for (auto cell : module->cells())
 		{
-			if (cell->type == ID::$mux)
+			if (cell->type == ID($mux))
 			{
 				RTLIL::SigSpec sig_a = sigmap_xmux(cell->getPort(ID::A));
 				RTLIL::SigSpec sig_b = sigmap_xmux(cell->getPort(ID::B));
@@ -304,7 +304,7 @@ struct OptMemFeedbackWorker
 					sigmap_xmux.add(cell->getPort(ID::Y), sig_a);
 			}
 
-			if (cell->type.in(ID::$mux, ID::$pmux))
+			if (cell->type.in(ID($mux), ID($pmux)))
 			{
 				std::vector<RTLIL::SigBit> sig_y = sigmap(cell->getPort(ID::Y));
 				for (int i = 0; i < int(sig_y.size()); i++)

@@ -117,7 +117,7 @@ struct SccWorker
 			for (auto mod : design->modules())
 				if (mod->get_blackbox_attribute(false))
 					for (auto cell : mod->cells())
-						if (cell->type == ID::$specify2)
+						if (cell->type == ID($specify2))
 						{
 							specifyCells.setup_module(mod);
 							break;
@@ -149,7 +149,7 @@ struct SccWorker
 				// Use specify rules of the type `(X => Y) = NN` to look for asynchronous paths in boxes.
 				for (auto subcell : design->module(cell->type_impl)->cells())
 				{
-					if (subcell->type != ID::$specify2)
+					if (subcell->type != ID($specify2))
 						continue;
 
 					for (auto bit : subcell->getPort(ID::SRC))

@@ -111,7 +111,7 @@ struct ID {
 	}
 };
 
-// #define ID(id) ((size_t)std::integral_constant<int, lookup_well_known_id(#id)>::value)
+#define ID(id) (ID::id)
 
 struct Twine {
 	static constexpr TwineRef Null = std::numeric_limits<size_t>::max();

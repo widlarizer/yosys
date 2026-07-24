@@ -260,7 +260,7 @@ struct BufnormPass : public Pass {
 				vector<Cell*> old_dup_buffers;
 				for (auto cell : module->cells())
 				{
-					if (!cell->type.in(ID::$buf, ID::$_BUF_))
+					if (!cell->type.in(ID($buf), ID($_BUF_)))
 						continue;
 
 					SigSpec insig = cell->getPort(ID::A);
@@ -363,7 +363,7 @@ struct BufnormPass : public Pass {
 
 			for (auto cell : module->cells())
 			{
-				if (cell->type.in(ID::$buf, ID::$_BUF_))
+				if (cell->type.in(ID($buf), ID($_BUF_)))
 					continue;
 
 				for (auto &conn : cell->connections())
@@ -476,7 +476,7 @@ struct BufnormPass : public Pass {
 							make_buffer_f(celltype, insig[i], outsig[i]);
 					} else {
 						TwineRef celltype = pos_mode ? ID::$pos : buf_mode ? ID::$buf :
-								GetSize(outsig) == 1 ? ID::$_BUF_ : ID::$buf;
+								GetSize(outsig) == 1 ? ID($_BUF_) : ID($buf);
 						make_buffer_f(celltype, insig, outsig);
 					}
 				}

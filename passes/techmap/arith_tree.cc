@@ -79,15 +79,15 @@ struct ArithTreeWorker {
 	}
 
 	bool is_addsub(Cell *cell) {
-		return cell->type == ID::$add || cell->type == ID::$sub;
+		return cell->type == ID($add) || cell->type == ID($sub);
 	}
 
 	bool is_alu(Cell *cell) {
-		return cell->type == ID::$alu;
+		return cell->type == ID($alu);
 	}
 
 	bool is_macc(Cell *cell) {
-		return cell->type == ID::$macc || cell->type == ID::$macc_v2;
+		return cell->type == ID($macc) || cell->type == ID($macc_v2);
 	}
 
 	bool is_sub(Cell *cell) {
@@ -197,7 +197,7 @@ struct ArithTreeWorker {
 	bool feeds_subtracted_port(Cell *child, Cell *parent)
 	{
 		bool parent_subtracts;
-		if (parent->type == ID::$sub)
+		if (parent->type == ID($sub))
 			parent_subtracts = true;
 		else if (is_alu(parent))
 			parent_subtracts = is_sub(parent);
@@ -251,7 +251,7 @@ struct ArithTreeWorker {
 			SigSpec b = sigmap(cell->getPort(ID::B));
 			bool a_signed = cell->getParam(ID::A_SIGNED).as_bool();
 			bool b_signed = cell->getParam(ID::B_SIGNED).as_bool();
-			bool b_sub = (cell->type == ID::$sub) || (is_alu(cell) && is_sub(cell));
+			bool b_sub = (cell->type == ID($sub)) || (is_alu(cell) && is_sub(cell));
 
 			if (!overlaps(a, chain_bits)) {
 				operands.push_back({a, a_signed, cell_neg, SigSpec(), false});

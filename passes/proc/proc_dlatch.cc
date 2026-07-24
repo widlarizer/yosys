@@ -46,7 +46,7 @@ struct proc_dlatch_db_t
 
 		for (auto cell : module->cells())
 		{
-			if (cell->type.in(ID::$mux, ID::$pmux, ID::$bwmux))
+			if (cell->type.in(ID($mux), ID($pmux), ID($bwmux)))
 			{
 				auto sig_y = sigmap(cell->getPort(ID::Y));
 				for (int i = 0; i < GetSize(sig_y); i++)
@@ -185,8 +185,8 @@ struct proc_dlatch_db_t
 		Cell *cell = it->second.first;
 		int index = it->second.second;
 
-		log_assert(cell->type.in(ID::$mux, ID::$pmux, ID::$bwmux));
-		bool is_bwmux = (cell->type == ID::$bwmux);
+		log_assert(cell->type.in(ID($mux), ID($pmux), ID($bwmux)));
+		bool is_bwmux = (cell->type == ID($bwmux));
 		SigSpec sig_a = sigmap(cell->getPort(ID::A));
 		SigSpec sig_b = sigmap(cell->getPort(ID::B));
 		SigSpec sig_s = sigmap(cell->getPort(ID::S));
@@ -256,8 +256,8 @@ struct proc_dlatch_db_t
 		Cell *cell = it->second.first;
 		int index = it->second.second;
 
-		log_assert(cell->type.in(ID::$mux, ID::$pmux, ID::$bwmux));
-		bool is_bwmux = (cell->type == ID::$bwmux);
+		log_assert(cell->type.in(ID($mux), ID($pmux), ID($bwmux)));
+		bool is_bwmux = (cell->type == ID($bwmux));
 		SigSpec sig_a = sigmap(cell->getPort(ID::A));
 		SigSpec sig_b = sigmap(cell->getPort(ID::B));
 		SigSpec sig_s = sigmap(cell->getPort(ID::S));
@@ -399,7 +399,7 @@ struct proc_dlatch_db_t
 			pool<Cell*> next_queue;
 
 			for (auto cell : queue) {
-				if (cell->type.in(ID::$mux, ID::$pmux))
+				if (cell->type.in(ID($mux), ID($pmux)))
 					fixup_mux(cell);
 				for (auto bit : upstream_cell2net[cell])
 					for (auto cell : upstream_net2cell[bit])

@@ -43,7 +43,7 @@ struct Lut2BmuxPass : public Pass {
 
 		for (auto module : design->selected_modules())
 		for (auto cell : module->selected_cells()) {
-			if (cell->type == ID::$lut) {
+			if (cell->type == ID($lut)) {
 				cell->type_impl = ID::$bmux;
 				cell->setPort(ID::S, cell->getPort(ID::A));
 				cell->setPort(ID::A, cell->getParam(ID::LUT));

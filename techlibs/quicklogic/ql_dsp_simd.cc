@@ -77,27 +77,27 @@ struct QlDspSimdPass : public Pass {
 		// DSP control and config ports to consider and how to map them to ports
 		// of the target DSP cell
 		static const std::vector<std::pair<TwineRef, TwineRef>> m_DspCfgPorts = {
-			std::make_pair(ID::clock_i, ID::clk),
-			std::make_pair(ID::reset_i, ID::reset),
-			std::make_pair(ID::feedback_i, ID::feedback),
-			std::make_pair(ID::load_acc_i, ID::load_acc),
-			std::make_pair(ID::unsigned_a_i, ID::unsigned_a),
-			std::make_pair(ID::unsigned_b_i, ID::unsigned_b),
-			std::make_pair(ID::subtract_i, ID::subtract),
-			std::make_pair(ID::output_select_i, ID::output_select),
-			std::make_pair(ID::saturate_enable_i, ID::saturate_enable),
-			std::make_pair(ID::shift_right_i, ID::shift_right),
-			std::make_pair(ID::round_i, ID::round),
-			std::make_pair(ID::register_inputs_i, ID::register_inputs)
+			std::make_pair(ID(clock_i), ID(clk)),
+			std::make_pair(ID(reset_i), ID(reset)),
+			std::make_pair(ID(feedback_i), ID(feedback)),
+			std::make_pair(ID(load_acc_i), ID(load_acc)),
+			std::make_pair(ID(unsigned_a_i), ID(unsigned_a)),
+			std::make_pair(ID(unsigned_b_i), ID(unsigned_b)),
+			std::make_pair(ID(subtract_i), ID(subtract)),
+			std::make_pair(ID(output_select_i), ID(output_select)),
+			std::make_pair(ID(saturate_enable_i), ID(saturate_enable)),
+			std::make_pair(ID(shift_right_i), ID(shift_right)),
+			std::make_pair(ID(round_i), ID(round)),
+			std::make_pair(ID(register_inputs_i), ID(register_inputs))
 		};
 
 		// DSP data ports and how to map them to ports of the target DSP cell
 		static const std::vector<std::pair<TwineRef, TwineRef>> m_DspDataPorts = {
-			std::make_pair(ID::a_i, ID::a),
-			std::make_pair(ID::b_i, ID::b),
-			std::make_pair(ID::acc_fir_i, ID::acc_fir),
-			std::make_pair(ID::z_o, ID::z),
-			std::make_pair(ID::dly_b_o, ID::dly_b)
+			std::make_pair(ID(a_i), ID(a)),
+			std::make_pair(ID(b_i), ID(b)),
+			std::make_pair(ID(acc_fir_i), ID(acc_fir)),
+			std::make_pair(ID(z_o), ID(z)),
+			std::make_pair(ID(dly_b_o), ID(dly_b))
 		};
 
 		// Source DSP cell type (SISD)
@@ -207,15 +207,15 @@ struct QlDspSimdPass : public Pass {
 
 					// Enable the fractured mode by connecting the control
 					// port.
-					simd->setPort(ID::f_mode, State::S1);
-					simd->setParam(ID::MODE_BITS, mode_bits);
+					simd->setPort(ID(f_mode), State::S1);
+					simd->setParam(ID(MODE_BITS), mode_bits);
 					log_assert(mode_bits.size() == m_ModeBitsSize);
 
 					// Handle the "is_inferred" attribute. If one of the fragments
 					// is not inferred mark the whole DSP as not inferred
-					bool is_inferred_a = dsp_a->get_bool_attribute(ID::is_inferred);
-					bool is_inferred_b = dsp_b->get_bool_attribute(ID::is_inferred);
-					simd->set_bool_attribute(ID::is_inferred, is_inferred_a && is_inferred_b);
+					bool is_inferred_a = dsp_a->get_bool_attribute(ID(is_inferred));
+					bool is_inferred_b = dsp_b->get_bool_attribute(ID(is_inferred));
+					simd->set_bool_attribute(ID(is_inferred), is_inferred_a && is_inferred_b);
 
 					// Mark DSP parts for removal
 					cellsToRemove.push_back(dsp_a);

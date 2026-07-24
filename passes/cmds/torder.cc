@@ -89,7 +89,7 @@ struct TorderPass : public Pass {
 				if (!noautostop && yosys_celltypes.cell_known(cell->type.ref())) {
 					if (conn.first.in(ID::Q, ID::CTRL_OUT, ID::RD_DATA))
 						continue;
-					if (cell->type.in(ID::$memrd, ID::$memrd_v2) && conn.first == ID::DATA)
+					if (cell->type.in(ID($memrd), ID($memrd_v2)) && conn.first == ID::DATA)
 						continue;
 				}
 

@@ -41,7 +41,7 @@ struct QlIoffPass : public Pass {
 			}
 
 		for (auto cell : module->selected_cells()) {
-			if (cell->type.in(ID::dffsre, ID::sdffsre)) {
+			if (cell->type.in(ID(dffsre), ID(sdffsre))) {
 				log_debug("Checking cell %s.\n", cell->name);
 				bool e_const = cell->getPort(ID::E).is_fully_ones();
 				bool r_const = cell->getPort(ID::R).is_fully_ones();
@@ -108,7 +108,7 @@ struct QlIoffPass : public Pass {
 					if (ioff_cells[i]) {
 						log("Promoting %s to output IOFF.\n", log_signal(sig_n[i]));
 
-						RTLIL::Cell *new_cell = module->addCell(NEW_ID, ID::dff);
+						RTLIL::Cell *new_cell = module->addCell(NEW_ID, ID(dff));
 						new_cell->setPort(ID::C, ioff_cells[i]->getPort(ID::C));
 						new_cell->setPort(ID::D, ioff_cells[i]->getPort(ID::D));
 						new_cell->setPort(ID::Q, sig_n[i]);

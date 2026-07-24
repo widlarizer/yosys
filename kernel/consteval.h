@@ -93,7 +93,7 @@ struct ConstEval
 
 	bool eval(RTLIL::Cell *cell, RTLIL::SigSpec &undef)
 	{
-		if (cell->type == ID::$lcu)
+		if (cell->type == ID($lcu))
 		{
 			RTLIL::SigSpec sig_p = cell->getPort(ID::P);
 			RTLIL::SigSpec sig_g = cell->getPort(ID::G);
@@ -147,7 +147,7 @@ struct ConstEval
 		if (cell->hasPort(ID::B))
 			sig_b = cell->getPort(ID::B);
 
-		if (cell->type.in(ID::$mux, ID::$pmux, ID::$_MUX_, ID::$_NMUX_))
+		if (cell->type.in(ID($mux), ID($pmux), ID($_MUX_), ID($_NMUX_)))
 		{
 			std::vector<RTLIL::SigSpec> y_candidates;
 			int count_set_s_bits = 0;
@@ -176,7 +176,7 @@ struct ConstEval
 			for (auto &yc : y_candidates) {
 				if (!eval(yc, undef, cell))
 					return false;
-				if (cell->type == ID::$_NMUX_)
+				if (cell->type == ID($_NMUX_))
 					y_values.push_back(RTLIL::const_not(yc.as_const(), Const(), false, false, GetSize(yc)));
 				else
 					y_values.push_back(yc.as_const());
@@ -199,7 +199,7 @@ struct ConstEval
 			else
 				set(sig_y, y_values.front());
 		}
-		else if (cell->type == ID::$bmux)
+		else if (cell->type == ID($bmux))
 		{
 			if (!eval(sig_s, undef, cell))
 				return false;
@@ -217,7 +217,7 @@ struct ConstEval
 				set(sig_y, const_bmux(sig_a.as_const(), sig_s.as_const()));
 			}
 		}
-		else if (cell->type == ID::$demux)
+		else if (cell->type == ID($demux))
 		{
 			if (!eval(sig_a, undef, cell))
 				return false;
@@ -229,7 +229,7 @@ struct ConstEval
 				set(sig_y, const_demux(sig_a.as_const(), sig_s.as_const()));
 			}
 		}
-		else if (cell->type == ID::$fa)
+		else if (cell->type == ID($fa))
 		{
 			RTLIL::SigSpec sig_c = cell->getPort(ID::C);
 			RTLIL::SigSpec sig_x = cell->getPort(ID::X);
@@ -258,7 +258,7 @@ struct ConstEval
 			set(sig_y, val_y);
 			set(sig_x, val_x);
 		}
-		else if (cell->type == ID::$alu)
+		else if (cell->type == ID($alu))
 		{
 			bool signed_a = cell->parameters.count(ID::A_SIGNED) > 0 && cell->parameters[ID::A_SIGNED].as_bool();
 			bool signed_b = cell->parameters.count(ID::B_SIGNED) > 0 && cell->parameters[ID::B_SIGNED].as_bool();
@@ -314,7 +314,7 @@ struct ConstEval
 				}
 			}
 		}
-		else if (cell->type.in(ID::$macc, ID::$macc_v2))
+		else if (cell->type.in(ID($macc), ID($macc_v2)))
 		{
 			Macc macc;
 			macc.from_cell(cell);
@@ -336,7 +336,7 @@ struct ConstEval
 		{
 			RTLIL::SigSpec sig_c, sig_d;
 
-			if (cell->type.in(ID::$_AOI3_, ID::$_OAI3_, ID::$_AOI4_, ID::$_OAI4_)) {
+			if (cell->type.in(ID($_AOI3_), ID($_OAI3_), ID($_AOI4_), ID($_OAI4_))) {
 				if (cell->hasPort(ID::C))
 					sig_c = cell->getPort(ID::C);
 				if (cell->hasPort(ID::D))

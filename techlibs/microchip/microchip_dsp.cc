@@ -36,7 +36,7 @@ void microchip_dsp_pack(microchip_dsp_pm &pm)
 	Cell *cell = st.dsp;
 	// pack pre-adder
 	if (st.preAdderStatic) {
-		SigSpec &pasub = cell->connections_.at(ID::PASUB);
+		SigSpec &pasub = cell->connections_.at(ID(PASUB));
 		log("  static PASUB preadder %s (%s)\n", st.preAdderStatic, pm.module->design->twines.unescaped_str(st.preAdderStatic->type_impl));
 		bool D_SIGNED = st.preAdderStatic->getParam(ID::B_SIGNED).as_bool();
 		bool B_SIGNED = st.preAdderStatic->getParam(ID::A_SIGNED).as_bool();
@@ -49,9 +49,9 @@ void microchip_dsp_pack(microchip_dsp_pm &pm)
 		cell->setPort(ID::D, st.sigD);
 		// MACC_PA supports both addition and subtraction with the pre-adder.
 		//   Affects the sign of the 'D' port.
-		if (st.preAdderStatic->type == ID::$add)
+		if (st.preAdderStatic->type == ID($add))
 			pasub[0] = State::S0;
-		else if (st.preAdderStatic->type == ID::$sub)
+		else if (st.preAdderStatic->type == ID($sub))
 			pasub[0] = State::S1;
 		else
 			log_assert(!"strange pre-adder type");
@@ -61,18 +61,18 @@ void microchip_dsp_pack(microchip_dsp_pm &pm)
 	// pack post-adder
 	if (st.postAdderStatic) {
 		log("  postadder %s (%s)\n", st.postAdderStatic, pm.module->design->twines.unescaped_str(st.postAdderStatic->type_impl));
-		SigSpec &sub = cell->connections_.at(ID::SUB);
+		SigSpec &sub = cell->connections_.at(ID(SUB));
 		// Post-adder in MACC_PA also supports subtraction
 		//   Determines the sign of the output from the multiplier.
-		if (st.postAdderStatic->type == ID::$add)
+		if (st.postAdderStatic->type == ID($add))
 			sub[0] = State::S0;
-		else if (st.postAdderStatic->type == ID::$sub)
+		else if (st.postAdderStatic->type == ID($sub))
 			sub[0] = State::S1;
 		else
 			log_assert(!"strange post-adder type");
 
 		if (st.useFeedBack) {
-			cell->setPort(ID::CDIN_FDBK_SEL, {State::S0, State::S1});
+			cell->setPort(ID(CDIN_FDBK_SEL), {State::S0, State::S1});
 		} else {
 			st.sigC.extend_u0(48, st.postAdderStatic->getParam(ID::A_SIGNED).as_bool());
 			cell->setPort(ID::C, st.sigC);
@@ -94,12 +94,12 @@ void microchip_dsp_pack(microchip_dsp_pm &pm)
 			if (!A.empty())
 				A.replace(Q, D);
 			if (rstport != Twine::Null) {
-				if (ff->type.in(ID::$sdff, ID::$sdffe)) {
+				if (ff->type.in(ID($sdff), ID($sdffe))) {
 					SigSpec srst = ff->getPort(ID::SRST);
 					bool rstpol_n = !ff->getParam(ID::SRST_POLARITY).as_bool();
 					// active low sync rst
 					cell->setPort(rstport, rstpol_n ? srst : pm.module->Not(NEW_ID, srst));
-				} else if (ff->type.in(ID::$adff, ID::$adffe)) {
+				} else if (ff->type.in(ID($adff), ID($adffe))) {
 					SigSpec arst = ff->getPort(ID::ARST);
 					bool rstpol_n = !ff->getParam(ID::ARST_POLARITY).as_bool();
 					// active low async rst
@@ -109,7 +109,7 @@ void microchip_dsp_pack(microchip_dsp_pm &pm)
 					cell->setPort(rstport, State::S1);
 				}
 			}
-			if (ff->type.in(ID::$dffe, ID::$sdffe, ID::$adffe)) {
+			if (ff->type.in(ID($dffe), ID($sdffe), ID($adffe))) {
 				SigSpec ce = ff->getPort(ID::EN);
 				bool cepol = ff->getParam(ID::EN_POLARITY).as_bool();
 				// enables are all active high
@@ -138,7 +138,7 @@ void microchip_dsp_pack(microchip_dsp_pm &pm)
 		if (st.ffA) {
 			SigSpec A = cell->getPort(ID::A);
 			if (st.ffA) {
-				f(A, st.ffA, ID::A_EN, ID::A_SRST_N, ID::A_BYPASS);
+				f(A, st.ffA, ID(A_EN), ID(A_SRST_N), ID(A_BYPASS));
 			}
 			pm.add_siguser(A, cell);
 			cell->setPort(ID::A, A);
@@ -146,17 +146,17 @@ void microchip_dsp_pack(microchip_dsp_pm &pm)
 		if (st.ffB) {
 			SigSpec B = cell->getPort(ID::B);
 			if (st.ffB) {
-				f(B, st.ffB, ID::B_EN, ID::B_SRST_N, ID::B_BYPASS);
+				f(B, st.ffB, ID(B_EN), ID(B_SRST_N), ID(B_BYPASS));
 			}
 			pm.add_siguser(B, cell);
 			cell->setPort(ID::B, B);
 		}
 		if (st.ffD) {
 			SigSpec D = cell->getPort(ID::D);
-			if (st.ffD->type.in(ID::$adff, ID::$adffe)) {
-				f(D, st.ffD, ID::D_EN, ID::D_ARST_N, ID::D_BYPASS);
+			if (st.ffD->type.in(ID($adff), ID($adffe))) {
+				f(D, st.ffD, ID(D_EN), ID(D_ARST_N), ID(D_BYPASS));
 			} else {
-				f(D, st.ffD, ID::D_EN, ID::D_SRST_N, ID::D_BYPASS);
+				f(D, st.ffD, ID(D_EN), ID(D_SRST_N), ID(D_BYPASS));
 			}
 
 			pm.add_siguser(D, cell);
@@ -164,7 +164,7 @@ void microchip_dsp_pack(microchip_dsp_pm &pm)
 		}
 		if (st.ffP) {
 			SigSpec P; // unused
-			f(P, st.ffP, ID::P_EN, ID::P_SRST_N, ID::P_BYPASS);
+			f(P, st.ffP, ID(P_EN), ID(P_SRST_N), ID(P_BYPASS));
 			st.ffP->connections_.at(ID::Q).replace(st.sigP, pm.module->addWire(NEW_ID, GetSize(st.sigP)));
 		}
 
@@ -210,12 +210,12 @@ void microchip_dsp_packC(microchip_dsp_CREG_pm &pm)
 			if (!A.empty())
 				A.replace(Q, D);
 			if (rstport != Twine::Null) {
-				if (ff->type.in(ID::$sdff, ID::$sdffe)) {
+				if (ff->type.in(ID($sdff), ID($sdffe))) {
 					SigSpec srst = ff->getPort(ID::SRST);
 					bool rstpol_n = !ff->getParam(ID::SRST_POLARITY).as_bool();
 					// active low sync rst
 					cell->setPort(rstport, rstpol_n ? srst : pm.module->Not(NEW_ID, srst));
-				} else if (ff->type.in(ID::$adff, ID::$adffe)) {
+				} else if (ff->type.in(ID($adff), ID($adffe))) {
 					SigSpec arst = ff->getPort(ID::ARST);
 					bool rstpol_n = !ff->getParam(ID::ARST_POLARITY).as_bool();
 					// active low async rst
@@ -225,7 +225,7 @@ void microchip_dsp_packC(microchip_dsp_CREG_pm &pm)
 					cell->setPort(rstport, State::S1);
 				}
 			}
-			if (ff->type.in(ID::$dffe, ID::$sdffe, ID::$adffe)) {
+			if (ff->type.in(ID($dffe), ID($sdffe), ID($adffe))) {
 				SigSpec ce = ff->getPort(ID::EN);
 				bool cepol = ff->getParam(ID::EN_POLARITY).as_bool();
 				// enables are all active high
@@ -252,10 +252,10 @@ void microchip_dsp_packC(microchip_dsp_CREG_pm &pm)
 		if (st.ffC) {
 			SigSpec C = cell->getPort(ID::C);
 
-			if (st.ffC->type.in(ID::$adff, ID::$adffe)) {
-				f(C, st.ffC, ID::C_EN, ID::C_ARST_N, ID::C_BYPASS);
+			if (st.ffC->type.in(ID($adff), ID($adffe))) {
+				f(C, st.ffC, ID(C_EN), ID(C_ARST_N), ID(C_BYPASS));
 			} else {
-				f(C, st.ffC, ID::C_EN, ID::C_SRST_N, ID::C_BYPASS);
+				f(C, st.ffC, ID(C_EN), ID(C_SRST_N), ID(C_BYPASS));
 			}
 			pm.add_siguser(C, cell);
 			cell->setPort(ID::C, C);

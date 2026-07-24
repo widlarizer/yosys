@@ -35,7 +35,7 @@ void demorgan_worker(
 	//TODO: Add support for reduce_xor
 	//DeMorgan of XOR is either XOR (if even number of inputs) or XNOR (if odd number)
 
-	if( (cell->type != ID::$reduce_and) && (cell->type != ID::$reduce_or) )
+	if( (cell->type != ID($reduce_and)) && (cell->type != ID($reduce_or)) )
 		return;
 
 	auto insig = sigmap(cell->getPort(ID::A));
@@ -55,7 +55,7 @@ void demorgan_worker(
 		bool inverted = false;
 		for(auto x : ports)
 		{
-			if(x.port == ID::Y && x.cell->type == ID::$_NOT_)
+			if(x.port == ID::Y && x.cell->type == ID($_NOT_))
 			{
 				inverted = true;
 				break;
@@ -89,7 +89,7 @@ void demorgan_worker(
 		RTLIL::Cell* srcinv = NULL;
 		for(auto x : ports)
 		{
-			if(x.port == ID::Y && x.cell->type == ID::$_NOT_)
+			if(x.port == ID::Y && x.cell->type == ID($_NOT_))
 			{
 				srcinv = x.cell;
 				break;
@@ -158,9 +158,9 @@ void demorgan_worker(
 	cell->setPort(ID::A, insig);
 
 	//Change the cell type
-	if(cell->type == ID::$reduce_and)
+	if(cell->type == ID($reduce_and))
 		cell->type_impl = ID::$reduce_or;
-	else if(cell->type == ID::$reduce_or)
+	else if(cell->type == ID($reduce_or))
 		cell->type_impl = ID::$reduce_and;
 	//don't change XOR
 

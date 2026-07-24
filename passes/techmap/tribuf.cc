@@ -65,13 +65,13 @@ struct TribufWorker {
 
 		for (auto cell : module->selected_cells())
 		{
-			if (cell->type == ID::$tribuf)
+			if (cell->type == ID($tribuf))
 				tribuf_cells[sigmap(cell->getPort(ID::Y))].push_back(cell);
 
-			if (cell->type == ID::$_TBUF_)
+			if (cell->type == ID($_TBUF_))
 				tribuf_cells[sigmap(cell->getPort(ID::Y))].push_back(cell);
 
-			if (cell->type.in(ID::$mux, ID::$_MUX_))
+			if (cell->type.in(ID($mux), ID($_MUX_)))
 			{
 				TwineRef en_port = cell->type == ID::$mux ? ID::EN : ID::E;
 				TwineRef tri_type = cell->type == ID::$mux ? ID::$tribuf : ID::$_TBUF_;
@@ -130,13 +130,13 @@ struct TribufWorker {
 						for (auto other_cell : it.second) {
 							if (other_cell == cell)
 								continue;
-							else if (other_cell->type == ID::$tribuf)
+							else if (other_cell->type == ID($tribuf))
 								others_s.append(other_cell->getPort(ID::EN));
 							else
 								others_s.append(other_cell->getPort(ID::E));
 						}
 
-						auto cell_s = cell->type == ID::$tribuf ? cell->getPort(ID::EN) : cell->getPort(ID::E);
+						auto cell_s = cell->type == ID($tribuf) ? cell->getPort(ID::EN) : cell->getPort(ID::E);
 
 						auto other_s = module->ReduceOr(NEW_ID, others_s);
 
@@ -154,7 +154,7 @@ struct TribufWorker {
 
 				SigSpec pmux_b, pmux_s;
 				for (auto cell : it.second) {
-					if (cell->type == ID::$tribuf)
+					if (cell->type == ID($tribuf))
 						pmux_s.append(cell->getPort(ID::EN));
 					else
 						pmux_s.append(cell->getPort(ID::E));

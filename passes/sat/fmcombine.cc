@@ -110,7 +110,7 @@ struct FmcombineWorker
 
 		for (auto cell : original->cells()) {
 			if (design->module(cell->type_impl) == nullptr) {
-				if (opts.anyeq && cell->type.in(ID::$anyseq, ID::$anyconst)) {
+				if (opts.anyeq && cell->type.in(ID($anyseq), ID($anyconst))) {
 					Cell *gold = import_prim_cell(cell, "_gold");
 					for (auto &conn : cell->connections())
 						module->connect(import_sig(conn.second, "_gate"), gold->getPort(conn.first));

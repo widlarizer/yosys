@@ -55,7 +55,7 @@ void ModuleHdlnameIndex::index_cells()
 void ModuleHdlnameIndex::index_scopeinfo_cells()
 {
 	auto cells = module->cells();
-	index_items(cells.begin(), cells.end(), [](Cell *cell) { return cell->type == ID::$scopeinfo; });
+	index_items(cells.begin(), cells.end(), [](Cell *cell) { return cell->type == ID($scopeinfo); });
 }
 
 std::vector<std::string> ModuleHdlnameIndex::scope_sources(Cursor cursor)
@@ -69,7 +69,7 @@ std::vector<std::string> ModuleHdlnameIndex::scope_sources(Cursor cursor)
 			continue;
 		}
 		Cell *cell = cursor.entry().cell();
-		if (cell == nullptr || cell->type != ID::$scopeinfo) {
+		if (cell == nullptr || cell->type != ID($scopeinfo)) {
 			result.push_back("");
 			result.push_back("");
 			continue;

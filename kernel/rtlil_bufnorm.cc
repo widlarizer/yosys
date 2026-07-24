@@ -100,12 +100,12 @@ void RTLIL::Module::bufNormalize()
 		// Ensure that every enqueued input port is represented by a cell
 		for (auto wire : buf_norm_wire_queue) {
 			if (wire->port_input && !wire->port_output) {
-				if (wire->driverCell_ != nullptr && wire->driverCell_->type != ID::$input_port) {
+				if (wire->driverCell_ != nullptr && wire->driverCell_->type != ID($input_port)) {
 					wire->driverCell_ = nullptr;
 					wire->driverPort_ = Twine::Null;
 				}
 				if (wire->driverCell_ == nullptr) {
-					Cell *input_port_cell = addCell(NEW_ID, ID::$input_port);
+					Cell *input_port_cell = addCell(NEW_ID, ID($input_port));
 					input_port_cell->setParam(ID::WIDTH, GetSize(wire));
 					input_port_cell->setPort(ID::Y, wire); // this hits the fast path that doesn't mutate the queues
 				}
@@ -202,7 +202,7 @@ void RTLIL::Module::bufNormalize()
 				log_assert(GetSize(buf_norm_wire_queue) <= 1);
 				buf_norm_wire_queue.clear();
 				return;
-			} else if (cell->type == ID::$input_port) {
+			} else if (cell->type == ID($input_port)) {
 				log_assert(port == ID::Y);
 				if (sig.is_wire()) {
 					Wire *w = sig.as_wire();
@@ -284,7 +284,7 @@ void RTLIL::Module::bufNormalize()
 					break;
 				while (!found->second.empty()) {
 					Cell *connect_cell = *found->second.begin();
-					log_assert(connect_cell->type == ID::$connect);
+					log_assert(connect_cell->type == ID($connect));
 					SigSpec const &sig_a = connect_cell->getPort(ID::A);
 					SigSpec const &sig_b = connect_cell->getPort(ID::B);
 					xlog("found $connect cell %s: %s <-> %s\n", connect_cell, log_signal(sig_a), log_signal(sig_b));
@@ -309,7 +309,7 @@ void RTLIL::Module::bufNormalize()
 		// As a first step for re-normalization we add all require intermediate
 		// wires for cell output and inout ports.
 		for (auto &[cell, port] : pending_ports) {
-			log_assert(cell->type != ID::$input_port);
+			log_assert(cell->type != ID($input_port));
 			log_assert(!cell->type.empty());
 			log_assert(!pending_deleted_cells.count(cell));
 			SigSpec const &sig = cell->getPort(port);
@@ -388,7 +388,7 @@ void RTLIL::Module::bufNormalize()
 			auto const &[cell, port] = cellport;
 			for (int i = 0; i != GetSize(wire); ++i) {
 				SigBit driver = sigmap(SigBit(wire, i));
-				if (cell->type == ID::$tribuf || cell->port_dir(port) == RTLIL::PD_INOUT) {
+				if (cell->type == ID($tribuf) || cell->port_dir(port) == RTLIL::PD_INOUT) {
 					// We add inout drivers to `driven` in a separate loop below
 					weakly_driven.insert(driver);
 				} else {
@@ -487,7 +487,7 @@ void RTLIL::Module::bufNormalize()
 			if (sig_a.empty())
 				return;
 			xlog("connect %s <-> %s\n", log_signal(sig_a), log_signal(sig_b));
-			Cell *connect_cell = addCell(NEW_ID, ID::$connect);
+			Cell *connect_cell = addCell(NEW_ID, ID($connect));
 			connect_cell->setParam(ID::WIDTH, GetSize(sig_a));
 			connect_cell->setPort(ID::A, sig_a);
 			connect_cell->setPort(ID::B, sig_b);
@@ -557,7 +557,7 @@ void RTLIL::Cell::unsetPort(TwineRef portname)
 				}
 			}
 
-			if (type == ID::$connect) {
+			if (type == ID($connect)) {
 				for (auto &[port, sig] : connections_) {
 					for (auto &chunk : sig.chunks()) {
 						if (!chunk.wire)
@@ -624,7 +624,7 @@ void RTLIL::Cell::setPort(TwineRef portname, RTLIL::SigSpec signal)
 		if ((dir == RTLIL::PD_OUTPUT || dir == RTLIL::PD_INOUT) && signal.is_wire()) {
 			Wire *w = signal.as_wire();
 			if (w->driverCell_ == nullptr && (
-						(w->port_input && !w->port_output) == (type == ID::$input_port))) {
+						(w->port_input && !w->port_output) == (type == ID($input_port)))) {
 				w->driverCell_ = this;
 				w->driverPort_ = portname;
 
@@ -642,7 +642,7 @@ void RTLIL::Cell::setPort(TwineRef portname, RTLIL::SigSpec signal)
 					module->buf_norm_wire_queue.insert(chunk.wire);
 		}
 
-		if (type == ID::$connect) {
+		if (type == ID($connect)) {
 			for (auto &[port, sig] : connections_) {
 				for (auto &chunk : sig.chunks()) {
 					if (!chunk.wire)

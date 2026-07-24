@@ -123,7 +123,7 @@ struct CutpointPass : public Pass {
 						wire_drivers.insert(bit);
 
 			for (auto cell : module->selected_cells()) {
-				if (cell->type == ID::$anyseq)
+				if (cell->type == ID($anyseq))
 					continue;
 				log("Removing cell %s.%s, making all cell outputs cutpoints.\n", module, cell);
 				for (auto &conn : cell->connections()) {

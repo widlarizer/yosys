@@ -221,7 +221,7 @@ struct AigerWriter
 
 		for (auto cell : module->cells())
 		{
-			if (cell->type == ID::$_NOT_)
+			if (cell->type == ID($_NOT_))
 			{
 				SigBit A = sigmap(cell->getPort(ID::A).as_bit());
 				SigBit Y = sigmap(cell->getPort(ID::Y).as_bit());
@@ -231,7 +231,7 @@ struct AigerWriter
 				continue;
 			}
 
-			if (cell->type.in(ID::$_FF_, ID::$_DFF_N_, ID::$_DFF_P_))
+			if (cell->type.in(ID($_FF_), ID($_DFF_N_), ID($_DFF_P_)))
 			{
 				SigBit D = sigmap(cell->getPort(ID::D).as_bit());
 				SigBit Q = sigmap(cell->getPort(ID::Q).as_bit());
@@ -239,14 +239,14 @@ struct AigerWriter
 				undriven_bits.erase(Q);
 				ff_map[Q] = D;
 
-				if (cell->type != ID::$_FF_) {
+				if (cell->type != ID($_FF_)) {
 					auto sig_clk = sigmap(cell->getPort(ID::C).as_bit());
-					ywmap_clocks[sig_clk] |= cell->type == ID::$_DFF_N_ ? 2 : 1;
+					ywmap_clocks[sig_clk] |= cell->type == ID($_DFF_N_) ? 2 : 1;
 				}
 				continue;
 			}
 
-			if (cell->type == ID::$anyinit)
+			if (cell->type == ID($anyinit))
 			{
 				auto sig_d = sigmap(cell->getPort(ID::D));
 				auto sig_q = sigmap(cell->getPort(ID::Q));
@@ -257,7 +257,7 @@ struct AigerWriter
 				continue;
 			}
 
-			if (cell->type == ID::$_AND_)
+			if (cell->type == ID($_AND_))
 			{
 				SigBit A = sigmap(cell->getPort(ID::A).as_bit());
 				SigBit B = sigmap(cell->getPort(ID::B).as_bit());
@@ -269,7 +269,7 @@ struct AigerWriter
 				continue;
 			}
 
-			if (cell->type == ID::$initstate)
+			if (cell->type == ID($initstate))
 			{
 				SigBit Y = sigmap(cell->getPort(ID::Y).as_bit());
 				undriven_bits.erase(Y);
@@ -277,7 +277,7 @@ struct AigerWriter
 				continue;
 			}
 
-			if (cell->type == ID::$assert)
+			if (cell->type == ID($assert))
 			{
 				SigBit A = sigmap(cell->getPort(ID::A).as_bit());
 				SigBit EN = sigmap(cell->getPort(ID::EN).as_bit());
@@ -288,7 +288,7 @@ struct AigerWriter
 				continue;
 			}
 
-			if (cell->type == ID::$assume)
+			if (cell->type == ID($assume))
 			{
 				SigBit A = sigmap(cell->getPort(ID::A).as_bit());
 				SigBit EN = sigmap(cell->getPort(ID::EN).as_bit());
@@ -299,7 +299,7 @@ struct AigerWriter
 				continue;
 			}
 
-			if (cell->type == ID::$live)
+			if (cell->type == ID($live))
 			{
 				SigBit A = sigmap(cell->getPort(ID::A).as_bit());
 				SigBit EN = sigmap(cell->getPort(ID::EN).as_bit());
@@ -309,7 +309,7 @@ struct AigerWriter
 				continue;
 			}
 
-			if (cell->type == ID::$fair)
+			if (cell->type == ID($fair))
 			{
 				SigBit A = sigmap(cell->getPort(ID::A).as_bit());
 				SigBit EN = sigmap(cell->getPort(ID::EN).as_bit());
@@ -319,7 +319,7 @@ struct AigerWriter
 				continue;
 			}
 
-			if (cell->type == ID::$anyconst)
+			if (cell->type == ID($anyconst))
 			{
 				for (auto bit : sigmap(cell->getPort(ID::Y))) {
 					undriven_bits.erase(bit);
@@ -328,7 +328,7 @@ struct AigerWriter
 				continue;
 			}
 
-			if (cell->type == ID::$anyseq)
+			if (cell->type == ID($anyseq))
 			{
 				for (auto bit : sigmap(cell->getPort(ID::Y))) {
 					undriven_bits.erase(bit);
@@ -337,7 +337,7 @@ struct AigerWriter
 				continue;
 			}
 
-			if (cell->type == ID::$scopeinfo)
+			if (cell->type == ID($scopeinfo))
 				continue;
 
 			log_error("Unsupported cell type: %s (%s)\n", cell->type.unescape(), cell);
@@ -773,13 +773,13 @@ struct AigerWriter
 
 		for (auto cell : module->cells())
 		{
-			if (cell->type.in(ID::$_FF_, ID::$_DFF_N_, ID::$_DFF_P_, ID::$anyinit, ID::$anyconst, ID::$anyseq))
+			if (cell->type.in(ID($_FF_), ID($_DFF_N_), ID($_DFF_P_), ID($anyinit), ID($anyconst), ID($anyseq)))
 			{
 				// Use sig_q to get the FF output name, but sig to lookup aiger bits
-				auto sig_qy = cell->getPort(cell->type.in(ID::$anyconst, ID::$anyseq) ? ID::Y : ID::Q);
+				auto sig_qy = cell->getPort(cell->type.in(ID($anyconst), ID($anyseq)) ? ID::Y : ID::Q);
 				SigSpec sig = sigmap(sig_qy);
 
-				if (cell->get_bool_attribute(ID::clk2fflogic))
+				if (cell->get_bool_attribute(ID(clk2fflogic)))
 					sig_qy = cell->getPort(ID::D); // For a clk2fflogic $_FF_ the named signal is the D input not the Q output
 
 				for (int i = 0; i < GetSize(sig_qy); i++) {

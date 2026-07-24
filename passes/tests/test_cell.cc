@@ -41,14 +41,14 @@ static uint32_t xorshift32(uint32_t limit) {
 
 static RTLIL::Cell* create_gold_module(RTLIL::Design *design, TwineRef cell_type, std::string cell_type_flags, bool constmode, bool muxdiv)
 {
-	RTLIL::Module *module = design->addModule(ID::gold);
-	RTLIL::Cell *cell = module->addCell(ID::UUT, cell_type);
+	RTLIL::Module *module = design->addModule(ID(gold));
+	RTLIL::Cell *cell = module->addCell(ID(UUT), cell_type);
 	RTLIL::Wire *wire;
 
-	if (cell_type.in(ID::$mux, ID::$pmux))
+	if (cell_type.in(ID($mux), ID($pmux)))
 	{
 		int width = 1 + xorshift32(8 * bloat_factor);
-		int swidth = cell_type == ID::$mux ? 1 : 1 + xorshift32(8);
+		int swidth = cell_type == ID($mux) ? 1 : 1 + xorshift32(8);
 
 		wire = module->addWire(ID::A);
 		wire->width = width;
@@ -71,7 +71,7 @@ static RTLIL::Cell* create_gold_module(RTLIL::Design *design, TwineRef cell_type
 		cell->setPort(ID::Y, wire);
 	}
 
-	if (cell_type.in(ID::$_MUX_, ID::$_NMUX_))
+	if (cell_type.in(ID($_MUX_), ID($_NMUX_)))
 	{
 		wire = module->addWire(ID::A);
 		wire->width = 1;
@@ -94,7 +94,7 @@ static RTLIL::Cell* create_gold_module(RTLIL::Design *design, TwineRef cell_type
 		cell->setPort(ID::Y, wire);
 	}
 
-	if (cell_type == ID::$bmux)
+	if (cell_type == ID($bmux))
 	{
 		int width = 1 + xorshift32(8 * bloat_factor);
 		int swidth = 1 + xorshift32(4 * bloat_factor);
@@ -115,7 +115,7 @@ static RTLIL::Cell* create_gold_module(RTLIL::Design *design, TwineRef cell_type
 		cell->setPort(ID::Y, wire);
 	}
 
-	if (cell_type == ID::$demux)
+	if (cell_type == ID($demux))
 	{
 		int width = 1 + xorshift32(8 * bloat_factor);
 		int swidth = 1 + xorshift32(6 * bloat_factor);
@@ -136,7 +136,7 @@ static RTLIL::Cell* create_gold_module(RTLIL::Design *design, TwineRef cell_type
 		cell->setPort(ID::Y, wire);
 	}
 
-	if (cell_type == ID::$fa)
+	if (cell_type == ID($fa))
 	{
 		int width = 1 + xorshift32(8 * bloat_factor);
 
@@ -166,7 +166,7 @@ static RTLIL::Cell* create_gold_module(RTLIL::Design *design, TwineRef cell_type
 		cell->setPort(ID::Y, wire);
 	}
 
-	if (cell_type == ID::$lcu)
+	if (cell_type == ID($lcu))
 	{
 		int width = 1 + xorshift32(8 * bloat_factor);
 
@@ -190,7 +190,7 @@ static RTLIL::Cell* create_gold_module(RTLIL::Design *design, TwineRef cell_type
 		cell->setPort(ID::CO, wire);
 	}
 
-	if (cell_type == ID::$macc_v2)
+	if (cell_type == ID($macc_v2))
 	{
 		Macc macc;
 		int width = 1 + xorshift32(8 * bloat_factor);
@@ -234,7 +234,7 @@ static RTLIL::Cell* create_gold_module(RTLIL::Design *design, TwineRef cell_type
 		cell->setPort(ID::Y, wire);
 	}
 
-	if (cell_type == ID::$lut)
+	if (cell_type == ID($lut))
 	{
 		int width = 1 + xorshift32(6 * bloat_factor);
 
@@ -254,7 +254,7 @@ static RTLIL::Cell* create_gold_module(RTLIL::Design *design, TwineRef cell_type
 		cell->setParam(ID::LUT, config.as_const());
 	}
 
-	if (cell_type == ID::$sop)
+	if (cell_type == ID($sop))
 	{
 		int width = 1 + xorshift32(8 * bloat_factor);
 		int depth = 1 + xorshift32(8 * bloat_factor);
@@ -355,22 +355,22 @@ static RTLIL::Cell* create_gold_module(RTLIL::Design *design, TwineRef cell_type
 		cell->setPort(ID::Y, wire);
 	}
 
-	if (cell_type.in(ID::$shiftx)) {
+	if (cell_type.in(ID($shiftx))) {
 		cell->parameters[ID::A_SIGNED] = false;
 	}
 
-	if (cell_type.in(ID::$shl, ID::$shr, ID::$sshl, ID::$sshr)) {
+	if (cell_type.in(ID($shl), ID($shr), ID($sshl), ID($sshr))) {
 		cell->parameters[ID::B_SIGNED] = false;
 	}
 
-	if (muxdiv && cell_type.in(ID::$div, ID::$mod, ID::$divfloor, ID::$modfloor)) {
+	if (muxdiv && cell_type.in(ID($div), ID($mod), ID($divfloor), ID($modfloor))) {
 		auto b_not_zero = module->ReduceBool(NEW_ID, cell->getPort(ID::B));
 		auto div_out = module->addWire(NEW_ID, GetSize(cell->getPort(ID::Y)));
 		module->addMux(NEW_ID, RTLIL::SigSpec(0, GetSize(div_out)), div_out, b_not_zero, cell->getPort(ID::Y));
 		cell->setPort(ID::Y, div_out);
 	}
 
-	if (cell_type == ID::$alu)
+	if (cell_type == ID($alu))
 	{
 		wire = module->addWire(ID::CI);
 		wire->port_input = true;
@@ -391,7 +391,7 @@ static RTLIL::Cell* create_gold_module(RTLIL::Design *design, TwineRef cell_type
 		cell->setPort(ID::CO, wire);
 	}
 
-	if (cell_type == ID::$slice)
+	if (cell_type == ID($slice))
 	{
 		int a_size = GetSize(cell->getPort(ID::A));
 		int y_size = 1;
@@ -407,7 +407,7 @@ static RTLIL::Cell* create_gold_module(RTLIL::Design *design, TwineRef cell_type
 			cell->setParam(ID::OFFSET, 0);
 	}
 
-	if (cell_type == ID::$concat)
+	if (cell_type == ID($concat))
 	{
 		wire = module->addWire(ID::Y);
 		wire->width = GetSize(cell->getPort(ID::A)) + GetSize(cell->getPort(ID::B));
@@ -415,7 +415,7 @@ static RTLIL::Cell* create_gold_module(RTLIL::Design *design, TwineRef cell_type
 		cell->setPort(ID::Y, wire);
 	}
 
-	if (cell_type == ID::$buf)
+	if (cell_type == ID($buf))
 	{
 		wire = module->addWire(ID::Y);
 		wire->width = GetSize(cell->getPort(ID::A));
@@ -423,14 +423,14 @@ static RTLIL::Cell* create_gold_module(RTLIL::Design *design, TwineRef cell_type
 		cell->setPort(ID::Y, wire);
 	}
 
-	if (cell_type.in(ID::$bwmux, ID::$bweqx))
+	if (cell_type.in(ID($bwmux), ID($bweqx)))
 	{
 		int a_size = GetSize(cell->getPort(ID::A));
 		wire = module->addWire(ID::B);
 		wire->width = a_size;
 		wire->port_input = true;
 		cell->setPort(ID::B, wire);
-		if (cell_type == ID::$bwmux)
+		if (cell_type == ID($bwmux))
 		{
 			wire = module->addWire(ID::S);
 			wire->width = a_size;
@@ -573,8 +573,8 @@ static void run_eval_test(RTLIL::Design *design, bool verbose, bool nosat, std::
 {
 	log("Eval testing:%c", verbose ? '\n' : ' ');
 
-	RTLIL::Module *gold_mod = design->module(ID::gold);
-	RTLIL::Module *gate_mod = design->module(ID::gate);
+	RTLIL::Module *gold_mod = design->module(ID(gold));
+	RTLIL::Module *gate_mod = design->module(ID(gate));
 	ConstEval gold_ce(gold_mod), gate_ce(gate_mod);
 
 	ezSatPtr ez1, ez2;
@@ -984,93 +984,93 @@ struct TestCellPass : public Pass {
 		std::map<TwineRef, std::string> cell_types;
 		std::vector<TwineRef> selected_cell_types;
 
-		cell_types[ID::$not] = "ASY";
-		cell_types[ID::$pos] = "ASY";
-		cell_types[ID::$neg] = "ASY";
+		cell_types[ID($not)] = "ASY";
+		cell_types[ID($pos)] = "ASY";
+		cell_types[ID($neg)] = "ASY";
 		// $buf is unsupported with techmap -assert
 		if (techmap_cmd.compare("techmap -assert") != 0)
-			cell_types[ID::$buf] = "A";
+			cell_types[ID($buf)] = "A";
 
-		cell_types[ID::$and]  = "ABSY";
-		cell_types[ID::$or]   = "ABSY";
-		cell_types[ID::$xor]  = "ABSY";
-		cell_types[ID::$xnor] = "ABSY";
+		cell_types[ID($and)]  = "ABSY";
+		cell_types[ID($or)]   = "ABSY";
+		cell_types[ID($xor)]  = "ABSY";
+		cell_types[ID($xnor)] = "ABSY";
 
-		cell_types[ID::$reduce_and]  = "ASY";
-		cell_types[ID::$reduce_or]   = "ASY";
-		cell_types[ID::$reduce_xor]  = "ASY";
-		cell_types[ID::$reduce_xnor] = "ASY";
-		cell_types[ID::$reduce_bool] = "ASY";
+		cell_types[ID($reduce_and)]  = "ASY";
+		cell_types[ID($reduce_or)]   = "ASY";
+		cell_types[ID($reduce_xor)]  = "ASY";
+		cell_types[ID($reduce_xnor)] = "ASY";
+		cell_types[ID($reduce_bool)] = "ASY";
 
-		cell_types[ID::$shl]    = "ABshY";
-		cell_types[ID::$shr]    = "ABshY";
-		cell_types[ID::$sshl]   = "ABshY";
-		cell_types[ID::$sshr]   = "ABshY";
-		cell_types[ID::$shift]  = "ABshY";
-		cell_types[ID::$shiftx] = "ABshY";
+		cell_types[ID($shl)]    = "ABshY";
+		cell_types[ID($shr)]    = "ABshY";
+		cell_types[ID($sshl)]   = "ABshY";
+		cell_types[ID($sshr)]   = "ABshY";
+		cell_types[ID($shift)]  = "ABshY";
+		cell_types[ID($shiftx)] = "ABshY";
 
-		cell_types[ID::$lt]  = "ABSY";
-		cell_types[ID::$le]  = "ABSY";
-		cell_types[ID::$eq]  = "ABSY";
-		cell_types[ID::$ne]  = "ABSY";
+		cell_types[ID($lt)]  = "ABSY";
+		cell_types[ID($le)]  = "ABSY";
+		cell_types[ID($eq)]  = "ABSY";
+		cell_types[ID($ne)]  = "ABSY";
 		// $eqx, $nex, and $bweqx don't work in sat, and are unsupported with
 		// 'techmap -assert'
 		if (nosat && techmap_cmd.compare("techmap -assert") != 0)
 		{
-			cell_types[ID::$eqx] = "ABSY";
-			cell_types[ID::$nex] = "ABSY";
-			cell_types[ID::$bweqx] = "A";
+			cell_types[ID($eqx)] = "ABSY";
+			cell_types[ID($nex)] = "ABSY";
+			cell_types[ID($bweqx)] = "A";
 		}
-		cell_types[ID::$ge]  = "ABSY";
-		cell_types[ID::$gt]  = "ABSY";
+		cell_types[ID($ge)]  = "ABSY";
+		cell_types[ID($gt)]  = "ABSY";
 
-		cell_types[ID::$add] = "ABSY";
-		cell_types[ID::$sub] = "ABSY";
-		cell_types[ID::$mul] = "ABSY";
-		cell_types[ID::$div] = "ABSY";
-		cell_types[ID::$mod] = "ABSY";
-		cell_types[ID::$divfloor] = "ABSY";
-		cell_types[ID::$modfloor] = "ABSY";
+		cell_types[ID($add)] = "ABSY";
+		cell_types[ID($sub)] = "ABSY";
+		cell_types[ID($mul)] = "ABSY";
+		cell_types[ID($div)] = "ABSY";
+		cell_types[ID($mod)] = "ABSY";
+		cell_types[ID($divfloor)] = "ABSY";
+		cell_types[ID($modfloor)] = "ABSY";
 		// $pow doesnt work in sat, not supported with 'techmap -assert', and only
 		// only partially supported with '-simlib'
 		if (nosat && techmap_cmd.compare("aigmap") == 0)
-			cell_types[ID::$pow] = "ABsY";
+			cell_types[ID($pow)] = "ABsY";
 
-		cell_types[ID::$logic_not] = "ASY";
-		cell_types[ID::$logic_and] = "ABSY";
-		cell_types[ID::$logic_or]  = "ABSY";
+		cell_types[ID($logic_not)] = "ASY";
+		cell_types[ID($logic_and)] = "ABSY";
+		cell_types[ID($logic_or)]  = "ABSY";
 
-		cell_types[ID::$mux] = "*";
-		cell_types[ID::$bmux] = "*";
-		cell_types[ID::$demux] = "*";
+		cell_types[ID($mux)] = "*";
+		cell_types[ID($bmux)] = "*";
+		cell_types[ID($demux)] = "*";
 		// $pmux doesn't work in sat, and is not supported with 'techmap -assert' or
 		// '-simlib'
 		if (nosat && techmap_cmd.compare("aigmap") == 0)
-			cell_types[ID::$pmux] = "*";
-		cell_types[ID::$bwmux] = "A";
+			cell_types[ID($pmux)] = "*";
+		cell_types[ID($bwmux)] = "A";
 
-		cell_types[ID::$slice] = "A";
-		cell_types[ID::$concat] = "AB";
+		cell_types[ID($slice)] = "A";
+		cell_types[ID($concat)] = "AB";
 
-		cell_types[ID::$lut] = "*";
-		cell_types[ID::$sop] = "*";
-		cell_types[ID::$alu] = "ABSY";
-		cell_types[ID::$lcu] = "*";
-		cell_types[ID::$macc_v2] = "*";
-		cell_types[ID::$fa] = "*";
+		cell_types[ID($lut)] = "*";
+		cell_types[ID($sop)] = "*";
+		cell_types[ID($alu)] = "ABSY";
+		cell_types[ID($lcu)] = "*";
+		cell_types[ID($macc_v2)] = "*";
+		cell_types[ID($fa)] = "*";
 
-		cell_types[ID::$_BUF_] = "AYb";
-		cell_types[ID::$_NOT_] = "AYb";
-		cell_types[ID::$_AND_] = "ABYb";
-		cell_types[ID::$_NAND_] = "ABYb";
-		cell_types[ID::$_OR_] = "ABYb";
-		cell_types[ID::$_NOR_] = "ABYb";
-		cell_types[ID::$_XOR_] = "ABYb";
-		cell_types[ID::$_XNOR_] = "ABYb";
-		cell_types[ID::$_ANDNOT_] = "ABYb";
-		cell_types[ID::$_ORNOT_] = "ABYb";
-		cell_types[ID::$_MUX_] = "*";
-		cell_types[ID::$_NMUX_] = "*";
+		cell_types[ID($_BUF_)] = "AYb";
+		cell_types[ID($_NOT_)] = "AYb";
+		cell_types[ID($_AND_)] = "ABYb";
+		cell_types[ID($_NAND_)] = "ABYb";
+		cell_types[ID($_OR_)] = "ABYb";
+		cell_types[ID($_NOR_)] = "ABYb";
+		cell_types[ID($_XOR_)] = "ABYb";
+		cell_types[ID($_XNOR_)] = "ABYb";
+		cell_types[ID($_ANDNOT_)] = "ABYb";
+		cell_types[ID($_ORNOT_)] = "ABYb";
+		cell_types[ID($_MUX_)] = "*";
+		cell_types[ID($_NMUX_)] = "*";
 		// wide $_MUX_ cells are not yet implemented
 		// cell_types[ID::$_MUX4_] = "*";
 		// cell_types[ID::$_MUX8_] = "*";
@@ -1131,7 +1131,7 @@ struct TestCellPass : public Pass {
 		if (!rtlil_file.empty()) {
 			if (!selected_cell_types.empty())
 				log_cmd_error("Do not specify any cell types when using -f.\n");
-			selected_cell_types.push_back(ID::rtlil);
+			selected_cell_types.push_back(ID(rtlil));
 		}
 
 		if (selected_cell_types.empty())
@@ -1150,7 +1150,7 @@ struct TestCellPass : public Pass {
 			{
 				Cell* uut = nullptr;
 				RTLIL::Design *design = new RTLIL::Design;
-				if (cell_type == ID::rtlil)
+				if (cell_type == ID(rtlil))
 					Frontend::frontend_call(design, NULL, std::string(), "rtlil " + rtlil_file);
 				else
 					uut = create_gold_module(design, cell_type, cell_types.at(cell_type), constmode, muxdiv);

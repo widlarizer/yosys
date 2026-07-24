@@ -111,7 +111,7 @@ void create_dff_dq_map(std::map<TwineRef, dff_map_info_t> &map, RTLIL::Module *m
 		info.arst_value = RTLIL::State::Sm;
 		info.cell = cell;
 
-		if (info.cell->type == ID::$dff) {
+		if (info.cell->type == ID($dff)) {
 			info.bit_clk = sigmap(info.cell->getPort(ID::CLK)).as_bit();
 			info.clk_polarity = info.cell->parameters.at(ID::CLK_POLARITY).as_bool();
 			std::vector<RTLIL::SigBit> sig_d = sigmap(info.cell->getPort(ID::D)).to_sigbit_vector();
@@ -123,7 +123,7 @@ void create_dff_dq_map(std::map<TwineRef, dff_map_info_t> &map, RTLIL::Module *m
 			continue;
 		}
 
-		if (info.cell->type == ID::$adff) {
+		if (info.cell->type == ID($adff)) {
 			info.bit_clk = sigmap(info.cell->getPort(ID::CLK)).as_bit();
 			info.bit_arst = sigmap(info.cell->getPort(ID::ARST)).as_bit();
 			info.clk_polarity = info.cell->parameters.at(ID::CLK_POLARITY).as_bool();
@@ -139,9 +139,9 @@ void create_dff_dq_map(std::map<TwineRef, dff_map_info_t> &map, RTLIL::Module *m
 			continue;
 		}
 
-		if (info.cell->type.in(ID::$_DFF_N_, ID::$_DFF_P_)) {
+		if (info.cell->type.in(ID($_DFF_N_), ID($_DFF_P_))) {
 			info.bit_clk = sigmap(info.cell->getPort(ID::C)).as_bit();
-			info.clk_polarity = info.cell->type == ID::$_DFF_P_;
+			info.clk_polarity = info.cell->type == ID($_DFF_P_);
 			info.bit_d = sigmap(info.cell->getPort(ID::D)).as_bit();
 			bit_info[sigmap(info.cell->getPort(ID::Q)).as_bit()] = info;
 			continue;
@@ -579,7 +579,7 @@ struct ExposePass : public Pass {
 				if (info.clk_polarity) {
 					module->connect(RTLIL::SigSig(wire_c, info.sig_clk));
 				} else {
-					RTLIL::Cell *c = module->addCell(NEW_ID, ID::$not);
+					RTLIL::Cell *c = module->addCell(NEW_ID, ID($not));
 					c->parameters[ID::A_SIGNED] = 0;
 					c->parameters[ID::A_WIDTH] = 1;
 					c->parameters[ID::Y_WIDTH] = 1;
@@ -595,7 +595,7 @@ struct ExposePass : public Pass {
 					if (info.arst_polarity) {
 						module->connect(RTLIL::SigSig(wire_r, info.sig_arst));
 					} else {
-						RTLIL::Cell *c = module->addCell(NEW_ID, ID::$not);
+						RTLIL::Cell *c = module->addCell(NEW_ID, ID($not));
 						c->parameters[ID::A_SIGNED] = 0;
 						c->parameters[ID::A_WIDTH] = 1;
 						c->parameters[ID::Y_WIDTH] = 1;

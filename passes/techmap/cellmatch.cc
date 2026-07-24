@@ -226,8 +226,8 @@ struct CellmatchPass : Pass {
 				int no = 0;
 				for (auto bit : outputs) {
 					log_assert(bit.is_wire());
-					bit.wire->attributes[ID::p_class] = p_class(inputs.size(), luts[no]);
-					bit.wire->attributes[ID::lut] = Const(luts[no++], 1 << inputs.size());
+					bit.wire->attributes[ID(p_class)] = p_class(inputs.size(), luts[no]);
+					bit.wire->attributes[ID(lut)] = Const(luts[no++], 1 << inputs.size());
 				}
 			}
 
@@ -277,7 +277,7 @@ struct CellmatchPass : Pass {
 							Module *map = map_design->addModule(map_design->twines.add(stringf("\\_60_%s_%s", m, target.module)));
 							Cell *cell = map->addCell(ID::_TECHMAP_REPLACE_, map_design->twines.copy_from(target.module->design->twines, target.module->name));
 
-							map->attributes[ID::techmap_celltype] = m->name.str();
+							map->attributes[ID(techmap_celltype)] = m->name.str();
 
 							for (int i = 0; i < outputs.size(); i++) {
 								log_assert(outputs[i].is_wire());

@@ -250,7 +250,7 @@ struct IopadmapPass : public Pass {
 
 				// Gather tristate buffers and always-on drivers.
 				for (auto cell : module->cells())
-					if (cell->type == ID::$_TBUF_) {
+					if (cell->type == ID($_TBUF_)) {
 						SigBit bit = cell->getPort(ID::Y).as_bit();
 						tbuf_bits[bit] = cell;
 					} else {

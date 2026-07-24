@@ -109,7 +109,7 @@ struct OptLutWorker
 		log("Discovering LUTs.\n");
 		for (auto cell : module->selected_cells())
 		{
-			if (cell->type == ID::$lut)
+			if (cell->type == ID($lut))
 			{
 				if (cell->has_keep_attr())
 					continue;
@@ -556,16 +556,16 @@ struct OptLutPass : public Pass {
 					log_cmd_error("Unsupported -tech argument: %s\n", tech);
 
 				dlogic = {{
-					ID::SB_CARRY,
+					ID(SB_CARRY),
 					dict<int, TwineRef>{
-						std::make_pair(1, ID::I0),
-						std::make_pair(2, ID::I1),
-						std::make_pair(3, ID::CI)
+						std::make_pair(1, ID(I0)),
+						std::make_pair(2, ID(I1)),
+						std::make_pair(3, ID(CI))
 					}
 				}, {
-					ID::SB_CARRY,
+					ID(SB_CARRY),
 					dict<int, TwineRef>{
-						std::make_pair(3, ID::CO)
+						std::make_pair(3, ID(CO))
 					}
 				}};
 				continue;

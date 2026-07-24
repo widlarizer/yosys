@@ -72,7 +72,7 @@ static void print_spice_module(std::ostream &f, RTLIL::Module *module, RTLIL::De
 
 	for (auto cell : module->cells())
 	{
-		if (cell->type == ID::$scopeinfo)
+		if (cell->type == ID($scopeinfo))
 			continue;
 
 		f << stringf("X%d", cell_counter++);

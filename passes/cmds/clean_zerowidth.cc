@@ -81,7 +81,7 @@ struct CleanZeroWidthPass : public Pass {
 					if (GetSize(cell->getPort(ID::Q)) == 0) {
 						module->remove(cell);
 					}
-				} else if (cell->type.in(ID::$pmux, ID::$bmux, ID::$demux)) {
+				} else if (cell->type.in(ID($pmux), ID($bmux), ID($demux))) {
 					// Remove altogether if WIDTH is 0, replace with
 					// a connection if S_WIDTH is 0.
 					if (cell->getParam(ID::WIDTH).as_int() == 0) {
@@ -91,7 +91,7 @@ struct CleanZeroWidthPass : public Pass {
 						module->connect(cell->getPort(ID::Y), cell->getPort(ID::A));
 						module->remove(cell);
 					}
-				} else if (cell->type == ID::$concat) {
+				} else if (cell->type == ID($concat)) {
 					// If a concat has a zero-width input: replace with direct
 					// connection to the other input.
 					if (cell->getParam(ID::A_WIDTH).as_int() == 0) {
@@ -101,17 +101,17 @@ struct CleanZeroWidthPass : public Pass {
 						module->connect(cell->getPort(ID::Y), cell->getPort(ID::A));
 						module->remove(cell);
 					}
-				} else if (cell->type == ID::$fsm) {
+				} else if (cell->type == ID($fsm)) {
 					// TODO: not supported
 				} else if (cell->is_mem_cell()) {
 					// Skip — will be handled below.
-				} else if (cell->type == ID::$lut) {
+				} else if (cell->type == ID($lut)) {
 					// Zero-width LUT is just a const driver.
 					if (cell->getParam(ID::WIDTH).as_int() == 0) {
 						module->connect(cell->getPort(ID::Y), cell->getParam(ID::LUT)[0]);
 						module->remove(cell);
 					}
-				} else if (cell->type == ID::$sop) {
+				} else if (cell->type == ID($sop)) {
 					// Zero-width SOP is just a const driver.
 					if (cell->getParam(ID::WIDTH).as_int() == 0) {
 						// The value is 1 iff DEPTH is non-0.
@@ -129,7 +129,7 @@ struct CleanZeroWidthPass : public Pass {
 					// A and B to 1-bit if their width is 0.
 					if (cell->getParam(ID::Y_WIDTH).as_int() == 0) {
 						module->remove(cell);
-					} else if (cell->type.in(ID::$macc, ID::$macc_v2)) {
+					} else if (cell->type.in(ID($macc), ID($macc_v2))) {
 						// TODO: fixing zero-width A and B not supported.
 					} else {
 						if (cell->getParam(ID::A_WIDTH).as_int() == 0) {

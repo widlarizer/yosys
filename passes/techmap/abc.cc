@@ -467,7 +467,7 @@ bool AbcModuleState::extract_cell(const AbcSigMap &assign_map, RTLIL::Module *mo
 		return true;
 	}
 
-	if (cell->type.in(ID::$_BUF_, ID::$_NOT_))
+	if (cell->type.in(ID($_BUF_), ID($_NOT_)))
 	{
 		RTLIL::SigSpec sig_a = cell->getPort(ID::A);
 		RTLIL::SigSpec sig_y = cell->getPort(ID::Y);
@@ -475,13 +475,13 @@ bool AbcModuleState::extract_cell(const AbcSigMap &assign_map, RTLIL::Module *mo
 		assign_map.apply(sig_a);
 		assign_map.apply(sig_y);
 
-		map_signal(assign_map, sig_y, cell->type == ID::$_BUF_ ? G(BUF) : G(NOT), map_signal(assign_map, sig_a));
+		map_signal(assign_map, sig_y, cell->type == ID($_BUF_) ? G(BUF) : G(NOT), map_signal(assign_map, sig_a));
 
 		module->remove(cell);
 		return true;
 	}
 
-	if (cell->type.in(ID::$_AND_, ID::$_NAND_, ID::$_OR_, ID::$_NOR_, ID::$_XOR_, ID::$_XNOR_, ID::$_ANDNOT_, ID::$_ORNOT_))
+	if (cell->type.in(ID($_AND_), ID($_NAND_), ID($_OR_), ID($_NOR_), ID($_XOR_), ID($_XNOR_), ID($_ANDNOT_), ID($_ORNOT_)))
 	{
 		RTLIL::SigSpec sig_a = cell->getPort(ID::A);
 		RTLIL::SigSpec sig_b = cell->getPort(ID::B);
@@ -494,21 +494,21 @@ bool AbcModuleState::extract_cell(const AbcSigMap &assign_map, RTLIL::Module *mo
 		int mapped_a = map_signal(assign_map, sig_a);
 		int mapped_b = map_signal(assign_map, sig_b);
 
-		if (cell->type == ID::$_AND_)
+		if (cell->type == ID($_AND_))
 			map_signal(assign_map, sig_y, G(AND), mapped_a, mapped_b);
-		else if (cell->type == ID::$_NAND_)
+		else if (cell->type == ID($_NAND_))
 			map_signal(assign_map, sig_y, G(NAND), mapped_a, mapped_b);
-		else if (cell->type == ID::$_OR_)
+		else if (cell->type == ID($_OR_))
 			map_signal(assign_map, sig_y, G(OR), mapped_a, mapped_b);
-		else if (cell->type == ID::$_NOR_)
+		else if (cell->type == ID($_NOR_))
 			map_signal(assign_map, sig_y, G(NOR), mapped_a, mapped_b);
-		else if (cell->type == ID::$_XOR_)
+		else if (cell->type == ID($_XOR_))
 			map_signal(assign_map, sig_y, G(XOR), mapped_a, mapped_b);
-		else if (cell->type == ID::$_XNOR_)
+		else if (cell->type == ID($_XNOR_))
 			map_signal(assign_map, sig_y, G(XNOR), mapped_a, mapped_b);
-		else if (cell->type == ID::$_ANDNOT_)
+		else if (cell->type == ID($_ANDNOT_))
 			map_signal(assign_map, sig_y, G(ANDNOT), mapped_a, mapped_b);
-		else if (cell->type == ID::$_ORNOT_)
+		else if (cell->type == ID($_ORNOT_))
 			map_signal(assign_map, sig_y, G(ORNOT), mapped_a, mapped_b);
 		else
 			log_abort();
@@ -517,7 +517,7 @@ bool AbcModuleState::extract_cell(const AbcSigMap &assign_map, RTLIL::Module *mo
 		return true;
 	}
 
-	if (cell->type.in(ID::$_MUX_, ID::$_NMUX_))
+	if (cell->type.in(ID($_MUX_), ID($_NMUX_)))
 	{
 		RTLIL::SigSpec sig_a = cell->getPort(ID::A);
 		RTLIL::SigSpec sig_b = cell->getPort(ID::B);
@@ -533,13 +533,13 @@ bool AbcModuleState::extract_cell(const AbcSigMap &assign_map, RTLIL::Module *mo
 		int mapped_b = map_signal(assign_map, sig_b);
 		int mapped_s = map_signal(assign_map, sig_s);
 
-		map_signal(assign_map, sig_y, cell->type == ID::$_MUX_ ? G(MUX) : G(NMUX), mapped_a, mapped_b, mapped_s);
+		map_signal(assign_map, sig_y, cell->type == ID($_MUX_) ? G(MUX) : G(NMUX), mapped_a, mapped_b, mapped_s);
 
 		module->remove(cell);
 		return true;
 	}
 
-	if (cell->type.in(ID::$_AOI3_, ID::$_OAI3_))
+	if (cell->type.in(ID($_AOI3_), ID($_OAI3_)))
 	{
 		RTLIL::SigSpec sig_a = cell->getPort(ID::A);
 		RTLIL::SigSpec sig_b = cell->getPort(ID::B);
@@ -555,13 +555,13 @@ bool AbcModuleState::extract_cell(const AbcSigMap &assign_map, RTLIL::Module *mo
 		int mapped_b = map_signal(assign_map, sig_b);
 		int mapped_c = map_signal(assign_map, sig_c);
 
-		map_signal(assign_map, sig_y, cell->type == ID::$_AOI3_ ? G(AOI3) : G(OAI3), mapped_a, mapped_b, mapped_c);
+		map_signal(assign_map, sig_y, cell->type == ID($_AOI3_) ? G(AOI3) : G(OAI3), mapped_a, mapped_b, mapped_c);
 
 		module->remove(cell);
 		return true;
 	}
 
-	if (cell->type.in(ID::$_AOI4_, ID::$_OAI4_))
+	if (cell->type.in(ID($_AOI4_), ID($_OAI4_)))
 	{
 		RTLIL::SigSpec sig_a = cell->getPort(ID::A);
 		RTLIL::SigSpec sig_b = cell->getPort(ID::B);
@@ -580,7 +580,7 @@ bool AbcModuleState::extract_cell(const AbcSigMap &assign_map, RTLIL::Module *mo
 		int mapped_c = map_signal(assign_map, sig_c);
 		int mapped_d = map_signal(assign_map, sig_d);
 
-		map_signal(assign_map, sig_y, cell->type == ID::$_AOI4_ ? G(AOI4) : G(OAI4), mapped_a, mapped_b, mapped_c, mapped_d);
+		map_signal(assign_map, sig_y, cell->type == ID($_AOI4_) ? G(AOI4) : G(OAI4), mapped_a, mapped_b, mapped_c, mapped_d);
 
 		module->remove(cell);
 		return true;
@@ -1473,42 +1473,42 @@ void emit_global_input_files(const AbcConfig &config)
 			log_error("Opening %s for writing failed: %s\n", buffer.c_str(), strerror(errno));
 		fprintf(f, "GATE ZERO    1 Y=CONST0;\n");
 		fprintf(f, "GATE ONE     1 Y=CONST1;\n");
-		fprintf(f, "GATE BUF    %d Y=A;                  PIN * NONINV  1 999 1 0 1 0\n", cell_cost.at(ID::$_BUF_));
-		fprintf(f, "GATE NOT    %d Y=!A;                 PIN * INV     1 999 1 0 1 0\n", cell_cost.at(ID::$_NOT_));
+		fprintf(f, "GATE BUF    %d Y=A;                  PIN * NONINV  1 999 1 0 1 0\n", cell_cost.at(ID($_BUF_)));
+		fprintf(f, "GATE NOT    %d Y=!A;                 PIN * INV     1 999 1 0 1 0\n", cell_cost.at(ID($_NOT_)));
 		if (config.enabled_gates.count("AND"))
-			fprintf(f, "GATE AND    %d Y=A*B;                PIN * NONINV  1 999 1 0 1 0\n", cell_cost.at(ID::$_AND_));
+			fprintf(f, "GATE AND    %d Y=A*B;                PIN * NONINV  1 999 1 0 1 0\n", cell_cost.at(ID($_AND_)));
 		if (config.enabled_gates.count("NAND"))
-			fprintf(f, "GATE NAND   %d Y=!(A*B);             PIN * INV     1 999 1 0 1 0\n", cell_cost.at(ID::$_NAND_));
+			fprintf(f, "GATE NAND   %d Y=!(A*B);             PIN * INV     1 999 1 0 1 0\n", cell_cost.at(ID($_NAND_)));
 		if (config.enabled_gates.count("OR"))
-			fprintf(f, "GATE OR     %d Y=A+B;                PIN * NONINV  1 999 1 0 1 0\n", cell_cost.at(ID::$_OR_));
+			fprintf(f, "GATE OR     %d Y=A+B;                PIN * NONINV  1 999 1 0 1 0\n", cell_cost.at(ID($_OR_)));
 		if (config.enabled_gates.count("NOR"))
-			fprintf(f, "GATE NOR    %d Y=!(A+B);             PIN * INV     1 999 1 0 1 0\n", cell_cost.at(ID::$_NOR_));
+			fprintf(f, "GATE NOR    %d Y=!(A+B);             PIN * INV     1 999 1 0 1 0\n", cell_cost.at(ID($_NOR_)));
 		if (config.enabled_gates.count("XOR"))
-			fprintf(f, "GATE XOR    %d Y=(A*!B)+(!A*B);      PIN * UNKNOWN 1 999 1 0 1 0\n", cell_cost.at(ID::$_XOR_));
+			fprintf(f, "GATE XOR    %d Y=(A*!B)+(!A*B);      PIN * UNKNOWN 1 999 1 0 1 0\n", cell_cost.at(ID($_XOR_)));
 		if (config.enabled_gates.count("XNOR"))
-			fprintf(f, "GATE XNOR   %d Y=(A*B)+(!A*!B);      PIN * UNKNOWN 1 999 1 0 1 0\n", cell_cost.at(ID::$_XNOR_));
+			fprintf(f, "GATE XNOR   %d Y=(A*B)+(!A*!B);      PIN * UNKNOWN 1 999 1 0 1 0\n", cell_cost.at(ID($_XNOR_)));
 		if (config.enabled_gates.count("ANDNOT"))
-			fprintf(f, "GATE ANDNOT %d Y=A*!B;               PIN * UNKNOWN 1 999 1 0 1 0\n", cell_cost.at(ID::$_ANDNOT_));
+			fprintf(f, "GATE ANDNOT %d Y=A*!B;               PIN * UNKNOWN 1 999 1 0 1 0\n", cell_cost.at(ID($_ANDNOT_)));
 		if (config.enabled_gates.count("ORNOT"))
-			fprintf(f, "GATE ORNOT  %d Y=A+!B;               PIN * UNKNOWN 1 999 1 0 1 0\n", cell_cost.at(ID::$_ORNOT_));
+			fprintf(f, "GATE ORNOT  %d Y=A+!B;               PIN * UNKNOWN 1 999 1 0 1 0\n", cell_cost.at(ID($_ORNOT_)));
 		if (config.enabled_gates.count("AOI3"))
-			fprintf(f, "GATE AOI3   %d Y=!((A*B)+C);         PIN * INV     1 999 1 0 1 0\n", cell_cost.at(ID::$_AOI3_));
+			fprintf(f, "GATE AOI3   %d Y=!((A*B)+C);         PIN * INV     1 999 1 0 1 0\n", cell_cost.at(ID($_AOI3_)));
 		if (config.enabled_gates.count("OAI3"))
-			fprintf(f, "GATE OAI3   %d Y=!((A+B)*C);         PIN * INV     1 999 1 0 1 0\n", cell_cost.at(ID::$_OAI3_));
+			fprintf(f, "GATE OAI3   %d Y=!((A+B)*C);         PIN * INV     1 999 1 0 1 0\n", cell_cost.at(ID($_OAI3_)));
 		if (config.enabled_gates.count("AOI4"))
-			fprintf(f, "GATE AOI4   %d Y=!((A*B)+(C*D));     PIN * INV     1 999 1 0 1 0\n", cell_cost.at(ID::$_AOI4_));
+			fprintf(f, "GATE AOI4   %d Y=!((A*B)+(C*D));     PIN * INV     1 999 1 0 1 0\n", cell_cost.at(ID($_AOI4_)));
 		if (config.enabled_gates.count("OAI4"))
-			fprintf(f, "GATE OAI4   %d Y=!((A+B)*(C+D));     PIN * INV     1 999 1 0 1 0\n", cell_cost.at(ID::$_OAI4_));
+			fprintf(f, "GATE OAI4   %d Y=!((A+B)*(C+D));     PIN * INV     1 999 1 0 1 0\n", cell_cost.at(ID($_OAI4_)));
 		if (config.enabled_gates.count("MUX"))
-			fprintf(f, "GATE MUX    %d Y=(A*B)+(S*B)+(!S*A); PIN * UNKNOWN 1 999 1 0 1 0\n", cell_cost.at(ID::$_MUX_));
+			fprintf(f, "GATE MUX    %d Y=(A*B)+(S*B)+(!S*A); PIN * UNKNOWN 1 999 1 0 1 0\n", cell_cost.at(ID($_MUX_)));
 		if (config.enabled_gates.count("NMUX"))
-			fprintf(f, "GATE NMUX   %d Y=!((A*B)+(S*B)+(!S*A)); PIN * UNKNOWN 1 999 1 0 1 0\n", cell_cost.at(ID::$_NMUX_));
+			fprintf(f, "GATE NMUX   %d Y=!((A*B)+(S*B)+(!S*A)); PIN * UNKNOWN 1 999 1 0 1 0\n", cell_cost.at(ID($_NMUX_)));
 		if (config.map_mux4)
-			fprintf(f, "GATE MUX4   %d Y=(!S*!T*A)+(S*!T*B)+(!S*T*C)+(S*T*D); PIN * UNKNOWN 1 999 1 0 1 0\n", 2*cell_cost.at(ID::$_MUX_));
+			fprintf(f, "GATE MUX4   %d Y=(!S*!T*A)+(S*!T*B)+(!S*T*C)+(S*T*D); PIN * UNKNOWN 1 999 1 0 1 0\n", 2*cell_cost.at(ID($_MUX_)));
 		if (config.map_mux8)
-			fprintf(f, "GATE MUX8   %d Y=(!S*!T*!U*A)+(S*!T*!U*B)+(!S*T*!U*C)+(S*T*!U*D)+(!S*!T*U*E)+(S*!T*U*F)+(!S*T*U*G)+(S*T*U*H); PIN * UNKNOWN 1 999 1 0 1 0\n", 4*cell_cost.at(ID::$_MUX_));
+			fprintf(f, "GATE MUX8   %d Y=(!S*!T*!U*A)+(S*!T*!U*B)+(!S*T*!U*C)+(S*T*!U*D)+(!S*!T*U*E)+(S*!T*U*F)+(!S*T*U*G)+(S*T*U*H); PIN * UNKNOWN 1 999 1 0 1 0\n", 4*cell_cost.at(ID($_MUX_)));
 		if (config.map_mux16)
-			fprintf(f, "GATE MUX16  %d Y=(!S*!T*!U*!V*A)+(S*!T*!U*!V*B)+(!S*T*!U*!V*C)+(S*T*!U*!V*D)+(!S*!T*U*!V*E)+(S*!T*U*!V*F)+(!S*T*U*!V*G)+(S*T*U*!V*H)+(!S*!T*!U*V*I)+(S*!T*!U*V*J)+(!S*T*!U*V*K)+(S*T*!U*V*L)+(!S*!T*U*V*M)+(S*!T*U*V*N)+(!S*T*U*V*O)+(S*T*U*V*P); PIN * UNKNOWN 1 999 1 0 1 0\n", 8*cell_cost.at(ID::$_MUX_));
+			fprintf(f, "GATE MUX16  %d Y=(!S*!T*!U*!V*A)+(S*!T*!U*!V*B)+(!S*T*!U*!V*C)+(S*T*!U*!V*D)+(!S*!T*U*!V*E)+(S*!T*U*!V*F)+(!S*T*U*!V*G)+(S*T*U*!V*H)+(!S*!T*!U*V*I)+(S*!T*!U*V*J)+(!S*T*!U*V*K)+(S*T*!U*V*L)+(!S*!T*U*V*M)+(S*!T*U*V*N)+(!S*T*U*V*O)+(S*T*U*V*P); PIN * UNKNOWN 1 999 1 0 1 0\n", 8*cell_cost.at(ID($_MUX_)));
 		fclose(f);
 	}
 }
@@ -1531,7 +1531,7 @@ void AbcModuleState::extract(AbcSigMap &assign_map, RTLIL::Design *design, RTLIL
 
 	bool builtin_lib = run_abc.config.liberty_files.empty() && run_abc.config.genlib_files.empty();
 	RTLIL::Design *mapped_design = new RTLIL::Design;
-	parse_blif(mapped_design, ifs, builtin_lib ? ID::DFF : ID::_dff_, false, run_abc.config.sop_mode);
+	parse_blif(mapped_design, ifs, builtin_lib ? ID(DFF) : ID(_dff_), false, run_abc.config.sop_mode);
 
 	ifs.close();
 
@@ -1559,15 +1559,15 @@ void AbcModuleState::extract(AbcSigMap &assign_map, RTLIL::Design *design, RTLIL
 		if (builtin_lib)
 		{
 			cell_stats[c->type.unescape()]++;
-			if (c->type.in(ID::ZERO, ID::ONE)) {
+			if (c->type.in(ID(ZERO), ID(ONE))) {
 				RTLIL::SigSig conn;
 				TwineRef name_y = rn(c->getPort(ID::Y).as_wire()->name);
 				conn.first = module->wire(name_y);
-				conn.second = RTLIL::SigSpec(c->type == ID::ZERO ? 0 : 1, 1);
+				conn.second = RTLIL::SigSpec(c->type == ID(ZERO) ? 0 : 1, 1);
 				connect(assign_map, module, conn);
 				continue;
 			}
-			if (c->type == ID::BUF) {
+			if (c->type == ID(BUF)) {
 				RTLIL::SigSig conn;
 				TwineRef name_y = rn(c->getPort(ID::Y).as_wire()->name);
 				TwineRef name_a = rn(c->getPort(ID::A).as_wire()->name);
@@ -1576,7 +1576,7 @@ void AbcModuleState::extract(AbcSigMap &assign_map, RTLIL::Design *design, RTLIL
 				connect(assign_map, module, conn);
 				continue;
 			}
-			if (c->type == ID::NOT) {
+			if (c->type == ID(NOT)) {
 				RTLIL::Cell *cell = module->addCell(rn(c->name), ID::$_NOT_);
 				if (markgroups) cell->attributes[ID::abcgroup] = map_autoidx;
 				for (auto name : {ID::A, ID::Y}) {
@@ -1586,7 +1586,7 @@ void AbcModuleState::extract(AbcSigMap &assign_map, RTLIL::Design *design, RTLIL
 				design->select(module, cell);
 				continue;
 			}
-			if (c->type.in(ID::AND, ID::OR, ID::XOR, ID::NAND, ID::NOR, ID::XNOR, ID::ANDNOT, ID::ORNOT)) {
+			if (c->type.in(ID(AND), ID(OR), ID(XOR), ID(NAND), ID(NOR), ID(XNOR), ID(ANDNOT), ID(ORNOT))) {
 				RTLIL::Cell *cell = module->addCell(rn(c->name), Twine{stringf("$_%s_", c->type.unescape().c_str())});
 				if (markgroups) cell->attributes[ID::abcgroup] = map_autoidx;
 				for (auto name : {ID::A, ID::B, ID::Y}) {
@@ -1596,7 +1596,7 @@ void AbcModuleState::extract(AbcSigMap &assign_map, RTLIL::Design *design, RTLIL
 				design->select(module, cell);
 				continue;
 			}
-			if (c->type.in(ID::MUX, ID::NMUX)) {
+			if (c->type.in(ID(MUX), ID(NMUX))) {
 				RTLIL::Cell *cell = module->addCell(rn(c->name), Twine{stringf("$_%s_", c->type.unescape().c_str())});
 				if (markgroups) cell->attributes[ID::abcgroup] = map_autoidx;
 				for (auto name : {ID::A, ID::B, ID::S, ID::Y}) {
@@ -1606,7 +1606,7 @@ void AbcModuleState::extract(AbcSigMap &assign_map, RTLIL::Design *design, RTLIL
 				design->select(module, cell);
 				continue;
 			}
-			if (c->type == ID::MUX4) {
+			if (c->type == ID(MUX4)) {
 				RTLIL::Cell *cell = module->addCell(rn(c->name), ID::$_MUX4_);
 				if (markgroups) cell->attributes[ID::abcgroup] = map_autoidx;
 				for (auto name : {ID::A, ID::B, ID::C, ID::D, ID::S, ID::T, ID::Y}) {
@@ -1616,7 +1616,7 @@ void AbcModuleState::extract(AbcSigMap &assign_map, RTLIL::Design *design, RTLIL
 				design->select(module, cell);
 				continue;
 			}
-			if (c->type == ID::MUX8) {
+			if (c->type == ID(MUX8)) {
 				RTLIL::Cell *cell = module->addCell(rn(c->name), ID::$_MUX8_);
 				if (markgroups) cell->attributes[ID::abcgroup] = map_autoidx;
 				for (auto name : {ID::A, ID::B, ID::C, ID::D, ID::E, ID::F, ID::G, ID::H, ID::S, ID::T, ID::U, ID::Y}) {
@@ -1626,7 +1626,7 @@ void AbcModuleState::extract(AbcSigMap &assign_map, RTLIL::Design *design, RTLIL
 				design->select(module, cell);
 				continue;
 			}
-			if (c->type == ID::MUX16) {
+			if (c->type == ID(MUX16)) {
 				RTLIL::Cell *cell = module->addCell(rn(c->name), ID::$_MUX16_);
 				if (markgroups) cell->attributes[ID::abcgroup] = map_autoidx;
 				for (auto name : {ID::A, ID::B, ID::C, ID::D, ID::E, ID::F, ID::G, ID::H, ID::I, ID::J, ID::K,
@@ -1637,7 +1637,7 @@ void AbcModuleState::extract(AbcSigMap &assign_map, RTLIL::Design *design, RTLIL
 				design->select(module, cell);
 				continue;
 			}
-			if (c->type.in(ID::AOI3, ID::OAI3)) {
+			if (c->type.in(ID(AOI3), ID(OAI3))) {
 				RTLIL::Cell *cell = module->addCell(rn(c->name), Twine{stringf("$_%s_", c->type.unescape().c_str())});
 				if (markgroups) cell->attributes[ID::abcgroup] = map_autoidx;
 				for (auto name : {ID::A, ID::B, ID::C, ID::Y}) {
@@ -1647,7 +1647,7 @@ void AbcModuleState::extract(AbcSigMap &assign_map, RTLIL::Design *design, RTLIL
 				design->select(module, cell);
 				continue;
 			}
-			if (c->type.in(ID::AOI4, ID::OAI4)) {
+			if (c->type.in(ID(AOI4), ID(OAI4))) {
 				RTLIL::Cell *cell = module->addCell(rn(c->name), Twine{stringf("$_%s_", c->type.unescape().c_str())});
 				if (markgroups) cell->attributes[ID::abcgroup] = map_autoidx;
 				for (auto name : {ID::A, ID::B, ID::C, ID::D, ID::Y}) {
@@ -1657,7 +1657,7 @@ void AbcModuleState::extract(AbcSigMap &assign_map, RTLIL::Design *design, RTLIL
 				design->select(module, cell);
 				continue;
 			}
-			if (c->type == ID::DFF) {
+			if (c->type == ID(DFF)) {
 				log_assert(clk_sig.size() == 1);
 				FfData ff(module, &initvals, module->design->twines.add(remap_name(c->name)));
 				ff.width = 1;
@@ -1701,15 +1701,15 @@ void AbcModuleState::extract(AbcSigMap &assign_map, RTLIL::Design *design, RTLIL
 		else
 			cell_stats[c->type.unescape()]++;
 
-		if (c->type.in(ID::_const0_, ID::_const1_)) {
+		if (c->type.in(ID(_const0_), ID(_const1_))) {
 			RTLIL::SigSig conn;
 			conn.first = module->wire(rn(c->connections().begin()->second.as_wire()->name));
-			conn.second = RTLIL::SigSpec(c->type == ID::_const0_ ? 0 : 1, 1);
+			conn.second = RTLIL::SigSpec(c->type == ID(_const0_) ? 0 : 1, 1);
 			connect(assign_map, module, conn);
 			continue;
 		}
 
-		if (c->type == ID::_dff_) {
+		if (c->type == ID(_dff_)) {
 			log_assert(clk_sig.size() == 1);
 			FfData ff(module, &initvals, module->design->twines.add(remap_name(c->name)));
 			ff.width = 1;
@@ -1747,7 +1747,7 @@ void AbcModuleState::extract(AbcSigMap &assign_map, RTLIL::Design *design, RTLIL
 			continue;
 		}
 
-		if (c->type == ID::$lut && GetSize(c->getPort(ID::A)) == 1 && c->getParam(ID::LUT).as_int() == 2) {
+		if (c->type == ID($lut) && GetSize(c->getPort(ID::A)) == 1 && c->getParam(ID::LUT).as_int() == 2) {
 			SigSpec my_a = module->wire(rn(c->getPort(ID::A).as_wire()->name));
 			SigSpec my_y = module->wire(rn(c->getPort(ID::Y).as_wire()->name));
 			connect(assign_map, module, RTLIL::SigSig(my_a, my_y));

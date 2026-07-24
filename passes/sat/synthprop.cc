@@ -64,7 +64,7 @@ void SynthPropWorker::tracing(RTLIL::Module *mod, int depth, TrackingData &traci
 	tracing_data[mod] = TrackingItem();
 	int cnt = 0;
 	for (auto cell : mod->cells()) {
-		if (cell->type == ID::$assert) {
+		if (cell->type == ID($assert)) {
 			log("%*sFound assert %s..\n", 2*(depth+1), "", cell);
 			tracing_data[mod].assertion_cells.emplace(cell);
 			if (!or_outputs) {
@@ -114,7 +114,7 @@ void SynthPropWorker::run()
 		}
 		pool<Wire*> connected;
 		for (auto cell : data.second.assertion_cells) {
-			if (cell->type == ID::$assert) {
+			if (cell->type == ID($assert)) {
 				RTLIL::Wire *neg_wire = data.first->addWire(NEW_ID);
 				RTLIL::Wire *result_wire = data.first->addWire(NEW_ID);
 				data.first->addNot(NEW_ID, cell->getPort(ID::A), neg_wire);

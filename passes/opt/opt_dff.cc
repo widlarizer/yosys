@@ -100,20 +100,20 @@ struct BitSim {
 
 				if (cell->is_builtin_ff()) {
 					res = next_rand();
-				} else if (cell->type == ID::$_AND_) {
+				} else if (cell->type == ID($_AND_)) {
 					res = eval_bit(cell->getPort(ID::A)[0], depth+1) & eval_bit(cell->getPort(ID::B)[0], depth+1);
-				} else if (cell->type == ID::$_OR_) {
+				} else if (cell->type == ID($_OR_)) {
 					res = eval_bit(cell->getPort(ID::A)[0], depth+1) | eval_bit(cell->getPort(ID::B)[0], depth+1);
-				} else if (cell->type == ID::$_XOR_) {
+				} else if (cell->type == ID($_XOR_)) {
 					res = eval_bit(cell->getPort(ID::A)[0], depth+1) ^ eval_bit(cell->getPort(ID::B)[0], depth+1);
-				} else if (cell->type == ID::$_NOT_) {
+				} else if (cell->type == ID($_NOT_)) {
 					res = ~eval_bit(cell->getPort(ID::A)[0], depth+1);
-				} else if (cell->type == ID::$_MUX_) {
+				} else if (cell->type == ID($_MUX_)) {
 					uint64_t s = eval_bit(cell->getPort(ID::S)[0], depth+1);
 					uint64_t a = eval_bit(cell->getPort(ID::A)[0], depth+1);
 					uint64_t b = eval_bit(cell->getPort(ID::B)[0], depth+1);
 					res = (a & ~s) | (b & s);
-				} else if (cell->type == ID::$mux) {
+				} else if (cell->type == ID($mux)) {
 					uint64_t s = eval_bit(cell->getPort(ID::S)[0], depth+1);
 					uint64_t a = eval_bit(cell->getPort(ID::A)[driver.offset], depth+1);
 					uint64_t b = eval_bit(cell->getPort(ID::B)[driver.offset], depth+1);
@@ -208,7 +208,7 @@ struct OptDffWorker
 					bitusers[bit]++;
 
 		for (auto cell : module->cells()) {
-			if (cell->type.in(ID::$mux, ID::$pmux, ID::$_MUX_)) {
+			if (cell->type.in(ID($mux), ID($pmux), ID($_MUX_))) {
 				RTLIL::SigSpec sig_y = sigmap(cell->getPort(ID::Y));
 				for (int i = 0; i < GetSize(sig_y); i++)
 					bit2mux[sig_y[i]] = cell_int_t(cell, i);

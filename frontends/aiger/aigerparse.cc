@@ -127,7 +127,7 @@ struct ConstEvalAig
 		if (!inputs.count(sig_a))
 			compute_deps(sig_a, inputs);
 
-		if (cell->type == ID::$_AND_) {
+		if (cell->type == ID($_AND_)) {
 			RTLIL::SigSpec sig_b = cell->getPort(ID::B);
 			sig2deps[sig_b].reserve(sig2deps[sig_b].size() + sig2deps[output].size()); // Reserve so that any invalidation
 												   // that may occur does so here, and
@@ -137,7 +137,7 @@ struct ConstEvalAig
 			if (!inputs.count(sig_b))
 				compute_deps(sig_b, inputs);
 		}
-		else if (cell->type == ID::$_NOT_) {
+		else if (cell->type == ID($_NOT_)) {
 		}
 		else log_abort();
 	}
@@ -153,11 +153,11 @@ struct ConstEvalAig
 			return false;
 
 		RTLIL::State eval_ret = RTLIL::Sx;
-		if (cell->type == ID::$_NOT_) {
+		if (cell->type == ID($_NOT_)) {
 			if (sig_a == State::S0) eval_ret = State::S1;
 			else if (sig_a == State::S1) eval_ret = State::S0;
 		}
-		else if (cell->type == ID::$_AND_) {
+		else if (cell->type == ID($_AND_)) {
 			if (sig_a == State::S0) {
 				eval_ret = State::S0;
 				goto eval_end;
@@ -863,7 +863,7 @@ void AigerReader::post_process()
 {
 	unsigned ci_count = 0, co_count = 0;
 	for (auto cell : boxes) {
-		for (auto &bit : cell->connections_.at(ID::i)) {
+		for (auto &bit : cell->connections_.at(ID(i))) {
 			log_assert(bit == State::S0);
 			log_assert(co_count < outputs.size());
 			bit = outputs[co_count++];
@@ -871,7 +871,7 @@ void AigerReader::post_process()
 			log_assert(bit.wire->port_output);
 			bit.wire->port_output = false;
 		}
-		for (auto &bit : cell->connections_.at(ID::o)) {
+		for (auto &bit : cell->connections_.at(ID(o))) {
 			log_assert(bit == State::S0);
 			log_assert((piNum + ci_count) < inputs.size());
 			bit = inputs[piNum + ci_count++];
@@ -907,7 +907,7 @@ void AigerReader::post_process()
 	Pass::call_on_module(design, module, "clean");
 
 	for (auto cell : module->cells().to_vector()) {
-		if (cell->type != ID::$lut) continue;
+		if (cell->type != ID($lut)) continue;
 		auto y_port = cell->getPort(ID::Y).as_bit();
 		if (y_port.wire->width == 1)
 			module->rename(cell, design->twines.add(std::string{stringf("$lut%s", design->twines.str(y_port.wire->meta_->name).c_str())}));

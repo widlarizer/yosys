@@ -39,9 +39,9 @@ static void fix_carry_chain(Module *module)
 
 	for (auto cell : module->cells())
 	{
-		if (cell->type == ID::EFX_ADD) {
-			SigBit bit_i0 = get_bit_or_zero(cell->getPort(ID::I0));
-			SigBit bit_i1 = get_bit_or_zero(cell->getPort(ID::I1));
+		if (cell->type == ID(EFX_ADD)) {
+			SigBit bit_i0 = get_bit_or_zero(cell->getPort(ID(I0)));
+			SigBit bit_i1 = get_bit_or_zero(cell->getPort(ID(I1)));
 			if (bit_i0 == State::S0 && bit_i1== State::S0) {
 				SigBit bit_ci = get_bit_or_zero(cell->getPort(ID::CI));
 				SigBit bit_o = sigmap(cell->getPort(ID::O));
@@ -54,10 +54,10 @@ static void fix_carry_chain(Module *module)
 	vector<Cell*> adders_to_fix_cells;
 	for (auto cell : module->cells())
 	{
-		if (cell->type == ID::EFX_ADD) {
+		if (cell->type == ID(EFX_ADD)) {
 			SigBit bit_ci = get_bit_or_zero(cell->getPort(ID::CI));
-			SigBit bit_i0 = get_bit_or_zero(cell->getPort(ID::I0));
-			SigBit bit_i1 = get_bit_or_zero(cell->getPort(ID::I1));
+			SigBit bit_i0 = get_bit_or_zero(cell->getPort(ID(I0)));
+			SigBit bit_i1 = get_bit_or_zero(cell->getPort(ID(I1)));
 			SigBit canonical_bit = sigmap(bit_ci);
 			if (!ci_bits.count(canonical_bit))
 				continue;
@@ -77,10 +77,10 @@ static void fix_carry_chain(Module *module)
 		log("Fixing %s cell named %s breaking carry chain.\n", cell->type.unescaped(), cell);
 		Cell *c = module->addCell(NEW_ID, module->design->twines.add(std::string{"\\EFX_ADD"}));
 		SigBit new_bit = module->addWire(NEW_ID);
-		c->setParam(ID::I0_POLARITY, State::S1);
-		c->setParam(ID::I1_POLARITY, State::S1);
-		c->setPort(ID::I0, bit);
-		c->setPort(ID::I1, State::S1);
+		c->setParam(ID(I0_POLARITY), State::S1);
+		c->setParam(ID(I1_POLARITY), State::S1);
+		c->setPort(ID(I0), bit);
+		c->setPort(ID(I1), State::S1);
 		c->setPort(ID::CI, State::S0);
 		c->setPort(ID::CO, new_bit);
 		

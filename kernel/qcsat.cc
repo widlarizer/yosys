@@ -77,25 +77,25 @@ void QuickConeSat::prepare()
 
 int QuickConeSat::cell_complexity(RTLIL::Cell *cell)
 {
-	if (cell->type.in(ID::$concat, ID::$slice, ID::$pos, ID::$buf, ID::$_BUF_))
+	if (cell->type.in(ID($concat), ID($slice), ID($pos), ID($buf), ID($_BUF_)))
 		return 0;
-	if (cell->type.in(ID::$not, ID::$and, ID::$or, ID::$xor, ID::$xnor,
-			ID::$reduce_and, ID::$reduce_or, ID::$reduce_xor,
-			ID::$reduce_xnor, ID::$reduce_bool,
-			ID::$logic_not, ID::$logic_and, ID::$logic_or,
-			ID::$eq, ID::$ne, ID::$eqx, ID::$nex, ID::$fa,
-			ID::$mux, ID::$pmux, ID::$bmux, ID::$demux, ID::$lut, ID::$sop,
-			ID::$_NOT_, ID::$_AND_, ID::$_NAND_, ID::$_OR_, ID::$_NOR_,
-			ID::$_XOR_, ID::$_XNOR_, ID::$_ANDNOT_, ID::$_ORNOT_,
-			ID::$_MUX_, ID::$_NMUX_, ID::$_MUX4_, ID::$_MUX8_, ID::$_MUX16_,
-			ID::$_AOI3_, ID::$_OAI3_, ID::$_AOI4_, ID::$_OAI4_))
+	if (cell->type.in(ID($not), ID($and), ID($or), ID($xor), ID($xnor),
+			ID($reduce_and), ID($reduce_or), ID($reduce_xor),
+			ID($reduce_xnor), ID($reduce_bool),
+			ID($logic_not), ID($logic_and), ID($logic_or),
+			ID($eq), ID($ne), ID($eqx), ID($nex), ID($fa),
+			ID($mux), ID($pmux), ID($bmux), ID($demux), ID($lut), ID($sop),
+			ID($_NOT_), ID($_AND_), ID($_NAND_), ID($_OR_), ID($_NOR_),
+			ID($_XOR_), ID($_XNOR_), ID($_ANDNOT_), ID($_ORNOT_),
+			ID($_MUX_), ID($_NMUX_), ID($_MUX4_), ID($_MUX8_), ID($_MUX16_),
+			ID($_AOI3_), ID($_OAI3_), ID($_AOI4_), ID($_OAI4_)))
 		return 1;
-	if (cell->type.in(ID::$neg, ID::$add, ID::$sub, ID::$alu, ID::$lcu,
-			ID::$lt, ID::$le, ID::$gt, ID::$ge))
+	if (cell->type.in(ID($neg), ID($add), ID($sub), ID($alu), ID($lcu),
+			ID($lt), ID($le), ID($gt), ID($ge)))
 		return 2;
-	if (cell->type.in(ID::$shl, ID::$shr, ID::$sshl, ID::$sshr, ID::$shift, ID::$shiftx))
+	if (cell->type.in(ID($shl), ID($shr), ID($sshl), ID($sshr), ID($shift), ID($shiftx)))
 		return 3;
-	if (cell->type.in(ID::$mul, ID::$macc, ID::$div, ID::$mod, ID::$divfloor, ID::$modfloor, ID::$pow))
+	if (cell->type.in(ID($mul), ID($macc), ID($div), ID($mod), ID($divfloor), ID($modfloor), ID($pow)))
 		return 4;
 	// Unknown cell.
 	return 5;

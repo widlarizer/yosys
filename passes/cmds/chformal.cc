@@ -26,48 +26,48 @@ PRIVATE_NAMESPACE_BEGIN
 
 static TwineRef formal_flavor(RTLIL::Cell *cell)
 {
-	if (cell->type != ID::$check)
+	if (cell->type != ID($check))
 		return cell->type_impl;
 
-	std::string flavor_param = cell->getParam(ID::FLAVOR).decode_string();
+	std::string flavor_param = cell->getParam(ID(FLAVOR)).decode_string();
 	if (flavor_param == "assert")
-		return ID::$assert;
+		return ID($assert);
 	else if (flavor_param == "assume")
-		return ID::$assume;
+		return ID($assume);
 	else if (flavor_param == "cover")
-		return ID::$cover;
+		return ID($cover);
 	else if (flavor_param == "live")
-		return ID::$live;
+		return ID($live);
 	else if (flavor_param == "fair")
-		return ID::$fair;
+		return ID($fair);
 	else
 		log_abort();
 }
 
 static void set_formal_flavor(RTLIL::Cell *cell, TwineRef flavor)
 {
-	if (cell->type != ID::$check) {
+	if (cell->type != ID($check)) {
 		cell->type_impl = flavor;
 		return;
 	}
 
-	if (flavor == ID::$assert)
-		cell->setParam(ID::FLAVOR, std::string("assert"));
-	else if (flavor == ID::$assume)
-		cell->setParam(ID::FLAVOR, std::string("assume"));
-	else if (flavor == ID::$cover)
-		cell->setParam(ID::FLAVOR, std::string("cover"));
-	else if (flavor == ID::$live)
-		cell->setParam(ID::FLAVOR, std::string("live"));
-	else if (flavor == ID::$fair)
-		cell->setParam(ID::FLAVOR, std::string("fair"));
+	if (flavor == ID($assert))
+		cell->setParam(ID(FLAVOR), std::string("assert"));
+	else if (flavor == ID($assume))
+		cell->setParam(ID(FLAVOR), std::string("assume"));
+	else if (flavor == ID($cover))
+		cell->setParam(ID(FLAVOR), std::string("cover"));
+	else if (flavor == ID($live))
+		cell->setParam(ID(FLAVOR), std::string("live"));
+	else if (flavor == ID($fair))
+		cell->setParam(ID(FLAVOR), std::string("fair"));
 	else
 		log_abort();
 }
 
 static bool is_triggered_check_cell(RTLIL::Cell * cell)
 {
-	return cell->type == ID::$check && cell->getParam(ID::TRG_ENABLE).as_bool();
+	return cell->type == ID($check) && cell->getParam(ID(TRG_ENABLE)).as_bool();
 }
 
 struct ChformalPass : public Pass {
@@ -144,23 +144,23 @@ struct ChformalPass : public Pass {
 		for (argidx = 1; argidx < args.size(); argidx++)
 		{
 			if (args[argidx] == "-assert") {
-				constr_types.insert(ID::$assert);
+				constr_types.insert(ID($assert));
 				continue;
 			}
 			if (args[argidx] == "-assume") {
-				constr_types.insert(ID::$assume);
+				constr_types.insert(ID($assume));
 				continue;
 			}
 			if (args[argidx] == "-live") {
-				constr_types.insert(ID::$live);
+				constr_types.insert(ID($live));
 				continue;
 			}
 			if (args[argidx] == "-fair") {
-				constr_types.insert(ID::$fair);
+				constr_types.insert(ID($fair));
 				continue;
 			}
 			if (args[argidx] == "-cover") {
-				constr_types.insert(ID::$cover);
+				constr_types.insert(ID($cover));
 				continue;
 			}
 			if (mode == 0 && args[argidx] == "-remove") {
@@ -219,11 +219,11 @@ struct ChformalPass : public Pass {
 		extra_args(args, argidx, design);
 
 		if (constr_types.empty()) {
-			constr_types.insert(ID::$assert);
-			constr_types.insert(ID::$assume);
-			constr_types.insert(ID::$live);
-			constr_types.insert(ID::$fair);
-			constr_types.insert(ID::$cover);
+			constr_types.insert(ID($assert));
+			constr_types.insert(ID($assume));
+			constr_types.insert(ID($live));
+			constr_types.insert(ID($fair));
+			constr_types.insert(ID($cover));
 		}
 
 		if (assert2assume && assert2cover) {
@@ -271,13 +271,13 @@ struct ChformalPass : public Pass {
 
 				for (auto cell : module->selected_cells())
 				{
-					if (cell->type == ID::$ff) {
+					if (cell->type == ID($ff)) {
 						SigSpec D = sigmap(cell->getPort(ID::D));
 						SigSpec Q = sigmap(cell->getPort(ID::Q));
 						for (int i = 0; i < GetSize(D); i++)
 							ffmap[Q[i]] = make_pair(D[i], make_pair(State::Sm, false));
 					}
-					if (cell->type == ID::$dff) {
+					if (cell->type == ID($dff)) {
 						SigSpec D = sigmap(cell->getPort(ID::D));
 						SigSpec Q = sigmap(cell->getPort(ID::Q));
 						SigSpec C = sigmap(cell->getPort(ID::CLK));
@@ -309,8 +309,8 @@ struct ChformalPass : public Pass {
 							break;
 
 						if (!init_zero.count(EN)) {
-							if (flavor == ID::$cover) break;
-							if (flavor.in(ID::$assert, ID::$assume) && !init_one.count(A)) break;
+							if (flavor == ID($cover)) break;
+							if (flavor.in(ID($assert), ID($assume)) && !init_one.count(A)) break;
 						}
 
 						const auto &A_map = ffmap.at(A);
@@ -369,13 +369,13 @@ struct ChformalPass : public Pass {
 			{
 				for (auto cell : constr_cells)
 				{
-					if (cell->type == ID::$check) {
-						Cell *cover = module->addCell(NEW_ID_SUFFIX("coverenable"), ID::$check);
+					if (cell->type == ID($check)) {
+						Cell *cover = module->addCell(NEW_ID_SUFFIX("coverenable"), ID($check));
 						cover->attributes = cell->attributes;
 						if (cell->src_id() != Twine::Null && module->design)
 							cover->set_src_id(cell->src_id());
 						cover->parameters = cell->parameters;
-						cover->setParam(ID::FLAVOR, Const("cover"));
+						cover->setParam(ID(FLAVOR), Const("cover"));
 
 						for (auto const &conn : cell->connections())
 							if (conn.first != ID::A && conn.first != ID::EN)
@@ -393,23 +393,23 @@ struct ChformalPass : public Pass {
 			{
 				for (auto cell : constr_cells) {
 					TwineRef flavor = formal_flavor(cell);
-					if (assert2assume && flavor == ID::$assert)
-						set_formal_flavor(cell, ID::$assume);
-					if (assert2cover && flavor == ID::$assert)
-						set_formal_flavor(cell, ID::$cover);
-					else if (assume2assert && flavor == ID::$assume)
-						set_formal_flavor(cell, ID::$assert);
-					else if (live2fair && flavor == ID::$live)
-						set_formal_flavor(cell, ID::$fair);
-					else if (fair2live && flavor == ID::$fair)
-						set_formal_flavor(cell, ID::$live);
+					if (assert2assume && flavor == ID($assert))
+						set_formal_flavor(cell, ID($assume));
+					if (assert2cover && flavor == ID($assert))
+						set_formal_flavor(cell, ID($cover));
+					else if (assume2assert && flavor == ID($assume))
+						set_formal_flavor(cell, ID($assert));
+					else if (live2fair && flavor == ID($live))
+						set_formal_flavor(cell, ID($fair));
+					else if (fair2live && flavor == ID($fair))
+						set_formal_flavor(cell, ID($live));
 				}
 			}
 			else
 			if (mode == 'l')
 			{
 				for (auto cell : constr_cells) {
-					if (cell->type != ID::$check)
+					if (cell->type != ID($check))
 						continue;
 
 					if (is_triggered_check_cell(cell))
@@ -428,7 +428,7 @@ struct ChformalPass : public Pass {
 					plain_cell->setPort(ID::A, sig_a);
 					plain_cell->setPort(ID::EN, sig_en);
 
-					if (plain_cell->type.in(ID::$assert, ID::$assume))
+					if (plain_cell->type.in(ID($assert), ID($assume)))
 						sig_a = module->Not(NEW_ID, sig_a);
 
 					SigBit combined_en = module->And(NEW_ID, sig_a, sig_en);
@@ -441,7 +441,7 @@ struct ChformalPass : public Pass {
 						cell->type_impl = ID::$print;
 						cell->setPort(ID::EN, combined_en);
 						cell->unsetPort(ID::A);
-						cell->unsetParam(ID::FLAVOR);
+						cell->unsetParam(ID(FLAVOR));
 					}
 				}
 			}

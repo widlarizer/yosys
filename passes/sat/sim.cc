@@ -332,7 +332,7 @@ struct SimInstance
 					}
 			}
 
-			if (cell->is_builtin_ff() || cell->type == ID::$anyinit) {
+			if (cell->is_builtin_ff() || cell->type == ID($anyinit)) {
 				FfData ff_data(nullptr, cell);
 				ff_state_t ff;
 				ff.past_d = Const(State::Sx, ff_data.width);
@@ -343,7 +343,7 @@ struct SimInstance
 				ff.data = ff_data;
 				ff_database[cell] = ff;
 
-				if (cell->get_bool_attribute(ID::clk2fflogic)) {
+				if (cell->get_bool_attribute(ID(clk2fflogic))) {
 					for (int i = 0; i < ff_data.width; i++)
 						clk2fflogic_drivers.emplace(sigmap(ff_data.sig_d[i]), sigmap(ff_data.sig_q[i]));
 				}
@@ -358,13 +358,13 @@ struct SimInstance
 					fst_memories[name] = shared->fst->getMemoryHandles(scope + "." + RTLIL::unescape_id(name_str));
 			}
 
-			if (cell->type.in(ID::$assert, ID::$cover, ID::$assume))
+			if (cell->type.in(ID($assert), ID($cover), ID($assume)))
 				formal_database.insert(cell);
 
-			if (cell->type == ID::$initstate)
+			if (cell->type == ID($initstate))
 				initstate_database.insert(cell);
 
-			if (cell->type == ID::$print) {
+			if (cell->type == ID($print)) {
 				print_database.emplace_back();
 				auto &print = print_database.back();
 				print.cell = cell;
@@ -603,7 +603,7 @@ struct SimInstance
 			return;
 		}
 
-		if (cell->type == ID::$print)
+		if (cell->type == ID($print))
 			return;
 
 		if (cell->type == ID::$connect)
@@ -902,7 +902,7 @@ struct SimInstance
 					// initial $print (TRG width = 0, TRG_ENABLE = true)
 					if (!print.initial_done && en != print.past_en)
 						triggered = true;
-				} else if (cell->get_bool_attribute(ID::trg_on_gclk)) {
+				} else if (cell->get_bool_attribute(ID(trg_on_gclk))) {
 					// unified $print for cycle based FV semantics
 					triggered = gclk_trigger;
 				} else {
@@ -941,17 +941,17 @@ struct SimInstance
 				State a = get_state(cell->getPort(ID::A))[0];
 				State en = get_state(cell->getPort(ID::EN))[0];
 
-				if (en == State::S1 && (cell->type == ID::$cover ? a == State::S1 : a != State::S1)) {
+				if (en == State::S1 && (cell->type == ID($cover) ? a == State::S1 : a != State::S1)) {
 					shared->triggered_assertions.emplace_back(shared->step, this, cell);
 				}
 
-				if (cell->type == ID::$cover && en == State::S1 && a == State::S1)
+				if (cell->type == ID($cover) && en == State::S1 && a == State::S1)
 					log("Cover %s.%s (%s) reached.\n", hiername(), cell, label);
 
-				if (cell->type == ID::$assume && en == State::S1 && a != State::S1)
+				if (cell->type == ID($assume) && en == State::S1 && a != State::S1)
 					log("Assumption %s.%s (%s) failed.\n", hiername(), cell, label);
 
-				if (cell->type == ID::$assert && en == State::S1 && a != State::S1) {
+				if (cell->type == ID($assert) && en == State::S1 && a != State::S1) {
 					log_cell_w_hierarchy("Failed assertion", cell);
 					if (shared->serious_asserts)
 						log_error("Assertion %s.%s (%s) failed.\n", hiername(), cell, label);
@@ -1203,7 +1203,7 @@ struct SimInstance
 	{
 		for (auto cell : module->cells())
 		{
-			if (cell->type.in(ID::$anyseq)) {
+			if (cell->type.in(ID($anyseq))) {
 				SigSpec sig_y = sigmap(cell->getPort(ID::Y));
 				if (sig_y.is_wire()) {
 					bool found = false;
@@ -1901,7 +1901,7 @@ struct SimWorker : SimShared
 							Cell *c = topmod->cell(found);
 							if (!c)
 								log_warning("Wire/cell %s not present in module %s\n", unescaped_s, topmod);
-							else if (c->type.in(ID::$anyconst, ID::$anyseq)) {
+							else if (c->type.in(ID($anyconst), ID($anyseq))) {
 								SigSpec sig_y= c->getPort(ID::Y);
 								if ((int)parts[1].size() != GetSize(sig_y))
 									log_error("Size of wire %s is different than provided data.\n", log_signal(sig_y));

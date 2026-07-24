@@ -41,25 +41,25 @@ static void run_ice40_opts(Module *module)
 
 	for (auto cell : module->selected_cells())
 	{
-		if (!cell->type.in(ID::SB_LUT4, ID::SB_CARRY, ID::$__ICE40_CARRY_WRAPPER))
+		if (!cell->type.in(ID(SB_LUT4), ID(SB_CARRY), ID($__ICE40_CARRY_WRAPPER)))
 			continue;
 		if (cell->has_keep_attr())
 			continue;
 
-		if (cell->type == ID::SB_LUT4)
+		if (cell->type == ID(SB_LUT4))
 		{
 			sb_lut_cells.push_back(cell);
 			continue;
 		}
 
-		if (cell->type == ID::SB_CARRY)
+		if (cell->type == ID(SB_CARRY))
 		{
 			SigSpec non_const_inputs, replacement_output;
 			int count_zeros = 0, count_ones = 0;
 
 			SigBit inbit[3] = {
-				get_bit_or_zero(cell->getPort(ID::I0)),
-				get_bit_or_zero(cell->getPort(ID::I1)),
+				get_bit_or_zero(cell->getPort(ID(I0))),
+				get_bit_or_zero(cell->getPort(ID(I1))),
 				get_bit_or_zero(cell->getPort(ID::CI))
 			};
 			for (int i = 0; i < 3; i++)
@@ -89,7 +89,7 @@ static void run_ice40_opts(Module *module)
 			continue;
 		}
 
-		if (cell->type == ID::$__ICE40_CARRY_WRAPPER)
+		if (cell->type == ID($__ICE40_CARRY_WRAPPER))
 		{
 			SigSpec non_const_inputs, replacement_output;
 			int count_zeros = 0, count_ones = 0;
@@ -148,15 +148,15 @@ static void run_ice40_opts(Module *module)
 				cell->unsetPort(ID::A);
 				cell->unsetPort(ID::B);
 				cell->unsetPort(ID::CI);
-				cell->unsetPort(ID::I0);
-				cell->unsetPort(ID::I3);
+				cell->unsetPort(ID(I0));
+				cell->unsetPort(ID(I3));
 				cell->unsetPort(ID::CO);
 				cell->unsetPort(ID::O);
 				cell->type_impl = ID::$lut;
 				cell->setPort(ID::A, std::move(sig_a));
 				cell->setPort(ID::Y, std::move(sig_y));
 				cell->setParam(ID::WIDTH, 4);
-				cell->unsetParam(ID::I3_IS_CI);
+				cell->unsetParam(ID(I3_IS_CI));
 			}
 			continue;
 		}
@@ -166,10 +166,10 @@ static void run_ice40_opts(Module *module)
 	{
 		SigSpec inbits;
 
-		inbits.append(get_bit_or_zero(cell->getPort(ID::I0)));
-		inbits.append(get_bit_or_zero(cell->getPort(ID::I1)));
-		inbits.append(get_bit_or_zero(cell->getPort(ID::I2)));
-		inbits.append(get_bit_or_zero(cell->getPort(ID::I3)));
+		inbits.append(get_bit_or_zero(cell->getPort(ID(I0))));
+		inbits.append(get_bit_or_zero(cell->getPort(ID(I1))));
+		inbits.append(get_bit_or_zero(cell->getPort(ID(I2))));
+		inbits.append(get_bit_or_zero(cell->getPort(ID(I3))));
 		sigmap.apply(inbits);
 
 		if (optimized_co.count(inbits[0])) goto remap_lut;
@@ -186,20 +186,20 @@ static void run_ice40_opts(Module *module)
 
 		cell->type_impl = ID::$lut;
 		cell->setParam(ID::WIDTH, 4);
-		cell->setParam(ID::LUT, cell->getParam(ID::LUT_INIT));
-		cell->unsetParam(ID::LUT_INIT);
+		cell->setParam(ID::LUT, cell->getParam(ID(LUT_INIT)));
+		cell->unsetParam(ID(LUT_INIT));
 
 		cell->setPort(ID::A, SigSpec({
-			get_bit_or_zero(cell->getPort(ID::I3)),
-			get_bit_or_zero(cell->getPort(ID::I2)),
-			get_bit_or_zero(cell->getPort(ID::I1)),
-			get_bit_or_zero(cell->getPort(ID::I0))
+			get_bit_or_zero(cell->getPort(ID(I3))),
+			get_bit_or_zero(cell->getPort(ID(I2))),
+			get_bit_or_zero(cell->getPort(ID(I1))),
+			get_bit_or_zero(cell->getPort(ID(I0)))
 		}));
 		cell->setPort(ID::Y, cell->getPort(ID::O)[0]);
-		cell->unsetPort(ID::I0);
-		cell->unsetPort(ID::I1);
-		cell->unsetPort(ID::I2);
-		cell->unsetPort(ID::I3);
+		cell->unsetPort(ID(I0));
+		cell->unsetPort(ID(I1));
+		cell->unsetPort(ID(I2));
+		cell->unsetPort(ID(I3));
 		cell->unsetPort(ID::O);
 
 		cell->check();

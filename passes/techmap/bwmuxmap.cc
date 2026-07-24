@@ -50,7 +50,7 @@ struct BwmuxmapPass : public Pass {
 		for (auto module : design->selected_modules())
 		for (auto cell : module->selected_cells())
 		{
-			if (cell->type != ID::$bwmux)
+			if (cell->type != ID($bwmux))
 				continue;
 			auto &sig_y = cell->getPort(ID::Y);
 			auto &sig_a = cell->getPort(ID::A);

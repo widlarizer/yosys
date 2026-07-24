@@ -37,11 +37,11 @@ static void nx_carry_chain(Module *module)
 	dict<SigBit,Cell*> carry;
 	for (auto cell : module->cells())
 	{
-		if (cell->type == ID::NX_CY_1BIT) {
-			if (cell->getParam(ID::first).as_int() == 1) continue;
-			if (!cell->hasPort(ID::CI))
+		if (cell->type == ID(NX_CY_1BIT)) {
+			if (cell->getParam(ID(first)).as_int() == 1) continue;
+			if (!cell->hasPort(ID(CI)))
 				log_error("Not able to find connected carry.\n");
-			SigBit ci = sigmap(cell->getPort(ID::CI).as_bit());
+			SigBit ci = sigmap(cell->getPort(ID(CI)).as_bit());
 			carry[ci] = cell;
 		}
 	}
@@ -50,14 +50,14 @@ static void nx_carry_chain(Module *module)
 	log("Detecting carry chains\n");
 	for (auto cell : module->cells())
 	{
-		if (cell->type == ID::NX_CY_1BIT) {
-			if (cell->getParam(ID::first).as_int() == 0) continue;
+		if (cell->type == ID(NX_CY_1BIT)) {
+			if (cell->getParam(ID(first)).as_int() == 0) continue;
 
 			vector<Cell*> chain;
 			Cell *current = cell;
 			chain.push_back(current);
 
-			SigBit co = sigmap(cell->getPort(ID::CO).as_bit());
+			SigBit co = sigmap(cell->getPort(ID(CO)).as_bit());
 			while (co.is_wire())
 			{
 				if (carry.count(co)==0)
@@ -65,8 +65,8 @@ static void nx_carry_chain(Module *module)
 					//log_error("Not able to find connected carry.\n");
 				current = carry[co];
 				chain.push_back(current);
-				if (!current->hasPort(ID::CO)) break;
-				co = sigmap(current->getPort(ID::CO).as_bit());
+				if (!current->hasPort(ID(CO))) break;
+				co = sigmap(current->getPort(ID(CO)).as_bit());
 			}
 			carry_chains[cell] = chain;
 		}
@@ -80,53 +80,53 @@ static void nx_carry_chain(Module *module)
 		TwineRef names_A[] = { ID::A1, ID::A2, ID::A3, ID::A4 };
 		TwineRef names_B[] = { ID::B1, ID::B2, ID::B3, ID::B4 };
 		TwineRef names_S[] = { ID::S1, ID::S2, ID::S3, ID::S4 };
-		if (!c.second.at(0)->getPort(ID::CI).is_fully_const()) {
-			cell = module->addCell(NEW_ID, ID::NX_CY);
-			cell->setParam(ID::add_carry, Const(1,2));
-			cell->setPort(ID::CI, State::S1);
+		if (!c.second.at(0)->getPort(ID(CI)).is_fully_const()) {
+			cell = module->addCell(NEW_ID, ID(NX_CY));
+			cell->setParam(ID(add_carry), Const(1,2));
+			cell->setPort(ID(CI), State::S1);
 
-			cell->setPort(names_A[0], c.second.at(0)->getPort(ID::CI).as_bit());
+			cell->setPort(names_A[0], c.second.at(0)->getPort(ID(CI)).as_bit());
 			cell->setPort(names_B[0], State::S0);
 			j++;
 		}
 
 		for (size_t i=0 ; i<c.second.size(); i++) {
 			if (j==0) {
-				cell = module->addCell(NEW_ID, ID::NX_CY);
-				SigBit ci = c.second.at(i)->getPort(ID::CI).as_bit();
-				cell->setPort(ID::CI, ci);
+				cell = module->addCell(NEW_ID, ID(NX_CY));
+				SigBit ci = c.second.at(i)->getPort(ID(CI)).as_bit();
+				cell->setPort(ID(CI), ci);
 				if (ci.is_wire()) {
-					cell->setParam(ID::add_carry, Const(2,2));
+					cell->setParam(ID(add_carry), Const(2,2));
 				} else {
 					if (ci == State::S0)
-						cell->setParam(ID::add_carry, Const(0,2));
+						cell->setParam(ID(add_carry), Const(0,2));
 					else
-						cell->setParam(ID::add_carry, Const(1,2));
+						cell->setParam(ID(add_carry), Const(1,2));
 				}
 			}
 			if (j==3) {
 				if (cnt !=0 && (cnt % 24 == 0)) {
 					SigBit new_co = module->addWire(NEW_ID);
-					cell->setPort(ID::A4, State::S0);
-					cell->setPort(ID::B4, State::S0);
-					cell->setPort(ID::S4, new_co);
-					cell = module->addCell(NEW_ID, ID::NX_CY);
-					cell->setParam(ID::add_carry, Const(1,2));
-					cell->setPort(ID::CI, State::S1);
-					cell->setPort(ID::A1, new_co);
-					cell->setPort(ID::B1, State::S0);
+					cell->setPort(ID(A4), State::S0);
+					cell->setPort(ID(B4), State::S0);
+					cell->setPort(ID(S4), new_co);
+					cell = module->addCell(NEW_ID, ID(NX_CY));
+					cell->setParam(ID(add_carry), Const(1,2));
+					cell->setPort(ID(CI), State::S1);
+					cell->setPort(ID(A1), new_co);
+					cell->setPort(ID(B1), State::S0);
 					j = 1;
 				} else {
-					if (c.second.at(i)->hasPort(ID::CO))
-						cell->setPort(ID::CO, c.second.at(i)->getPort(ID::CO));
+					if (c.second.at(i)->hasPort(ID(CO)))
+						cell->setPort(ID(CO), c.second.at(i)->getPort(ID(CO)));
 				}
 				cnt++;
 			}
-			cell->setPort(names_A[j], get_bit_or_zero(c.second.at(i)->getPort(ID::A)));
-			cell->setPort(names_B[j], get_bit_or_zero(c.second.at(i)->getPort(ID::B)));
+			cell->setPort(names_A[j], get_bit_or_zero(c.second.at(i)->getPort(ID(A))));
+			cell->setPort(names_B[j], get_bit_or_zero(c.second.at(i)->getPort(ID(B))));
 
-			if (c.second.at(i)->hasPort(ID::S))
-				cell->setPort(names_S[j], c.second.at(i)->getPort(ID::S));
+			if (c.second.at(i)->hasPort(ID(S)))
+				cell->setPort(names_S[j], c.second.at(i)->getPort(ID(S)));
 
 			j = (j + 1) % 4;
 			module->remove(c.second.at(i));

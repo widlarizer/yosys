@@ -174,7 +174,7 @@ struct MemQueryCache
 		if (GetSize(drivers) != 1)
 			return false;
 		auto driver = *drivers.begin();
-		if (!driver.cell->type.in(ID::$mux, ID::$pmux))
+		if (!driver.cell->type.in(ID($mux), ID($pmux)))
 			return false;
 		log_assert(driver.port == ID::Y);
 		SigSpec sig_s = driver.cell->getPort(ID::S);
@@ -247,7 +247,7 @@ struct MemoryDffWorker
 					continue;
 				auto consumer = *consumers.begin();
 				bool is_b;
-				if (consumer.cell->type == ID::$mux) {
+				if (consumer.cell->type == ID($mux)) {
 					if (consumer.port == ID::A) {
 						is_b = false;
 					} else if (consumer.port == ID::B) {
@@ -255,7 +255,7 @@ struct MemoryDffWorker
 					} else {
 						continue;
 					}
-				} else if (consumer.cell->type == ID::$pmux) {
+				} else if (consumer.cell->type == ID($pmux)) {
 					if (consumer.port == ID::A) {
 						is_b = false;
 					} else {

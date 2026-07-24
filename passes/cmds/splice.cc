@@ -75,7 +75,7 @@ struct SpliceWorker
 		RTLIL::SigSpec new_sig = sig;
 
 		if (sig_a.size() != sig.size()) {
-			RTLIL::Cell *cell = module->addCell(NEW_ID, ID::$slice);
+			RTLIL::Cell *cell = module->addCell(NEW_ID, ID($slice));
 			cell->parameters[ID::OFFSET] = offset;
 			cell->parameters[ID::A_WIDTH] = sig_a.size();
 			cell->parameters[ID::Y_WIDTH] = sig.size();
@@ -132,7 +132,7 @@ struct SpliceWorker
 		RTLIL::SigSpec new_sig = get_sliced_signal(chunks.front());
 		for (size_t i = 1; i < chunks.size(); i++) {
 			RTLIL::SigSpec sig2 = get_sliced_signal(chunks[i]);
-			RTLIL::Cell *cell = module->addCell(NEW_ID, ID::$concat);
+			RTLIL::Cell *cell = module->addCell(NEW_ID, ID($concat));
 			cell->parameters[ID::A_WIDTH] = new_sig.size();
 			cell->parameters[ID::B_WIDTH] = sig2.size();
 			cell->setPort(ID::A, new_sig);

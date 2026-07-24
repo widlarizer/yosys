@@ -48,7 +48,7 @@ struct EquivMarkWorker
 	{
 		for (auto cell : module->cells())
 		{
-			if (cell->type == ID::$equiv)
+			if (cell->type == ID($equiv))
 				equiv_cells.insert(cell->meta_->name);
 
 			for (auto &port : cell->connections())

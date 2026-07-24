@@ -198,10 +198,10 @@ struct statdata_t {
 			std::string cell_type = cell->type;
 			if (width_mode) {
 				if (cell->type.in(ID::$not, ID::$pos, ID::$neg, ID::$logic_not, ID::$logic_and, ID::$logic_or, ID::$reduce_and,
-						 ID::$reduce_or, ID::$reduce_xor, ID::$reduce_xnor, ID::$reduce_bool, ID::$lut, ID::$and, ID::$or,
-						 ID::$xor, ID::$xnor, ID::$shl, ID::$shr, ID::$sshl, ID::$sshr, ID::$shift, ID::$shiftx, ID::$lt,
-						 ID::$le, ID::$eq, ID::$ne, ID::$eqx, ID::$nex, ID::$ge, ID::$gt, ID::$add, ID::$sub, ID::$mul,
-						 ID::$div, ID::$mod, ID::$divfloor, ID::$modfloor, ID::$pow, ID::$alu)) {
+						 ID($reduce_or), ID($reduce_xor), ID($reduce_xnor), ID($reduce_bool), ID($lut), ID($and), ID($or),
+						 ID($xor), ID($xnor), ID($shl), ID($shr), ID($sshl), ID($sshr), ID($shift), ID($shiftx), ID($lt),
+						 ID($le), ID($eq), ID($ne), ID($eqx), ID($nex), ID($ge), ID($gt), ID($add), ID($sub), ID($mul),
+						 ID($div), ID($mod), ID($divfloor), ID($modfloor), ID($pow), ID($alu))) {
 					int width_a = cell->hasPort(ID::A) ? GetSize(cell->getPort(ID::A)) : 0;
 					int width_b = cell->hasPort(ID::B) ? GetSize(cell->getPort(ID::B)) : 0;
 					int width_y = cell->hasPort(ID::Y) ? GetSize(cell->getPort(ID::Y)) : 0;
@@ -215,8 +215,8 @@ struct statdata_t {
 					cell_type =
 					  stringf("%s_%d_%d", cell_type, GetSize(cell->getPort(ID::A)), GetSize(cell->getPort(ID::S)));
 				else if (cell->type.in(ID::$sr, ID::$ff, ID::$dff, ID::$dffe, ID::$dffsr, ID::$dffsre, ID::$adff, ID::$adffe,
-						      ID::$sdff, ID::$sdffe, ID::$sdffce, ID::$aldff, ID::$aldffe, ID::$dlatch, ID::$adlatch,
-						      ID::$dlatchsr))
+						      ID($sdff), ID($sdffe), ID($sdffce), ID($aldff), ID($aldffe), ID($dlatch), ID($adlatch),
+						      ID($dlatchsr)))
 					cell_type = stringf("%s_%d", cell_type, GetSize(cell->getPort(ID::Q)));
 			}
 

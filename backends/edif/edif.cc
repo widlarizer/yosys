@@ -216,7 +216,7 @@ struct EdifBackend : public Backend {
 
 			for (auto cell : module->cells())
 			{
-				if (cell->type == ID::$scopeinfo)
+				if (cell->type == ID($scopeinfo))
 					continue;
 
 				if (design->module(cell->type_impl) == nullptr || design->module(cell->type_impl)->get_blackbox_attribute()) {

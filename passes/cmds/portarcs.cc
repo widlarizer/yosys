@@ -31,7 +31,7 @@ static RTLIL::SigBit canonical_bit(RTLIL::SigBit bit)
 {
 	RTLIL::Wire *w;
 	while ((w = bit.wire) != NULL && !w->port_input &&
-			w->driverCell()->type.in(ID::$buf, ID::$_BUF_)) {
+			w->driverCell()->type.in(ID($buf), ID($_BUF_))) {
 		bit = w->driverCell()->getPort(ID::A)[bit.offset];
 	}
 	return bit;
@@ -125,7 +125,7 @@ struct PortarcsPass : Pass {
 
 				for (auto cell : m->cells())
 				// Ignore all bufnorm helper cells
-				if (!cell->type.in(ID::$buf, ID::$input_port, ID::$connect, ID::$tribuf)) {
+				if (!cell->type.in(ID($buf), ID($input_port), ID($connect), ID($tribuf))) {
 					auto tdata = tinfo.find(cell->type.ref());
 					if (tdata == tinfo.end())
 						log_cmd_error("Missing timing data for module '%s'.\n", cell->type.unescaped());
@@ -292,7 +292,7 @@ struct PortarcsPass : Pass {
 					int *p = annotations.at(canonical_bit(bit));
 					for (auto i = 0; i < inputs.size(); i++) {
 						if (p[i] >= 0) {
-							Cell *spec = m->addCell(NEW_ID, ID::$specify2);
+							Cell *spec = m->addCell(NEW_ID, ID($specify2));
 							spec->setParam(ID::SRC_WIDTH, 1);
 							spec->setParam(ID::DST_WIDTH, 1);
 							spec->setParam(ID::T_FALL_MAX, p[i]);

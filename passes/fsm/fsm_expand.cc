@@ -47,10 +47,10 @@ struct FsmExpand
 
 	bool is_cell_merge_candidate(RTLIL::Cell *cell)
 	{
-		if (full_mode || cell->type == ID::$_MUX_)
+		if (full_mode || cell->type == ID($_MUX_))
 			return true;
 
-		if (cell->type.in(ID::$mux, ID::$pmux))
+		if (cell->type.in(ID($mux), ID($pmux)))
 			if (cell->getPort(ID::A).size() < 2)
 				return true;
 
@@ -298,7 +298,7 @@ struct FsmExpandPass : public Pass {
 		for (auto mod : design->selected_modules()) {
 			std::vector<RTLIL::Cell*> fsm_cells;
 			for (auto cell : mod->selected_cells())
-				if (cell->type == ID::$fsm)
+				if (cell->type == ID($fsm))
 					fsm_cells.push_back(cell);
 			for (auto c : fsm_cells) {
 				FsmExpand fsm_expand(c, design, mod, full_mode);

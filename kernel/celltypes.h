@@ -126,18 +126,18 @@ struct CellTypes
 	void setup_internals_eval()
 	{
 		std::vector<TwineRef> unary_ops = {
-			ID::$not, ID::$pos, ID::$buf, ID::$neg,
-			ID::$reduce_and, ID::$reduce_or, ID::$reduce_xor, ID::$reduce_xnor, ID::$reduce_bool,
-			ID::$logic_not, ID::$slice, ID::$lut, ID::$sop
+			ID($not), ID($pos), ID($buf), ID($neg),
+			ID($reduce_and), ID($reduce_or), ID($reduce_xor), ID($reduce_xnor), ID($reduce_bool),
+			ID($logic_not), ID($slice), ID($lut), ID($sop)
 		};
 
 		std::vector<TwineRef> binary_ops = {
-			ID::$and, ID::$or, ID::$xor, ID::$xnor,
-			ID::$shl, ID::$shr, ID::$sshl, ID::$sshr, ID::$shift, ID::$shiftx,
-			ID::$lt, ID::$le, ID::$eq, ID::$ne, ID::$eqx, ID::$nex, ID::$ge, ID::$gt,
-			ID::$add, ID::$sub, ID::$mul, ID::$div, ID::$mod, ID::$divfloor, ID::$modfloor, ID::$pow,
-			ID::$logic_and, ID::$logic_or, ID::$concat, ID::$macc,
-			ID::$bweqx
+			ID($and), ID($or), ID($xor), ID($xnor),
+			ID($shl), ID($shr), ID($sshl), ID($sshr), ID($shift), ID($shiftx),
+			ID($lt), ID($le), ID($eq), ID($ne), ID($eqx), ID($nex), ID($ge), ID($gt),
+			ID($add), ID($sub), ID($mul), ID($div), ID($mod), ID($divfloor), ID($modfloor), ID($pow),
+			ID($logic_and), ID($logic_or), ID($concat), ID($macc),
+			ID($bweqx)
 		};
 
 		for (auto type : unary_ops)
@@ -152,81 +152,81 @@ struct CellTypes
 		for (auto type : std::vector<TwineRef>({ID::$bmux, ID::$demux}))
 			setup_type(type, {ID::A, ID::S}, {ID::Y}, true);
 
-		setup_type(ID::$lcu, {ID::P, ID::G, ID::CI}, {ID::CO}, true);
-		setup_type(ID::$alu, {ID::A, ID::B, ID::CI, ID::BI}, {ID::X, ID::Y, ID::CO}, true);
-		setup_type(ID::$macc_v2, {ID::A, ID::B, ID::C}, {ID::Y}, true);
-		setup_type(ID::$fa, {ID::A, ID::B, ID::C}, {ID::X, ID::Y}, true);
+		setup_type(ID($lcu), {ID::P, ID::G, ID::CI}, {ID::CO}, true);
+		setup_type(ID($alu), {ID::A, ID::B, ID::CI, ID::BI}, {ID::X, ID::Y, ID::CO}, true);
+		setup_type(ID($macc_v2), {ID::A, ID::B, ID::C}, {ID::Y}, true);
+		setup_type(ID($fa), {ID::A, ID::B, ID::C}, {ID::X, ID::Y}, true);
 	}
 
 	void setup_internals_ff()
 	{
-		setup_type(ID::$sr, {ID::SET, ID::CLR}, {ID::Q});
-		setup_type(ID::$ff, {ID::D}, {ID::Q});
-		setup_type(ID::$dff, {ID::CLK, ID::D}, {ID::Q});
-		setup_type(ID::$dffe, {ID::CLK, ID::EN, ID::D}, {ID::Q});
-		setup_type(ID::$dffsr, {ID::CLK, ID::SET, ID::CLR, ID::D}, {ID::Q});
-		setup_type(ID::$dffsre, {ID::CLK, ID::SET, ID::CLR, ID::D, ID::EN}, {ID::Q});
-		setup_type(ID::$adff, {ID::CLK, ID::ARST, ID::D}, {ID::Q});
-		setup_type(ID::$adffe, {ID::CLK, ID::ARST, ID::D, ID::EN}, {ID::Q});
-		setup_type(ID::$aldff, {ID::CLK, ID::ALOAD, ID::AD, ID::D}, {ID::Q});
-		setup_type(ID::$aldffe, {ID::CLK, ID::ALOAD, ID::AD, ID::D, ID::EN}, {ID::Q});
-		setup_type(ID::$sdff, {ID::CLK, ID::SRST, ID::D}, {ID::Q});
-		setup_type(ID::$sdffe, {ID::CLK, ID::SRST, ID::D, ID::EN}, {ID::Q});
-		setup_type(ID::$sdffce, {ID::CLK, ID::SRST, ID::D, ID::EN}, {ID::Q});
-		setup_type(ID::$dlatch, {ID::EN, ID::D}, {ID::Q});
-		setup_type(ID::$adlatch, {ID::EN, ID::D, ID::ARST}, {ID::Q});
-		setup_type(ID::$dlatchsr, {ID::EN, ID::SET, ID::CLR, ID::D}, {ID::Q});
+		setup_type(ID($sr), {ID::SET, ID::CLR}, {ID::Q});
+		setup_type(ID($ff), {ID::D}, {ID::Q});
+		setup_type(ID($dff), {ID::CLK, ID::D}, {ID::Q});
+		setup_type(ID($dffe), {ID::CLK, ID::EN, ID::D}, {ID::Q});
+		setup_type(ID($dffsr), {ID::CLK, ID::SET, ID::CLR, ID::D}, {ID::Q});
+		setup_type(ID($dffsre), {ID::CLK, ID::SET, ID::CLR, ID::D, ID::EN}, {ID::Q});
+		setup_type(ID($adff), {ID::CLK, ID::ARST, ID::D}, {ID::Q});
+		setup_type(ID($adffe), {ID::CLK, ID::ARST, ID::D, ID::EN}, {ID::Q});
+		setup_type(ID($aldff), {ID::CLK, ID::ALOAD, ID::AD, ID::D}, {ID::Q});
+		setup_type(ID($aldffe), {ID::CLK, ID::ALOAD, ID::AD, ID::D, ID::EN}, {ID::Q});
+		setup_type(ID($sdff), {ID::CLK, ID::SRST, ID::D}, {ID::Q});
+		setup_type(ID($sdffe), {ID::CLK, ID::SRST, ID::D, ID::EN}, {ID::Q});
+		setup_type(ID($sdffce), {ID::CLK, ID::SRST, ID::D, ID::EN}, {ID::Q});
+		setup_type(ID($dlatch), {ID::EN, ID::D}, {ID::Q});
+		setup_type(ID($adlatch), {ID::EN, ID::D, ID::ARST}, {ID::Q});
+		setup_type(ID($dlatchsr), {ID::EN, ID::SET, ID::CLR, ID::D}, {ID::Q});
 	}
 
 	void setup_internals_anyinit()
 	{
-		setup_type(ID::$anyinit, {ID::D}, {ID::Q});
+		setup_type(ID($anyinit), {ID::D}, {ID::Q});
 	}
 
 	void setup_internals_mem()
 	{
 		setup_internals_ff();
 
-		setup_type(ID::$memrd, {ID::CLK, ID::EN, ID::ADDR}, {ID::DATA});
-		setup_type(ID::$memrd_v2, {ID::CLK, ID::EN, ID::ARST, ID::SRST, ID::ADDR}, {ID::DATA});
+		setup_type(ID($memrd), {ID::CLK, ID::EN, ID::ADDR}, {ID::DATA});
+		setup_type(ID($memrd_v2), {ID::CLK, ID::EN, ID::ARST, ID::SRST, ID::ADDR}, {ID::DATA});
 		setup_type(ID::$memwr, {ID::CLK, ID::EN, ID::ADDR, ID::DATA}, pool<TwineRef>());
 		setup_type(ID::$memwr_v2, {ID::CLK, ID::EN, ID::ADDR, ID::DATA}, pool<TwineRef>());
 		setup_type(ID::$meminit, {ID::ADDR, ID::DATA}, pool<TwineRef>());
 		setup_type(ID::$meminit_v2, {ID::ADDR, ID::DATA, ID::EN}, pool<TwineRef>());
-		setup_type(ID::$mem, {ID::RD_CLK, ID::RD_EN, ID::RD_ADDR, ID::WR_CLK, ID::WR_EN, ID::WR_ADDR, ID::WR_DATA}, {ID::RD_DATA});
-		setup_type(ID::$mem_v2, {ID::RD_CLK, ID::RD_EN, ID::RD_ARST, ID::RD_SRST, ID::RD_ADDR, ID::WR_CLK, ID::WR_EN, ID::WR_ADDR, ID::WR_DATA}, {ID::RD_DATA});
+		setup_type(ID($mem), {ID::RD_CLK, ID::RD_EN, ID::RD_ADDR, ID::WR_CLK, ID::WR_EN, ID::WR_ADDR, ID::WR_DATA}, {ID::RD_DATA});
+		setup_type(ID($mem_v2), {ID::RD_CLK, ID::RD_EN, ID::RD_ARST, ID::RD_SRST, ID::RD_ADDR, ID::WR_CLK, ID::WR_EN, ID::WR_ADDR, ID::WR_DATA}, {ID::RD_DATA});
 
-		setup_type(ID::$fsm, {ID::CLK, ID::ARST, ID::CTRL_IN}, {ID::CTRL_OUT});
+		setup_type(ID($fsm), {ID::CLK, ID::ARST, ID::CTRL_IN}, {ID::CTRL_OUT});
 	}
 
 	void setup_stdcells()
 	{
 		setup_stdcells_eval();
 
-		setup_type(ID::$_TBUF_, {ID::A, ID::E}, {ID::Y});
+		setup_type(ID($_TBUF_), {ID::A, ID::E}, {ID::Y});
 	}
 
 	void setup_stdcells_eval()
 	{
-		setup_type(ID::$_BUF_, {ID::A}, {ID::Y}, true);
-		setup_type(ID::$_NOT_, {ID::A}, {ID::Y}, true);
-		setup_type(ID::$_AND_, {ID::A, ID::B}, {ID::Y}, true);
-		setup_type(ID::$_NAND_, {ID::A, ID::B}, {ID::Y}, true);
-		setup_type(ID::$_OR_,  {ID::A, ID::B}, {ID::Y}, true);
-		setup_type(ID::$_NOR_,  {ID::A, ID::B}, {ID::Y}, true);
-		setup_type(ID::$_XOR_, {ID::A, ID::B}, {ID::Y}, true);
-		setup_type(ID::$_XNOR_, {ID::A, ID::B}, {ID::Y}, true);
-		setup_type(ID::$_ANDNOT_, {ID::A, ID::B}, {ID::Y}, true);
-		setup_type(ID::$_ORNOT_, {ID::A, ID::B}, {ID::Y}, true);
-		setup_type(ID::$_MUX_, {ID::A, ID::B, ID::S}, {ID::Y}, true);
-		setup_type(ID::$_NMUX_, {ID::A, ID::B, ID::S}, {ID::Y}, true);
-		setup_type(ID::$_MUX4_, {ID::A, ID::B, ID::C, ID::D, ID::S, ID::T}, {ID::Y}, true);
-		setup_type(ID::$_MUX8_, {ID::A, ID::B, ID::C, ID::D, ID::E, ID::F, ID::G, ID::H, ID::S, ID::T, ID::U}, {ID::Y}, true);
-		setup_type(ID::$_MUX16_, {ID::A, ID::B, ID::C, ID::D, ID::E, ID::F, ID::G, ID::H, ID::I, ID::J, ID::K, ID::L, ID::M, ID::N, ID::O, ID::P, ID::S, ID::T, ID::U, ID::V}, {ID::Y}, true);
-		setup_type(ID::$_AOI3_, {ID::A, ID::B, ID::C}, {ID::Y}, true);
-		setup_type(ID::$_OAI3_, {ID::A, ID::B, ID::C}, {ID::Y}, true);
-		setup_type(ID::$_AOI4_, {ID::A, ID::B, ID::C, ID::D}, {ID::Y}, true);
-		setup_type(ID::$_OAI4_, {ID::A, ID::B, ID::C, ID::D}, {ID::Y}, true);
+		setup_type(ID($_BUF_), {ID::A}, {ID::Y}, true);
+		setup_type(ID($_NOT_), {ID::A}, {ID::Y}, true);
+		setup_type(ID($_AND_), {ID::A, ID::B}, {ID::Y}, true);
+		setup_type(ID($_NAND_), {ID::A, ID::B}, {ID::Y}, true);
+		setup_type(ID($_OR_),  {ID::A, ID::B}, {ID::Y}, true);
+		setup_type(ID($_NOR_),  {ID::A, ID::B}, {ID::Y}, true);
+		setup_type(ID($_XOR_), {ID::A, ID::B}, {ID::Y}, true);
+		setup_type(ID($_XNOR_), {ID::A, ID::B}, {ID::Y}, true);
+		setup_type(ID($_ANDNOT_), {ID::A, ID::B}, {ID::Y}, true);
+		setup_type(ID($_ORNOT_), {ID::A, ID::B}, {ID::Y}, true);
+		setup_type(ID($_MUX_), {ID::A, ID::B, ID::S}, {ID::Y}, true);
+		setup_type(ID($_NMUX_), {ID::A, ID::B, ID::S}, {ID::Y}, true);
+		setup_type(ID($_MUX4_), {ID::A, ID::B, ID::C, ID::D, ID::S, ID::T}, {ID::Y}, true);
+		setup_type(ID($_MUX8_), {ID::A, ID::B, ID::C, ID::D, ID::E, ID::F, ID::G, ID::H, ID::S, ID::T, ID::U}, {ID::Y}, true);
+		setup_type(ID($_MUX16_), {ID::A, ID::B, ID::C, ID::D, ID::E, ID::F, ID::G, ID::H, ID::I, ID::J, ID::K, ID::L, ID::M, ID::N, ID::O, ID::P, ID::S, ID::T, ID::U, ID::V}, {ID::Y}, true);
+		setup_type(ID($_AOI3_), {ID::A, ID::B, ID::C}, {ID::Y}, true);
+		setup_type(ID($_OAI3_), {ID::A, ID::B, ID::C}, {ID::Y}, true);
+		setup_type(ID($_AOI4_), {ID::A, ID::B, ID::C, ID::D}, {ID::Y}, true);
+		setup_type(ID($_OAI4_), {ID::A, ID::B, ID::C, ID::D}, {ID::Y}, true);
 	}
 
 	void setup_stdcells_mem()
@@ -237,7 +237,7 @@ struct CellTypes
 		for (auto c2 : list_np)
 			setup_type(stringf("$_SR_%c%c_", c1, c2), {ID::S, ID::R}, {ID::Q});
 
-		setup_type(ID::$_FF_, {ID::D}, {ID::Q});
+		setup_type(ID($_FF_), {ID::D}, {ID::Q});
 
 		for (auto c1 : list_np)
 			setup_type(stringf("$_DFF_%c_", c1), {ID::C, ID::D}, {ID::Q});
@@ -357,13 +357,13 @@ struct CellTypes
 	// Consider using the ConstEval struct instead if you need named ports and/or multiple outputs
 	static RTLIL::Const eval(TwineRef type, const RTLIL::Const &arg1, const RTLIL::Const &arg2, bool signed1, bool signed2, int result_len, bool *errp = nullptr)
 	{
-		if (type == ID::$sshr && !signed1)
-			type = ID::$shr;
-		if (type == ID::$sshl && !signed1)
-			type = ID::$shl;
+		if (type == ID($sshr) && !signed1)
+			type = ID($shr);
+		if (type == ID($sshl) && !signed1)
+			type = ID($shl);
 
-		if (type != ID::$sshr && type != ID::$sshl && type != ID::$shr && type != ID::$shl && type != ID::$shift && type != ID::$shiftx &&
-				type != ID::$pos && type != ID::$buf && type != ID::$neg && type != ID::$not) {
+		if (type != ID($sshr) && type != ID($sshl) && type != ID($shr) && type != ID($shl) && type != ID($shift) && type != ID($shiftx) &&
+				type != ID($pos) && type != ID($buf) && type != ID($neg) && type != ID($not)) {
 			if (!signed1 || !signed2)
 				signed1 = false, signed2 = false;
 		}
@@ -408,25 +408,25 @@ struct CellTypes
 		HANDLE_CELL_TYPE(neg)
 #undef HANDLE_CELL_TYPE
 
-		if (type.in(ID::$_BUF_, ID::$buf))
+		if (type.in(ID($_BUF_), ID($buf)))
 			return arg1;
-		if (type == ID::$_NOT_)
+		if (type == ID($_NOT_))
 			return eval_not(arg1);
-		if (type == ID::$_AND_)
+		if (type == ID($_AND_))
 			return const_and(arg1, arg2, false, false, 1);
-		if (type == ID::$_NAND_)
+		if (type == ID($_NAND_))
 			return eval_not(const_and(arg1, arg2, false, false, 1));
-		if (type == ID::$_OR_)
+		if (type == ID($_OR_))
 			return const_or(arg1, arg2, false, false, 1);
-		if (type == ID::$_NOR_)
+		if (type == ID($_NOR_))
 			return eval_not(const_or(arg1, arg2, false, false, 1));
-		if (type == ID::$_XOR_)
+		if (type == ID($_XOR_))
 			return const_xor(arg1, arg2, false, false, 1);
-		if (type == ID::$_XNOR_)
+		if (type == ID($_XNOR_))
 			return const_xnor(arg1, arg2, false, false, 1);
-		if (type == ID::$_ANDNOT_)
+		if (type == ID($_ANDNOT_))
 			return const_and(arg1, eval_not(arg2), false, false, 1);
-		if (type == ID::$_ORNOT_)
+		if (type == ID($_ORNOT_))
 			return const_or(arg1, eval_not(arg2), false, false, 1);
 
 		if (errp != nullptr) {
@@ -440,34 +440,34 @@ struct CellTypes
 	// Consider using the ConstEval struct instead if you need named ports and/or multiple outputs
 	static RTLIL::Const eval(RTLIL::Cell *cell, const RTLIL::Const &arg1, const RTLIL::Const &arg2, bool *errp = nullptr)
 	{
-		if (cell->type == ID::$slice) {
+		if (cell->type == ID($slice)) {
 			int width = cell->parameters.at(ID::Y_WIDTH).as_int();
 			int offset = cell->parameters.at(ID::OFFSET).as_int();
 			return arg1.extract(offset, width);
 		}
 
-		if (cell->type == ID::$concat) {
+		if (cell->type == ID($concat)) {
 			RTLIL::Const ret = arg1;
 			ret.append(arg2);
 			return ret;
 		}
 
-		if (cell->type == ID::$bmux)
+		if (cell->type == ID($bmux))
 		{
 			return const_bmux(arg1, arg2);
 		}
 
-		if (cell->type == ID::$demux)
+		if (cell->type == ID($demux))
 		{
 			return const_demux(arg1, arg2);
 		}
 
-		if (cell->type == ID::$bweqx)
+		if (cell->type == ID($bweqx))
 		{
 			return const_bweqx(arg1, arg2);
 		}
 
-		if (cell->type == ID::$lut)
+		if (cell->type == ID($lut))
 		{
 			int width = cell->parameters.at(ID::WIDTH).as_int();
 
@@ -479,7 +479,7 @@ struct CellTypes
 			return const_bmux(t, arg1);
 		}
 
-		if (cell->type == ID::$sop)
+		if (cell->type == ID($sop))
 		{
 			int width = cell->parameters.at(ID::WIDTH).as_int();
 			int depth = cell->parameters.at(ID::DEPTH).as_int();
@@ -526,17 +526,17 @@ struct CellTypes
 	// Consider using the ConstEval struct instead if you need named ports and/or multiple outputs
 	static RTLIL::Const eval(RTLIL::Cell *cell, const RTLIL::Const &arg1, const RTLIL::Const &arg2, const RTLIL::Const &arg3, bool *errp = nullptr)
 	{
-		if (cell->type.in(ID::$mux, ID::$_MUX_))
+		if (cell->type.in(ID($mux), ID($_MUX_)))
 			return const_mux(arg1, arg2, arg3);
-		if (cell->type == ID::$_NMUX_)
+		if (cell->type == ID($_NMUX_))
 			return eval_not(const_mux(arg1, arg2, arg3));
-		if (cell->type == ID::$bwmux)
+		if (cell->type == ID($bwmux))
 			return const_bwmux(arg1, arg2, arg3);
-		if (cell->type == ID::$pmux)
+		if (cell->type == ID($pmux))
 			return const_pmux(arg1, arg2, arg3);
-		if (cell->type == ID::$_AOI3_)
+		if (cell->type == ID($_AOI3_))
 			return eval_not(const_or(const_and(arg1, arg2, false, false, 1), arg3, false, false, 1));
-		if (cell->type == ID::$_OAI3_)
+		if (cell->type == ID($_OAI3_))
 			return eval_not(const_and(const_or(arg1, arg2, false, false, 1), arg3, false, false, 1));
 
 		log_assert(arg3.size() == 0);
@@ -546,9 +546,9 @@ struct CellTypes
 	// Consider using the ConstEval struct instead if you need named ports and/or multiple outputs
 	static RTLIL::Const eval(RTLIL::Cell *cell, const RTLIL::Const &arg1, const RTLIL::Const &arg2, const RTLIL::Const &arg3, const RTLIL::Const &arg4, bool *errp = nullptr)
 	{
-		if (cell->type == ID::$_AOI4_)
+		if (cell->type == ID($_AOI4_))
 			return eval_not(const_or(const_and(arg1, arg2, false, false, 1), const_and(arg3, arg4, false, false, 1), false, false, 1));
-		if (cell->type == ID::$_OAI4_)
+		if (cell->type == ID($_OAI4_))
 			return eval_not(const_and(const_or(arg1, arg2, false, false, 1), const_or(arg3, arg4, false, false, 1), false, false, 1));
 
 		log_assert(arg4.size() == 0);

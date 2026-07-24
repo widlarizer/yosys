@@ -461,14 +461,14 @@ struct EquivSimplePass : public Pass {
 			int unproven_cells_counter = 0;
 
 			for (auto cell : module->selected_cells()) {
-				if (cell->type == ID::$equiv && cell->getPort(ID::A) != cell->getPort(ID::B)) {
+				if (cell->type == ID($equiv) && cell->getPort(ID::A) != cell->getPort(ID::B)) {
 					auto bit = sigmap(cell->getPort(ID::Y).as_bit());
 					auto bit_group = bit;
 					if (cfg.group && bit_group.wire)
 						bit_group.offset = 0;
 					unproven_equiv_cells[bit_group][bit] = cell;
 					unproven_cells_counter++;
-				} else if (cell->type == ID::$assume) {
+				} else if (cell->type == ID($assume)) {
 					assumes.push_back(cell);
 				}
 			}
