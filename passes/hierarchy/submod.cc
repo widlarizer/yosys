@@ -391,7 +391,7 @@ struct SubmodPass : public Pass {
 				did_something = false;
 				std::vector<IdString> queued_modules;
 				for (auto mod : design->modules()) {
-					IdString mod_name = mod->meta_->name;
+					IdString mod_name = mod->name;
 					if (handled_modules.count(mod_name) == 0 && design->selected_whole_module(mod))
 						queued_modules.push_back(mod_name);
 				}

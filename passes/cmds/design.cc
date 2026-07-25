@@ -273,7 +273,7 @@ struct DesignPass : public Pass {
 				t->attributes.erase(ID::top);
 
 				queue.insert(t);
-				done[mod->meta_->name] = as_name_ref;
+				done[mod->name] = as_name_ref;
 			}
 
 			while (!queue.empty() && copy_from_design)

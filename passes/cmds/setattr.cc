@@ -260,8 +260,8 @@ struct ChparamPass : public Pass {
 
 		pool<IdString> modnames, old_modnames;
 		for (auto module : design->selected_whole_modules_warn()) {
-			modnames.insert(module->meta_->name);
-			old_modnames.insert(module->meta_->name);
+			modnames.insert(module->name);
+			old_modnames.insert(module->name);
 		}
 		modnames.sort();
 

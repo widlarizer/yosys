@@ -203,7 +203,7 @@ ConflictLogs explore(CellAnalysis& analysis, CellTraversal& traversal, const Sig
 						auto twines = cell->module->design->twines;
 						std::string msg = stringf("Driver-driver conflict "
 							"for %s between cell %s.%s and constant %s in %s: Resolved using constant.",
-							log_signal(raw_bit), cell->name.unescape(), twines.str(it2.first), log_signal(bit), twines.str(actx.mod->meta_->name));
+							log_signal(raw_bit), cell->name.unescape(), twines.str(it2.first), log_signal(bit), twines.str(actx.mod->name));
 							logs.logs.insert(ctx, {wire_map(raw_bit), msg});
 						}
 						if (bit.wire != nullptr)

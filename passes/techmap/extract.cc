@@ -302,7 +302,7 @@ RTLIL::Cell *replace(RTLIL::Module *needle, RTLIL::Module *haystack, SubCircuit:
 	// refs as the referenced module in the haystack design.
 	for (auto wire : needle->wires()) {
 		if (wire->port_id > 0) {
-			IdString portname = haystack->design->twines.add(tw.str(wire->meta_->name));
+			IdString portname = haystack->design->twines.add(tw.str(wire->name));
 			for (int i = 0; i < wire->width; i++)
 				sig2port.insert(sigmap(RTLIL::SigSpec(wire, i)), std::pair<IdString, int>(portname, i));
 			cell->setPort(portname, RTLIL::SigSpec(RTLIL::State::Sz, wire->width));

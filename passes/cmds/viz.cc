@@ -314,7 +314,7 @@ struct Graph {
 
 			for (auto wire : module->wires()) {
 				if (!wire->name.isPublic()) continue;
-				if (!grp.second.selected_member(module->meta_->name, wire->name.ref())) continue;
+				if (!grp.second.selected_member(module->name, wire->name.ref())) continue;
 				for (auto bit : sigmap(wire)) {
 					auto it = wire_nodes.find(bit);
 					if (it == wire_nodes.end())

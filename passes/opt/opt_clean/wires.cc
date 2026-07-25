@@ -142,7 +142,7 @@ bool compare_signals(const RTLIL::SigBit &s1, const RTLIL::SigBit &s2, const Sha
 		return attrs2 > attrs1;
 
 	// Stable even though not lexicographic
-	return w2->meta_->name < w1->meta_->name;
+	return w2->name < w1->name;
 }
 
 void add_spec(ShardedSigPool::Builder &builder, const ThreadIndex &thread, const RTLIL::SigSpec &spec) {
@@ -525,7 +525,7 @@ YOSYS_NAMESPACE_BEGIN
 
 bool check_public_name(Wire* wire)
 {
-	if (!wire->meta_->name.isPublic())
+	if (!wire->name.isPublic())
 		return false;
 	std::string id_str = wire->name;
 	if (!id_str.empty() && id_str[0] == '$')

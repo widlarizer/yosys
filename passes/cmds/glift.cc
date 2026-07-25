@@ -350,8 +350,8 @@ private:
 					RTLIL::SigSpec port_taint = get_corresponding_taint_signal(port);
 
 					log_assert(port_taint.is_wire());
-					log_assert(std::find(cell_module_def->ports.begin(), cell_module_def->ports.end(), port_taint.as_wire()->meta_->name) != cell_module_def->ports.end());
-					cell->setPort(module->design->twines.add(Twine{module->design->twines.str(port_taint.as_wire()->meta_->name) + "_t"}), port_taint);
+					log_assert(std::find(cell_module_def->ports.begin(), cell_module_def->ports.end(), port_taint.as_wire()->name) != cell_module_def->ports.end());
+					cell->setPort(module->design->twines.add(Twine{module->design->twines.str(port_taint.as_wire()->name) + "_t"}), port_taint);
 				}
 			}
 			else log_cmd_error("This is a bug (4).\n");
@@ -379,7 +379,7 @@ private:
 			for (unsigned int i = 0; meta_mux_select_sums.size() > 1; ) {
 				meta_mux_select_sums_buf.clear();
 				for (i = 0; i + 1 < meta_mux_select_sums.size(); i += 2) {
-					meta_mux_select_sums_buf.push_back(module->Add(Twine{module->design->twines.str(meta_mux_select_sums[i].as_wire()->meta_->name) + "_add"}, meta_mux_select_sums[i], meta_mux_select_sums[i+1], false));
+					meta_mux_select_sums_buf.push_back(module->Add(Twine{module->design->twines.str(meta_mux_select_sums[i].as_wire()->name) + "_add"}, meta_mux_select_sums[i], meta_mux_select_sums[i+1], false));
 				}
 				if (meta_mux_select_sums.size() % 2 == 1)
 					meta_mux_select_sums_buf.push_back(meta_mux_select_sums[meta_mux_select_sums.size()-1]);
@@ -607,7 +607,7 @@ struct GliftPass : public Pass {
 
 		for (auto i = 0; i < GetSize(topo_modules.sorted); ++i) {
 			RTLIL::Module *module = topo_modules.sorted[i];
-			GliftWorker(module, !non_top_modules.count(module->meta_->name), opt_create_precise_model, opt_create_imprecise_model, opt_create_instrumented_model, opt_taintconstants, opt_keepoutputs, opt_simplecostmodel, opt_nocostmodel, opt_instrumentmore);
+			GliftWorker(module, !non_top_modules.count(module->name), opt_create_precise_model, opt_create_imprecise_model, opt_create_instrumented_model, opt_taintconstants, opt_keepoutputs, opt_simplecostmodel, opt_nocostmodel, opt_instrumentmore);
 		}
 	}
 } GliftPass;

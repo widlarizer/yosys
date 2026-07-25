@@ -295,8 +295,8 @@ struct SimInstance
 
 			if (wire->port_input && instance != nullptr && parent != nullptr) {
 				for (int i = 0; i < GetSize(sig); i++) {
-					if (instance->hasPort(wire->meta_->name))
-						in_parent_drivers.emplace(sig[i], parent->sigmap(instance->getPort(wire->meta_->name)[i]));
+					if (instance->hasPort(wire->name))
+						in_parent_drivers.emplace(sig[i], parent->sigmap(instance->getPort(wire->name)[i]));
 				}
 			}
 		}
@@ -414,8 +414,8 @@ struct SimInstance
 	IdString name() const
 	{
 		if (instance != nullptr)
-			return instance->meta_->name;
-		return module->meta_->name;
+			return instance->name;
+		return module->name;
 	}
 
 	std::string hiername() const

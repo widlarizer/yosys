@@ -103,7 +103,7 @@ struct NlutmapWorker
 			vector<pair<int, IdString>> rated_candidates;
 
 			for (auto &cand : candidate_ratings)
-				rated_candidates.push_back({cand.second, cand.first->meta_->name});
+				rated_candidates.push_back({cand.second, cand.first->name});
 
 			std::sort(rated_candidates.begin(), rated_candidates.end());
 

@@ -163,8 +163,8 @@ struct ModuleIndex {
 			SigSpec new_tie;
 
 			for (auto port_bit : class_) {
-				if (instantiation->connections_.count(port_bit.wire->meta_->name)) {
-					SigBit bit = instantiation->connections_.at(port_bit.wire->meta_->name)[port_bit.offset];
+				if (instantiation->connections_.count(port_bit.wire->name)) {
+					SigBit bit = instantiation->connections_.at(port_bit.wire->name)[port_bit.offset];
 					if (parent.used.check(bit)) {
 						if (!new_tie.empty()) {
 							severed_port_bits.append(port_bit);

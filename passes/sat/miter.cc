@@ -134,11 +134,11 @@ void create_miter_equiv(struct Pass *that, std::vector<std::string> args, RTLIL:
 
 	RTLIL::Module *miter_module = new RTLIL::Module;
 	miter_module->design = design;
-	miter_module->meta_->name = miter_name;
+	miter_module->name = miter_name;
 	design->add(miter_module);
 
-	RTLIL::Cell *gold_cell = miter_module->addCell(ID::gold, gold_module->meta_->name);
-	RTLIL::Cell *gate_cell = miter_module->addCell(ID::gate, gate_module->meta_->name);
+	RTLIL::Cell *gold_cell = miter_module->addCell(ID::gold, gold_module->name);
+	RTLIL::Cell *gate_cell = miter_module->addCell(ID::gate, gate_module->name);
 
 	RTLIL::SigSpec all_conditions;
 
@@ -147,7 +147,7 @@ void create_miter_equiv(struct Pass *that, std::vector<std::string> args, RTLIL:
 		if (gold_cross_ports.count(gold_wire))
 		{
 			SigSpec w = miter_module->addWire(design->twines.add(std::string{"\\cross_" + gold_wire->name.unescape()}), GetSize(gold_wire));
-			gold_cell->setPort(gold_wire->meta_->name, w);
+			gold_cell->setPort(gold_wire->name, w);
 			if (flag_ignore_gold_x) {
 				RTLIL::SigSpec w_x = miter_module->addWire(NEW_ID, GetSize(w));
 				for (int i = 0; i < GetSize(w); i++)
@@ -165,7 +165,7 @@ void create_miter_equiv(struct Pass *that, std::vector<std::string> args, RTLIL:
 			RTLIL::Wire *w = miter_module->addWire(design->twines.add(std::string{"\\in_" + gold_wire->name.unescape()}), GetSize(gold_wire));
 			w->port_input = true;
 
-			gold_cell->setPort(gold_wire->meta_->name, w);
+			gold_cell->setPort(gold_wire->name, w);
 			gate_cell->setPort(gold_wire->name, w);
 		}
 
@@ -177,8 +177,8 @@ void create_miter_equiv(struct Pass *that, std::vector<std::string> args, RTLIL:
 			RTLIL::Wire *w_gate = miter_module->addWire(design->twines.add(std::string{"\\gate_" + gold_wire->name.unescape()}), GetSize(gold_wire));
 			w_gate->port_output = flag_make_outputs;
 
-			gold_cell->setPort(gold_wire->meta_->name, w_gold);
-			gate_cell->setPort(gold_wire->meta_->name, w_gate);
+			gold_cell->setPort(gold_wire->name, w_gold);
+			gate_cell->setPort(gold_wire->name, w_gate);
 
 			RTLIL::SigSpec this_condition;
 

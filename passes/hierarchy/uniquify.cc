@@ -81,13 +81,13 @@ struct UniquifyPass : public Pass {
 						continue;
 
 					IdString newname_ref = design->twines.add(std::string(newname));
-					if (tmod->get_bool_attribute(ID::unique) && newname_ref == tmod->meta_->name)
+					if (tmod->get_bool_attribute(ID::unique) && newname_ref == tmod->name)
 						continue;
 
 					log("Creating module %s from %s.\n", RTLIL::unescape_id(newname), tmod);
 
 					auto smod = tmod->clone();
-					smod->meta_->name = newname_ref;
+					smod->name = newname_ref;
 					cell->type = cell->module->design->twines.add(std::string(newname));
 					smod->set_bool_attribute(ID::unique);
 					if (smod->attributes.count(ID::hdlname) == 0)

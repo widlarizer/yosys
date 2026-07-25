@@ -173,9 +173,9 @@ struct FlattenWorker
 
 		dict<std::string, IdString> memory_map;
 		for (auto &tpl_memory_it : tpl->memories) {
-			RTLIL::Memory *new_memory = module->addMemory(make_name(tpl_memory_it.second->meta_->name), tpl_memory_it.second);
-			map_attributes(cell, new_memory, design->twines.str(tpl_memory_it.second->meta_->name));
-			memory_map[design->twines.str(tpl_memory_it.first)] = new_memory->meta_->name;
+			RTLIL::Memory *new_memory = module->addMemory(make_name(tpl_memory_it.second->name), tpl_memory_it.second);
+			map_attributes(cell, new_memory, design->twines.str(tpl_memory_it.second->name));
+			memory_map[design->twines.str(tpl_memory_it.first)] = new_memory->name;
 			design->select(module, new_memory);
 		}
 
@@ -183,7 +183,7 @@ struct FlattenWorker
 		dict<IdString, IdString> positional_ports;
 		for (auto tpl_wire : tpl->wires()) {
 			if (tpl_wire->port_id > 0)
-				positional_ports.emplace(design->twines.add(Twine{stringf("$%d", tpl_wire->port_id)}), tpl_wire->meta_->name);
+				positional_ports.emplace(design->twines.add(Twine{stringf("$%d", tpl_wire->port_id)}), tpl_wire->name);
 
 			RTLIL::Wire *new_wire = nullptr;
 			if (tpl_wire->name[0] == '\\') {
@@ -212,8 +212,8 @@ struct FlattenWorker
 		}
 
 		for (auto &tpl_proc_it : tpl->processes) {
-			RTLIL::Process *new_proc = module->addProcess(make_name(tpl_proc_it.second->meta_->name), tpl_proc_it.second);
-			map_attributes(cell, new_proc, design->twines.str(tpl_proc_it.second->meta_->name));
+			RTLIL::Process *new_proc = module->addProcess(make_name(tpl_proc_it.second->name), tpl_proc_it.second);
+			map_attributes(cell, new_proc, design->twines.str(tpl_proc_it.second->name));
 			for (auto new_proc_sync : new_proc->syncs)
 				for (auto &memwr_action : new_proc_sync->mem_write_actions) {
 					memwr_action.memid = memory_map.at(design->twines.str(memwr_action.memid));

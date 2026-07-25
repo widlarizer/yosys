@@ -151,7 +151,7 @@ struct ShowWorker
 	std::string findColor(IdString member_ref)
 	{
 		for (auto &s : color_selections)
-			if (member_ref && s.second.selected_member(module->meta_->name, member_ref)) {
+			if (member_ref && s.second.selected_member(module->name, member_ref)) {
 				return stringf("color=\"%s\", fontcolor=\"%s\"", s.first, s.first);
 			}
 
@@ -178,7 +178,7 @@ struct ShowWorker
 	{
 		IdString member_ref = search.find(member_name);
 		for (auto &s : label_selections)
-			if (member_ref && s.second.selected_member(module->meta_->name, member_ref))
+			if (member_ref && s.second.selected_member(module->name, member_ref))
 				return escape(s.first);
 		return escape(member_name, true);
 	}
@@ -243,7 +243,7 @@ struct ShowWorker
 
 		if (sig.is_chunk()) {
 			const RTLIL::SigChunk &c = sig.as_chunk();
-			if (c.wire != nullptr && design->selected_member(module->meta_->name, c.wire->name.ref())) {
+			if (c.wire != nullptr && design->selected_member(module->name, c.wire->name.ref())) {
 				if (!range_check || c.wire->width == c.width)
 						return stringf("n%d", id2num(c.wire->name));
 			} else {
@@ -529,7 +529,7 @@ struct ShowWorker
 		{
 			RTLIL::Process *proc = it.second;
 
-			if (!design->selected_member(module->meta_->name, it.first))
+			if (!design->selected_member(module->name, it.first))
 				continue;
 
 			std::set<RTLIL::SigSpec> input_signals, output_signals;
@@ -566,12 +566,12 @@ struct ShowWorker
 		{
 			bool found_lhs_wire = false;
 			for (auto &c : conn.first.chunks()) {
-				if (c.wire == nullptr || design->selected_member(module->meta_->name, c.wire->name.ref()))
+				if (c.wire == nullptr || design->selected_member(module->name, c.wire->name.ref()))
 					found_lhs_wire = true;
 			}
 			bool found_rhs_wire = false;
 			for (auto &c : conn.second.chunks()) {
-				if (c.wire == nullptr || design->selected_member(module->meta_->name, c.wire->name.ref()))
+				if (c.wire == nullptr || design->selected_member(module->name, c.wire->name.ref()))
 					found_rhs_wire = true;
 			}
 			if (!found_lhs_wire || !found_rhs_wire)

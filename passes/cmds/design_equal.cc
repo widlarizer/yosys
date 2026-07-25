@@ -316,7 +316,7 @@ public:
 
 	void check()
 	{
-		if (mod_a->meta_->name != mod_b->meta_->name)
+		if (mod_a->name != mod_b->name)
 			error("Modules have different names: %s != %s\n", log_id(mod_a), log_id(mod_b));
 		if (std::string mismatch = compare_attributes(mod_a, mod_b); !mismatch.empty())
 			error("Module %s %s.\n", log_id(mod_a), mismatch);

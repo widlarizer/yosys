@@ -37,8 +37,8 @@ static void publish_design(RTLIL::Design* design) {
 	auto saved_modules = design->modules_;
 	design->modules_.clear();
 	for (auto& [name, mod] : saved_modules) {
-		IdString new_name = publish(design->twines, mod->meta_->name);
-		mod->meta_->name = new_name;
+		IdString new_name = publish(design->twines, mod->name);
+		mod->name = new_name;
 		design->modules_[new_name] = mod;
 		for (auto* cell : mod->cells())
 			cell->type = publish(design->twines, cell->type);

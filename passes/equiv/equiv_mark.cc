@@ -139,7 +139,7 @@ struct EquivMarkWorker
 
 		for (auto cell : module->cells())
 		{
-			if (cell_regions.count(cell->meta_->name) || cell->type != ID::$equiv)
+			if (cell_regions.count(cell->name) || cell->type != ID::$equiv)
 				continue;
 
 			SigSpec sig_a = sigmap(cell->getPort(ID::A));
@@ -174,8 +174,8 @@ struct EquivMarkWorker
 
 		for (auto cell : module->cells())
 		{
-			if (cell_regions.count(cell->meta_->name)) {
-				int r = final_region_map.at(cell_regions.at(cell->meta_->name));
+			if (cell_regions.count(cell->name)) {
+				int r = final_region_map.at(cell_regions.at(cell->name));
 				cell->attributes[ID::equiv_region] = Const(r);
 				region_cell_count[r]++;
 			} else
