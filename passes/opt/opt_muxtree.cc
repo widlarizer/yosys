@@ -335,7 +335,7 @@ struct OptMuxtreeWorker
 				mi.cell->setPort(ID::B, new_sig_b);
 				mi.cell->setPort(ID::S, new_sig_s);
 				if (GetSize(new_sig_s) == 1) {
-					mi.cell->type_impl = ID::$mux;
+					mi.cell->type = ID::$mux;
 					mi.cell->parameters.erase(ID::S_WIDTH);
 				} else {
 					mi.cell->parameters[ID::S_WIDTH] = RTLIL::Const(GetSize(new_sig_s));

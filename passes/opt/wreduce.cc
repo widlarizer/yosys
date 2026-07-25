@@ -291,7 +291,7 @@ struct WreduceWorker
 	{
 		bool did_something = false;
 
-		if (!config->supported_cell_types.count(cell->type_impl))
+		if (!config->supported_cell_types.count(cell->type))
 			return;
 
 		if (cell->type.in(ID($mux), ID($pmux)))

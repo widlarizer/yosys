@@ -111,7 +111,7 @@ struct EquivSimpleWorker : public EquivWorker<EquivSimpleConfig>
 				return true;
 
 			for (auto &conn : cell->connections())
-				if (yosys_celltypes.cell_input(cell->type_impl, conn.first))
+				if (yosys_celltypes.cell_input(cell->type, conn.first))
 					for (auto bit : model.sigmap(conn.second)) {
 						if (cell->is_builtin_ff()) {
 							if (conn.first != ID::CLK && conn.first != ID::C)
@@ -480,10 +480,10 @@ struct EquivSimplePass : public Pass {
 					unproven_cells_counter, GetSize(unproven_equiv_cells), module);
 
 			for (auto cell : module->cells()) {
-				if (!ct.cell_known(cell->type_impl))
+				if (!ct.cell_known(cell->type))
 					continue;
 				for (auto &conn : cell->connections())
-					if (yosys_celltypes.cell_output(cell->type_impl, conn.first))
+					if (yosys_celltypes.cell_output(cell->type, conn.first))
 						for (auto bit : sigmap(conn.second))
 							bit2driver[bit] = cell;
 			}

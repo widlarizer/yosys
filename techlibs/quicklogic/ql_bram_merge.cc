@@ -127,9 +127,9 @@ struct QlBramMergeWorker {
 		RTLIL::Design *design = module->design;
 		IdString generated = design->twines.add(RTLIL::escape_id("ql_bram_merge_blackbox"));
 
-		RTLIL::Module *mod = design->module(merged->type_impl);
+		RTLIL::Module *mod = design->module(merged->type);
 		if (mod == nullptr) {
-			mod = design->addModule(merged->type_impl);
+			mod = design->addModule(merged->type);
 			mod->set_bool_attribute(ID::blackbox);
 			mod->set_bool_attribute(generated);
 		}

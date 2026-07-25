@@ -143,7 +143,7 @@ match next
 	filter !first->type.in(\FDRE) || param(next, \IS_R_INVERTED).as_bool() == param(first, \IS_R_INVERTED).as_bool()
 	filter !first->type.in(\FDRE, \FDRE_1) || port(next, \R, State::S0).is_fully_zero()
 generate
-	Cell *cell = module->addCell(NEW_ID, chain.back()->type_impl);
+	Cell *cell = module->addCell(NEW_ID, chain.back()->type);
 	cell->setPort(\C, chain.back()->getPort(\C));
 	cell->setPort(\D, module->addWire(NEW_ID));
 	cell->setPort(\Q, chain.back()->getPort(\D));
@@ -305,7 +305,7 @@ generate
 			}
 		}
 		else if (back->type.begins_with("$_DFF_")) {
-			Cell *cell = module->addCell(NEW_ID, back->type_impl);
+			Cell *cell = module->addCell(NEW_ID, back->type);
 			cell->setPort(\C, back->getPort(\C));
 			cell->setPort(\D, module->addWire(NEW_ID));
 			cell->setPort(\Q, back->getPort(\D));

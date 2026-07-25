@@ -268,7 +268,7 @@ struct BufnormPass : public Pass {
 					for (int i = 0; i < GetSize(insig) && i < GetSize(outsig); i++)
 						sigmap.add(insig[i], outsig[i]);
 
-					pair<IdString,Wire*> key(cell->type_impl, outsig.as_wire());
+					pair<IdString,Wire*> key(cell->type, outsig.as_wire());
 					if (old_buffers.count(key))
 						old_dup_buffers.push_back(cell);
 					else

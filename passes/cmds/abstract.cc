@@ -174,7 +174,7 @@ unsigned int abstract_state(Module* mod, EnableLogic enable, const std::vector<S
 	std::vector<FfData> ffs;
 	// Abstract flop inputs if they're driving a selected output rep
 	for (auto cell : mod->cells()) {
-		if (!ct.cell_types.count(cell->type_impl))
+		if (!ct.cell_types.count(cell->type))
 			continue;
 		FfData ff(nullptr, cell);
 		if (ff.has_sr)

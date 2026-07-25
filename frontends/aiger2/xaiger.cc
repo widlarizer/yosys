@@ -159,7 +159,7 @@ struct Xaiger2Frontend : public Frontend {
 				}
 
 				if (!def)
-					log_error("Bad map file: no module found for box type '%s'\n", design->twines.unescaped_str(box->type_impl));
+					log_error("Bad map file: no module found for box type '%s'\n", design->twines.unescaped_str(box->type));
 
 				if (box_seq >= (int) boxes.size()) {
 					boxes.resize(box_seq + 1);

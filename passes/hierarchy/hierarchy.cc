@@ -183,7 +183,7 @@ struct IFExpander
 			if(!cell->get_bool_attribute(ID::is_interface))
 				continue;
 
-			interfaces_in_module[cell->name] = design.module(cell->type_impl);
+			interfaces_in_module[cell->name] = design.module(cell->type);
 		}
 	}
 
@@ -504,7 +504,7 @@ bool expand_module(RTLIL::Design *design, RTLIL::Module *module, bool flag_check
 			int idx = atoi(cell->type.substr(pos_idx + 1, pos_num).c_str());
 			int num = atoi(cell->type.substr(pos_num + 1, pos_type).c_str());
 			array_cells[cell] = std::pair<int, int>(idx, num);
-			cell->type_impl = cell->module->design->twines.add(std::string{cell->type.str().substr(pos_type + 1)});
+			cell->type = cell->module->design->twines.add(std::string{cell->type.str().substr(pos_type + 1)});
 		}
 
 		dict<IdString, RTLIL::Module*> interfaces_by_name;
@@ -566,7 +566,7 @@ bool expand_module(RTLIL::Design *design, RTLIL::Module *module, bool flag_check
 			interfaces_by_name[p.first] = p.second;
 		for (auto &p : if_expander.modports_used_in_submodule)
 			modports_by_name[p.first] = p.second;
-		cell->type_impl = mod->derive(design,
+		cell->type = mod->derive(design,
 					 cell->parameters,
 					 interfaces_by_name,
 					 modports_by_name);

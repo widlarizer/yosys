@@ -170,14 +170,14 @@ struct Coolrunner2SopPass : public Pass {
 								if (has_invert)
 								{
 									auto cell = std::get<0>(x);
-									if (cell->type == ID::FDCP) cell->type_impl = ID::FDCP_N;
-									else if (cell->type == ID::FDCP_N) cell->type_impl = ID::FDCP;
-									else if (cell->type == ID::FTCP) cell->type_impl = ID::FTCP_N;
-									else if (cell->type == ID::FTCP_N) cell->type_impl = ID::FTCP;
-									else if (cell->type == ID::FDCPE) cell->type_impl = ID::FDCPE_N;
-									else if (cell->type == ID::FDCPE_N) cell->type_impl = ID::FDCPE;
-									else if (cell->type == ID::LDCP) cell->type_impl = ID::LDCP_N;
-									else if (cell->type == ID::LDCP_N) cell->type_impl = ID::LDCP;
+									if (cell->type == ID::FDCP) cell->type = ID::FDCP_N;
+									else if (cell->type == ID::FDCP_N) cell->type = ID::FDCP;
+									else if (cell->type == ID::FTCP) cell->type = ID::FTCP_N;
+									else if (cell->type == ID::FTCP_N) cell->type = ID::FTCP;
+									else if (cell->type == ID::FDCPE) cell->type = ID::FDCPE_N;
+									else if (cell->type == ID::FDCPE_N) cell->type = ID::FDCPE;
+									else if (cell->type == ID::LDCP) cell->type = ID::LDCP_N;
+									else if (cell->type == ID::LDCP_N) cell->type = ID::LDCP;
 									else log_assert(!"Internal error! Bad cell type!");
 								}
 							}

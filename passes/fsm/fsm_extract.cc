@@ -446,12 +446,12 @@ struct FsmExtractPass : public Pass {
 			exclusive_ctrls.clear();
 			for (auto cell : module->cells()) {
 				for (auto &conn_it : cell->connections()) {
-					if (ct.cell_output(cell->type_impl, conn_it.first) || !ct.cell_known(cell->type_impl)) {
+					if (ct.cell_output(cell->type, conn_it.first) || !ct.cell_known(cell->type)) {
 						RTLIL::SigSpec sig = conn_it.second;
 						assign_map.apply(sig);
 						sig2driver.insert(sig, sig2driver_entry_t(cell->meta_->name, conn_it.first));
 					}
-					if (ct.cell_input(cell->type_impl, conn_it.first) && cell->hasPort(ID::Y) &&
+					if (ct.cell_input(cell->type, conn_it.first) && cell->hasPort(ID::Y) &&
 							cell->getPort(ID::Y).size() == 1 && (conn_it.first == ID::A || conn_it.first == ID::B)) {
 						RTLIL::SigSpec sig = conn_it.second;
 						assign_map.apply(sig);

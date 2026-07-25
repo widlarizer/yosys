@@ -553,7 +553,7 @@ static int select_op_expand(RTLIL::Design *design, RTLIL::Selection &lhs, std::v
 				goto exclude_match;
 			for (auto &rule : rules) {
 				last_mode = rule.mode;
-				if (rule.cell_types.size() > 0 && rule.cell_types.count(twines.str(cell->type_impl)) == 0)
+				if (rule.cell_types.size() > 0 && rule.cell_types.count(twines.str(cell->type)) == 0)
 					continue;
 				if (rule.port_names.size() > 0 && rule.port_names.count(twines.str(conn.first)) == 0)
 					continue;
@@ -1791,7 +1791,7 @@ struct CdPass : public Pass {
 			RTLIL::Module *module = design->module(design->selected_active_module);
 			IdString cell_ref = modname;
 			if (module != nullptr && cell_ref != Twine::Null && module->cell(cell_ref) != nullptr)
-				modname = module->cell(cell_ref)->type_impl;
+				modname = module->cell(cell_ref)->type;
 		}
 
 		if (design->module(modname) != nullptr) {

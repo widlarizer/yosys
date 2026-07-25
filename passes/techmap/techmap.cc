@@ -404,7 +404,7 @@ struct TechmapWorker
 			design->select(module, c);
 
 			if (c->type == ID::_TECHMAP_PLACEHOLDER_ && tpl_cell->has_attribute(ID::techmap_chtype)) {
-				c->type_impl = module->design->twines.add(std::string{RTLIL::escape_id(tpl_cell->get_string_attribute(ID::techmap_chtype))});
+				c->type = module->design->twines.add(std::string{RTLIL::escape_id(tpl_cell->get_string_attribute(ID::techmap_chtype))});
 				c->attributes.erase(ID::techmap_chtype);
 			}
 
@@ -628,7 +628,7 @@ struct TechmapWorker
 							}
 						}
 
-						cell->type_impl = cell->module->design->twines.add(std::string{m_name});
+						cell->type = cell->module->design->twines.add(std::string{m_name});
 						cell->parameters.clear();
 
 						if (!extern_mode || in_recursion) {
@@ -1003,7 +1003,7 @@ struct TechmapWorker
 					}
 
 					log_debug("%s %s.%s to imported %s.\n", mapmsg_prefix.c_str(), log_id(module->name), log_id(cell->name), m_name.c_str());
-					cell->type_impl = cell->module->design->twines.add(std::string{m_name});
+					cell->type = cell->module->design->twines.add(std::string{m_name});
 					cell->parameters.clear();
 				}
 				else

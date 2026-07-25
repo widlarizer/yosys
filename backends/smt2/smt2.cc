@@ -196,8 +196,8 @@ struct Smt2Worker
 				continue;
 			}
 
-			bool is_input = ct.cell_input(cell->type_impl, conn.first);
-			bool is_output = ct.cell_output(cell->type_impl, conn.first);
+			bool is_input = ct.cell_input(cell->type, conn.first);
+			bool is_output = ct.cell_output(cell->type, conn.first);
 
 			if (is_output && !is_input)
 				for (auto bit : sigmap(conn.second)) {

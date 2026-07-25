@@ -335,7 +335,7 @@ struct MuxGenCtx {
 
 		RTLIL::SigSpec ctrl_sig = gen_cmp();
 		log_assert(ctrl_sig.size() == 1);
-		last_mux_cell->type_impl = ID::$pmux;
+		last_mux_cell->type = ID::$pmux;
 
 		RTLIL::SigSpec new_s = last_mux_cell->getPort(ID::S);
 		new_s.append(ctrl_sig);

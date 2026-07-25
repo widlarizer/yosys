@@ -461,7 +461,7 @@ struct RecoverNamesWorker {
                 continue;
             bool is_comb = true;
             for (auto cell : mod->cells()) {
-                if (ct_all.cell_evaluable(cell->type_impl)) {
+                if (ct_all.cell_evaluable(cell->type)) {
                     is_comb = false;
                     break;
                 }

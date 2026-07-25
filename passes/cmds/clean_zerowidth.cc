@@ -67,7 +67,7 @@ struct CleanZeroWidthPass : public Pass {
 		{
 			for (auto cell : module->selected_cells())
 			{
-				if (!ct.cell_known(cell->type_impl)) {
+				if (!ct.cell_known(cell->type)) {
 					// User-defined cell: just prune zero-width connections.
 					for (auto it: cell->connections()) {
 						if (GetSize(it.second) == 0) {

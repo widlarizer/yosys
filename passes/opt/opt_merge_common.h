@@ -135,7 +135,7 @@ struct CellHasher
 
 	Hasher hash_cell_function(const RTLIL::Cell *cell, Hasher h) const
 	{
-		h.eat(cell->type_impl);
+		h.eat(cell->type);
 		h = hash_cell_inputs(cell, h);
 		h = hash_cell_parameters(cell, h);
 		return h;
@@ -146,9 +146,9 @@ struct CellHasher
 		if (cell1 == cell2) return true;
 		// Fast path on the ref, but fall back to the rendered name: twine
 		// refs are not canonical, so distinct refs may name the same type.
-		if (cell1->type_impl != cell2->type_impl &&
-				cell1->module->design->twines.str(cell1->type_impl) !=
-				cell2->module->design->twines.str(cell2->type_impl))
+		if (cell1->type != cell2->type &&
+				cell1->module->design->twines.str(cell1->type) !=
+				cell2->module->design->twines.str(cell2->type))
 			return false;
 
 		if (cell1->parameters != cell2->parameters)

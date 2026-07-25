@@ -2232,7 +2232,7 @@ RTLIL::SigSpec AstNode::genRTLIL(int width_hint, bool sign_hint)
 					std::string type_str = child->str;
 					if (flag_icells && type_str.size() >= 2 && type_str[0] == '\\' && type_str[1] == '$')
 						type_str = type_str.substr(1);
-					cell->type_impl = current_module->design->twines.add(std::string{type_str});
+					cell->type = current_module->design->twines.add(std::string{type_str});
 					continue;
 				}
 				if (child->type == AST_PARASET) {

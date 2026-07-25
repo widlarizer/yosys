@@ -561,7 +561,7 @@ struct SimInstance
 			return;
 		}
 
-		if (yosys_celltypes.cell_evaluable(cell->type_impl))
+		if (yosys_celltypes.cell_evaluable(cell->type))
 		{
 			RTLIL::SigSpec sig_a, sig_b, sig_c, sig_d, sig_s, sig_y;
 			bool has_a, has_b, has_c, has_d, has_s, has_y;
@@ -2158,7 +2158,7 @@ struct SimWorker : SimShared
 		for (auto &assertion : triggered_assertions) {
 			json.begin_object();
 			json.entry("step", assertion.step);
-			json.entry("type", assertion.cell->module->design->twines.unescaped_str(assertion.cell->type_impl));
+			json.entry("type", assertion.cell->module->design->twines.unescaped_str(assertion.cell->type));
 			json.entry("path", assertion.instance->witness_full_path(assertion.cell));
 			auto src = assertion.cell->get_src_attribute();
 			if (!src.empty()) {

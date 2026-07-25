@@ -89,7 +89,7 @@ struct BoxDerivePass : Pass {
 
 		for (auto module : d->selected_modules()) {
 			for (auto cell : module->selected_cells()) {
-				Module *inst_module = d->module(cell->type_impl);
+				Module *inst_module = d->module(cell->type);
 				if (!inst_module || !inst_module->get_blackbox_attribute())
 					continue;
 
@@ -121,7 +121,7 @@ struct BoxDerivePass : Pass {
 				}
 
 				if (apply_mode)
-					cell->type_impl = cell->module->design->twines.copy_from(done[index]->design->twines, done[index]->meta_->name);
+					cell->type = cell->module->design->twines.copy_from(done[index]->design->twines, done[index]->meta_->name);
 			}
 		}
 	}

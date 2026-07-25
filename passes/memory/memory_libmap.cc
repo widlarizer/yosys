@@ -139,7 +139,7 @@ static void set_ram_port(RTLIL::Cell *cell, const std::string &port_name,
 	IdString generated = design->twines.add(RTLIL::escape_id("memory_libmap_blackbox"));
 	RTLIL::Module *mod = design->module(cell->type);
 	if (mod == nullptr) {
-		mod = design->addModule(cell->type_impl);
+		mod = design->addModule(cell->type);
 		mod->set_bool_attribute(ID::blackbox);
 		mod->set_bool_attribute(generated);
 	}

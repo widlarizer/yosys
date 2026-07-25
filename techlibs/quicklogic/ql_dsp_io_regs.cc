@@ -127,7 +127,7 @@ struct QlDspIORegs : public Pass {
 			}
 
 			// Set new type name
-			cell->type_impl = module->design->twines.add(std::string{new_type});
+			cell->type = module->design->twines.add(std::string{new_type});
 
 			std::vector<std::string> ports2del;
 

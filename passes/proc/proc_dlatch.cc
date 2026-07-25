@@ -363,10 +363,10 @@ struct proc_dlatch_db_t
 			cell->setPort(ID::A, sig_any_valid_b);
 
 		if (GetSize(sig_new_s) == 1) {
-			cell->type_impl = ID::$mux;
+			cell->type = ID::$mux;
 			cell->unsetParam(ID::S_WIDTH);
 		} else {
-			cell->type_impl = ID::$pmux;
+			cell->type = ID::$pmux;
 			cell->setParam(ID::S_WIDTH, GetSize(sig_new_s));
 		}
 
@@ -409,7 +409,7 @@ struct proc_dlatch_db_t
 
 			queue.clear();
 			for (auto cell : next_queue) {
-				if (!visited.count(cell) && ct.cell_known(cell->type_impl))
+				if (!visited.count(cell) && ct.cell_known(cell->type))
 					queue.insert(cell);
 			}
 		}

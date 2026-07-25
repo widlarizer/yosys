@@ -616,11 +616,11 @@ struct FreduceWorker
 				bits_full_total += w->width;
 			}
 		for (auto cell : module->cells()) {
-			if (ct.cell_known(cell->type_impl)) {
+			if (ct.cell_known(cell->type)) {
 				std::set<RTLIL::SigBit> inputs, outputs;
 				for (auto &port : cell->connections()) {
 					std::vector<RTLIL::SigBit> bits = sigmap(port.second).to_sigbit_vector();
-					if (ct.cell_output(cell->type_impl, port.first))
+					if (ct.cell_output(cell->type, port.first))
 						outputs.insert(bits.begin(), bits.end());
 					else
 						inputs.insert(bits.begin(), bits.end());
@@ -718,7 +718,7 @@ struct FreduceWorker
 				RTLIL::Cell *drv = drivers.at(grp[i].bit).first;
 				RTLIL::Wire *dummy_wire = module->addWire(NEW_ID);
 				for (auto &port : drv->connections_)
-					if (ct.cell_output(drv->type_impl, port.first))
+					if (ct.cell_output(drv->type, port.first))
 						sigmap(port.second).replace(grp[i].bit, dummy_wire, &port.second);
 
 				if (grp[i].inverted)

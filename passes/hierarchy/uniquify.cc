@@ -88,7 +88,7 @@ struct UniquifyPass : public Pass {
 
 					auto smod = tmod->clone();
 					smod->meta_->name = newname_ref;
-					cell->type_impl = cell->module->design->twines.add(std::string(newname));
+					cell->type = cell->module->design->twines.add(std::string(newname));
 					smod->set_bool_attribute(ID::unique);
 					if (smod->attributes.count(ID::hdlname) == 0)
 						smod->attributes[ID::hdlname] = RTLIL::Const(tmod_name_str);

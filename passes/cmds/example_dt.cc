@@ -126,13 +126,13 @@ struct ExampleDtPass : public Pass
 					} else if (chunk.is_port()) {
 						DriveChunkPort port_chunk = chunk.port();
 						if (port_chunk.is_whole()) {
-							if (dm.celltypes.cell_output(port_chunk.cell->type_impl, port_chunk.port)) {
+							if (dm.celltypes.cell_output(port_chunk.cell->type, port_chunk.port)) {
 								if (port_chunk.cell->type.in(ID($dff), ID($ff)))
 								{
 									Cell *cell = port_chunk.cell;
 									node.set_function(ExampleFn(ID($$state), {{cell->name, {}}}));
 									for (auto const &conn : cell->connections()) {
-										if (!dm.celltypes.cell_input(cell->type_impl, conn.first))
+										if (!dm.celltypes.cell_input(cell->type, conn.first))
 											continue;
 										enqueue(DriveChunkPort(cell, conn)).assign_key(cell->name);
 									}
@@ -166,7 +166,7 @@ struct ExampleDtPass : public Pass
 
 						node.set_function(ExampleFn(cell->type, cell->parameters));
 						for (auto const &conn : cell->connections()) {
-							if (!dm.celltypes.cell_input(cell->type_impl, conn.first))
+							if (!dm.celltypes.cell_input(cell->type, conn.first))
 								continue;
 
 							node.append_arg(enqueue(DriveChunkPort(cell, conn)));

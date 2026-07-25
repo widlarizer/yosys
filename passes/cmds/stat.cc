@@ -323,7 +323,7 @@ struct statdata_t {
 				} else {
 					unknown_cell_area.insert(cell_type);
 					num_cells++;
-					num_cells_by_type_raw[cell->type_impl]++;
+					num_cells_by_type_raw[cell->type]++;
 					num_cells_by_type[cell_type]++;
 					local_num_cells++;
 					local_num_cells_by_type[cell_type]++;
@@ -334,7 +334,7 @@ struct statdata_t {
 				}
 			} else {
 				num_cells++;
-				num_cells_by_type_raw[cell->type_impl]++;
+				num_cells_by_type_raw[cell->type]++;
 				num_cells_by_type[cell_type]++;
 				area_cells_by_type[cell_type] = 0;
 				seq_area_cells_by_type[cell_type] = 0;
@@ -765,7 +765,7 @@ statdata_t hierarchy_builder(RTLIL::Design *design, const RTLIL::Module *top_mod
 	statdata_t mod_data(design, top_mod, width_mode, cell_area, techname);
 	for (auto cell : top_mod->selected_cells()) {
 		if (cell_area.count(std::string(cell->type)) == 0) {
-			if (design->has(cell->type_impl)) {
+			if (design->has(cell->type)) {
 				if (!(design->module(cell->type)->attributes.count(ID::blackbox))) {
 					// deal with modules
 					mod_data.add(

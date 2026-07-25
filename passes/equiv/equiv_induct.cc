@@ -88,14 +88,14 @@ struct EquivInductWorker : public EquivWorker<>
 
 		if (satgen.model_undef) {
 			for (auto cell : cells)
-				if (yosys_celltypes.cell_known(cell->type_impl))
+				if (yosys_celltypes.cell_known(cell->type))
 					for (auto &conn : cell->connections())
-						if (yosys_celltypes.cell_input(cell->type_impl, conn.first))
+						if (yosys_celltypes.cell_input(cell->type, conn.first))
 							undriven_signals.add(sigmap(conn.second));
 			for (auto cell : cells)
-				if (yosys_celltypes.cell_known(cell->type_impl))
+				if (yosys_celltypes.cell_known(cell->type))
 					for (auto &conn : cell->connections())
-						if (yosys_celltypes.cell_output(cell->type_impl, conn.first))
+						if (yosys_celltypes.cell_output(cell->type, conn.first))
 							undriven_signals.del(sigmap(conn.second));
 		}
 

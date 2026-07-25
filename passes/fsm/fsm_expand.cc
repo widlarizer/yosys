@@ -147,7 +147,7 @@ struct FsmExpand
 		RTLIL::SigSpec input_sig, output_sig;
 
 		for (auto &p : cell->connections())
-			if (ct.cell_output(cell->type_impl, p.first))
+			if (ct.cell_output(cell->type, p.first))
 				output_sig.append(assign_map(p.second));
 			else
 				input_sig.append(assign_map(p.second));
@@ -230,9 +230,9 @@ struct FsmExpand
 
 		for (auto &cell_it : module->cells_) {
 			RTLIL::Cell *c = cell_it.second;
-			if (ct.cell_known(c->type_impl) && design->selected(mod, c))
+			if (ct.cell_known(c->type) && design->selected(mod, c))
 				for (auto &p : c->connections()) {
-					if (ct.cell_output(c->type_impl, p.first))
+					if (ct.cell_output(c->type, p.first))
 						sig2driver.insert(assign_map(p.second), c);
 					else
 						sig2user.insert(assign_map(p.second), c);

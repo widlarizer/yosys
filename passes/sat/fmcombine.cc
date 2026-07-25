@@ -61,7 +61,7 @@ struct FmcombineWorker
 
 	Cell *import_prim_cell(Cell *cell, const string &suffix)
 	{
-		Cell *c = module->addCell(Twine{cell->name.unescape() + suffix}, cell->type_impl);
+		Cell *c = module->addCell(Twine{cell->name.unescape() + suffix}, cell->type);
 		c->parameters = cell->parameters;
 		c->attributes = cell->attributes;
 
@@ -79,7 +79,7 @@ struct FmcombineWorker
 		if (!cell->parameters.empty())
 			log_cmd_error("Cell %s.%s has unresolved instance parameters.\n", original, cell);
 
-		FmcombineWorker sub_worker(design, cell->type_impl, opts);
+		FmcombineWorker sub_worker(design, cell->type, opts);
 		sub_worker.generate();
 
 		Cell *c = module->addCell(Twine{cell->name.unescape() + "_combined"}, sub_worker.combined_type);
@@ -153,7 +153,7 @@ struct FmcombineWorker
 
 		for (auto cell : original->cells())
 		{
-			if (!ct.cell_known(cell->type_impl))
+			if (!ct.cell_known(cell->type))
 				continue;
 
 			for (auto &conn : cell->connections())
@@ -174,7 +174,7 @@ struct FmcombineWorker
 
 		for (auto cell : original->cells())
 		{
-			if (!ct.cell_known(cell->type_impl))
+			if (!ct.cell_known(cell->type))
 				continue;
 
 			bool skip_cell = !cell_to_eq_nets.count(cell);
@@ -361,7 +361,7 @@ struct FmcombinePass : public Pass {
 		if (!gate_cell->parameters.empty())
 			log_cmd_error("Gate cell has unresolved instance parameters.\n");
 
-		FmcombineWorker worker(design, gold_cell->type_impl, opts);
+		FmcombineWorker worker(design, gold_cell->type, opts);
 		worker.generate();
 		IdString combined_cell_name = module->uniquify(Twine{stringf("\\%s_%s", gold_cell, gate_cell)});
 

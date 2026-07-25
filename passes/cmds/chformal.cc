@@ -27,7 +27,7 @@ PRIVATE_NAMESPACE_BEGIN
 static IdString formal_flavor(RTLIL::Cell *cell)
 {
 	if (cell->type != ID($check))
-		return cell->type_impl;
+		return cell->type;
 
 	std::string flavor_param = cell->getParam(ID(FLAVOR)).decode_string();
 	if (flavor_param == "assert")
@@ -47,7 +47,7 @@ static IdString formal_flavor(RTLIL::Cell *cell)
 static void set_formal_flavor(RTLIL::Cell *cell, IdString flavor)
 {
 	if (cell->type != ID($check)) {
-		cell->type_impl = flavor;
+		cell->type = flavor;
 		return;
 	}
 
@@ -438,7 +438,7 @@ struct ChformalPass : public Pass {
 					if (cell->getPort(ID::ARGS).empty()) {
 						module->remove(cell);
 					} else {
-						cell->type_impl = ID::$print;
+						cell->type = ID::$print;
 						cell->setPort(ID::EN, combined_en);
 						cell->unsetPort(ID::A);
 						cell->unsetParam(ID(FLAVOR));

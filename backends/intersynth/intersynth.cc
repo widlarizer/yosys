@@ -162,7 +162,7 @@ struct IntersynthBackend : public Backend {
 			{
 				std::string celltype_code, node_code;
 
-				if (!ct.cell_known(cell->type_impl))
+				if (!ct.cell_known(cell->type))
 					log_error("Found unknown cell type %s in module!\n", cell->type.unescape());
 
 				celltype_code = stringf("celltype %s", cell->type.unescape());
@@ -172,7 +172,7 @@ struct IntersynthBackend : public Backend {
 					if (sig.size() != 0) {
 						conntypes_code.insert(stringf("conntype b%d %d 2 %d\n", sig.size(), sig.size(), sig.size()));
 						std::string port_name = design->twines.str(port.first);
-						celltype_code += stringf(" b%d %s%s", sig.size(), ct.cell_output(cell->type_impl, port.first) ? "*" : "", port_name.c_str());
+						celltype_code += stringf(" b%d %s%s", sig.size(), ct.cell_output(cell->type, port.first) ? "*" : "", port_name.c_str());
 						node_code += stringf(" %s %s", port_name.c_str(), netname(conntypes_code, celltypes_code, constcells_code, sig));
 					}
 				}

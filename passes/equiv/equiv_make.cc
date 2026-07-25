@@ -315,7 +315,7 @@ struct EquivMakeWorker
 
 		for (auto c : cells_list)
 		for (auto &conn : c->connections())
-			if (!ct.cell_output(c->type_impl, conn.first)) {
+			if (!ct.cell_output(c->type, conn.first)) {
 				SigSpec old_sig = assign_map(conn.second);
 				SigSpec new_sig = rd_signal_map(old_sig);
 				for (int i = 0; i < GetSize(old_sig); i++)
@@ -345,7 +345,7 @@ struct EquivMakeWorker
 			Cell *gold_cell = equiv_mod->cell(gold_id);
 			Cell *gate_cell = equiv_mod->cell(gate_id);
 
-			if (gold_cell == nullptr || gate_cell == nullptr || gold_cell->type != gate_cell->type || !ct.cell_known(gold_cell->type_impl) ||
+			if (gold_cell == nullptr || gate_cell == nullptr || gold_cell->type != gate_cell->type || !ct.cell_known(gold_cell->type) ||
 					gold_cell->parameters != gate_cell->parameters || GetSize(gold_cell->connections()) != GetSize(gate_cell->connections()))
 		try_next_cell_name:
 				continue;
@@ -362,7 +362,7 @@ struct EquivMakeWorker
 				SigSpec gold_sig = assign_map(gold_conn.second);
 				SigSpec gate_sig = assign_map(gate_cell->getPort(gold_conn.first));
 
-				if (ct.cell_output(gold_cell->type_impl, gold_conn.first)) {
+				if (ct.cell_output(gold_cell->type, gold_conn.first)) {
 					equiv_mod->connect(gate_sig, gold_sig);
 					continue;
 				}
@@ -409,7 +409,7 @@ struct EquivMakeWorker
 
 		for (auto cell : equiv_mod->cells()) {
 			for (auto &conn : cell->connections())
-				if (!ct.cell_known(cell->type_impl) || ct.cell_output(cell->type_impl, conn.first))
+				if (!ct.cell_known(cell->type) || ct.cell_output(cell->type, conn.first))
 					for (auto bit : assign_map(conn.second))
 						undriven_bits.erase(bit);
 		}

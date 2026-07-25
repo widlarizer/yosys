@@ -162,7 +162,7 @@ struct OptReduceWorker
 			if (new_sig_s.size() > 1) {
 				cell->parameters[ID::S_WIDTH] = RTLIL::Const(new_sig_s.size());
 			} else {
-				cell->type_impl = ID::$mux;
+				cell->type = ID::$mux;
 				cell->parameters.erase(ID::S_WIDTH);
 			}
 		}
@@ -230,7 +230,7 @@ struct OptReduceWorker
 
 		if (new_sig_s.size() == 1)
 		{
-			cell->type_impl = ID::$mux;
+			cell->type = ID::$mux;
 			cell->setPort(ID::A, new_sig_a.extract(0, width));
 			cell->setPort(ID::B, new_sig_a.extract(width, width));
 			cell->setPort(ID::S, new_sig_s);

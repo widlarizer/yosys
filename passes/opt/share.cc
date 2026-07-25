@@ -74,7 +74,7 @@ struct ShareWorker
 		queue_bits.insert(modwalker.signal_outputs.begin(), modwalker.signal_outputs.end());
 
 		for (auto &it : module->cells_)
-			if (!StaticCellTypes::Compat::internals_nomem_noff(it.second->type_impl)) {
+			if (!StaticCellTypes::Compat::internals_nomem_noff(it.second->type)) {
 				pool<RTLIL::SigBit> &bits = modwalker.cell_inputs[it.second];
 				queue_bits.insert(bits.begin(), bits.end());
 			}
@@ -94,7 +94,7 @@ struct ShareWorker
 					queue_bits.insert(bits.begin(), bits.end());
 					visited_cells.insert(pbit.cell);
 				}
-				if (StaticCellTypes::Compat::internals_nomem_noff(pbit.cell->type_impl) && visited_cells.count(pbit.cell) == 0) {
+				if (StaticCellTypes::Compat::internals_nomem_noff(pbit.cell->type) && visited_cells.count(pbit.cell) == 0) {
 					pool<RTLIL::SigBit> &bits = modwalker.cell_inputs[pbit.cell];
 					terminal_bits.insert(bits.begin(), bits.end());
 					queue_bits.insert(bits.begin(), bits.end());
@@ -351,7 +351,7 @@ struct ShareWorker
 	{
 		for (auto cell : module->cells())
 		{
-			if (!design->selected(module, cell) || !modwalker.ct.cell_known(cell->type_impl))
+			if (!design->selected(module, cell) || !modwalker.ct.cell_known(cell->type))
 				continue;
 
 			for (auto &bit : modwalker.cell_outputs[cell])
@@ -382,7 +382,7 @@ struct ShareWorker
 				continue;
 			}
 
-			if (generic_ops(cell->type_impl)) {
+			if (generic_ops(cell->type)) {
 				if (config.opt_aggressive)
 					shareable_cells.insert(cell);
 				continue;
@@ -406,7 +406,7 @@ struct ShareWorker
 			return true;
 		}
 
-		if (config.generic_uni_ops(c1->type_impl))
+		if (config.generic_uni_ops(c1->type))
 		{
 			if (!config.opt_aggressive)
 			{
@@ -423,7 +423,7 @@ struct ShareWorker
 			return true;
 		}
 
-		if (config.generic_bin_ops(c1->type_impl) || c1->type == ID::$alu)
+		if (config.generic_bin_ops(c1->type) || c1->type == ID::$alu)
 		{
 			if (!config.opt_aggressive)
 			{
@@ -443,7 +443,7 @@ struct ShareWorker
 			return true;
 		}
 
-		if (config.generic_cbin_ops(c1->type_impl))
+		if (config.generic_cbin_ops(c1->type))
 		{
 			if (!config.opt_aggressive)
 			{
@@ -505,7 +505,7 @@ struct ShareWorker
 	{
 		log_assert(c1->type == c2->type);
 
-		if (config.generic_uni_ops(c1->type_impl))
+		if (config.generic_uni_ops(c1->type))
 		{
 			if (c1->parameters.at(ID::A_SIGNED).as_bool() != c2->parameters.at(ID::A_SIGNED).as_bool())
 			{
@@ -540,7 +540,7 @@ struct ShareWorker
 
 			RTLIL::Wire *y = module->addWire(NEW_ID, y_width);
 
-			RTLIL::Cell *supercell = module->addCell(NEW_ID, c1->type_impl);
+			RTLIL::Cell *supercell = module->addCell(NEW_ID, c1->type);
 			supercell->parameters[ID::A_SIGNED] = a_signed;
 			supercell->parameters[ID::A_WIDTH] = a_width;
 			supercell->parameters[ID::Y_WIDTH] = y_width;
@@ -555,11 +555,11 @@ struct ShareWorker
 			return supercell;
 		}
 
-		if (config.generic_bin_ops(c1->type_impl) || config.generic_cbin_ops(c1->type_impl) || c1->type_impl == ID::$alu)
+		if (config.generic_bin_ops(c1->type) || config.generic_cbin_ops(c1->type) || c1->type == ID::$alu)
 		{
 			bool modified_src_cells = false;
 
-			if (config.generic_cbin_ops(c1->type_impl))
+			if (config.generic_cbin_ops(c1->type))
 			{
 				int score_unflipped = max(c1->parameters.at(ID::A_WIDTH).as_int(), c2->parameters.at(ID::A_WIDTH).as_int()) +
 						max(c1->parameters.at(ID::B_WIDTH).as_int(), c2->parameters.at(ID::B_WIDTH).as_int());
@@ -661,7 +661,7 @@ struct ShareWorker
 			RTLIL::Wire *x = c1->type == ID($alu) ? module->addWire(NEW_ID, y_width) : nullptr;
 			RTLIL::Wire *co = c1->type == ID($alu) ? module->addWire(NEW_ID, y_width) : nullptr;
 
-			RTLIL::Cell *supercell = module->addCell(NEW_ID, c1->type_impl);
+			RTLIL::Cell *supercell = module->addCell(NEW_ID, c1->type);
 			supercell->parameters[ID::A_SIGNED] = a_signed;
 			supercell->parameters[ID::B_SIGNED] = b_signed;
 			supercell->parameters[ID::A_WIDTH] = a_width;
@@ -697,7 +697,7 @@ struct ShareWorker
 
 		if (c1->type == ID($macc))
 		{
-			RTLIL::Cell *supercell = module->addCell(NEW_ID, c1->type_impl);
+			RTLIL::Cell *supercell = module->addCell(NEW_ID, c1->type);
 			supercell_aux.insert(supercell);
 			share_macc(c1, c2, act, supercell, &supercell_aux);
 			supercell->check();
@@ -756,7 +756,7 @@ struct ShareWorker
 		recursion_state.insert(cell);
 
 		for (auto c : consumer_cells)
-			if (StaticCellTypes::Compat::internals_nomem_noff(c->type_impl)) {
+			if (StaticCellTypes::Compat::internals_nomem_noff(c->type)) {
 				const pool<RTLIL::SigBit> &bits = find_forbidden_controls(c);
 				forbidden_controls_cache[cell].insert(bits.begin(), bits.end());
 			}
@@ -895,7 +895,7 @@ struct ShareWorker
 				return activation_patterns_cache.at(cell);
 			}
 			for (auto &pbit : modwalker.signal_consumers[bit]) {
-				log_assert(StaticCellTypes::Compat::internals_nomem_noff(pbit.cell->type_impl));
+				log_assert(StaticCellTypes::Compat::internals_nomem_noff(pbit.cell->type));
 				if ((pbit.cell->type == ID($mux) || pbit.cell->type == ID($pmux)) && (pbit.port == ID::A || pbit.port == ID::B))
 					driven_data_muxes.insert(pbit.cell);
 				else
@@ -1099,9 +1099,9 @@ struct ShareWorker
 		dict<RTLIL::SigBit, pool<RTLIL::Cell*>> bit_to_cells;
 
 		for (auto cell : module->cells())
-			if (ct.cell_known(cell->type_impl))
+			if (ct.cell_known(cell->type))
 				for (auto &conn : cell->connections()) {
-					if (ct.cell_output(cell->type_impl, conn.first))
+					if (ct.cell_output(cell->type, conn.first))
 						for (auto bit : topo_sigmap(conn.second)) {
 							cell_to_bits[cell].insert(bit);
 							topo_bit_drivers[bit].insert(cell);
@@ -1171,13 +1171,13 @@ struct ShareWorker
 			pool<RTLIL::Cell*> new_queue;
 
 			for (auto c : queue) {
-				if (!ct.cell_known(c->type_impl))
+				if (!ct.cell_known(c->type))
 					continue;
 				for (auto &conn : c->connections())
-					if (ct.cell_input(c->type_impl, conn.first))
+					if (ct.cell_input(c->type, conn.first))
 						for (auto bit : conn.second)
 							for (auto &pi : mi.query_ports(bit))
-								if (ct.cell_known(pi.cell->type_impl) && ct.cell_output(pi.cell->type_impl, pi.port))
+								if (ct.cell_known(pi.cell->type) && ct.cell_output(pi.cell->type, pi.port))
 									new_queue.insert(pi.cell);
 				covered.insert(c);
 			}

@@ -150,8 +150,8 @@ struct QlDspSimdPass : public Pass {
 					// Create the new cell
 					Cell *simd = module->addCell(NEW_ID, m_SimdDspType);
 
-					log(" SIMD: %s (%s) + %s (%s) => %s (%s)\n", dsp_a, module->design->twines.unescaped_str(dsp_a->type_impl),
-						dsp_b, module->design->twines.unescaped_str(dsp_b->type_impl), simd, module->design->twines.unescaped_str(simd->type_impl));
+					log(" SIMD: %s (%s) + %s (%s) => %s (%s)\n", dsp_a, module->design->twines.unescaped_str(dsp_a->type),
+						dsp_b, module->design->twines.unescaped_str(dsp_b->type), simd, module->design->twines.unescaped_str(simd->type));
 
 					// Check if the target cell is known (important to know
 					// its port widths)
@@ -241,7 +241,7 @@ struct QlDspSimdPass : public Pass {
 
 		// Get the module defining the cell (the previous condition ensures
 		// that the pointers are valid)
-		RTLIL::Module *mod = a_Cell->module->design->module(a_Cell->type_impl);
+		RTLIL::Module *mod = a_Cell->module->design->module(a_Cell->type);
 		if (mod == nullptr) {
 			return std::make_pair(0, false);
 		}

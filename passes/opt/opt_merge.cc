@@ -131,7 +131,7 @@ struct OptMergeThreadWorker : public CellHasher
 				continue;
 			if (!cell->known())
 				continue;
-			if (!mode_share_all && !ct.cell_known(cell->type_impl))
+			if (!mode_share_all && !ct.cell_known(cell->type))
 				continue;
 
 			Hasher::hash_t h = hash_cell_function(cell, Hasher()).yield();

@@ -82,7 +82,7 @@ struct QlIoffPass : public Pass {
 
 		for (auto cell : input_ffs) {
 			log("Promoting register %s to input IOFF.\n", log_signal(cell->getPort(ID::Q)));
-			cell->type_impl = ID::dff;
+			cell->type = ID::dff;
 			cell->unsetPort(ID::E);
 			cell->unsetPort(ID::R);
 			cell->unsetPort(ID::S);

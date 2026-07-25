@@ -326,7 +326,7 @@ void xilinx_dsp_pack(xilinx_dsp_pm &pm)
 	if (st.preAdd || st.preSub) {
 		Cell* preAdder = st.preAdd ? st.preAdd : st.preSub;
 
-		log("  preadder %s (%s)\n", preAdder, pm.module->design->twines.unescaped_str(preAdder->type_impl));
+		log("  preadder %s (%s)\n", preAdder, pm.module->design->twines.unescaped_str(preAdder->type));
 		bool A_SIGNED = preAdder->getParam(ID::A_SIGNED).as_bool();
 		bool D_SIGNED = preAdder->getParam(ID::B_SIGNED).as_bool();
 		if (st.sigA == preAdder->getPort(ID::B))
@@ -356,7 +356,7 @@ void xilinx_dsp_pack(xilinx_dsp_pm &pm)
 		pm.autoremove(preAdder);
 	}
 	if (st.postAdd) {
-		log("  postadder %s (%s)\n", st.postAdd, pm.module->design->twines.unescaped_str(st.postAdd->type_impl));
+		log("  postadder %s (%s)\n", st.postAdd, pm.module->design->twines.unescaped_str(st.postAdd->type));
 
 		SigSpec &opmode = cell->connections_.at(ID(OPMODE));
 		if (st.postAddMux) {
@@ -382,7 +382,7 @@ void xilinx_dsp_pack(xilinx_dsp_pm &pm)
 		pm.autoremove(st.postAdd);
 	}
 	if (st.overflow) {
-		log("  overflow %s (%s)\n", st.overflow, pm.module->design->twines.unescaped_str(st.overflow->type_impl));
+		log("  overflow %s (%s)\n", st.overflow, pm.module->design->twines.unescaped_str(st.overflow->type));
 		cell->setParam(ID(USE_PATTERN_DETECT), Const("PATDET"));
 		cell->setParam(ID(SEL_PATTERN), Const("PATTERN"));
 		cell->setParam(ID(SEL_MASK), Const("MASK"));
@@ -555,7 +555,7 @@ void xilinx_dsp48a_pack(xilinx_dsp48a_pm &pm)
 	SigSpec &opmode = cell->connections_.at(ID(OPMODE));
 
 	if (st.preAdd) {
-		log("  preadder %s (%s)\n", st.preAdd, pm.module->design->twines.unescaped_str(st.preAdd->type_impl));
+		log("  preadder %s (%s)\n", st.preAdd, pm.module->design->twines.unescaped_str(st.preAdd->type));
 		bool D_SIGNED = st.preAdd->getParam(ID::A_SIGNED).as_bool();
 		bool B_SIGNED = st.preAdd->getParam(ID::B_SIGNED).as_bool();
 		st.sigB.extend_u0(18, B_SIGNED);
@@ -573,7 +573,7 @@ void xilinx_dsp48a_pack(xilinx_dsp48a_pm &pm)
 		pm.autoremove(st.preAdd);
 	}
 	if (st.postAdd) {
-		log("  postadder %s (%s)\n", st.postAdd, pm.module->design->twines.unescaped_str(st.postAdd->type_impl));
+		log("  postadder %s (%s)\n", st.postAdd, pm.module->design->twines.unescaped_str(st.postAdd->type));
 
 		if (st.postAddMux) {
 			log_assert(st.ffP);

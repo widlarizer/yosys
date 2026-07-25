@@ -407,7 +407,7 @@ void reintegrate(RTLIL::Module *module, bool dff_mode, std::string map_filename)
 		}
 
 		if (mapped_cell->type == ID($lut)) {
-			RTLIL::Cell *cell = module->addCell(rn(design, mapped_cell->name), mapped_cell->type_impl);
+			RTLIL::Cell *cell = module->addCell(rn(design, mapped_cell->name), mapped_cell->type);
 			RTLIL::copy_attr_dict(cell->parameters, mapped_cell->parameters, mapped_mod->design, design);
 			RTLIL::copy_attr_dict(cell->attributes, mapped_cell->attributes, mapped_mod->design, design);
 
@@ -452,12 +452,12 @@ void reintegrate(RTLIL::Module *module, bool dff_mode, std::string map_filename)
 				continue;
 			}
 
-			RTLIL::Module* box_module = design->module(existing_cell->type_impl);
+			RTLIL::Module* box_module = design->module(existing_cell->type);
 			log_assert(existing_cell->parameters.empty());
 			log_assert(mapped_cell->type == stringf("$__boxid%d", box_module->attributes.at(ID::abc9_box_id).as_int()));
-			mapped_cell->type_impl = existing_cell->type_impl;
+			mapped_cell->type = existing_cell->type;
 
-			RTLIL::Cell *cell = module->addCell(rn(design, mapped_cell->name), mapped_cell->type_impl);
+			RTLIL::Cell *cell = module->addCell(rn(design, mapped_cell->name), mapped_cell->type);
 			RTLIL::copy_attr_dict(cell->parameters, existing_cell->parameters, existing_cell->module->design, design);
 			RTLIL::copy_attr_dict(cell->attributes, existing_cell->attributes, existing_cell->module->design, design);
 			module->swap_names(cell, existing_cell);

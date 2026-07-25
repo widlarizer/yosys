@@ -1754,7 +1754,7 @@ void AbcModuleState::extract(AbcSigMap &assign_map, RTLIL::Design *design, RTLIL
 			continue;
 		}
 
-		RTLIL::Cell *cell = module->addCell(rn(c->name), module->design->twines.copy_from(mapped_design->twines, c->type_impl));
+		RTLIL::Cell *cell = module->addCell(rn(c->name), module->design->twines.copy_from(mapped_design->twines, c->type));
 		if (markgroups) cell->attributes[ID::abcgroup] = map_autoidx;
 		RTLIL::copy_attr_dict(cell->parameters, c->parameters, c->module->design, module->design);
 		for (auto &conn : c->connections()) {
@@ -2472,11 +2472,11 @@ struct AbcPass : public Pass {
 					if (bit.wire != nullptr) {
 						cell_to_bit[cell].insert(bit);
 						bit_to_cell[bit].insert(cell);
-						if (ct.cell_input(cell->type_impl, conn.first)) {
+						if (ct.cell_input(cell->type, conn.first)) {
 							cell_to_bit_up[cell].insert(bit);
 							bit_to_cell_down[bit].insert(cell);
 						}
-						if (ct.cell_output(cell->type_impl, conn.first)) {
+						if (ct.cell_output(cell->type, conn.first)) {
 							cell_to_bit_down[cell].insert(bit);
 							bit_to_cell_up[bit].insert(cell);
 						}

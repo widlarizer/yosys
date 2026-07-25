@@ -55,7 +55,7 @@ struct EquivMiterWorker
 		cone.insert(c);
 
 		for (auto &conn : c->connections()) {
-			if (!ct.cell_input(c->type_impl, conn.first))
+			if (!ct.cell_input(c->type, conn.first))
 				continue;
 			if (c->type == ID($equiv) && (conn.first == ID::A) != gold_mode)
 				continue;
@@ -73,7 +73,7 @@ struct EquivMiterWorker
 
 		for (auto c : source_module->cells())
 			for (auto &conn : c->connections())
-				if (ct.cell_output(c->type_impl, conn.first))
+				if (ct.cell_output(c->type, conn.first))
 					for (auto bit : sigmap(conn.second))
 						if (bit.wire)
 							bit_to_driver[bit] = c;
@@ -178,11 +178,11 @@ struct EquivMiterWorker
 
 		for (auto c : miter_module->cells())
 		for (auto &conn : c->connections()) {
-			if (ct.cell_input(c->type_impl, conn.first))
+			if (ct.cell_input(c->type, conn.first))
 				for (auto bit : conn.second)
 					if (bit.wire)
 						used_bits.insert(bit);
-			if (ct.cell_output(c->type_impl, conn.first))
+			if (ct.cell_output(c->type, conn.first))
 				for (auto bit : conn.second)
 					if (bit.wire)
 						driven_bits.insert(bit);

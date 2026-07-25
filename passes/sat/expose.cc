@@ -85,7 +85,7 @@ void find_dff_wires(std::set<IdString> &dff_wires, RTLIL::Module *module)
 	SigPool dffsignals;
 
 	for (auto cell : module->cells()) {
-		if (ct.cell_known(cell->type_impl) && cell->hasPort(ID::Q))
+		if (ct.cell_known(cell->type) && cell->hasPort(ID::Q))
 			dffsignals.add(sigmap(cell->getPort(ID::Q)));
 	}
 
@@ -498,10 +498,10 @@ struct ExposePass : public Pass {
 				}
 
 				for (auto cell : module->cells()) {
-					if (!ct.cell_known(cell->type_impl))
+					if (!ct.cell_known(cell->type))
 						continue;
 					for (auto &conn : cell->connections_)
-						if (ct.cell_output(cell->type_impl, conn.first))
+						if (ct.cell_output(cell->type, conn.first))
 							conn.second = out_to_in_map(sigmap(conn.second));
 				}
 
@@ -519,10 +519,10 @@ struct ExposePass : public Pass {
 				}
 
 				for (auto cell : module->cells()) {
-					if (!ct.cell_known(cell->type_impl))
+					if (!ct.cell_known(cell->type))
 						continue;
 					for (auto &conn : cell->connections_)
-						if (ct.cell_input(cell->type_impl, conn.first))
+						if (ct.cell_input(cell->type, conn.first))
 							conn.second = out_to_in_map(sigmap(conn.second));
 				}
 
@@ -656,9 +656,9 @@ struct ExposePass : public Pass {
 						for (auto &it : cell->connections())
 						{
 							RTLIL::Wire *w = add_new_wire(module, cell->name.unescape() + sep + design->twines.unescaped_str(it.first), it.second.size());
-							if (ct.cell_input(cell->type_impl, it.first))
+							if (ct.cell_input(cell->type, it.first))
 								w->port_output = true;
-							if (ct.cell_output(cell->type_impl, it.first))
+							if (ct.cell_output(cell->type, it.first))
 								w->port_input = true;
 
 							log("New module port: %s/%s (%s)\n", module, w, cell->type.unescape());

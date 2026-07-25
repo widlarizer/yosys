@@ -306,7 +306,7 @@ struct DesignPass : public Pass {
 						done[cell->type] = trg_ref;
 					}
 
-					cell->type_impl = done.at(cell->type);
+					cell->type = done.at(cell->type);
 				}
 			}
 		}

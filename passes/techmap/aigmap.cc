@@ -85,7 +85,7 @@ struct AigmapPass : public Pass {
 
 				if (aig.name.empty()) {
 					not_replaced_count++;
-					stat_not_replaced[cell->type_impl]++;
+					stat_not_replaced[cell->type]++;
 					if (select_mode)
 						new_sel.insert(cell->name.ref());
 					continue;
@@ -144,7 +144,7 @@ struct AigmapPass : public Pass {
 				}
 
 				replaced_cells.push_back(cell);
-				stat_replaced[cell->type_impl]++;
+				stat_replaced[cell->type]++;
 			}
 
 			if (not_replaced_count == 0 && replaced_cells.empty())

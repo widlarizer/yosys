@@ -609,7 +609,7 @@ SigSpec mutate_ctrl_sig(Module *module, IdString name, int width)
 		for (auto mod : module->design->modules())
 		for (auto cell : mod->cells())
 		{
-			if (cell->type_impl != module->name.ref())
+			if (cell->type != module->name.ref())
 				continue;
 
 			SigSpec ctrl = mutate_ctrl_sig(mod, name, width);

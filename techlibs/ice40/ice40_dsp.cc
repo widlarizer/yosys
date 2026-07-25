@@ -64,7 +64,7 @@ void create_ice40_dsp(ice40_dsp_pm &pm)
 
 	Cell *cell = st.mul;
 	if (cell->type == ID($mul)) {
-		log("  replacing %s with SB_MAC16 cell.\n", pm.module->design->twines.unescaped_str(st.mul->type_impl));
+		log("  replacing %s with SB_MAC16 cell.\n", pm.module->design->twines.unescaped_str(st.mul->type));
 
 		cell = pm.module->addCell(NEW_ID, ID(SB_MAC16));
 		pm.module->swap_names(cell, st.mul);
@@ -196,9 +196,9 @@ void create_ice40_dsp(ice40_dsp_pm &pm)
 	if (st.add) {
 		accum = (st.ffO && st.add->getPort(st.addAB == ID::A ? ID::B : ID::A) == st.sigO);
 		if (accum)
-			log("  accumulator %s (%s)\n", st.add, pm.module->design->twines.unescaped_str(st.add->type_impl));
+			log("  accumulator %s (%s)\n", st.add, pm.module->design->twines.unescaped_str(st.add->type));
 		else
-			log("  adder %s (%s)\n", st.add, pm.module->design->twines.unescaped_str(st.add->type_impl));
+			log("  adder %s (%s)\n", st.add, pm.module->design->twines.unescaped_str(st.add->type));
 		cell->setPort(ID(ADDSUBTOP), st.add->type == ID($add) ? State::S0 : State::S1);
 		cell->setPort(ID(ADDSUBBOT), st.add->type == ID($add) ? State::S0 : State::S1);
 	} else {

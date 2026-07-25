@@ -220,9 +220,9 @@ struct EdifBackend : public Backend {
 					continue;
 
 				if (design->module(cell->type) == nullptr || design->module(cell->type)->get_blackbox_attribute()) {
-					lib_cell_ports[cell->type_impl];
+					lib_cell_ports[cell->type];
 					for (auto p : cell->connections())
-						lib_cell_ports[cell->type_impl][p.first] = std::max(lib_cell_ports[cell->type_impl][p.first], GetSize(p.second));
+						lib_cell_ports[cell->type][p.first] = std::max(lib_cell_ports[cell->type][p.first], GetSize(p.second));
 				}
 			}
 		}
@@ -479,7 +479,7 @@ struct EdifBackend : public Backend {
 			for (auto cell : module->cells()) {
 				*f << stringf("          (instance %s\n", EDIF_DEF(cell->name));
 				*f << stringf("            (viewRef VIEW_NETLIST (cellRef %s%s))", EDIF_REF(cell->type),
-						lib_cell_ports.count(cell->type_impl) > 0 ? " (libraryRef LIB)" : "");
+						lib_cell_ports.count(cell->type) > 0 ? " (libraryRef LIB)" : "");
 				for (auto &p : cell->parameters)
 					add_prop(p.first, p.second);
 				if (attr_properties)

@@ -98,7 +98,7 @@ void check(RTLIL::Design *design, bool dff_mode)
 				IdString derived_type;
 				Module *derived_module;
 				if (cell->parameters.empty()) {
-					derived_type = cell->type_impl;
+					derived_type = cell->type;
 					derived_module = inst_module;
 				}
 				else {
@@ -160,7 +160,7 @@ void prep_hier(RTLIL::Design *design, bool dff_mode)
 			IdString derived_type;
 			Module *derived_module;
 			if (cell->parameters.empty()) {
-				derived_type = cell->type_impl;
+				derived_type = cell->type;
 				derived_module = inst_module;
 			}
 			else {
@@ -188,7 +188,7 @@ void prep_hier(RTLIL::Design *design, bool dff_mode)
 						// If derived_type is present in unmap_design, it means that it was processed previously, but found to be incompatible -- e.g. if
 						// it contained a non-zero initial state. In this case, continue to replace the cell type/parameters so that it has the same properties
 						// as a compatible type, yet will be safely unmapped later
-						cell->type_impl = derived_type;
+						cell->type = derived_type;
 						cell->parameters.clear();
 						unused_derived.erase(derived_type);
 					}
@@ -225,9 +225,9 @@ void prep_hier(RTLIL::Design *design, bool dff_mode)
 						}
 				}
 
-				if (derived_type != cell->type_impl) {
+				if (derived_type != cell->type) {
 					auto unmap_module = unmap_design->addModule(to_unmap(derived_type));
-					auto replace_cell = unmap_module->addCell(ID::_TECHMAP_REPLACE_, unmap_module->design->twines.copy_from(cell->module->design->twines, cell->type_impl));
+					auto replace_cell = unmap_module->addCell(ID::_TECHMAP_REPLACE_, unmap_module->design->twines.copy_from(cell->module->design->twines, cell->type));
 					for (auto port : derived_module->ports) {
 						auto w = unmap_module->addWire(to_unmap(port), derived_module->wire(port));
 						// Do not propagate (* init *) values into the box,
@@ -251,7 +251,7 @@ void prep_hier(RTLIL::Design *design, bool dff_mode)
 				}
 			}
 
-			cell->type_impl = derived_type;
+			cell->type = derived_type;
 			cell->parameters.clear();
 			unused_derived.erase(derived_type);
 		}
@@ -415,7 +415,7 @@ void prep_bypass(RTLIL::Design *design)
 			//   and a bypass cell that has the same inputs/outputs as the
 			//   original cell, but with additional inputs taken from the
 			//   replaced cell
-			auto replace_cell = map_module->addCell(ID::_TECHMAP_REPLACE_, map_module->design->twines.copy_from(cell->module->design->twines, cell->type_impl));
+			auto replace_cell = map_module->addCell(ID::_TECHMAP_REPLACE_, map_module->design->twines.copy_from(cell->module->design->twines, cell->type));
 			auto bypass_cell = map_module->addCell(NEW_ID, map_module->design->twines.add(std::string{cell->type.str() + "_$abc9_byp"}));
 			for (const auto &conn : cell->connections()) {
 				auto port = map_module->wire(to_map(conn.first));
@@ -777,7 +777,7 @@ void prep_xaiger(RTLIL::Module *module, bool dff)
 			bool abc9_flop = inst_module && inst_module->get_bool_attribute(ID::abc9_flop);
 			if (abc9_flop && !dff)
 				continue;
-			if (!(inst_module && inst_module->get_bool_attribute(ID::abc9_box)) && !yosys_celltypes.cell_known(cell->type_impl))
+			if (!(inst_module && inst_module->get_bool_attribute(ID::abc9_box)) && !yosys_celltypes.cell_known(cell->type))
 				continue;
 
 			// TODO: Speed up toposort -- we care about box ordering only
@@ -902,7 +902,7 @@ void prep_xaiger(RTLIL::Module *module, bool dff)
 		auto &holes_cell = r.first->second;
 		if (r.second) {
 			if (box_module->get_bool_attribute(ID::whitebox)) {
-				holes_cell = holes_module->addCell(NEW_ID, holes_module->design->twines.copy_from(cell->module->design->twines, cell->type_impl));
+				holes_cell = holes_module->addCell(NEW_ID, holes_module->design->twines.copy_from(cell->module->design->twines, cell->type));
 
 				if (box_module->has_processes())
 					Pass::call_on_module(design, box_module, "proc -noopt");

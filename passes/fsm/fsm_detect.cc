@@ -326,12 +326,12 @@ struct FsmDetectPass : public Pass {
 			sig_at_port.clear();
 			for (auto cell : module->cells())
 				for (auto &conn_it : cell->connections()) {
-					if (ct.cell_output(cell->type_impl, conn_it.first) || !ct.cell_known(cell->type_impl)) {
+					if (ct.cell_output(cell->type, conn_it.first) || !ct.cell_known(cell->type)) {
 						RTLIL::SigSpec sig = conn_it.second;
 						assign_map.apply(sig);
 						sig2driver.insert(sig, sig2driver_entry_t(cell, conn_it.first));
 					}
-					if (!ct.cell_known(cell->type_impl) || ct.cell_input(cell->type_impl, conn_it.first)) {
+					if (!ct.cell_known(cell->type) || ct.cell_input(cell->type, conn_it.first)) {
 						RTLIL::SigSpec sig = conn_it.second;
 						assign_map.apply(sig);
 						sig2user.insert(sig, sig2driver_entry_t(cell, conn_it.first));

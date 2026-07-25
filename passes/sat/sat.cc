@@ -245,7 +245,7 @@ struct SatHelper
 			if (design->selected(module, cell)) {
 				if (satgen.importCell(cell, timestep)) {
 					for (auto &p : cell->connections())
-						if (ct.cell_output(cell->type_impl, p.first))
+						if (ct.cell_output(cell->type, p.first))
 							show_drivers.insert(sigmap(p.second), cell);
 					import_cell_counter++;
 				} else report_missing_model(ignore_unknown_cells, cell);

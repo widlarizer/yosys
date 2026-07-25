@@ -312,8 +312,8 @@ struct SimplecWorker
 					bit2cell[mod][bit].insert(tuple<Cell*, IdString, int>(c, conn.first, idx++));
 			}
 
-			if (design->module(c->type_impl))
-				create_module_struct(design->module(c->type_impl));
+			if (design->module(c->type))
+				create_module_struct(design->module(c->type));
 		}
 
 		TopoSort<IdString> topo;
@@ -370,7 +370,7 @@ struct SimplecWorker
 				struct_declarations.push_back(stringf("  %s %s; // %s", sigtype(w->width), cid(w->name), w));
 
 		for (Cell *c : mod->cells())
-			if (design->module(c->type_impl))
+			if (design->module(c->type))
 				struct_declarations.push_back(stringf("  struct %s_state_t %s; // %s", cid(c->type), cid(c->name), c));
 
 		struct_declarations.push_back(stringf("};"));

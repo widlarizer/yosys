@@ -46,9 +46,9 @@ void replace_undriven(RTLIL::Module *module, const NewCellTypes &ct)
 
 	for (auto cell : module->cells())
 	for (auto &conn : cell->connections()) {
-		if (!ct.cell_known(cell->type_impl) || ct.cell_output(cell->type_impl, conn.first))
+		if (!ct.cell_known(cell->type) || ct.cell_output(cell->type, conn.first))
 			driven_signals.add(sigmap(conn.second));
-		if (!ct.cell_known(cell->type_impl) || ct.cell_input(cell->type_impl, conn.first))
+		if (!ct.cell_known(cell->type) || ct.cell_input(cell->type, conn.first))
 			used_signals.add(sigmap(conn.second));
 	}
 
@@ -351,7 +351,7 @@ bool group_cell_inputs(RTLIL::Module *module, RTLIL::Cell *cell, bool commutativ
 			new_y = std::move(def_y);
 		}
 
-		RTLIL::Cell *c = module->addCell(NEW_ID, cell->type_impl);
+		RTLIL::Cell *c = module->addCell(NEW_ID, cell->type);
 
 		c->setPort(ID::A, new_a);
 		c->parameters[ID::A_WIDTH] = new_a.size();
@@ -449,7 +449,7 @@ void handle_clkpol_celltype_swap(Cell *cell, string type1, string type2, IdStrin
 					twines.unescaped_str(port), cell->type.unescape(), cell, cell->module,
 					log_signal(sig), log_signal(new_sig));
 			cell->setPort(port, new_sig);
-			cell->type_impl = cell->module->design->twines.add(std::string{cell->type == type1 ? type2 : type1});
+			cell->type = cell->module->design->twines.add(std::string{cell->type == type1 ? type2 : type1});
 		}
 	}
 }
@@ -538,7 +538,7 @@ void replace_const_cells(RTLIL::Design *design, RTLIL::Module *module, bool cons
 		if (cell->type.in(ID($dffe), ID($adffe), ID($aldffe), ID($sdffe), ID($sdffce), ID($dffsre), ID($dlatch), ID($adlatch), ID($dlatchsr)))
 			handle_polarity_inv(cell, ID::EN, ID::EN_POLARITY, assign_map, inv_drivers);
 
-		if (!StaticCellTypes::Compat::stdcells_mem(cell->type_impl))
+		if (!StaticCellTypes::Compat::stdcells_mem(cell->type))
 			continue;
 
 		handle_clkpol_celltype_swap(cell, "$_SR_N?_", "$_SR_P?_", ID::S, assign_map, inv_drivers);
@@ -598,19 +598,19 @@ void replace_const_cells(RTLIL::Design *design, RTLIL::Module *module, bool cons
 	dict<RTLIL::SigBit, Cell*> outbit_to_cell;
 
 	for (auto cell : dirty_cells)
-	if (design->selected(module, cell) && yosys_celltypes.cell_evaluable(cell->type_impl)) {
+	if (design->selected(module, cell) && yosys_celltypes.cell_evaluable(cell->type)) {
 		for (auto &conn : cell->connections())
-		if (yosys_celltypes.cell_output(cell->type_impl, conn.first))
+		if (yosys_celltypes.cell_output(cell->type, conn.first))
 		for (auto bit : assign_map(conn.second))
 			outbit_to_cell[bit] = cell;
 		cells.node(cell);
 	}
 
 	for (auto cell : dirty_cells)
-	if (design->selected(module, cell) && yosys_celltypes.cell_evaluable(cell->type_impl)) {
+	if (design->selected(module, cell) && yosys_celltypes.cell_evaluable(cell->type)) {
 		const int r_index = cells.node(cell);
 		for (auto &conn : cell->connections())
-		if (yosys_celltypes.cell_input(cell->type_impl, conn.first))
+		if (yosys_celltypes.cell_input(cell->type, conn.first))
 		for (auto bit : assign_map(conn.second))
 		if (outbit_to_cell.count(bit))
 			cells.edge(cells.node(outbit_to_cell.at(bit)), r_index);
@@ -751,7 +751,7 @@ void replace_const_cells(RTLIL::Design *design, RTLIL::Module *module, bool cons
 			if (cell->type == ID($reduce_xnor)) {
 				log_debug("Replacing %s cell `%s' in module `%s' with $not cell.\n",
 						cell->type.unescape(), cell->name.unescape(), module);
-				cell->type_impl = ID::$not;
+				cell->type = ID::$not;
 				did_something = true;
 			} else {
 				SigMap *patch_map = &assign_map;
@@ -1271,7 +1271,7 @@ skip_fine_alu:
 				cell->setPort(ID::A, input.extract(0, 1));
 				cell->unsetPort(ID::B);
 				cell->unsetPort(ID::S);
-				cell->type_impl = ID::$_NOT_;
+				cell->type = ID::$_NOT_;
 				goto next_cell;
 			}
 			if (input.match("11 ")) ACTION_DO_Y(1);
@@ -1376,7 +1376,7 @@ skip_fine_alu:
 					cell->parameters.erase(ID::B_WIDTH);
 					cell->parameters.erase(ID::B_SIGNED);
 					cell->unsetPort(ID::B);
-					cell->type_impl = ID::$not;
+					cell->type = ID::$not;
 					did_something = true;
 				}
 				goto next_cell;
@@ -1396,7 +1396,7 @@ skip_fine_alu:
 			cell->unsetPort(ID::B);
 			cell->unsetParam(ID::B_SIGNED);
 			cell->unsetParam(ID::B_WIDTH);
-			cell->type_impl = (cell->type == ID::$eq) ? ID::$logic_not : ID::$reduce_bool;
+			cell->type = (cell->type == ID::$eq) ? ID::$logic_not : ID::$reduce_bool;
 			did_something = true;
 			goto next_cell;
 		}
@@ -1560,7 +1560,7 @@ skip_fine_alu:
 				cell->unsetPort(ID::B);
 				cell->parameters.erase(ID::B_WIDTH);
 				cell->parameters.erase(ID::B_SIGNED);
-				cell->type_impl = arith_inverse ? ID::$neg : ID::$pos;
+				cell->type = arith_inverse ? ID::$neg : ID::$pos;
 				cell->check();
 
 				did_something = true;
@@ -1588,9 +1588,9 @@ skip_identity:
 				cell->parameters[ID::Y_WIDTH] = width;
 				cell->parameters[ID::A_SIGNED] = 0;
 				cell->parameters.erase(ID::WIDTH);
-				cell->type_impl = ID::$not;
+				cell->type = ID::$not;
 			} else
-				cell->type_impl = ID::$_NOT_;
+				cell->type = ID::$_NOT_;
 			did_something = true;
 			goto next_cell;
 		}
@@ -1607,9 +1607,9 @@ skip_identity:
 				cell->parameters[ID::A_SIGNED] = 0;
 				cell->parameters[ID::B_SIGNED] = 0;
 				cell->parameters.erase(ID::WIDTH);
-				cell->type_impl = ID::$and;
+				cell->type = ID::$and;
 			} else
-				cell->type_impl = ID::$_AND_;
+				cell->type = ID::$_AND_;
 			did_something = true;
 			goto next_cell;
 		}
@@ -1626,9 +1626,9 @@ skip_identity:
 				cell->parameters[ID::A_SIGNED] = 0;
 				cell->parameters[ID::B_SIGNED] = 0;
 				cell->parameters.erase(ID::WIDTH);
-				cell->type_impl = ID::$or;
+				cell->type = ID::$or;
 			} else
-				cell->type_impl = ID::$_OR_;
+				cell->type = ID::$_OR_;
 			did_something = true;
 			goto next_cell;
 		}
@@ -1673,10 +1673,10 @@ skip_identity:
 				cell->setPort(ID::B, new_b);
 				cell->setPort(ID::S, new_s);
 				if (new_s.size() > 1) {
-					cell->type_impl = ID::$pmux;
+					cell->type = ID::$pmux;
 					cell->parameters[ID::S_WIDTH] = new_s.size();
 				} else {
-					cell->type_impl = ID::$mux;
+					cell->type = ID::$mux;
 					cell->parameters.erase(ID::S_WIDTH);
 				}
 				did_something = true;
@@ -1831,7 +1831,7 @@ skip_identity:
 				if (bit_idx == 1) {
 					log_debug("Replacing pow cell `%s' in module `%s' with left-shift\n",
 							cell->name, module->name.str().c_str());
-					cell->type_impl = ID::$shl;
+					cell->type = ID::$shl;
 					cell->parameters[ID::A_WIDTH] = 1;
 					cell->setPort(ID::A, Const(State::S1, 1));
 				}
@@ -1901,7 +1901,7 @@ skip_identity:
 
 					Const new_b = exp;
 
-					cell->type_impl = ID::$shl;
+					cell->type = ID::$shl;
 					cell->parameters[ID::B_WIDTH] = GetSize(new_b);
 					cell->parameters[ID::B_SIGNED] = false;
 					cell->setPort(ID::B, new_b);
@@ -1982,7 +1982,7 @@ skip_identity:
 
 						Const new_b = exp;
 
-						cell->type_impl = ID::$sshr;
+						cell->type = ID::$sshr;
 						cell->parameters[ID::B_WIDTH] = GetSize(new_b);
 						cell->parameters[ID::B_SIGNED] = false;
 						cell->setPort(ID::B, new_b);
@@ -2032,7 +2032,7 @@ skip_identity:
 							if (b_signed || exp == 0)
 								new_b.push_back(State::S0);
 
-							cell->type_impl = ID::$and;
+							cell->type = ID::$and;
 							cell->parameters[ID::B_WIDTH] = GetSize(new_b);
 							cell->setPort(ID::B, new_b);
 							cell->check();
@@ -2111,7 +2111,7 @@ skip_identity:
 				SigSpec slice_x = module->addWire(NEW_ID, sz);
 				SigSpec slice_co = module->addWire(NEW_ID, sz);
 
-				RTLIL::Cell *c = module->addCell(NEW_ID, cell->type_impl);
+				RTLIL::Cell *c = module->addCell(NEW_ID, cell->type);
 				c->setPort(ID::A, sig_a.extract(prev, sz));
 				c->setPort(ID::B, sig_b.extract(prev, sz));
 				c->setPort(ID::BI, sig_bi);

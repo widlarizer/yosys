@@ -212,13 +212,13 @@ struct WrapcellPass : Pass {
 				Cell *subcell;
 				IdString name_ref;
 
-				if (!ct.cell_known(cell->type_impl))
+				if (!ct.cell_known(cell->type))
 					log_error("Non-internal cell type '%s' on cell '%s' in module '%s' unsupported\n",
 							  cell->type.unescape(), cell, module);
 
 				std::vector<std::pair<IdString, int>> unused_outputs, used_outputs;
 				for (auto conn : cell->connections()) {
-					if (ct.cell_output(cell->type_impl, conn.first))
+					if (ct.cell_output(cell->type, conn.first))
 					for (int i = 0; i < conn.second.size(); i++) {
 						if (tracking_unused && unused.check(conn.second[i]))
 							unused_outputs.emplace_back(conn.first, i);
@@ -246,7 +246,7 @@ struct WrapcellPass : Pass {
 				subm = d->addModule(name_ref);
 				subcell = subm->addCell(Twine{"$1"}, IdString(cell->type));
 				for (auto conn : cell->connections()) {
-					if (ct.cell_output(cell->type_impl, conn.first)) {
+					if (ct.cell_output(cell->type, conn.first)) {
 						// Insert marker bits as placehodlers which need to be replaced
 						subcell->setPort(conn.first, SigSpec(RTLIL::Sm, conn.second.size()));
 					} else {
@@ -290,13 +290,13 @@ struct WrapcellPass : Pass {
 				dict<IdString, SigSpec> new_connections;
 
 				for (auto conn : cell->connections())
-				if (!ct.cell_output(cell->type_impl, conn.first))
+				if (!ct.cell_output(cell->type, conn.first))
 					new_connections[conn.first] = conn.second;
 
 				for (auto chunk : collect_chunks(used_outputs))
 					new_connections[chunk.format(cell)] = chunk.sample(cell);
 
-				cell->type_impl = name_ref;
+				cell->type = name_ref;
 				cell->connections_ = new_connections;
 			}
 		}

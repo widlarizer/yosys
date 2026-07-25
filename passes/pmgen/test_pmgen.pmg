@@ -86,7 +86,7 @@ generate 10
 	SigSpec B = module->addWire(NEW_ID);
 	SigSpec Y = port(chain.back().first, chain.back().second);
 	Cell *c = module->addAndGate(NEW_ID, A, B, Y);
-	c->type_impl = chain.back().first->type_impl;
+	c->type = chain.back().first->type;
 endmatch
 
 code
