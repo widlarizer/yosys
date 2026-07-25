@@ -1177,7 +1177,7 @@ static RTLIL::Module *process_module(RTLIL::Design *design, AstNode *ast, bool d
 	module->design = design;
 
 	module->ast = nullptr;
-	module->meta_->name = design->twines.add(std::string{ast->str});
+	module->name = design->twines.add(std::string{ast->str});
 	set_src_attr(module, ast);
 	module->set_bool_attribute(ID::cells_not_processed);
 
@@ -1637,7 +1637,7 @@ bool AstModule::reprocess_if_necessary(RTLIL::Design *design)
 		IdString abstract_ref = search.find("$abstract" + modname);
 		if (design->module(mod_ref) || design->module(abstract_ref)) {
 			log("Reprocessing module %s because instantiated module %s has become available.\n",
-					design->twines.str(meta_->name).c_str(), RTLIL::unescape_id(modname));
+					design->twines.str(name).c_str(), RTLIL::unescape_id(modname));
 			loadconfig();
 			process_and_replace_module(design, this, ast.get(), NULL);
 			return true;
@@ -1733,7 +1733,7 @@ RTLIL::IdString AstModule::derive(RTLIL::Design *design, const dict<RTLIL::IdStr
 
 	bool has_interfaces = false;
 	for(auto &intf : interfaces) {
-		interf_info += design->twines.str(intf.second->meta_->name);
+		interf_info += design->twines.str(intf.second->name);
 		has_interfaces = true;
 	}
 
@@ -1788,7 +1788,7 @@ RTLIL::IdString AstModule::derive(RTLIL::Design *design, const dict<RTLIL::IdStr
 				mod->fixup_ports();
 				// We copy the cell of the interface to the sub-module such that it
 				//   can further be found if it is propagated down to sub-sub-modules etc.
-				RTLIL::Cell *new_subcell = mod->addCell(intf.first, intf.second->meta_->name);
+				RTLIL::Cell *new_subcell = mod->addCell(intf.first, intf.second->name);
 				new_subcell->set_bool_attribute(ID::is_interface);
 			}
 			else {
@@ -1860,7 +1860,7 @@ std::string AST::derived_module_name(std::string stripped_name, const std::vecto
 // create a new parametric module (when needed) and return the name of the generated module
 std::string AstModule::derive_common(RTLIL::Design *design, const dict<IdString, RTLIL::Const> &parameters, std::unique_ptr<AstNode>* new_ast_out, bool quiet)
 {
-	std::string stripped_name = design->twines.str(meta_->name);
+	std::string stripped_name = design->twines.str(name);
 	(*new_ast_out) = nullptr;
 
 	if (stripped_name.compare(0, 9, "$abstract") == 0)
@@ -1960,7 +1960,7 @@ RTLIL::Module *AstModule::clone() const
 {
 	AstModule *new_mod = new AstModule;
 	new_mod->design = design;
-	new_mod->meta_->name = meta_->name;
+	new_mod->name = name;
 	cloneInto(new_mod);
 
 	new_mod->ast = ast->clone();
@@ -1983,7 +1983,7 @@ RTLIL::Module *AstModule::clone(RTLIL::Design *dst, bool src_id_verbatim) const
 {
 	AstModule *new_mod = new AstModule;
 	new_mod->design = dst;
-	new_mod->meta_->name = dst->twines.copy_from(design->twines, meta_->name);
+	new_mod->name = dst->twines.copy_from(design->twines, name);
 	cloneInto(new_mod, src_id_verbatim);
 	dst->add(new_mod);
 
@@ -2007,7 +2007,7 @@ RTLIL::Module *AstModule::clone(RTLIL::Design *dst, IdString target_name, bool s
 {
 	AstModule *new_mod = new AstModule;
 	new_mod->design = dst;
-	new_mod->meta_->name = target_name;
+	new_mod->name = target_name;
 	cloneInto(new_mod, src_id_verbatim);
 	dst->add(new_mod);
 

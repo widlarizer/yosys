@@ -312,9 +312,9 @@ void json_import(Design *design, string &modname, JsonNode *node)
 
 	Module *module = new RTLIL::Module;
 	module->design = design;
-	module->meta_->name = design->twines.add(RTLIL::escape_id(modname));
+	module->name = design->twines.add(RTLIL::escape_id(modname));
 
-	if (design->module(module->meta_->name))
+	if (design->module(module->name))
 		log_error("Re-definition of module %s.\n", module->name.str());
 
 	design->add(module);
@@ -612,7 +612,7 @@ void json_import(Design *design, string &modname, JsonNode *node)
 			JsonNode *memory_node = memory_node_it.second;
 
 			RTLIL::Memory *mem = new RTLIL::Memory;
-			mem->meta_->name = design->twines.add(std::string(memory_name));
+			mem->name = design->twines.add(std::string(memory_name));
 			mem->module = module;
 
 			if (memory_node->type != 'D')
@@ -642,7 +642,7 @@ void json_import(Design *design, string &modname, JsonNode *node)
 			if (memory_node->data_dict.count("attributes"))
 				json_parse_attributes(design, mem, memory_node->data_dict.at("attributes"));
 
-			module->memories[mem->meta_->name] = mem;
+			module->memories[mem->name] = mem;
 		}
 	}
 

@@ -614,7 +614,7 @@ struct LibertyFrontend : public Frontend {
 			module->design = design;
 			std::string cell_name = RTLIL::escape_id(cell->args.at(0));
 			IdString cell_name_ref = design->twines.add(std::string{cell_name});
-			module->meta_->name = cell_name_ref;
+			module->name = cell_name_ref;
 
 			if (flag_lib)
 				module->set_bool_attribute(ID::blackbox);

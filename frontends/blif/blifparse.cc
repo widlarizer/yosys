@@ -174,10 +174,10 @@ void parse_blif(RTLIL::Design *design, std::istream &f, IdString dff_name, bool 
 				if (name == nullptr)
 					goto error;
 				std::string escaped_name = RTLIL::escape_id(name);
-				module->meta_->name = design->twines.add(std::string{escaped_name});
+				module->name = design->twines.add(std::string{escaped_name});
 				obj_attributes = &module->attributes;
 				obj_parameters = nullptr;
-				if (design->module(module->meta_->name))
+				if (design->module(module->name))
 					log_error("Duplicate definition of module %s in line %d!\n", escaped_name.c_str(), line_count);
 				design->add(module);
 				continue;

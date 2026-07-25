@@ -383,7 +383,7 @@ struct RTLILFrontendWorker {
 						wire = legalize_wire(design->twines.add(std::string(*id)));
 					else {
 						for (auto wire : current_module->wires())
-							design->twines.dump(wire->meta_->name);
+							design->twines.dump(wire->name);
 						error("Wire `%s' not found.", *id);
 					}
 				}
@@ -464,7 +464,7 @@ struct RTLILFrontendWorker {
 
 		current_module = new RTLIL::Module;
 		current_module->design = design;
-		current_module->meta_->name = module_name;
+		current_module->name = module_name;
 		if (delete_current_module) {
 			attrbuf.erase(ID::src);
 			pending_src = Twine::Null;
@@ -797,7 +797,7 @@ struct RTLILFrontendWorker {
 				}
 				if (memory->meta_ == nullptr)
 					memory->meta_ = design->alloc_obj_meta();
-				memory->meta_->name = mem_name;
+				memory->name = mem_name;
 				break;
 			}
 			if (try_parse_keyword("width")){

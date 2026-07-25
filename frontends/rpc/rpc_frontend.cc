@@ -158,7 +158,7 @@ struct RpcModule : RTLIL::Module {
 	std::shared_ptr<RpcServer> server;
 
 	RTLIL::IdString derive(RTLIL::Design *design, const dict<RTLIL::IdString, RTLIL::Const> &parameters, bool /*mayfail*/) override {
-		std::string stripped_name = design->twines.str(meta_->name);
+		std::string stripped_name = design->twines.str(name);
 		if (stripped_name.compare(0, 9, "$abstract") == 0)
 			stripped_name = stripped_name.substr(9);
 		log_assert(stripped_name[0] == '\\');
@@ -588,7 +588,7 @@ cleanup_path:
 			log("Linking module `%s'.\n", module_name);
 			RpcModule *module = new RpcModule;
 			module->design = design;
-			module->meta_->name = design->twines.add(Twine{"$abstract\\" + module_name});
+			module->name = design->twines.add(Twine{"$abstract\\" + module_name});
 			module->server = server;
 			design->add(module);
 		}

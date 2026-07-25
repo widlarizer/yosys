@@ -212,8 +212,8 @@ AigerReader::AigerReader(RTLIL::Design *design, std::istream &f, IdString module
 {
 	module = new RTLIL::Module;
 	module->design = design;
-	module->meta_->name = module_name;
-	if (design->module(module->meta_->name))
+	module->name = module_name;
+	if (design->module(module->name))
 		log_error("Duplicate definition of module %s!\n", module->name.str().c_str());
 }
 
@@ -910,9 +910,9 @@ void AigerReader::post_process()
 		if (cell->type != ID($lut)) continue;
 		auto y_port = cell->getPort(ID::Y).as_bit();
 		if (y_port.wire->width == 1)
-			module->rename(cell, design->twines.add(std::string{stringf("$lut%s", design->twines.str(y_port.wire->meta_->name).c_str())}));
+			module->rename(cell, design->twines.add(std::string{stringf("$lut%s", design->twines.str(y_port.wire->name).c_str())}));
 		else
-			module->rename(cell, design->twines.add(std::string{stringf("$lut%s[%d]", design->twines.str(y_port.wire->meta_->name).c_str(), y_port.offset)}));
+			module->rename(cell, design->twines.add(std::string{stringf("$lut%s[%d]", design->twines.str(y_port.wire->name).c_str(), y_port.offset)}));
 	}
 }
 
