@@ -503,7 +503,7 @@ struct BoothPassWorker {
 			int ix = 0;
 
 			for (auto pp_wire : get<0>(pp)) {
-				IdString wire_name = pp_wire->name;
+				RTLIL::IdString wire_name = pp_wire->name;
 
 				printf(" [%d]:%s ", ix, module->design->twines.str(wire_name).c_str());
 				ix++;

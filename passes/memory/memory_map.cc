@@ -64,7 +64,7 @@ struct MemoryMapWorker
 		return value;
 	}
 
-	std::string genid(IdString name, std::string token1 = "", int i = -1, std::string token2 = "", int j = -1, std::string token3 = "", int k = -1, std::string token4 = "")
+	std::string genid(RTLIL::IdString name, std::string token1 = "", int i = -1, std::string token2 = "", int j = -1, std::string token3 = "", int k = -1, std::string token4 = "")
 	{
 		std::stringstream sstr;
 		sstr << "$memory" << design->twines.str(name) << token1;

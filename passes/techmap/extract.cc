@@ -33,14 +33,14 @@ class SubCircuitSolver : public SubCircuit::Solver
 {
 public:
 	bool ignore_parameters;
-	std::set<std::pair<IdString, IdString>> ignored_parameters;
-	std::set<IdString> cell_attr, wire_attr;
+	std::set<std::pair<RTLIL::IdString, RTLIL::IdString>> ignored_parameters;
+	std::set<RTLIL::IdString> cell_attr, wire_attr;
 
 	SubCircuitSolver() : ignore_parameters(false)
 	{
 	}
 
-	bool compareAttributes(const std::set<IdString> &attr, const dict<IdString, RTLIL::Const> &needleAttr, const dict<IdString, RTLIL::Const> &haystackAttr)
+	bool compareAttributes(const std::set<RTLIL::IdString> &attr, const dict<RTLIL::IdString, RTLIL::Const> &needleAttr, const dict<RTLIL::IdString, RTLIL::Const> &haystackAttr)
 	{
 		for (auto &it : attr) {
 			size_t nc = needleAttr.count(it), hc = haystackAttr.count(it);
@@ -50,7 +50,7 @@ public:
 		return true;
 	}
 
-	RTLIL::Const unified_param(IdString cell_type, IdString param, RTLIL::Const value)
+	RTLIL::Const unified_param(RTLIL::IdString cell_type, RTLIL::IdString param, RTLIL::Const value)
 	{
 		std::string type_str = ID::str(cell_type);
 		if (!type_str.starts_with("$") || type_str.starts_with("$_"))
@@ -105,12 +105,12 @@ public:
 		}
 
 		if (!ignore_parameters) {
-			std::map<IdString, RTLIL::Const> needle_param, haystack_param;
+			std::map<RTLIL::IdString, RTLIL::Const> needle_param, haystack_param;
 			for (auto &it : needleCell->parameters)
-				if (!ignored_parameters.count(std::pair<IdString, IdString>(needleCell->type, it.first)))
+				if (!ignored_parameters.count(std::pair<RTLIL::IdString, RTLIL::IdString>(needleCell->type, it.first)))
 					needle_param[it.first] = unified_param(needleCell->type, it.first, it.second);
 			for (auto &it : haystackCell->parameters)
-				if (!ignored_parameters.count(std::pair<IdString, IdString>(haystackCell->type, it.first)))
+				if (!ignored_parameters.count(std::pair<RTLIL::IdString, RTLIL::IdString>(haystackCell->type, it.first)))
 					haystack_param[it.first] = unified_param(haystackCell->type, it.first, it.second);
 			if (needle_param != haystack_param)
 				return false;
@@ -123,7 +123,7 @@ public:
 		{
 			RTLIL::Wire *lastNeedleWire = nullptr;
 			RTLIL::Wire *lastHaystackWire = nullptr;
-			dict<IdString, RTLIL::Const> emptyAttr;
+			dict<RTLIL::IdString, RTLIL::Const> emptyAttr;
 
 			for (auto &conn : needleCell->connections())
 			{

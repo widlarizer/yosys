@@ -174,14 +174,14 @@ struct Scheduler {
 	}
 };
 
-bool is_unary_cell(IdString type)
+bool is_unary_cell(RTLIL::IdString type)
 {
 	return type.in(
 		ID($not), ID($logic_not), ID($reduce_and), ID($reduce_or), ID($reduce_xor), ID($reduce_xnor), ID($reduce_bool),
 		ID($pos), ID($neg));
 }
 
-bool is_binary_cell(IdString type)
+bool is_binary_cell(RTLIL::IdString type)
 {
 	return type.in(
 		ID($and), ID($or), ID($xor), ID($xnor), ID($logic_and), ID($logic_or),
@@ -190,20 +190,20 @@ bool is_binary_cell(IdString type)
 		ID($add), ID($sub), ID($mul), ID($div), ID($mod), ID($modfloor), ID($divfloor));
 }
 
-bool is_extending_cell(IdString type)
+bool is_extending_cell(RTLIL::IdString type)
 {
 	return !type.in(
 		ID($logic_not), ID($logic_and), ID($logic_or),
 		ID($reduce_and), ID($reduce_or), ID($reduce_xor), ID($reduce_xnor), ID($reduce_bool));
 }
 
-bool is_inlinable_cell(IdString type)
+bool is_inlinable_cell(RTLIL::IdString type)
 {
 	return is_unary_cell(type) || is_binary_cell(type) || type.in(
 		ID($mux), ID($concat), ID($slice), ID($pmux), ID($bmux), ID($demux), ID($bwmux));
 }
 
-bool is_ff_cell(IdString type)
+bool is_ff_cell(RTLIL::IdString type)
 {
 	return type.in(
 		ID($dff), ID($dffe), ID($sdff), ID($sdffe), ID($sdffce),
@@ -212,12 +212,12 @@ bool is_ff_cell(IdString type)
 		ID($dlatch), ID($adlatch), ID($dlatchsr), ID($sr));
 }
 
-bool is_internal_cell(IdString type)
+bool is_internal_cell(RTLIL::IdString type)
 {
 	return !type.isPublic() && type.untag().value < STATIC_TWINE_END;
 }
 
-bool is_effectful_cell(IdString type)
+bool is_effectful_cell(RTLIL::IdString type)
 {
 	return type.in(ID($print), ID($check));
 }
@@ -243,7 +243,7 @@ enum class CxxrtlPortType {
 	SYNC = 2,
 };
 
-CxxrtlPortType cxxrtl_port_type(RTLIL::Module *module, IdString port)
+CxxrtlPortType cxxrtl_port_type(RTLIL::Module *module, RTLIL::IdString port)
 {
 	RTLIL::Wire *output_wire = module->wire(port);
 	log_assert(output_wire != nullptr);
@@ -259,7 +259,7 @@ CxxrtlPortType cxxrtl_port_type(RTLIL::Module *module, IdString port)
 	return CxxrtlPortType::UNKNOWN;
 }
 
-CxxrtlPortType cxxrtl_port_type(const RTLIL::Cell *cell, IdString port)
+CxxrtlPortType cxxrtl_port_type(const RTLIL::Cell *cell, RTLIL::IdString port)
 {
 	RTLIL::Module *cell_module = cell->module->design->module(cell->type);
 	if (cell_module == nullptr || !cell_module->get_bool_attribute(ID(cxxrtl_blackbox)))
@@ -267,12 +267,12 @@ CxxrtlPortType cxxrtl_port_type(const RTLIL::Cell *cell, IdString port)
 	return cxxrtl_port_type(cell_module, port);
 }
 
-bool is_cxxrtl_comb_port(const RTLIL::Cell *cell, IdString port)
+bool is_cxxrtl_comb_port(const RTLIL::Cell *cell, RTLIL::IdString port)
 {
 	return cxxrtl_port_type(cell, port) == CxxrtlPortType::COMB;
 }
 
-bool is_cxxrtl_sync_port(const RTLIL::Cell *cell, IdString port)
+bool is_cxxrtl_sync_port(const RTLIL::Cell *cell, RTLIL::IdString port)
 {
 	return cxxrtl_port_type(cell, port) == CxxrtlPortType::SYNC;
 }
@@ -743,7 +743,7 @@ struct CxxrtlWorker {
 
 	dict<const RTLIL::Module*, SigMap> sigmaps;
 	dict<const RTLIL::Module*, std::vector<Mem>> mod_memories;
-	pool<std::pair<const RTLIL::Module*, IdString>> writable_memories;
+	pool<std::pair<const RTLIL::Module*, RTLIL::IdString>> writable_memories;
 	pool<const RTLIL::Wire*> edge_wires;
 	dict<const RTLIL::Wire*, RTLIL::Const> wire_init;
 	dict<RTLIL::SigBit, RTLIL::SyncType> edge_types;
@@ -2372,7 +2372,7 @@ struct CxxrtlWorker {
 
 	void dump_debug_attrs(const RTLIL::AttrObject *object, bool serialize = true)
 	{
-		dict<IdString, RTLIL::Const> attributes = object->attributes;
+		dict<RTLIL::IdString, RTLIL::Const> attributes = object->attributes;
 		// Inherently necessary to get access to the object, so a waste of space to emit.
 		attributes.erase(ID::hdlname);
 		// Internal Yosys attribute that should be removed but isn't.

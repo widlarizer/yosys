@@ -24,7 +24,7 @@
 USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
-static IdString formal_flavor(RTLIL::Cell *cell)
+static RTLIL::IdString formal_flavor(RTLIL::Cell *cell)
 {
 	if (cell->type != ID($check))
 		return cell->type;
@@ -44,7 +44,7 @@ static IdString formal_flavor(RTLIL::Cell *cell)
 		log_abort();
 }
 
-static void set_formal_flavor(RTLIL::Cell *cell, IdString flavor)
+static void set_formal_flavor(RTLIL::Cell *cell, RTLIL::IdString flavor)
 {
 	if (cell->type != ID($check)) {
 		cell->type = flavor;

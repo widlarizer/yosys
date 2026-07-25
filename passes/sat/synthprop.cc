@@ -37,7 +37,7 @@ struct SynthPropWorker
 	// pointer to main design
 	RTLIL::Design *design;
 
-	IdString top_name;
+	RTLIL::IdString top_name;
 
 	RTLIL::Module *module;
 

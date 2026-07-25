@@ -940,7 +940,7 @@ struct StatPass : public Pass {
 	{
 		bool width_mode = false, json_mode = false, hierarchy_mode = false;
 		RTLIL::Module *top_mod = nullptr;
-		std::map<IdString, statdata_t> mod_stat;
+		std::map<RTLIL::IdString, statdata_t> mod_stat;
 		dict<std::string, cell_area_t> cell_area;
 		string techname;
 

@@ -85,7 +85,7 @@ public:
 
 	RTLIL::SigBit net_map_at(Verific::Net *net);
 
-	IdString new_verific_id(Verific::DesignObj *obj);
+	RTLIL::IdString new_verific_id(Verific::DesignObj *obj);
 	void import_attributes(dict<IdString, RTLIL::Const> &attributes, Verific::DesignObj *obj, Verific::Netlist  *nl = nullptr, int wire_width_hint = -1);
 
 	RTLIL::SigBit netToSigBit(Verific::Net *net);
@@ -96,8 +96,8 @@ public:
 	RTLIL::SigSpec operatorInportCase(Verific::Instance *inst, const char *portname);
 	RTLIL::SigSpec operatorOutput(Verific::Instance *inst, const pool<Verific::Net*> *any_all_nets = nullptr);
 
-	bool import_netlist_instance_gates(Verific::Instance *inst, IdString inst_name);
-	bool import_netlist_instance_cells(Verific::Instance *inst, IdString inst_name);
+	bool import_netlist_instance_gates(Verific::Instance *inst, RTLIL::IdString inst_name);
+	bool import_netlist_instance_cells(Verific::Instance *inst, RTLIL::IdString inst_name);
 
 	void merge_past_ffs_clock(pool<RTLIL::Cell*> &candidates, SigBit clock, bool clock_pol);
 	void merge_past_ffs(pool<RTLIL::Cell*> &candidates);

@@ -41,7 +41,7 @@ struct generate_port_decl_t {
 
 void generate(RTLIL::Design *design, const std::vector<std::string> &celltypes, const std::vector<generate_port_decl_t> &portdecls)
 {
-	std::set<IdString> found_celltypes;
+	std::set<RTLIL::IdString> found_celltypes;
 
 	for (auto mod : design->modules())
 	for (auto cell : mod->cells())
@@ -58,7 +58,7 @@ void generate(RTLIL::Design *design, const std::vector<std::string> &celltypes, 
 	for (auto &celltype : found_celltypes)
 	{
 		std::set<std::string> portnames;
-		std::set<IdString> parameters;
+		std::set<RTLIL::IdString> parameters;
 		std::map<std::string, int> portwidths;
 		log("Generate module for cell type %s:\n", log_id(design, celltype));
 
@@ -189,7 +189,7 @@ struct IFExpander
 
 	RTLIL::Design                          &design;
 	RTLIL::Module                          &module;
-	dict<IdString, RTLIL::Module*>   interfaces_in_module;
+	dict<RTLIL::IdString, RTLIL::Module*>   interfaces_in_module;
 
 	bool                                    has_interfaces_not_found;
 	std::vector<IdString>                   connections_to_remove;
@@ -212,7 +212,7 @@ struct IFExpander
 	// Set has_interfaces_not_found if there are pending interfaces that
 	// haven't been found yet (and might be found in the future). Print a
 	// warning if we've already gone over all the cells in the module.
-	void on_missing_interface(IdString interface_name)
+	void on_missing_interface(RTLIL::IdString interface_name)
 	{
 		// If there are cells that haven't yet been processed, maybe
 		// we'll find this interface in the future.
@@ -1010,7 +1010,7 @@ struct HierarchyPass : public Pass {
 			top_mod = design->module(top_name);
 			RTLIL::Module *abstract_mod = design->module(abstract_id);
 
-			dict<IdString, RTLIL::Const> top_parameters;
+			dict<RTLIL::IdString, RTLIL::Const> top_parameters;
 			if ((top_mod == nullptr && abstract_mod) || top_mod != nullptr) {
 				for (auto &para : parameters) {
 					SigSpec sig_value;
@@ -1105,7 +1105,7 @@ struct HierarchyPass : public Pass {
 		if (top_mod != nullptr && !top_mod_name.empty() && top_mod_name[0] == '$' && top_mod_name.substr(0, 9) == "$abstract") {
 			IdString top_name = design->twines.add(top_mod_name.substr(strlen("$abstract")));
 
-			dict<IdString, RTLIL::Const> top_parameters;
+			dict<RTLIL::IdString, RTLIL::Const> top_parameters;
 			for (auto &para : parameters) {
 				SigSpec sig_value;
 				if (!RTLIL::SigSpec::parse(sig_value, NULL, para.second))
@@ -1238,7 +1238,7 @@ struct HierarchyPass : public Pass {
 		if (!keep_positionals)
 		{
 			std::set<RTLIL::Module*> pos_mods;
-			std::map<std::pair<RTLIL::Module*,int>, IdString> pos_map;
+			std::map<std::pair<RTLIL::Module*,int>, RTLIL::IdString> pos_map;
 			std::vector<std::pair<RTLIL::Module*,RTLIL::Cell*>> pos_work;
 
 			for (auto mod : design->modules())

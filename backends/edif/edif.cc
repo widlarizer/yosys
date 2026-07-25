@@ -138,7 +138,7 @@ struct EdifBackend : public Backend {
 		bool port_rename = false;
 		bool attr_properties = false;
 		bool lsbidx = false;
-		std::map<IdString, std::map<IdString, int>> lib_cell_ports;
+		std::map<RTLIL::IdString, std::map<RTLIL::IdString, int>> lib_cell_ports;
 		bool nogndvcc = false, gndvccy = false, keepmode = false;
 		NewCellTypes ct(design);
 		EdifNames edif_names;

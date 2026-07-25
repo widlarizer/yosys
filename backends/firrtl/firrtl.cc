@@ -285,7 +285,7 @@ void emit_extmodule(RTLIL::Cell *cell, RTLIL::Module *mod_instance, std::ostream
 	// Emit extmodule generic parameters.
 	for (const auto &p : cell->parameters)
 	{
-		const IdString p_id = p.first;
+		const RTLIL::IdString p_id = p.first;
 		const RTLIL::Const p_value = p.second;
 
 		std::string param_name(cell->module->design->twines.str(p_id));

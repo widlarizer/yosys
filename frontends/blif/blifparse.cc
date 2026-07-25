@@ -125,10 +125,10 @@ void parse_blif(RTLIL::Design *design, std::istream &f, IdString dff_name, bool 
 		return wire;
 	};
 
-	dict<IdString, RTLIL::Const> *obj_attributes = nullptr;
-	dict<IdString, RTLIL::Const> *obj_parameters = nullptr;
+	dict<RTLIL::IdString, RTLIL::Const> *obj_attributes = nullptr;
+	dict<RTLIL::IdString, RTLIL::Const> *obj_parameters = nullptr;
 
-	dict<IdString, std::pair<int, bool>> wideports_cache;
+	dict<RTLIL::IdString, std::pair<int, bool>> wideports_cache;
 
 	size_t buffer_size = 4096;
 	char *buffer = (char*)malloc(buffer_size);
@@ -403,7 +403,7 @@ void parse_blif(RTLIL::Design *design, std::istream &f, IdString dff_name, bool 
 				RTLIL::Cell *cell = module->addCell(NEW_ID, celltype);
 				RTLIL::Module *cell_mod = design->module(cell->type);
 
-				dict<IdString, dict<int, SigBit>> cell_wideports_cache;
+				dict<RTLIL::IdString, dict<int, SigBit>> cell_wideports_cache;
 
 				while ((p = strtok(NULL, " \t\r\n")) != NULL)
 				{

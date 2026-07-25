@@ -2027,7 +2027,7 @@ void dump_cell(std::ostream &f, std::string indent, RTLIL::Cell *cell)
 		f << stringf(" %s (", cell_name);
 
 	bool first_arg = true;
-	std::set<IdString> numbered_ports;
+	std::set<RTLIL::IdString> numbered_ports;
 	for (int i = 1; true; i++) {
 		char str[16];
 		snprintf(str, 16, "$%d", i);

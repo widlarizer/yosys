@@ -32,7 +32,7 @@ struct cell_mapping {
 	std::string cell_name;
 	std::map<std::string, char> ports;
 };
-static std::map<IdString, cell_mapping> cell_mappings;
+static std::map<RTLIL::IdString, cell_mapping> cell_mappings;
 
 static void logmap(IdString dff)
 {

@@ -217,7 +217,7 @@ struct ChparamPass : public Pass {
 	void execute(std::vector<std::string> args, RTLIL::Design *design) override
 	{
 		std::vector<setunset_t> setunset_list;
-		dict<IdString, RTLIL::Const> new_parameters;
+		dict<RTLIL::IdString, RTLIL::Const> new_parameters;
 		bool list_mode = false;
 
 		size_t argidx;

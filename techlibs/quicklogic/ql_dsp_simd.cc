@@ -46,7 +46,7 @@ struct QlDspSimdPass : public Pass {
 	/// Describes DSP config unique to a whole DSP cell
 	struct DspConfig {
 		// Port connections
-		dict<IdString, RTLIL::SigSpec> connections;
+		dict<RTLIL::IdString, RTLIL::SigSpec> connections;
 
 		DspConfig() = default;
 
@@ -233,7 +233,7 @@ struct QlDspSimdPass : public Pass {
 
 	/// Looks up port width and direction in the cell definition and returns it.
 	/// Returns (0, false) if it cannot be determined.
-	std::pair<size_t, bool> getPortInfo(RTLIL::Cell *a_Cell, IdString a_Port)
+	std::pair<size_t, bool> getPortInfo(RTLIL::Cell *a_Cell, RTLIL::IdString a_Port)
 	{
 		if (!a_Cell->known()) {
 			return std::make_pair(0, false);

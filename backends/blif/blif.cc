@@ -47,7 +47,7 @@ struct BlifDumperConfig
 	bool gatesi_mode;
 
 	std::string buf_type, buf_in, buf_out;
-	std::map<IdString, std::pair<IdString, IdString>> unbuf_types;
+	std::map<RTLIL::IdString, std::pair<RTLIL::IdString, RTLIL::IdString>> unbuf_types;
 	std::string true_type, true_out, false_type, false_out, undef_type, undef_out;
 
 	BlifDumperConfig() : icells_mode(false), conn_mode(false), impltf_mode(false), gates_mode(false),
@@ -90,7 +90,7 @@ struct BlifDumper
 
 	pool<SigBit> cstr_bits_seen;
 
-	const std::string str(IdString id)
+	const std::string str(RTLIL::IdString id)
 	{
 		std::string str = design->twines.unescaped_str(id);
 		for (size_t i = 0; i < str.size(); i++)
@@ -596,7 +596,7 @@ struct BlifBackend : public Backend {
 				IdString unbuf_type = design->twines.add(RTLIL::escape_id(args[++argidx]));
 				IdString unbuf_in = design->twines.add(RTLIL::escape_id(args[++argidx]));
 				IdString unbuf_out = design->twines.add(RTLIL::escape_id(args[++argidx]));
-				config.unbuf_types[unbuf_type] = std::pair<IdString, IdString>(unbuf_in, unbuf_out);
+				config.unbuf_types[unbuf_type] = std::pair<RTLIL::IdString, RTLIL::IdString>(unbuf_in, unbuf_out);
 				continue;
 			}
 			if (args[argidx] == "-true" && argidx+2 < args.size()) {

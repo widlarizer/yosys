@@ -29,7 +29,7 @@ PRIVATE_NAMESPACE_BEGIN
 
 static RTLIL::Module *module;
 static SigMap assign_map;
-typedef std::pair<RTLIL::Cell*, IdString> sig2driver_entry_t;
+typedef std::pair<RTLIL::Cell*, RTLIL::IdString> sig2driver_entry_t;
 static SigSet<sig2driver_entry_t> sig2driver, sig2user;
 static std::set<RTLIL::Cell*> muxtree_cells;
 static SigPool sig_at_port;

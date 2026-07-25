@@ -29,7 +29,7 @@ struct AigerReader
 {
     RTLIL::Design *design;
     std::istream &f;
-    IdString clk_name;
+    RTLIL::IdString clk_name;
     RTLIL::Module *module;
     std::string map_filename;
     const int aiger_autoidx;

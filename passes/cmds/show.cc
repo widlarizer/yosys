@@ -48,7 +48,7 @@ struct ShowWorker
 	CellTypes ct;
 
 	vector<shared_str> dot_escape_store;
-	std::map<IdString, int> dot_id2num_store;
+	std::map<RTLIL::IdString, int> dot_id2num_store;
 	std::map<std::string, int> autonames;
 	int single_idx_count;
 
@@ -74,7 +74,7 @@ struct ShowWorker
 	const std::vector<std::pair<std::string, RTLIL::Selection>> &label_selections;
 
 	std::map<RTLIL::Const, int> colorattr_cache;
-	IdString colorattr;
+	RTLIL::IdString colorattr;
 
 
 	static uint32_t xorshift32(uint32_t x) {
@@ -227,7 +227,7 @@ struct ShowWorker
 		return dot_escape_store.back().c_str();
 	}
 
-	int id2num(IdString id)
+	int id2num(RTLIL::IdString id)
 	{
 		if (dot_id2num_store.count(id) > 0)
 			return dot_id2num_store[id];
@@ -471,7 +471,7 @@ struct ShowWorker
 
 		for (auto cell : module->selected_cells())
 		{
-			std::vector<IdString> in_ports, out_ports;
+			std::vector<RTLIL::IdString> in_ports, out_ports;
 			std::vector<std::string> in_label_pieces, out_label_pieces;
 
 			for (auto &conn : cell->connections()) {
@@ -630,7 +630,7 @@ struct ShowWorker
 	ShowWorker(FILE *f, RTLIL::Design *design, std::vector<RTLIL::Design*> &libs, uint32_t colorSeed, bool genWidthLabels,
 			const std::string wireshape, bool genSignedLabels, bool stretchIO, bool enumerateIds, bool abbreviateIds, bool notitle, bool href,
 			const std::vector<std::pair<std::string, RTLIL::Selection>> &color_selections,
-			const std::vector<std::pair<std::string, RTLIL::Selection>> &label_selections, IdString colorattr) :
+			const std::vector<std::pair<std::string, RTLIL::Selection>> &label_selections, RTLIL::IdString colorattr) :
 			f(f), design(design), search(&design->twines), currentColor(colorSeed), genWidthLabels(genWidthLabels), wireshape(wireshape),
 			genSignedLabels(genSignedLabels), stretchIO(stretchIO), enumerateIds(enumerateIds), abbreviateIds(abbreviateIds),
 			notitle(notitle), href(href), color_selections(color_selections), label_selections(label_selections), colorattr(colorattr)
@@ -799,7 +799,7 @@ struct ShowPass : public Pass {
 		bool flag_href = false;
 		bool custom_prefix = false;
 		std::string background = "&";
-		IdString colorattr;
+		RTLIL::IdString colorattr;
 
 		size_t argidx;
 		for (argidx = 1; argidx < args.size(); argidx++)

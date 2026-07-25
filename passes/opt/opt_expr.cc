@@ -2410,7 +2410,7 @@ void replace_const_connections(RTLIL::Module *module) {
 	SigMap assign_map(module);
 	for (auto cell : module->selected_cells())
 	{
-		std::vector<std::pair<IdString, SigSpec>> changes;
+		std::vector<std::pair<RTLIL::IdString, SigSpec>> changes;
 		for (auto &conn : cell->connections()) {
 			SigSpec mapped = assign_map(conn.second);
 			if (conn.second != mapped && mapped.is_fully_const())

@@ -1642,7 +1642,7 @@ bool AstModule::reprocess_if_necessary(RTLIL::Design *design)
 
 // When an interface instance is found in a module, the whole RTLIL for the module will be rederived again
 // from AST. The interface members are copied into the AST module with the prefix of the interface.
-void AstModule::expand_interfaces(RTLIL::Design *design, const dict<IdString, RTLIL::Module*> &local_interfaces)
+void AstModule::expand_interfaces(RTLIL::Design *design, const dict<RTLIL::IdString, RTLIL::Module*> &local_interfaces)
 {
 	loadconfig();
 
@@ -1715,7 +1715,7 @@ void AstModule::expand_interfaces(RTLIL::Design *design, const dict<IdString, RT
 
 // create a new parametric module (when needed) and return the name of the generated module - WITH support for interfaces
 // This method is used to explode the interface when the interface is a port of the module (not instantiated inside)
-IdString AstModule::derive(RTLIL::Design *design, const dict<IdString, RTLIL::Const> &parameters, const dict<IdString, RTLIL::Module*> &interfaces, const dict<IdString, IdString> &modports, bool /*mayfail*/)
+RTLIL::IdString AstModule::derive(RTLIL::Design *design, const dict<RTLIL::IdString, RTLIL::Const> &parameters, const dict<RTLIL::IdString, RTLIL::Module*> &interfaces, const dict<RTLIL::IdString, RTLIL::IdString> &modports, bool /*mayfail*/)
 {
 	std::unique_ptr<AstNode> new_ast = NULL;
 	std::string modname = derive_common(design, parameters, &new_ast);
@@ -1804,7 +1804,7 @@ IdString AstModule::derive(RTLIL::Design *design, const dict<IdString, RTLIL::Co
 }
 
 // create a new parametric module (when needed) and return the name of the generated module - without support for interfaces
-IdString AstModule::derive(RTLIL::Design *design, const dict<IdString, RTLIL::Const> &parameters, bool /*mayfail*/)
+RTLIL::IdString AstModule::derive(RTLIL::Design *design, const dict<RTLIL::IdString, RTLIL::Const> &parameters, bool /*mayfail*/)
 {
 	bool quiet = lib || attributes.count(ID::blackbox) || attributes.count(ID::whitebox);
 

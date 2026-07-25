@@ -38,8 +38,8 @@ struct SpliceWorker
 	bool no_outputs;
 	bool do_wires;
 
-	std::set<IdString> ports;
-	std::set<IdString> no_ports;
+	std::set<RTLIL::IdString> ports;
+	std::set<RTLIL::IdString> no_ports;
 
 	CellTypes ct;
 	SigMap sigmap;
@@ -294,7 +294,7 @@ struct SplicePass : public Pass {
 		bool sel_any_bit = false;
 		bool no_outputs = false;
 		bool do_wires = false;
-		std::set<IdString> ports, no_ports;
+		std::set<RTLIL::IdString> ports, no_ports;
 
 		size_t argidx;
 		for (argidx = 1; argidx < args.size(); argidx++) {

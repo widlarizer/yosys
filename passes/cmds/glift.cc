@@ -31,7 +31,7 @@ private:
 	bool opt_taintconstants = false, opt_keepoutputs = false, opt_simplecostmodel = false, opt_nocostmodel = false;
 	bool opt_instrumentmore = false;
 	std::vector<RTLIL::Wire *> new_taint_outputs;
-	std::vector<std::pair<RTLIL::SigSpec, IdString>> meta_mux_selects;
+	std::vector<std::pair<RTLIL::SigSpec, RTLIL::IdString>> meta_mux_selects;
 	RTLIL::Module *module = nullptr;
 
 	const IdString cost_model_wire_name = ID::__glift_weight;
@@ -137,7 +137,7 @@ private:
 		module->addOr(Twine{cell->name.unescape() + "_t_4_16"}, subexpr11, subexpr12, port_y_taint, false, cell->src_ref());
 	}
 
-	RTLIL::SigSpec score_metamux_select(const RTLIL::SigSpec &metamux_select, const IdString celltype) {
+	RTLIL::SigSpec score_metamux_select(const RTLIL::SigSpec &metamux_select, const RTLIL::IdString celltype) {
 		log_assert(metamux_select.is_wire());
 
 		if (opt_simplecostmodel) {
@@ -585,7 +585,7 @@ struct GliftPass : public Pass {
 		};
 		TopoSort<RTLIL::Module*, ModuleNameCmp> topo_modules; //cribbed from passes/techmap/flatten.cc
 		auto worklist = design->selected_modules();
-		pool<IdString> non_top_modules;
+		pool<RTLIL::IdString> non_top_modules;
 		while (!worklist.empty()) {
 			RTLIL::Module *module = *(worklist.begin());
 			worklist.erase(worklist.begin());

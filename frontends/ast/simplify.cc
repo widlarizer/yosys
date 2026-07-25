@@ -735,7 +735,7 @@ const RTLIL::Module* AstNode::lookup_cell_module()
 
 	// build a mapping from true param name to param value
 	size_t para_counter = 0;
-	dict<IdString, RTLIL::Const> cell_params_map;
+	dict<RTLIL::IdString, RTLIL::Const> cell_params_map;
 	for (auto& child : children) {
 		if (child->type != AST_PARASET)
 			continue;
@@ -753,7 +753,7 @@ const RTLIL::Module* AstNode::lookup_cell_module()
 
 	// put the parameters in order and generate the derived module name
 	std::vector<std::pair<std::string, RTLIL::Const>> named_parameters;
-	for (IdString param : module->avail_parameters) {
+	for (RTLIL::IdString param : module->avail_parameters) {
 		auto it = cell_params_map.find(param);
 		if (it != cell_params_map.end())
 			named_parameters.emplace_back(module->design->twines.str(it->first), it->second);
@@ -1481,7 +1481,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 					continue;
 
 				// determine the full name of port this argument is connected to
-				IdString port_name;
+				RTLIL::IdString port_name;
 				if (child->str.size())
 					port_name = search.find(child->str);
 				else {

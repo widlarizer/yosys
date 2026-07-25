@@ -120,7 +120,7 @@ struct VlogHammerReporter
 	RTLIL::Design *design;
 	std::vector<RTLIL::Module*> modules;
 	std::vector<std::string> module_names;
-	std::vector<IdString> inputs;
+	std::vector<RTLIL::IdString> inputs;
 	std::vector<int> input_widths;
 	std::vector<RTLIL::Const> patterns;
 	int total_input_width;

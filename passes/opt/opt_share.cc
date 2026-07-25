@@ -55,7 +55,7 @@ struct ExtSigSpec {
 	RTLIL::SigSpec sig;
 	RTLIL::SigSpec sign;
 	bool is_signed;
-	IdString semantics;
+	RTLIL::IdString semantics;
 
 	ExtSigSpec() {}
 
@@ -126,7 +126,7 @@ bool mergeable(RTLIL::Cell *a, RTLIL::Cell *b)
 	return a_type == b_type;
 }
 
-IdString decode_port_semantics(RTLIL::Cell *cell, IdString port_name)
+RTLIL::IdString decode_port_semantics(RTLIL::Cell *cell, RTLIL::IdString port_name)
 {
 	if (cell->type.in(ID($lt), ID($le), ID($ge), ID($gt), ID($div), ID($mod), ID($divfloor), ID($modfloor), ID($concat), SHIFT_OPS) && port_name == ID::B)
 		return port_name;
@@ -137,7 +137,7 @@ IdString decode_port_semantics(RTLIL::Cell *cell, IdString port_name)
 	return Twine::Null;
 }
 
-RTLIL::SigSpec decode_port_sign(RTLIL::Cell *cell, IdString port_name) {
+RTLIL::SigSpec decode_port_sign(RTLIL::Cell *cell, RTLIL::IdString port_name) {
 
 	if (cell->type == ID($alu) && port_name == ID::B)
 		return cell->getPort(ID::BI);
@@ -147,7 +147,7 @@ RTLIL::SigSpec decode_port_sign(RTLIL::Cell *cell, IdString port_name) {
 	return RTLIL::Const(0, 1);
 }
 
-bool decode_port_signed(RTLIL::Cell *cell, IdString port_name)
+bool decode_port_signed(RTLIL::Cell *cell, RTLIL::IdString port_name)
 {
 	if (cell->type.in(BITWISE_OPS, LOGICAL_OPS))
 		return false;
@@ -160,12 +160,12 @@ bool decode_port_signed(RTLIL::Cell *cell, IdString port_name)
 	return false;
 }
 
-ExtSigSpec decode_port(RTLIL::Cell *cell, IdString port_name, const SigMap &sigmap)
+ExtSigSpec decode_port(RTLIL::Cell *cell, RTLIL::IdString port_name, const SigMap &sigmap)
 {
 	auto sig = sigmap(cell->getPort(port_name));
 
 	RTLIL::SigSpec sign = decode_port_sign(cell, port_name);
-	IdString semantics = decode_port_semantics(cell, port_name);
+	RTLIL::IdString semantics = decode_port_semantics(cell, port_name);
 
 	bool is_signed = decode_port_signed(cell, port_name);
 
@@ -179,7 +179,7 @@ void merge_operators(RTLIL::Module *module, RTLIL::Cell *mux, const std::vector<
 	for (const auto& p : ports) {
 		auto op = p.op;
 
-		IdString muxed_port_name = ID::A;
+		RTLIL::IdString muxed_port_name = ID::A;
 		if (decode_port(op, ID::A, sigmap) == operand)
 			muxed_port_name = ID::B;
 
@@ -292,7 +292,7 @@ void check_muxed_operands(std::vector<const OpMuxConn *> &ports, const ExtSigSpe
 		auto p = *it;
 		auto op = p->op;
 
-		IdString muxed_port_name = ID::A;
+		RTLIL::IdString muxed_port_name = ID::A;
 		if (decode_port(op, ID::A, sigmap) == shared_operand) {
 			muxed_port_name = ID::B;
 		}
@@ -321,7 +321,7 @@ ExtSigSpec find_shared_operand(const OpMuxConn* seed, std::vector<const OpMuxCon
 
 	auto op_a = seed->op;
 
-	for (IdString port_name : {ID::A, ID::B}) {
+	for (RTLIL::IdString port_name : {ID::A, ID::B}) {
 		oper = decode_port(op_a, port_name, sigmap);
 		auto operand_users = operand_to_users.at(oper);
 
@@ -392,7 +392,7 @@ struct OptSharePass : public Pass {
 
 				bool skip = false;
 				if (cell->type == ID($alu)) {
-					for (IdString port_name : {ID::X, ID::CO}) {
+					for (RTLIL::IdString port_name : {ID::X, ID::CO}) {
 						for (auto outbit : sigmap(cell->getPort(port_name)))
 							if (bit_users[outbit] > 1)
 								skip = true;
@@ -406,7 +406,7 @@ struct OptSharePass : public Pass {
 				for (int i = 0; i < GetSize(mux_insig); i++)
 					op_outbit_to_outsig[mux_insig[i]] = std::make_pair(cell, i);
 
-				for (IdString port_name : {ID::A, ID::B}) {
+				for (RTLIL::IdString port_name : {ID::A, ID::B}) {
 					auto op_insig = decode_port(cell, port_name, sigmap);
 					operand_to_users[op_insig].insert(cell);
 					if (operand_to_users[op_insig].size() > 1)

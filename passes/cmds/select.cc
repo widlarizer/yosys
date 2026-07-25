@@ -477,7 +477,7 @@ static void select_op_intersect(RTLIL::Design *design, RTLIL::Selection &lhs, co
 			del_list.push_back(it.first);
 			continue;
 		}
-		std::vector<IdString> del_list2;
+		std::vector<RTLIL::IdString> del_list2;
 		for (auto &it2 : it.second)
 			if (!rhs.selected_member(it.first, it2))
 				del_list2.push_back(it2);
@@ -588,7 +588,7 @@ static void select_op_expand(RTLIL::Design *design, const std::string &arg, char
 	int pos = (mode == 'x' ? 2 : 3) + (eval_only ? 1 : 0);
 	int levels = 1, rem_objects = -1;
 	std::vector<expand_rule_t> rules;
-	std::set<IdString> limits;
+	std::set<RTLIL::IdString> limits;
 
 	NewCellTypes ct;
 
@@ -699,7 +699,7 @@ static void select_filter_active_mod(RTLIL::Design *design, RTLIL::Selection &se
 		return;
 	}
 
-	std::vector<IdString> del_list;
+	std::vector<RTLIL::IdString> del_list;
 	for (auto mod_name : sel.selected_modules)
 		if (mod_name != design->selected_active_module)
 			del_list.push_back(mod_name);

@@ -34,7 +34,7 @@ PRIVATE_NAMESPACE_BEGIN
 
 static RTLIL::Module *module;
 static SigMap assign_map;
-typedef std::pair<IdString, IdString> sig2driver_entry_t;
+typedef std::pair<RTLIL::IdString, RTLIL::IdString> sig2driver_entry_t;
 static SigSet<sig2driver_entry_t> sig2driver, sig2trigger;
 static std::map<RTLIL::SigBit, std::set<RTLIL::SigBit>> exclusive_ctrls;
 

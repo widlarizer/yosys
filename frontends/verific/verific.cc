@@ -247,7 +247,7 @@ bool is_blackbox(Netlist *nl)
 	return false;
 }
 
-IdString VerificImporter::new_verific_id(Verific::DesignObj *obj)
+RTLIL::IdString VerificImporter::new_verific_id(Verific::DesignObj *obj)
 {
 	std::string s = stringf("$verific$%s", obj->Name());
 	if (obj->Linefile())
@@ -652,7 +652,7 @@ RTLIL::SigSpec VerificImporter::operatorOutput(Instance *inst, const pool<Net*> 
 	return sig;
 }
 
-bool VerificImporter::import_netlist_instance_gates(Instance *inst, IdString inst_name)
+bool VerificImporter::import_netlist_instance_gates(Instance *inst, RTLIL::IdString inst_name)
 {
 	if (inst->Type() == PRIM_AND) {
 		module->addAndGate(inst_name, net_map_at(inst->GetInput1()), net_map_at(inst->GetInput2()), net_map_at(inst->GetOutput()));
@@ -783,7 +783,7 @@ bool VerificImporter::import_netlist_instance_gates(Instance *inst, IdString ins
 	return false;
 }
 
-bool VerificImporter::import_netlist_instance_cells(Instance *inst, IdString inst_name)
+bool VerificImporter::import_netlist_instance_cells(Instance *inst, RTLIL::IdString inst_name)
 {
 	RTLIL::Cell *cell = nullptr;
 
@@ -1801,7 +1801,7 @@ void VerificImporter::import_netlist(RTLIL::Design *design, Netlist *nl, std::ma
 		if (net->Bus())
 			continue;
 
-		IdString wire_name = module->uniquify(mode_names || net->IsUserDeclared() ? RTLIL::escape_id(net->Name()) : new_verific_id(net));
+		RTLIL::IdString wire_name = module->uniquify(mode_names || net->IsUserDeclared() ? RTLIL::escape_id(net->Name()) : new_verific_id(net));
 
 		if (verific_verbose)
 			log("  importing net %s as %s.\n", net->Name(), wire_name.unescape());
@@ -1825,7 +1825,7 @@ void VerificImporter::import_netlist(RTLIL::Design *design, Netlist *nl, std::ma
 
 		if (found_new_net)
 		{
-			IdString wire_name = module->uniquify(mode_names || netbus->IsUserDeclared() ? RTLIL::escape_id(netbus->Name()) : new_verific_id(netbus));
+			RTLIL::IdString wire_name = module->uniquify(mode_names || netbus->IsUserDeclared() ? RTLIL::escape_id(netbus->Name()) : new_verific_id(netbus));
 
 			if (verific_verbose)
 				log("  importing netbus %s as %s.\n", netbus->Name(), wire_name.unescape());
@@ -1958,7 +1958,7 @@ void VerificImporter::import_netlist(RTLIL::Design *design, Netlist *nl, std::ma
 
 	FOREACH_INSTANCE_OF_NETLIST(nl, mi, inst)
 	{
-		IdString inst_name = module->uniquify(mode_names || inst->IsUserDeclared() ? RTLIL::escape_id(inst->Name()) : new_verific_id(inst));
+		RTLIL::IdString inst_name = module->uniquify(mode_names || inst->IsUserDeclared() ? RTLIL::escape_id(inst->Name()) : new_verific_id(inst));
 
 		if (verific_verbose)
 			log("  importing cell %s (%s) as %s.\n", inst->Name(), inst->View()->Owner()->Name(), inst_name.unescape());

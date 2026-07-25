@@ -384,7 +384,7 @@ struct SubmodPass : public Pass {
 			Pass::call(design, "opt_clean");
 			log_header(design, "Continuing SUBMOD pass.\n");
 
-			std::set<IdString> handled_modules;
+			std::set<RTLIL::IdString> handled_modules;
 
 			bool did_something = true;
 			while (did_something) {
