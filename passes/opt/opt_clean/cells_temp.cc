@@ -55,10 +55,10 @@ bool remove(ShardedVector<RTLIL::Cell*>& cells, RTLIL::Module* mod, bool verbose
 	bool did_something = false;
 	for (RTLIL::Cell *cell : cells) {
 		if (verbose) {
-			if (cell->type == ID::$connect) {
+			if (cell->type == ID($connect)) {
 				log_debug("  removing connect cell `%s': %s <-> %s\n", cell->name,
 						log_signal(cell->getPort(ID::A)), log_signal(cell->getPort(ID::B)));
-			} else if (cell->type == ID::$input_port) {
+			} else if (cell->type == ID($input_port)) {
 				did_something = true;
 				log_debug("  removing input port marker cell `%s': %s\n", cell->name,
 						log_signal(cell->getPort(ID::Y)));

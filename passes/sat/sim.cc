@@ -610,7 +610,7 @@ struct SimInstance
 		if (cell->type == ID($print))
 			return;
 
-		if (cell->type == ID::$connect)
+		if (cell->type == ID($connect))
 			return;
 
 		log_error("Unsupported cell type: %s (%s.%s)\n", cell->type.unescape(), module, cell);

@@ -67,32 +67,32 @@ struct CellTableBuilder {
 		setup_type(ID($tribuf), {ID::A, ID::EN}, {ID::Y}, features);
 
 		features = {};
-		setup_type(ID::$assert, {ID::A, ID::EN}, {}, features);
-		setup_type(ID::$assume, {ID::A, ID::EN}, {}, features);
-		setup_type(ID::$live, {ID::A, ID::EN}, {}, features);
-		setup_type(ID::$fair, {ID::A, ID::EN}, {}, features);
-		setup_type(ID::$cover, {ID::A, ID::EN}, {}, features);
-		setup_type(ID::$initstate, {}, {ID::Y}, features);
-		setup_type(ID::$anyconst, {}, {ID::Y}, features);
-		setup_type(ID::$anyseq, {}, {ID::Y}, features);
-		setup_type(ID::$allconst, {}, {ID::Y}, features);
-		setup_type(ID::$allseq, {}, {ID::Y}, features);
-		setup_type(ID::$equiv, {ID::A, ID::B}, {ID::Y}, features);
-		setup_type(ID::$specify2, {ID::EN, ID::SRC, ID::DST}, {}, features);
-		setup_type(ID::$specify3, {ID::EN, ID::SRC, ID::DST, ID::DAT}, {}, features);
-		setup_type(ID::$specrule, {ID::SRC_EN, ID::DST_EN, ID::SRC, ID::DST}, {}, features);
-		setup_type(ID::$print, {ID::EN, ID::ARGS, ID::TRG}, {}, features);
-		setup_type(ID::$check, {ID::A, ID::EN, ID::ARGS, ID::TRG}, {}, features);
-		setup_type(ID::$set_tag, {ID::A, ID::SET, ID::CLR}, {ID::Y}, features);
-		setup_type(ID::$get_tag, {ID::A}, {ID::Y}, features);
-		setup_type(ID::$overwrite_tag, {ID::A, ID::SET, ID::CLR}, {}, features);
-		setup_type(ID::$original_tag, {ID::A}, {ID::Y}, features);
-		setup_type(ID::$future_ff, {ID::A}, {ID::Y}, features);
-		setup_type(ID::$scopeinfo, {}, {}, features);
-		setup_type(ID::$input_port, {}, {ID::Y}, features);
-		setup_type(ID::$output_port, {ID::A}, {}, features);
-		setup_type(ID::$public, {ID::A}, {}, features);
-		setup_type(ID::$connect, {ID::A, ID::B}, {}, features);
+		setup_type(ID($assert), {ID::A, ID::EN}, {}, features);
+		setup_type(ID($assume), {ID::A, ID::EN}, {}, features);
+		setup_type(ID($live), {ID::A, ID::EN}, {}, features);
+		setup_type(ID($fair), {ID::A, ID::EN}, {}, features);
+		setup_type(ID($cover), {ID::A, ID::EN}, {}, features);
+		setup_type(ID($initstate), {}, {ID::Y}, features);
+		setup_type(ID($anyconst), {}, {ID::Y}, features);
+		setup_type(ID($anyseq), {}, {ID::Y}, features);
+		setup_type(ID($allconst), {}, {ID::Y}, features);
+		setup_type(ID($allseq), {}, {ID::Y}, features);
+		setup_type(ID($equiv), {ID::A, ID::B}, {ID::Y}, features);
+		setup_type(ID($specify2), {ID::EN, ID::SRC, ID::DST}, {}, features);
+		setup_type(ID($specify3), {ID::EN, ID::SRC, ID::DST, ID::DAT}, {}, features);
+		setup_type(ID($specrule), {ID::SRC_EN, ID::DST_EN, ID::SRC, ID::DST}, {}, features);
+		setup_type(ID($print), {ID::EN, ID::ARGS, ID::TRG}, {}, features);
+		setup_type(ID($check), {ID::A, ID::EN, ID::ARGS, ID::TRG}, {}, features);
+		setup_type(ID($set_tag), {ID::A, ID::SET, ID::CLR}, {ID::Y}, features);
+		setup_type(ID($get_tag), {ID::A}, {ID::Y}, features);
+		setup_type(ID($overwrite_tag), {ID::A, ID::SET, ID::CLR}, {}, features);
+		setup_type(ID($original_tag), {ID::A}, {ID::Y}, features);
+		setup_type(ID($future_ff), {ID::A}, {ID::Y}, features);
+		setup_type(ID($scopeinfo), {}, {}, features);
+		setup_type(ID($input_port), {}, {ID::Y}, features);
+		setup_type(ID($output_port), {ID::A}, {}, features);
+		setup_type(ID($public), {ID::A}, {}, features);
+		setup_type(ID($connect), {ID::A, ID::B}, {}, features);
 	}
 	constexpr void setup_internals_eval()
 	{
@@ -226,16 +226,16 @@ struct CellTableBuilder {
 
 		// for (auto c1 : list_np)
 		// 	setup_type(std::string("$_DFF_") + c1 + "_", {ID::C, ID::D}, {ID::Q}, features);
-		setup_type(ID::$_DFF_N_, {ID::C, ID::D}, {ID::Q}, features);
-		setup_type(ID::$_DFF_P_, {ID::C, ID::D}, {ID::Q}, features);
+		setup_type(ID($_DFF_N_), {ID::C, ID::D}, {ID::Q}, features);
+		setup_type(ID($_DFF_P_), {ID::C, ID::D}, {ID::Q}, features);
 
 		// for (auto c1 : list_np)
 		// for (auto c2 : list_np)
 		// 	setup_type(std::string("$_DFFE_") + c1 + c2 + "_", {ID::C, ID::D, ID::E}, {ID::Q}, features);
-		setup_type(ID::$_DFFE_NN_, {ID::C, ID::D, ID::E}, {ID::Q}, features);
-		setup_type(ID::$_DFFE_NP_, {ID::C, ID::D, ID::E}, {ID::Q}, features);
-		setup_type(ID::$_DFFE_PN_, {ID::C, ID::D, ID::E}, {ID::Q}, features);
-		setup_type(ID::$_DFFE_PP_, {ID::C, ID::D, ID::E}, {ID::Q}, features);
+		setup_type(ID($_DFFE_NN_), {ID::C, ID::D, ID::E}, {ID::Q}, features);
+		setup_type(ID($_DFFE_NP_), {ID::C, ID::D, ID::E}, {ID::Q}, features);
+		setup_type(ID($_DFFE_PN_), {ID::C, ID::D, ID::E}, {ID::Q}, features);
+		setup_type(ID($_DFFE_PP_), {ID::C, ID::D, ID::E}, {ID::Q}, features);
 		// for (auto c1 : list_np)
 		// for (auto c2 : list_np)
 		// for (auto c3 : list_01)

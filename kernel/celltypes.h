@@ -93,34 +93,34 @@ struct CellTypes
 	{
 		setup_internals_eval();
 
-		setup_type(ID::$tribuf, {ID::A, ID::EN}, {ID::Y});
+		setup_type(ID($tribuf), {ID::A, ID::EN}, {ID::Y});
 
-		setup_type(ID::$assert, {ID::A, ID::EN}, pool<IdString>());
-		setup_type(ID::$assume, {ID::A, ID::EN}, pool<IdString>());
-		setup_type(ID::$live, {ID::A, ID::EN}, pool<IdString>());
-		setup_type(ID::$fair, {ID::A, ID::EN}, pool<IdString>());
-		setup_type(ID::$cover, {ID::A, ID::EN}, pool<IdString>());
-		setup_type(ID::$initstate, pool<IdString>(), {ID::Y});
-		setup_type(ID::$anyconst, pool<IdString>(), {ID::Y});
-		setup_type(ID::$anyseq, pool<IdString>(), {ID::Y});
-		setup_type(ID::$allconst, pool<IdString>(), {ID::Y});
-		setup_type(ID::$allseq, pool<IdString>(), {ID::Y});
-		setup_type(ID::$equiv, {ID::A, ID::B}, {ID::Y});
-		setup_type(ID::$specify2, {ID::EN, ID::SRC, ID::DST}, pool<IdString>());
-		setup_type(ID::$specify3, {ID::EN, ID::SRC, ID::DST, ID::DAT}, pool<IdString>());
-		setup_type(ID::$specrule, {ID::SRC_EN, ID::DST_EN, ID::SRC, ID::DST}, pool<IdString>());
-		setup_type(ID::$print, {ID::EN, ID::ARGS, ID::TRG}, pool<IdString>());
-		setup_type(ID::$check, {ID::A, ID::EN, ID::ARGS, ID::TRG}, pool<IdString>());
-		setup_type(ID::$set_tag, {ID::A, ID::SET, ID::CLR}, {ID::Y});
-		setup_type(ID::$get_tag, {ID::A}, {ID::Y});
-		setup_type(ID::$overwrite_tag, {ID::A, ID::SET, ID::CLR}, pool<IdString>());
-		setup_type(ID::$original_tag, {ID::A}, {ID::Y});
-		setup_type(ID::$future_ff, {ID::A}, {ID::Y});
-		setup_type(ID::$scopeinfo, {}, {});
-		setup_type(ID::$input_port, {}, {ID::Y});
-		setup_type(ID::$output_port, {ID::A}, {});
-		setup_type(ID::$public, {ID::A}, {});
-		setup_type(ID::$connect, {ID::A, ID::B}, {});
+		setup_type(ID($assert), {ID::A, ID::EN}, pool<IdString>());
+		setup_type(ID($assume), {ID::A, ID::EN}, pool<IdString>());
+		setup_type(ID($live), {ID::A, ID::EN}, pool<IdString>());
+		setup_type(ID($fair), {ID::A, ID::EN}, pool<IdString>());
+		setup_type(ID($cover), {ID::A, ID::EN}, pool<IdString>());
+		setup_type(ID($initstate), pool<IdString>(), {ID::Y});
+		setup_type(ID($anyconst), pool<IdString>(), {ID::Y});
+		setup_type(ID($anyseq), pool<IdString>(), {ID::Y});
+		setup_type(ID($allconst), pool<IdString>(), {ID::Y});
+		setup_type(ID($allseq), pool<IdString>(), {ID::Y});
+		setup_type(ID($equiv), {ID::A, ID::B}, {ID::Y});
+		setup_type(ID($specify2), {ID::EN, ID::SRC, ID::DST}, pool<IdString>());
+		setup_type(ID($specify3), {ID::EN, ID::SRC, ID::DST, ID::DAT}, pool<IdString>());
+		setup_type(ID($specrule), {ID::SRC_EN, ID::DST_EN, ID::SRC, ID::DST}, pool<IdString>());
+		setup_type(ID($print), {ID::EN, ID::ARGS, ID::TRG}, pool<IdString>());
+		setup_type(ID($check), {ID::A, ID::EN, ID::ARGS, ID::TRG}, pool<IdString>());
+		setup_type(ID($set_tag), {ID::A, ID::SET, ID::CLR}, {ID::Y});
+		setup_type(ID($get_tag), {ID::A}, {ID::Y});
+		setup_type(ID($overwrite_tag), {ID::A, ID::SET, ID::CLR}, pool<IdString>());
+		setup_type(ID($original_tag), {ID::A}, {ID::Y});
+		setup_type(ID($future_ff), {ID::A}, {ID::Y});
+		setup_type(ID($scopeinfo), {}, {});
+		setup_type(ID($input_port), {}, {ID::Y});
+		setup_type(ID($output_port), {ID::A}, {});
+		setup_type(ID($public), {ID::A}, {});
+		setup_type(ID($connect), {ID::A, ID::B}, {});
 	}
 
 	void setup_internals_eval()
@@ -146,10 +146,10 @@ struct CellTypes
 		for (auto type : binary_ops)
 			setup_type(type, {ID::A, ID::B}, {ID::Y}, true);
 
-		for (auto type : std::vector<IdString>({ID::$mux, ID::$pmux, ID::$bwmux}))
+		for (auto type : std::vector<IdString>({ID($mux), ID($pmux), ID($bwmux)}))
 			setup_type(type, {ID::A, ID::B, ID::S}, {ID::Y}, true);
 
-		for (auto type : std::vector<IdString>({ID::$bmux, ID::$demux}))
+		for (auto type : std::vector<IdString>({ID($bmux), ID($demux)}))
 			setup_type(type, {ID::A, ID::S}, {ID::Y}, true);
 
 		setup_type(ID($lcu), {ID::P, ID::G, ID::CI}, {ID::CO}, true);
@@ -189,10 +189,10 @@ struct CellTypes
 
 		setup_type(ID($memrd), {ID::CLK, ID::EN, ID::ADDR}, {ID::DATA});
 		setup_type(ID($memrd_v2), {ID::CLK, ID::EN, ID::ARST, ID::SRST, ID::ADDR}, {ID::DATA});
-		setup_type(ID::$memwr, {ID::CLK, ID::EN, ID::ADDR, ID::DATA}, pool<IdString>());
-		setup_type(ID::$memwr_v2, {ID::CLK, ID::EN, ID::ADDR, ID::DATA}, pool<IdString>());
-		setup_type(ID::$meminit, {ID::ADDR, ID::DATA}, pool<IdString>());
-		setup_type(ID::$meminit_v2, {ID::ADDR, ID::DATA, ID::EN}, pool<IdString>());
+		setup_type(ID($memwr), {ID::CLK, ID::EN, ID::ADDR, ID::DATA}, pool<IdString>());
+		setup_type(ID($memwr_v2), {ID::CLK, ID::EN, ID::ADDR, ID::DATA}, pool<IdString>());
+		setup_type(ID($meminit), {ID::ADDR, ID::DATA}, pool<IdString>());
+		setup_type(ID($meminit_v2), {ID::ADDR, ID::DATA, ID::EN}, pool<IdString>());
 		setup_type(ID($mem), {ID::RD_CLK, ID::RD_EN, ID::RD_ADDR, ID::WR_CLK, ID::WR_EN, ID::WR_ADDR, ID::WR_DATA}, {ID::RD_DATA});
 		setup_type(ID($mem_v2), {ID::RD_CLK, ID::RD_EN, ID::RD_ARST, ID::RD_SRST, ID::RD_ADDR, ID::WR_CLK, ID::WR_EN, ID::WR_ADDR, ID::WR_DATA}, {ID::RD_DATA});
 

@@ -99,7 +99,7 @@ static const char *attr_prefix(ScopeinfoAttrs attrs)
 
 bool scopeinfo_has_attribute(const RTLIL::Cell *scopeinfo, ScopeinfoAttrs attrs, IdString id)
 {
-	log_assert(scopeinfo->type == ID::$scopeinfo);
+	log_assert(scopeinfo->type == ID($scopeinfo));
 	TwinePool &twines = scopeinfo->module->design->twines;
 	IdString key = twines.find(attr_prefix(attrs) + twines.unescaped_str(id));
 	return key != Twine::Null && scopeinfo->has_attribute(key);
@@ -107,7 +107,7 @@ bool scopeinfo_has_attribute(const RTLIL::Cell *scopeinfo, ScopeinfoAttrs attrs,
 
 RTLIL::Const scopeinfo_get_attribute(const RTLIL::Cell *scopeinfo, ScopeinfoAttrs attrs, IdString id)
 {
-	log_assert(scopeinfo->type == ID::$scopeinfo);
+	log_assert(scopeinfo->type == ID($scopeinfo));
 	TwinePool &twines = scopeinfo->module->design->twines;
 	IdString key = twines.find(attr_prefix(attrs) + twines.unescaped_str(id));
 	if (key == Twine::Null)

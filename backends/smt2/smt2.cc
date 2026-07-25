@@ -209,7 +209,7 @@ struct Smt2Worker
 				log_error("Unsupported or unknown directionality on port %s of cell %s.%s (%s).\n",
 						module->design->twines.str(conn.first).c_str(), module, cell, cell->type.unescape());
 
-			if (cell->type.in(ID::$dff, ID::$_DFF_P_, ID::$_DFF_N_) && (conn.first == ID::CLK || conn.first == ID::C))
+			if (cell->type.in(ID($dff), ID($_DFF_P_), ID($_DFF_N_)) && (conn.first == ID::CLK || conn.first == ID::C))
 			{
 				bool posedge = (cell->type == ID($_DFF_N_)) || (cell->type == ID($dff) && cell->getParam(ID::CLK_POLARITY).as_bool());
 				for (auto bit : sigmap(conn.second)) {

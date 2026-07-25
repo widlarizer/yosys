@@ -115,8 +115,7 @@ void parse_blif(RTLIL::Design *design, std::istream &f, IdString dff_name, bool 
 			}
 		}
 
-		std::string escaped_name = RTLIL::escape_id(wire_name);
-		IdString wire_ref = design->twines.add(std::string{escaped_name});
+		IdString wire_ref = design->twines.add(RTLIL::escape_id(wire_name));
 		Wire *wire = module->wire(wire_ref);
 
 		if (wire == nullptr)
@@ -173,12 +172,11 @@ void parse_blif(RTLIL::Design *design, std::istream &f, IdString dff_name, bool 
 				char *name = strtok(NULL, " \t\r\n");
 				if (name == nullptr)
 					goto error;
-				std::string escaped_name = RTLIL::escape_id(name);
-				module->name = design->twines.add(std::string{escaped_name});
+				module->name = design->twines.add(RTLIL::escape_id(name));
 				obj_attributes = &module->attributes;
 				obj_parameters = nullptr;
 				if (design->module(module->name))
-					log_error("Duplicate definition of module %s in line %d!\n", escaped_name.c_str(), line_count);
+					log_error("Duplicate definition of module %s in line %d!\n", module->name.str().c_str(), line_count);
 				design->add(module);
 				continue;
 			}
@@ -415,16 +413,14 @@ void parse_blif(RTLIL::Design *design, std::istream &f, IdString dff_name, bool 
 					if (wideports) {
 						std::pair<std::string, int> wp = wideports_split(p);
 						if (wp.first.empty()) {
-							std::string port_name_str = RTLIL::escape_id(p);
-							IdString port_ref = design->twines.add(std::string{port_name_str});
+							IdString port_ref = design->twines.add(RTLIL::escape_id(p));
 							cell->setPort(port_ref, *q ? blif_wire(q) : SigSpec());
 						} else {
 							IdString wp_ref = design->twines.add(std::string(wp.first));
 							cell_wideports_cache[wp_ref][wp.second] = blif_wire(q);
 						}
 					} else {
-						std::string port_name_str = RTLIL::escape_id(p);
-						IdString port_ref = design->twines.add(std::string{port_name_str});
+						IdString port_ref = design->twines.add(RTLIL::escape_id(p));
 						cell->setPort(port_ref, *q ? blif_wire(q) : SigSpec());
 					}
 				}

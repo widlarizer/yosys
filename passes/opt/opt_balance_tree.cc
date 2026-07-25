@@ -345,14 +345,14 @@ struct OptBalanceTreePass : public Pass {
 
 		// Handle arguments
 		size_t argidx;
-		vector<IdString> cell_types = {IdString{ID::$and}, IdString{ID::$or}, IdString{ID::$xor}, IdString{ID::$add}, IdString{ID::$mul}};
+		vector<IdString> cell_types = {IdString{ID($and)}, IdString{ID($or)}, IdString{ID($xor)}, IdString{ID($add)}, IdString{ID($mul)}};
 		for (argidx = 1; argidx < args.size(); argidx++) {
 			if (args[argidx] == "-arith") {
-				cell_types = {IdString{ID::$add}, IdString{ID::$mul}};
+				cell_types = {IdString{ID($add)}, IdString{ID($mul)}};
 				continue;
 			}
 			if (args[argidx] == "-logic") {
-				cell_types = {IdString{ID::$and}, IdString{ID::$or}, IdString{ID::$xor}};
+				cell_types = {IdString{ID($and)}, IdString{ID($or)}, IdString{ID($xor)}};
 				continue;
 			}
 			break;

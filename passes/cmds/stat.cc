@@ -197,7 +197,7 @@ struct statdata_t {
 		for (auto cell : mod->selected_cells()) {
 			std::string cell_type = cell->type;
 			if (width_mode) {
-				if (cell->type.in(ID::$not, ID::$pos, ID::$neg, ID::$logic_not, ID::$logic_and, ID::$logic_or, ID::$reduce_and,
+				if (cell->type.in(ID($not), ID($pos), ID($neg), ID($logic_not), ID($logic_and), ID($logic_or), ID($reduce_and),
 						 ID($reduce_or), ID($reduce_xor), ID($reduce_xnor), ID($reduce_bool), ID($lut), ID($and), ID($or),
 						 ID($xor), ID($xnor), ID($shl), ID($shr), ID($sshl), ID($sshr), ID($shift), ID($shiftx), ID($lt),
 						 ID($le), ID($eq), ID($ne), ID($eqx), ID($nex), ID($ge), ID($gt), ID($add), ID($sub), ID($mul),
@@ -206,15 +206,15 @@ struct statdata_t {
 					int width_b = cell->hasPort(ID::B) ? GetSize(cell->getPort(ID::B)) : 0;
 					int width_y = cell->hasPort(ID::Y) ? GetSize(cell->getPort(ID::Y)) : 0;
 					cell_type = stringf("%s_%d", cell_type, max<int>({width_a, width_b, width_y}));
-				} else if (cell->type.in(ID::$mux))
+				} else if (cell->type.in(ID($mux)))
 					cell_type = stringf("%s_%d", cell_type, GetSize(cell->getPort(ID::Y)));
-				else if (cell->type.in(ID::$bmux, ID::$pmux))
+				else if (cell->type.in(ID($bmux), ID($pmux)))
 					cell_type =
 					  stringf("%s_%d_%d", cell_type, GetSize(cell->getPort(ID::Y)), GetSize(cell->getPort(ID::S)));
-				else if (cell->type == ID::$demux)
+				else if (cell->type == ID($demux))
 					cell_type =
 					  stringf("%s_%d_%d", cell_type, GetSize(cell->getPort(ID::A)), GetSize(cell->getPort(ID::S)));
-				else if (cell->type.in(ID::$sr, ID::$ff, ID::$dff, ID::$dffe, ID::$dffsr, ID::$dffsre, ID::$adff, ID::$adffe,
+				else if (cell->type.in(ID($sr), ID($ff), ID($dff), ID($dffe), ID($dffsr), ID($dffsre), ID($adff), ID($adffe),
 						      ID($sdff), ID($sdffe), ID($sdffce), ID($aldff), ID($aldffe), ID($dlatch), ID($adlatch),
 						      ID($dlatchsr)))
 					cell_type = stringf("%s_%d", cell_type, GetSize(cell->getPort(ID::Q)));

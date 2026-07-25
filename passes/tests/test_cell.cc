@@ -1072,13 +1072,13 @@ struct TestCellPass : public Pass {
 		cell_types[ID($_MUX_)] = "*";
 		cell_types[ID($_NMUX_)] = "*";
 		// wide $_MUX_ cells are not yet implemented
-		// cell_types[ID::$_MUX4_] = "*";
-		// cell_types[ID::$_MUX8_] = "*";
-		// cell_types[ID::$_MUX16_] = "*";
-		cell_types[ID::$_AOI3_] = "ABCYb";
-		cell_types[ID::$_OAI3_] = "ABCYb";
-		cell_types[ID::$_AOI4_] = "ABCDYb";
-		cell_types[ID::$_OAI4_] = "ABCDYb";
+		// cell_types[ID($_MUX4_)] = "*";
+		// cell_types[ID($_MUX8_)] = "*";
+		// cell_types[ID($_MUX16_)] = "*";
+		cell_types[ID($_AOI3_)] = "ABCYb";
+		cell_types[ID($_OAI3_)] = "ABCYb";
+		cell_types[ID($_AOI4_)] = "ABCDYb";
+		cell_types[ID($_OAI4_)] = "ABCDYb";
 
 		auto find_type = [&](const std::string &s) -> IdString {
 			for (auto &it : cell_types)
@@ -1163,7 +1163,7 @@ struct TestCellPass : public Pass {
 						bool is_unconverted = false;
 						for (auto *mod : design->selected_modules())
 							for (auto *cell : mod->selected_cells())
-								if (!cell->type.in(ID::$_NOT_, ID::$_AND_)) {
+								if (!cell->type.in(ID($_NOT_), ID($_AND_))) {
 									is_unconverted = true;
 									break;
 								}

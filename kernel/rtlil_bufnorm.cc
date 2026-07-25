@@ -161,7 +161,7 @@ void RTLIL::Module::bufNormalize()
 				if (chunk.is_wire())
 					wire_queue_entries(chunk.wire);
 
-			if (cell->type == ID::$buf && cell->attributes.empty() && !cell->name.isPublic()) {
+			if (cell->type == ID($buf) && cell->attributes.empty() && !cell->name.isPublic()) {
 				// For a plain `$buf` cell, we enqueue all wires on its input
 				// side, bypass it using module level connections (skipping 'z
 				// bits) and then remove the cell. Eventually the module level

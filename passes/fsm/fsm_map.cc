@@ -171,9 +171,9 @@ static void map_fsm(RTLIL::Cell *fsm_cell, RTLIL::Module *module)
 
 	RTLIL::Cell *state_dff = module->addCell(NEW_ID, IdString{});
 	if (fsm_cell->getPort(ID::ARST).is_fully_const()) {
-		state_dff->type = ID::$dff;
+		state_dff->type = ID($dff);
 	} else {
-		state_dff->type = ID::$adff;
+		state_dff->type = ID($adff);
 		state_dff->parameters[ID::ARST_POLARITY] = fsm_cell->parameters[ID::ARST_POLARITY];
 		state_dff->parameters[ID::ARST_VALUE] = fsm_data.state_table[fsm_data.reset_state];
 		for (auto bit : state_dff->parameters[ID::ARST_VALUE])

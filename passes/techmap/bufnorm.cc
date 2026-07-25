@@ -471,11 +471,11 @@ struct BufnormPass : public Pass {
 					}
 				} else {
 					if (bits_mode) {
-						IdString celltype = pos_mode ? ID::$pos : buf_mode ? ID::$buf : ID::$_BUF_;
+						IdString celltype = pos_mode ? ID($pos) : buf_mode ? ID($buf) : ID($_BUF_);
 						for (int i = 0; i < GetSize(insig) && i < GetSize(outsig); i++)
 							make_buffer_f(celltype, insig[i], outsig[i]);
 					} else {
-						IdString celltype = pos_mode ? ID::$pos : buf_mode ? ID::$buf :
+						IdString celltype = pos_mode ? ID($pos) : buf_mode ? ID($buf) :
 								GetSize(outsig) == 1 ? ID($_BUF_) : ID($buf);
 						make_buffer_f(celltype, insig, outsig);
 					}

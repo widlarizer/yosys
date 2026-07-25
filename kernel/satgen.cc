@@ -465,7 +465,7 @@ bool SatGen::importCell(RTLIL::Cell *cell, int timestep)
 		return true;
 	}
 
-	if (cell->type.in(ID::$connect))
+	if (cell->type.in(ID($connect)))
 	{
 		std::vector<int> a = importDefSigSpec(cell->getPort(ID::A), timestep);
 		std::vector<int> b = importDefSigSpec(cell->getPort(ID::B), timestep);
@@ -485,7 +485,7 @@ bool SatGen::importCell(RTLIL::Cell *cell, int timestep)
 		return true;
 	}
 
-	if (cell->type.in(ID::$reduce_and, ID::$reduce_or, ID::$reduce_xor, ID::$reduce_xnor, ID::$reduce_bool, ID::$logic_not))
+	if (cell->type.in(ID($reduce_and), ID($reduce_or), ID($reduce_xor), ID($reduce_xnor), ID($reduce_bool), ID($logic_not)))
 	{
 		std::vector<int> a = importDefSigSpec(cell->getPort(ID::A), timestep);
 		std::vector<int> y = importDefSigSpec(cell->getPort(ID::Y), timestep);

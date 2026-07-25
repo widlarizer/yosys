@@ -1873,14 +1873,14 @@ namespace {
 					type_sv.starts_with("$verific$") || type_sv.starts_with("$array:") || type_sv.starts_with("$extern:"))
 				return;
 
-			if (cell->type_impl == ID::$buf) {
+			if (cell->type_impl == ID($buf)) {
 				port(ID::A, param(ID::WIDTH));
 				port(ID::Y, param(ID::WIDTH));
 				check_expected();
 				return;
 			}
 
-			if (cell->type_impl.in(ID::$not, ID::$pos, ID::$neg)) {
+			if (cell->type_impl.in(ID($not), ID($pos), ID($neg))) {
 				param_bool(ID::A_SIGNED);
 				port(ID::A, param(ID::A_WIDTH));
 				port(ID::Y, param(ID::Y_WIDTH));
@@ -1888,7 +1888,7 @@ namespace {
 				return;
 			}
 
-			if (cell->type_impl.in(ID::$and, ID::$or, ID::$xor, ID::$xnor)) {
+			if (cell->type_impl.in(ID($and), ID($or), ID($xor), ID($xnor))) {
 				param_bool(ID::A_SIGNED);
 				param_bool(ID::B_SIGNED);
 				port(ID::A, param(ID::A_WIDTH));
@@ -1898,7 +1898,7 @@ namespace {
 				return;
 			}
 
-			if (cell->type_impl.in(ID::$reduce_and, ID::$reduce_or, ID::$reduce_xor, ID::$reduce_xnor, ID::$reduce_bool)) {
+			if (cell->type_impl.in(ID($reduce_and), ID($reduce_or), ID($reduce_xor), ID($reduce_xnor), ID($reduce_bool))) {
 				param_bool(ID::A_SIGNED);
 				port(ID::A, param(ID::A_WIDTH));
 				port(ID::Y, param(ID::Y_WIDTH));
@@ -1906,7 +1906,7 @@ namespace {
 				return;
 			}
 
-			if (cell->type_impl.in(ID::$shl, ID::$shr, ID::$sshl, ID::$sshr)) {
+			if (cell->type_impl.in(ID($shl), ID($shr), ID($sshl), ID($sshr))) {
 				param_bool(ID::A_SIGNED);
 				param_bool(ID::B_SIGNED, /*expected=*/false);
 				port(ID::A, param(ID::A_WIDTH));
@@ -1916,7 +1916,7 @@ namespace {
 				return;
 			}
 
-			if (cell->type_impl.in(ID::$shift, ID::$shiftx)) {
+			if (cell->type_impl.in(ID($shift), ID($shiftx))) {
 				if (cell->type == ID($shiftx)) {
 					param_bool(ID::A_SIGNED, /*expected=*/false);
 				} else {
@@ -1930,7 +1930,7 @@ namespace {
 				return;
 			}
 
-			if (cell->type_impl.in(ID::$lt, ID::$le, ID::$eq, ID::$ne, ID::$eqx, ID::$nex, ID::$ge, ID::$gt)) {
+			if (cell->type_impl.in(ID($lt), ID($le), ID($eq), ID($ne), ID($eqx), ID($nex), ID($ge), ID($gt))) {
 				param_bool(ID::A_SIGNED);
 				param_bool(ID::B_SIGNED);
 				port(ID::A, param(ID::A_WIDTH));
@@ -1940,7 +1940,7 @@ namespace {
 				return;
 			}
 
-			if (cell->type_impl.in(ID::$add, ID::$sub, ID::$mul, ID::$div, ID::$mod, ID::$divfloor, ID::$modfloor, ID::$pow)) {
+			if (cell->type_impl.in(ID($add), ID($sub), ID($mul), ID($div), ID($mod), ID($divfloor), ID($modfloor), ID($pow))) {
 				param_bool(ID::A_SIGNED);
 				param_bool(ID::B_SIGNED);
 				port(ID::A, param(ID::A_WIDTH));
@@ -2036,7 +2036,7 @@ namespace {
 				return;
 			}
 
-			if (cell->type_impl.in(ID::$logic_and, ID::$logic_or)) {
+			if (cell->type_impl.in(ID($logic_and), ID($logic_or))) {
 				param_bool(ID::A_SIGNED);
 				param_bool(ID::B_SIGNED);
 				port(ID::A, param(ID::A_WIDTH));
@@ -2204,7 +2204,7 @@ namespace {
 				return;
 			}
 
-			if (cell->type_impl.in(ID::$sdffe, ID::$sdffce)) {
+			if (cell->type_impl.in(ID($sdffe), ID($sdffce))) {
 				param_bool(ID::CLK_POLARITY);
 				param_bool(ID::EN_POLARITY);
 				param_bool(ID::SRST_POLARITY);
@@ -2469,7 +2469,7 @@ namespace {
 				return;
 			}
 
-			if (cell->type_impl.in(ID::$assert, ID::$assume, ID::$live, ID::$fair, ID::$cover)) {
+			if (cell->type_impl.in(ID($assert), ID($assume), ID($live), ID($fair), ID($cover))) {
 				port(ID::A, 1);
 				port(ID::EN, 1);
 				check_expected();
@@ -2482,13 +2482,13 @@ namespace {
 				return;
 			}
 
-			if (cell->type_impl.in(ID::$anyconst, ID::$anyseq, ID::$allconst, ID::$allseq)) {
+			if (cell->type_impl.in(ID($anyconst), ID($anyseq), ID($allconst), ID($allseq))) {
 				port(ID::Y, param(ID::WIDTH));
 				check_expected();
 				return;
 			}
 
-			if (cell->type_impl.in(ID::$anyinit)) {
+			if (cell->type_impl.in(ID($anyinit))) {
 				port(ID::D, param(ID::WIDTH));
 				port(ID::Q, param(ID::WIDTH));
 				check_expected();
@@ -2503,7 +2503,7 @@ namespace {
 				return;
 			}
 
-			if (cell->type_impl.in(ID::$specify2, ID::$specify3)) {
+			if (cell->type_impl.in(ID($specify2), ID($specify3))) {
 				param_bool(ID::FULL);
 				param_bool(ID::SRC_DST_PEN);
 				param_bool(ID::SRC_DST_POL);
@@ -2607,15 +2607,15 @@ namespace {
 			if (cell->type == ID($_MUX8_))  { port(ID::A,1); port(ID::B,1); port(ID::C,1); port(ID::D,1); port(ID::E,1); port(ID::F,1); port(ID::G,1); port(ID::H,1); port(ID::S,1); port(ID::T,1); port(ID::U,1); port(ID::Y,1); check_expected(); return; }
 			if (cell->type == ID($_MUX16_)) { port(ID::A,1); port(ID::B,1); port(ID::C,1); port(ID::D,1); port(ID::E,1); port(ID::F,1); port(ID::G,1); port(ID::H,1); port(ID::I,1); port(ID::J,1); port(ID::K,1); port(ID::L,1); port(ID::M,1); port(ID::N,1); port(ID::O,1); port(ID::P,1); port(ID::S,1); port(ID::T,1); port(ID::U,1); port(ID::V,1); port(ID::Y,1); check_expected(); return; }
 
-			if (cell->type_impl.in(ID::$_SR_NN_, ID::$_SR_NP_, ID::$_SR_PN_, ID::$_SR_PP_))
+			if (cell->type_impl.in(ID($_SR_NN_), ID($_SR_NP_), ID($_SR_PN_), ID($_SR_PP_)))
 				{ port(ID::S,1); port(ID::R,1); port(ID::Q,1); check_expected(); return; }
 
 			if (cell->type == ID($_FF_)) { port(ID::D,1); port(ID::Q,1); check_expected();  return; }
 
-			if (cell->type_impl.in(ID::$_DFF_N_, ID::$_DFF_P_))
+			if (cell->type_impl.in(ID($_DFF_N_), ID($_DFF_P_)))
 				{ port(ID::D,1); port(ID::Q,1); port(ID::C,1); check_expected(); return; }
 
-			if (cell->type_impl.in(ID::$_DFFE_NN_, ID::$_DFFE_NP_, ID::$_DFFE_PN_, ID::$_DFFE_PP_))
+			if (cell->type_impl.in(ID($_DFFE_NN_), ID($_DFFE_NP_), ID($_DFFE_PN_), ID($_DFFE_PP_)))
 				{ port(ID::D,1); port(ID::Q,1); port(ID::C,1); port(ID::E,1); check_expected(); return; }
 
 			if (cell->type_impl.in(
@@ -2667,7 +2667,7 @@ namespace {
 					ID($_SDFFCE_PP0N_), ID($_SDFFCE_PP0P_), ID($_SDFFCE_PP1N_), ID($_SDFFCE_PP1P_)))
 				{ port(ID::D,1); port(ID::Q,1); port(ID::C,1); port(ID::R,1); port(ID::E,1); check_expected(); return; }
 
-			if (cell->type_impl.in(ID::$_DLATCH_N_, ID::$_DLATCH_P_))
+			if (cell->type_impl.in(ID($_DLATCH_N_), ID($_DLATCH_P_)))
 				{ port(ID::E,1); port(ID::D,1); port(ID::Q,1); check_expected(); return; }
 
 			if (cell->type_impl.in(
@@ -2680,7 +2680,7 @@ namespace {
 					ID($_DLATCHSR_PNN_), ID($_DLATCHSR_PNP_), ID($_DLATCHSR_PPN_), ID($_DLATCHSR_PPP_)))
 				{ port(ID::E,1); port(ID::S,1); port(ID::R,1); port(ID::D,1); port(ID::Q,1); check_expected(); return; }
 
-			if (cell->type_impl.in(ID::$set_tag)) {
+			if (cell->type_impl.in(ID($set_tag))) {
 				param(ID::WIDTH);
 				param(ID::TAG);
 				port(ID::A, param(ID::WIDTH));
@@ -2690,7 +2690,7 @@ namespace {
 				check_expected();
 				return;
 			}
-			if (cell->type_impl.in(ID::$get_tag,ID::$original_tag)) {
+			if (cell->type_impl.in(ID($get_tag),ID($original_tag))) {
 				param(ID::WIDTH);
 				param(ID::TAG);
 				port(ID::A, param(ID::WIDTH));
@@ -2698,7 +2698,7 @@ namespace {
 				check_expected();
 				return;
 			}
-			if (cell->type_impl.in(ID::$overwrite_tag)) {
+			if (cell->type_impl.in(ID($overwrite_tag))) {
 				param(ID::WIDTH);
 				param(ID::TAG);
 				port(ID::A, param(ID::WIDTH));
@@ -2707,20 +2707,20 @@ namespace {
 				check_expected();
 				return;
 			}
-			if (cell->type_impl.in(ID::$future_ff)) {
+			if (cell->type_impl.in(ID($future_ff))) {
 				param(ID::WIDTH);
 				port(ID::A, param(ID::WIDTH));
 				port(ID::Y, param(ID::WIDTH));
 				check_expected();
 				return;
 			}
-			if (cell->type_impl.in(ID::$input_port)) {
+			if (cell->type_impl.in(ID($input_port))) {
 				param(ID::WIDTH);
 				port(ID::Y, param(ID::WIDTH));
 				check_expected();
 				return;
 			}
-			if (cell->type_impl.in(ID::$connect)) {
+			if (cell->type_impl.in(ID($connect))) {
 				param(ID::WIDTH);
 				port(ID::A, param(ID::WIDTH));
 				port(ID::B, param(ID::WIDTH));
@@ -3813,15 +3813,15 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 			add ## _func(std::move(name), sig_a, sig_y, is_signed, src);   \
 			return sig_y;                                       \
 		}
-	DEF_METHOD(Not,        sig_a.size(), ID::$not)
-	DEF_METHOD(Pos,        sig_a.size(), ID::$pos)
-	DEF_METHOD(Neg,        sig_a.size(), ID::$neg)
-	DEF_METHOD(ReduceAnd,  1, ID::$reduce_and)
-	DEF_METHOD(ReduceOr,   1, ID::$reduce_or)
-	DEF_METHOD(ReduceXor,  1, ID::$reduce_xor)
-	DEF_METHOD(ReduceXnor, 1, ID::$reduce_xnor)
-	DEF_METHOD(ReduceBool, 1, ID::$reduce_bool)
-	DEF_METHOD(LogicNot,   1, ID::$logic_not)
+	DEF_METHOD(Not,        sig_a.size(), ID($not))
+	DEF_METHOD(Pos,        sig_a.size(), ID($pos))
+	DEF_METHOD(Neg,        sig_a.size(), ID($neg))
+	DEF_METHOD(ReduceAnd,  1, ID($reduce_and))
+	DEF_METHOD(ReduceOr,   1, ID($reduce_or))
+	DEF_METHOD(ReduceXor,  1, ID($reduce_xor))
+	DEF_METHOD(ReduceXnor, 1, ID($reduce_xnor))
+	DEF_METHOD(ReduceBool, 1, ID($reduce_bool))
+	DEF_METHOD(LogicNot,   1, ID($logic_not))
 	#undef DEF_METHOD
 
 	#define DEF_METHOD(_func, _y_size, _type) \
@@ -3838,7 +3838,7 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 			add ## _func(std::move(name), sig_a, sig_y, is_signed, src);   \
 			return sig_y;                                       \
 		}
-	DEF_METHOD(Buf, sig_a.size(), ID::$buf)
+	DEF_METHOD(Buf, sig_a.size(), ID($buf))
 	#undef DEF_METHOD
 
 	#define DEF_METHOD(_func, _y_size, _type) \
@@ -3860,28 +3860,28 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 			add ## _func(std::move(name), sig_a, sig_b, sig_y, is_signed, src); \
 			return sig_y;                                            \
 		}
-	DEF_METHOD(And,      max(sig_a.size(), sig_b.size()), ID::$and)
-	DEF_METHOD(Or,       max(sig_a.size(), sig_b.size()), ID::$or)
-	DEF_METHOD(Xor,      max(sig_a.size(), sig_b.size()), ID::$xor)
-	DEF_METHOD(Xnor,     max(sig_a.size(), sig_b.size()), ID::$xnor)
-	DEF_METHOD(Shift,    sig_a.size(), ID::$shift)
-	DEF_METHOD(Lt,       1, ID::$lt)
-	DEF_METHOD(Le,       1, ID::$le)
-	DEF_METHOD(Eq,       1, ID::$eq)
-	DEF_METHOD(Ne,       1, ID::$ne)
-	DEF_METHOD(Eqx,      1, ID::$eqx)
-	DEF_METHOD(Nex,      1, ID::$nex)
-	DEF_METHOD(Ge,       1, ID::$ge)
-	DEF_METHOD(Gt,       1, ID::$gt)
-	DEF_METHOD(Add,      max(sig_a.size(), sig_b.size()), ID::$add)
-	DEF_METHOD(Sub,      max(sig_a.size(), sig_b.size()), ID::$sub)
-	DEF_METHOD(Mul,      max(sig_a.size(), sig_b.size()), ID::$mul)
-	DEF_METHOD(Div,      max(sig_a.size(), sig_b.size()), ID::$div)
-	DEF_METHOD(Mod,      max(sig_a.size(), sig_b.size()), ID::$mod)
-	DEF_METHOD(DivFloor, max(sig_a.size(), sig_b.size()), ID::$divfloor)
-	DEF_METHOD(ModFloor, max(sig_a.size(), sig_b.size()), ID::$modfloor)
-	DEF_METHOD(LogicAnd, 1, ID::$logic_and)
-	DEF_METHOD(LogicOr,  1, ID::$logic_or)
+	DEF_METHOD(And,      max(sig_a.size(), sig_b.size()), ID($and))
+	DEF_METHOD(Or,       max(sig_a.size(), sig_b.size()), ID($or))
+	DEF_METHOD(Xor,      max(sig_a.size(), sig_b.size()), ID($xor))
+	DEF_METHOD(Xnor,     max(sig_a.size(), sig_b.size()), ID($xnor))
+	DEF_METHOD(Shift,    sig_a.size(), ID($shift))
+	DEF_METHOD(Lt,       1, ID($lt))
+	DEF_METHOD(Le,       1, ID($le))
+	DEF_METHOD(Eq,       1, ID($eq))
+	DEF_METHOD(Ne,       1, ID($ne))
+	DEF_METHOD(Eqx,      1, ID($eqx))
+	DEF_METHOD(Nex,      1, ID($nex))
+	DEF_METHOD(Ge,       1, ID($ge))
+	DEF_METHOD(Gt,       1, ID($gt))
+	DEF_METHOD(Add,      max(sig_a.size(), sig_b.size()), ID($add))
+	DEF_METHOD(Sub,      max(sig_a.size(), sig_b.size()), ID($sub))
+	DEF_METHOD(Mul,      max(sig_a.size(), sig_b.size()), ID($mul))
+	DEF_METHOD(Div,      max(sig_a.size(), sig_b.size()), ID($div))
+	DEF_METHOD(Mod,      max(sig_a.size(), sig_b.size()), ID($mod))
+	DEF_METHOD(DivFloor, max(sig_a.size(), sig_b.size()), ID($divfloor))
+	DEF_METHOD(ModFloor, max(sig_a.size(), sig_b.size()), ID($modfloor))
+	DEF_METHOD(LogicAnd, 1, ID($logic_and))
+	DEF_METHOD(LogicOr,  1, ID($logic_or))
 	#undef DEF_METHOD
 
 	#define DEF_METHOD(_func, _y_size, _type) \
@@ -3903,10 +3903,10 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 			add ## _func(std::move(name), sig_a, sig_b, sig_y, is_signed, src); \
 			return sig_y;                                            \
 		}
-	DEF_METHOD(Shl,      sig_a.size(), ID::$shl)
-	DEF_METHOD(Shr,      sig_a.size(), ID::$shr)
-	DEF_METHOD(Sshl,     sig_a.size(), ID::$sshl)
-	DEF_METHOD(Sshr,     sig_a.size(), ID::$sshr)
+	DEF_METHOD(Shl,      sig_a.size(), ID($shl))
+	DEF_METHOD(Shr,      sig_a.size(), ID($shr))
+	DEF_METHOD(Sshl,     sig_a.size(), ID($sshl))
+	DEF_METHOD(Sshr,     sig_a.size(), ID($sshr))
 	#undef DEF_METHOD
 
 	#define DEF_METHOD(_func, _y_size, _type) \
@@ -3928,7 +3928,7 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 			add ## _func(std::move(name), sig_a, sig_b, sig_y, is_signed, src); \
 			return sig_y;                                            \
 		}
-	DEF_METHOD(Shiftx,      sig_a.size(), ID::$shiftx)
+	DEF_METHOD(Shiftx,      sig_a.size(), ID($shiftx))
 	#undef DEF_METHOD
 
 	#define DEF_METHOD(_func, _type, _pmux) \
@@ -3948,13 +3948,13 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 			add ## _func(std::move(name), sig_a, sig_b, sig_s, sig_y, src);      \
 			return sig_y;                                             \
 		}
-	DEF_METHOD(Mux,      ID::$mux,        0)
-	DEF_METHOD(Bwmux,    ID::$bwmux,      0)
-	DEF_METHOD(Pmux,     ID::$pmux,       1)
+	DEF_METHOD(Mux,      ID($mux),        0)
+	DEF_METHOD(Bwmux,    ID($bwmux),      0)
+	DEF_METHOD(Pmux,     ID($pmux),       1)
 	#undef DEF_METHOD
 
 	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addMux(IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_y, IdString src) {
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID::$mux);
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID($mux));
 		cell->parameters[ID::WIDTH] = sig_a.size();
 		cell->setPort(ID::A, sig_a);
 		cell->setPort(ID::B, sig_b);
@@ -3980,8 +3980,8 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 			add ## _func(std::move(name), sig_a, sig_s, sig_y, src);             \
 			return sig_y;                                             \
 		}
-	DEF_METHOD(Bmux,     ID::$bmux,       0)
-	DEF_METHOD(Demux,    ID::$demux,      1)
+	DEF_METHOD(Bmux,     ID($bmux),       0)
+	DEF_METHOD(Demux,    ID($demux),      1)
 	#undef DEF_METHOD
 
 	#define DEF_METHOD(_func, _type) \
@@ -3999,7 +3999,7 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 			add ## _func(std::move(name), sig_a, sig_s, sig_y, src);             \
 			return sig_y;                                             \
 		}
-	DEF_METHOD(Bweqx,    ID::$bweqx)
+	DEF_METHOD(Bweqx,    ID($bweqx))
 	#undef DEF_METHOD
 
 	#define DEF_METHOD_2(_func, _type, _P1, _P2) \
@@ -4060,22 +4060,22 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 			add ## _func(std::move(name), sig1, sig2, sig3, sig4, sig5, src); \
 			return sig5;                                           \
 		}
-	DEF_METHOD_2(BufGate,    ID::$_BUF_,    A, Y)
-	DEF_METHOD_2(NotGate,    ID::$_NOT_,    A, Y)
-	DEF_METHOD_3(AndGate,    ID::$_AND_,    A, B, Y)
-	DEF_METHOD_3(NandGate,   ID::$_NAND_,   A, B, Y)
-	DEF_METHOD_3(OrGate,     ID::$_OR_,     A, B, Y)
-	DEF_METHOD_3(NorGate,    ID::$_NOR_,    A, B, Y)
-	DEF_METHOD_3(XorGate,    ID::$_XOR_,    A, B, Y)
-	DEF_METHOD_3(XnorGate,   ID::$_XNOR_,   A, B, Y)
-	DEF_METHOD_3(AndnotGate, ID::$_ANDNOT_, A, B, Y)
-	DEF_METHOD_3(OrnotGate,  ID::$_ORNOT_,  A, B, Y)
-	DEF_METHOD_4(MuxGate,    ID::$_MUX_,    A, B, S, Y)
-	DEF_METHOD_4(NmuxGate,   ID::$_NMUX_,   A, B, S, Y)
-	DEF_METHOD_4(Aoi3Gate,   ID::$_AOI3_,   A, B, C, Y)
-	DEF_METHOD_4(Oai3Gate,   ID::$_OAI3_,   A, B, C, Y)
-	DEF_METHOD_5(Aoi4Gate,   ID::$_AOI4_,   A, B, C, D, Y)
-	DEF_METHOD_5(Oai4Gate,   ID::$_OAI4_,   A, B, C, D, Y)
+	DEF_METHOD_2(BufGate,    ID($_BUF_),    A, Y)
+	DEF_METHOD_2(NotGate,    ID($_NOT_),    A, Y)
+	DEF_METHOD_3(AndGate,    ID($_AND_),    A, B, Y)
+	DEF_METHOD_3(NandGate,   ID($_NAND_),   A, B, Y)
+	DEF_METHOD_3(OrGate,     ID($_OR_),     A, B, Y)
+	DEF_METHOD_3(NorGate,    ID($_NOR_),    A, B, Y)
+	DEF_METHOD_3(XorGate,    ID($_XOR_),    A, B, Y)
+	DEF_METHOD_3(XnorGate,   ID($_XNOR_),   A, B, Y)
+	DEF_METHOD_3(AndnotGate, ID($_ANDNOT_), A, B, Y)
+	DEF_METHOD_3(OrnotGate,  ID($_ORNOT_),  A, B, Y)
+	DEF_METHOD_4(MuxGate,    ID($_MUX_),    A, B, S, Y)
+	DEF_METHOD_4(NmuxGate,   ID($_NMUX_),   A, B, S, Y)
+	DEF_METHOD_4(Aoi3Gate,   ID($_AOI3_),   A, B, C, Y)
+	DEF_METHOD_4(Oai3Gate,   ID($_OAI3_),   A, B, C, Y)
+	DEF_METHOD_5(Aoi4Gate,   ID($_AOI4_),   A, B, C, D, Y)
+	DEF_METHOD_5(Oai4Gate,   ID($_OAI4_),   A, B, C, D, Y)
 	#undef DEF_METHOD_2
 	#undef DEF_METHOD_3
 	#undef DEF_METHOD_4
@@ -4083,7 +4083,7 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 
 	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addPow(Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool a_signed, bool b_signed, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), ID::$pow);
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), ID($pow));
 		cell->parameters[ID::A_SIGNED] = a_signed;
 		cell->parameters[ID::B_SIGNED] = b_signed;
 		cell->parameters[ID::A_WIDTH] = sig_a.size();
@@ -4098,7 +4098,7 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 
 	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addFa(Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_c, const RTLIL::SigSpec &sig_x, const RTLIL::SigSpec &sig_y, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), ID::$fa);
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), ID($fa));
 		cell->parameters[ID::WIDTH] = sig_a.size();
 		cell->setPort(ID::A, sig_a);
 		cell->setPort(ID::B, sig_b);
@@ -4111,7 +4111,7 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 
 	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addSlice(Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, RTLIL::Const offset, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), ID::$slice);
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), ID($slice));
 		cell->parameters[ID::A_WIDTH] = sig_a.size();
 		cell->parameters[ID::Y_WIDTH] = sig_y.size();
 		cell->parameters[ID::OFFSET] = offset;
@@ -4123,7 +4123,7 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 
 	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addConcat(Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), ID::$concat);
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), ID($concat));
 		cell->parameters[ID::A_WIDTH] = sig_a.size();
 		cell->parameters[ID::B_WIDTH] = sig_b.size();
 		cell->setPort(ID::A, sig_a);
@@ -4135,7 +4135,7 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 
 	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addLut(Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, RTLIL::Const lut, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), ID::$lut);
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), ID($lut));
 		cell->parameters[ID::LUT] = lut;
 		cell->parameters[ID::WIDTH] = sig_a.size();
 		cell->setPort(ID::A, sig_a);
@@ -4146,7 +4146,7 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 
 	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addTribuf(Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_y, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), ID::$tribuf);
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), ID($tribuf));
 		cell->parameters[ID::WIDTH] = sig_a.size();
 		cell->setPort(ID::A, sig_a);
 		cell->setPort(ID::EN, sig_en);
@@ -4157,7 +4157,7 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 
 	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addAssert(Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), ID::$assert);
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), ID($assert));
 		cell->setPort(ID::A, sig_a);
 		cell->setPort(ID::EN, sig_en);
 		static_cast<Derived*>(this)->cell_set_src(cell, src);
@@ -4166,7 +4166,7 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 
 	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addAssume(Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), ID::$assume);
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), ID($assume));
 		cell->setPort(ID::A, sig_a);
 		cell->setPort(ID::EN, sig_en);
 		static_cast<Derived*>(this)->cell_set_src(cell, src);
@@ -4175,7 +4175,7 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 
 	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addLive(Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), ID::$live);
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), ID($live));
 		cell->setPort(ID::A, sig_a);
 		cell->setPort(ID::EN, sig_en);
 		static_cast<Derived*>(this)->cell_set_src(cell, src);
@@ -4184,7 +4184,7 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 
 	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addFair(Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), ID::$fair);
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), ID($fair));
 		cell->setPort(ID::A, sig_a);
 		cell->setPort(ID::EN, sig_en);
 		static_cast<Derived*>(this)->cell_set_src(cell, src);
@@ -4193,7 +4193,7 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 
 	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addCover(Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), ID::$cover);
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), ID($cover));
 		cell->setPort(ID::A, sig_a);
 		cell->setPort(ID::EN, sig_en);
 		static_cast<Derived*>(this)->cell_set_src(cell, src);
@@ -4202,7 +4202,7 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 
 	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addEquiv(Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), ID::$equiv);
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), ID($equiv));
 		cell->setPort(ID::A, sig_a);
 		cell->setPort(ID::B, sig_b);
 		cell->setPort(ID::Y, sig_y);
@@ -4212,7 +4212,7 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 
 	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addSr(IdString name, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr, const RTLIL::SigSpec &sig_q, bool set_polarity, bool clr_polarity, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID::$sr);
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID($sr));
 		cell->parameters[ID::SET_POLARITY] = set_polarity;
 		cell->parameters[ID::CLR_POLARITY] = clr_polarity;
 		cell->parameters[ID::WIDTH] = sig_q.size();
@@ -4225,7 +4225,7 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 
 	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addFf(IdString name, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID::$ff);
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID($ff));
 		cell->parameters[ID::WIDTH] = sig_q.size();
 		cell->setPort(ID::D, sig_d);
 		cell->setPort(ID::Q, sig_q);
@@ -4235,7 +4235,7 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 
 	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addDff(IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID::$dff);
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID($dff));
 		cell->parameters[ID::CLK_POLARITY] = clk_polarity;
 		cell->parameters[ID::WIDTH] = sig_q.size();
 		cell->setPort(ID::CLK, sig_clk);
@@ -4247,7 +4247,7 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 
 	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addDffe(IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity, bool en_polarity, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID::$dffe);
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID($dffe));
 		cell->parameters[ID::CLK_POLARITY] = clk_polarity;
 		cell->parameters[ID::EN_POLARITY] = en_polarity;
 		cell->parameters[ID::WIDTH] = sig_q.size();
@@ -4262,7 +4262,7 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addDffsr(IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr,
 			RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity, bool set_polarity, bool clr_polarity, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID::$dffsr);
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID($dffsr));
 		cell->parameters[ID::CLK_POLARITY] = clk_polarity;
 		cell->parameters[ID::SET_POLARITY] = set_polarity;
 		cell->parameters[ID::CLR_POLARITY] = clr_polarity;
@@ -4279,7 +4279,7 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addDffsre(IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr,
 			RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity, bool en_polarity, bool set_polarity, bool clr_polarity, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID::$dffsre);
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID($dffsre));
 		cell->parameters[ID::CLK_POLARITY] = clk_polarity;
 		cell->parameters[ID::EN_POLARITY] = en_polarity;
 		cell->parameters[ID::SET_POLARITY] = set_polarity;
@@ -4298,7 +4298,7 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addAdff(IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_arst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
 			RTLIL::Const arst_value, bool clk_polarity, bool arst_polarity, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID::$adff);
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID($adff));
 		cell->parameters[ID::CLK_POLARITY] = clk_polarity;
 		cell->parameters[ID::ARST_POLARITY] = arst_polarity;
 		cell->parameters[ID::ARST_VALUE] = arst_value;
@@ -4314,7 +4314,7 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addAdffe(IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_arst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
 			RTLIL::Const arst_value, bool clk_polarity, bool en_polarity, bool arst_polarity, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID::$adffe);
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID($adffe));
 		cell->parameters[ID::CLK_POLARITY] = clk_polarity;
 		cell->parameters[ID::EN_POLARITY] = en_polarity;
 		cell->parameters[ID::ARST_POLARITY] = arst_polarity;
@@ -4332,7 +4332,7 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addAldff(IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_aload, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
 			const RTLIL::SigSpec &sig_ad, bool clk_polarity, bool aload_polarity, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID::$aldff);
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID($aldff));
 		cell->parameters[ID::CLK_POLARITY] = clk_polarity;
 		cell->parameters[ID::ALOAD_POLARITY] = aload_polarity;
 		cell->parameters[ID::WIDTH] = sig_q.size();
@@ -4348,7 +4348,7 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addAldffe(IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_aload, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
 			const RTLIL::SigSpec &sig_ad, bool clk_polarity, bool en_polarity, bool aload_polarity, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID::$aldffe);
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID($aldffe));
 		cell->parameters[ID::CLK_POLARITY] = clk_polarity;
 		cell->parameters[ID::EN_POLARITY] = en_polarity;
 		cell->parameters[ID::ALOAD_POLARITY] = aload_polarity;
@@ -4366,7 +4366,7 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addSdff(IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_srst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
 			RTLIL::Const srst_value, bool clk_polarity, bool srst_polarity, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID::$sdff);
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID($sdff));
 		cell->parameters[ID::CLK_POLARITY] = clk_polarity;
 		cell->parameters[ID::SRST_POLARITY] = srst_polarity;
 		cell->parameters[ID::SRST_VALUE] = srst_value;
@@ -4382,7 +4382,7 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addSdffe(IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_srst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
 			RTLIL::Const srst_value, bool clk_polarity, bool en_polarity, bool srst_polarity, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID::$sdffe);
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID($sdffe));
 		cell->parameters[ID::CLK_POLARITY] = clk_polarity;
 		cell->parameters[ID::EN_POLARITY] = en_polarity;
 		cell->parameters[ID::SRST_POLARITY] = srst_polarity;
@@ -4400,7 +4400,7 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addSdffce(IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_srst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
 			RTLIL::Const srst_value, bool clk_polarity, bool en_polarity, bool srst_polarity, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID::$sdffce);
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID($sdffce));
 		cell->parameters[ID::CLK_POLARITY] = clk_polarity;
 		cell->parameters[ID::EN_POLARITY] = en_polarity;
 		cell->parameters[ID::SRST_POLARITY] = srst_polarity;
@@ -4417,7 +4417,7 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 
 	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addDlatch(IdString name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool en_polarity, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID::$dlatch);
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID($dlatch));
 		cell->parameters[ID::EN_POLARITY] = en_polarity;
 		cell->parameters[ID::WIDTH] = sig_q.size();
 		cell->setPort(ID::EN, sig_en);
@@ -4430,7 +4430,7 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addAdlatch(IdString name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_arst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
 			RTLIL::Const arst_value, bool en_polarity, bool arst_polarity, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID::$adlatch);
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID($adlatch));
 		cell->parameters[ID::EN_POLARITY] = en_polarity;
 		cell->parameters[ID::ARST_POLARITY] = arst_polarity;
 		cell->parameters[ID::ARST_VALUE] = arst_value;
@@ -4446,7 +4446,7 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addDlatchsr(IdString name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr,
 			RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool en_polarity, bool set_polarity, bool clr_polarity, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID::$dlatchsr);
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID($dlatchsr));
 		cell->parameters[ID::EN_POLARITY] = en_polarity;
 		cell->parameters[ID::SET_POLARITY] = set_polarity;
 		cell->parameters[ID::CLR_POLARITY] = clr_polarity;
@@ -4476,7 +4476,7 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 
 	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addFfGate(IdString name, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID::$_FF_);
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID($_FF_));
 		cell->setPort(ID::D, sig_d);
 		cell->setPort(ID::Q, sig_q);
 		static_cast<Derived*>(this)->cell_set_src(cell, src);
@@ -4672,7 +4672,7 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 
 RTLIL::Cell* RTLIL::Module::addAnyinit(IdString name, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, IdString src)
 {
-	RTLIL::Cell *cell = addCell(name, ID::$anyinit);
+	RTLIL::Cell *cell = addCell(name, ID($anyinit));
 	cell->parameters[ID::WIDTH] = sig_q.size();
 	cell->setPort(ID::D, sig_d);
 	cell->setPort(ID::Q, sig_q);
@@ -5163,7 +5163,7 @@ void RTLIL::Cell::fixup_parameters(bool set_a_signed, bool set_b_signed)
 
 	if (type == ID($buf) || type == ID($mux) || type == ID($pmux) || type == ID($bmux) || type == ID($bwmux) || type == ID($bweqx)) {
 		parameters[ID::WIDTH] = GetSize(connections_[ID::Y]);
-		if (type_impl.in(ID::$pmux, ID::$bmux))
+		if (type_impl.in(ID($pmux), ID($bmux)))
 			parameters[ID::S_WIDTH] = GetSize(connections_[ID::S]);
 		check();
 		return;
@@ -5196,7 +5196,7 @@ void RTLIL::Cell::fixup_parameters(bool set_a_signed, bool set_b_signed)
 		return;
 	}
 
-	bool signedness_ab = !type_impl.in(ID::$slice, ID::$concat, ID::$macc);
+	bool signedness_ab = !type_impl.in(ID($slice), ID($concat), ID($macc));
 
 	if (connections_.count(ID::A)) {
 		if (signedness_ab) {
@@ -5234,12 +5234,12 @@ bool RTLIL::Cell::has_keep_attr() const {
 
 bool RTLIL::Cell::has_memid() const
 {
-	return type_impl.in(ID::$memwr, ID::$memwr_v2, ID::$memrd, ID::$memrd_v2, ID::$meminit, ID::$meminit_v2);
+	return type_impl.in(ID($memwr), ID($memwr_v2), ID($memrd), ID($memrd_v2), ID($meminit), ID($meminit_v2));
 }
 
 bool RTLIL::Cell::is_mem_cell() const
 {
-	return type_impl.in(ID::$mem, ID::$mem_v2) || has_memid();
+	return type_impl.in(ID($mem), ID($mem_v2)) || has_memid();
 }
 
 bool RTLIL::Cell::is_builtin_ff() const {

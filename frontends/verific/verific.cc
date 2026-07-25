@@ -2008,7 +2008,7 @@ void VerificImporter::import_netlist(RTLIL::Design *design, Netlist *nl, std::ma
 				RTLIL::SigSpec data = operatorOutput(inst).extract(i * memory->width, memory->width);
 
 				RTLIL::Cell *cell = module->addCell(numchunks == 1 ? inst_name :
-						IdString(stringf("%s_%d", inst_name, i)), ID::$memrd);
+						IdString(stringf("%s_%d", inst_name, i)), ID($memrd));
 				cell->parameters[ID::MEMID] = memory->name.str();
 				cell->parameters[ID::CLK_ENABLE] = false;
 				cell->parameters[ID::CLK_POLARITY] = true;
@@ -2038,7 +2038,7 @@ void VerificImporter::import_netlist(RTLIL::Design *design, Netlist *nl, std::ma
 				RTLIL::SigSpec data = operatorInput2(inst).extract(i * memory->width, memory->width);
 
 				RTLIL::Cell *cell = module->addCell(numchunks == 1 ? inst_name :
-						IdString(stringf("%s_%d", inst_name, i)), ID::$memwr);
+						IdString(stringf("%s_%d", inst_name, i)), ID($memwr));
 				cell->parameters[ID::MEMID] = memory->name.str();
 				cell->parameters[ID::CLK_ENABLE] = false;
 				cell->parameters[ID::CLK_POLARITY] = true;

@@ -327,8 +327,6 @@ void json_import(Design *design, string &modname, JsonNode *node)
 
 	dict<int, SigBit> signal_bits;
 
-	dict<IdString, Wire*> wire_cache;
-
 	if (node->data_dict.count("ports"))
 	{
 		JsonNode *ports_node = node->data_dict.at("ports");
@@ -338,34 +336,31 @@ void json_import(Design *design, string &modname, JsonNode *node)
 
 		for (int port_id = 1; port_id <= GetSize(ports_node->data_dict_keys); port_id++)
 		{
-			std::string port_name = RTLIL::escape_id(ports_node->data_dict_keys[port_id-1].c_str());
-			IdString port_ref = design->twines.add(std::string(port_name));
+			IdString port_ref = design->twines.add(RTLIL::escape_id(ports_node->data_dict_keys[port_id-1]));
 			JsonNode *port_node = ports_node->data_dict.at(ports_node->data_dict_keys[port_id-1]);
 
 			if (port_node->type != 'D')
-				log_error("JSON port node '%s' is not a dictionary.\n", RTLIL::unescape_id(port_name));
+				log_error("JSON port node '%s' is not a dictionary.\n", design->twines.unescaped_str(port_ref));
 
 			if (port_node->data_dict.count("direction") == 0)
-				log_error("JSON port node '%s' has no direction attribute.\n", RTLIL::unescape_id(port_name));
+				log_error("JSON port node '%s' has no direction attribute.\n", design->twines.unescaped_str(port_ref));
 
 			if (port_node->data_dict.count("bits") == 0)
-				log_error("JSON port node '%s' has no bits attribute.\n", RTLIL::unescape_id(port_name));
+				log_error("JSON port node '%s' has no bits attribute.\n", design->twines.unescaped_str(port_ref));
 
 			JsonNode *port_direction_node = port_node->data_dict.at("direction");
 			JsonNode *port_bits_node = port_node->data_dict.at("bits");
 
 			if (port_direction_node->type != 'S')
-				log_error("JSON port node '%s' has non-string direction attribute.\n", RTLIL::unescape_id(port_name));
+				log_error("JSON port node '%s' has non-string direction attribute.\n", design->twines.unescaped_str(port_ref));
 
 			if (port_bits_node->type != 'A')
-				log_error("JSON port node '%s' has non-array bits attribute.\n", RTLIL::unescape_id(port_name));
+				log_error("JSON port node '%s' has non-array bits attribute.\n", design->twines.unescaped_str(port_ref));
 
-			Wire *port_wire = wire_cache.count(port_ref) ? wire_cache.at(port_ref) : nullptr;
+			Wire *port_wire = module->wire(port_ref);
 
-			if (port_wire == nullptr) {
+			if (port_wire == nullptr)
 				port_wire = module->addWire(port_ref, GetSize(port_bits_node->data_array));
-				wire_cache[port_ref] = port_wire;
-			}
 
 			if (port_node->data_dict.count("upto") != 0) {
 				JsonNode *val = port_node->data_dict.at("upto");
@@ -395,7 +390,7 @@ void json_import(Design *design, string &modname, JsonNode *node)
 				port_wire->port_input = true;
 				port_wire->port_output = true;
 			} else
-				log_error("JSON port node '%s' has invalid '%s' direction attribute.\n", RTLIL::unescape_id(port_name), port_direction_node->data_string);
+				log_error("JSON port node '%s' has invalid '%s' direction attribute.\n", design->twines.unescaped_str(port_ref), port_direction_node->data_string);
 
 			port_wire->port_id = port_id;
 
@@ -415,7 +410,7 @@ void json_import(Design *design, string &modname, JsonNode *node)
 						module->connect(sigbit, State::Sz);
 					else
 						log_error("JSON port node '%s' has invalid '%s' bit string value on bit %d.\n",
-								RTLIL::unescape_id(port_name), bitval_node->data_string.c_str(), i);
+								design->twines.unescaped_str(port_ref), bitval_node->data_string.c_str(), i);
 				} else
 				if (bitval_node->type == 'N') {
 					int bitidx = bitval_node->data_number;
@@ -430,7 +425,7 @@ void json_import(Design *design, string &modname, JsonNode *node)
 						signal_bits[bitidx] = sigbit;
 					}
 				} else
-					log_error("JSON port node '%s' has invalid bit value on bit %d.\n", RTLIL::unescape_id(port_name), i);
+					log_error("JSON port node '%s' has invalid bit value on bit %d.\n", design->twines.unescaped_str(port_ref), i);
 			}
 		}
 
@@ -446,27 +441,24 @@ void json_import(Design *design, string &modname, JsonNode *node)
 
 		for (auto &net : netnames_node->data_dict)
 		{
-			std::string net_name = RTLIL::escape_id(net.first.c_str());
-			IdString net_ref = design->twines.add(std::string(net_name));
+			IdString net_ref = design->twines.add(RTLIL::escape_id(net.first));
 			JsonNode *net_node = net.second;
 
 			if (net_node->type != 'D')
-				log_error("JSON netname node '%s' is not a dictionary.\n", RTLIL::unescape_id(net_name));
+				log_error("JSON netname node '%s' is not a dictionary.\n", design->twines.unescaped_str(net_ref));
 
 			if (net_node->data_dict.count("bits") == 0)
-				log_error("JSON netname node '%s' has no bits attribute.\n", RTLIL::unescape_id(net_name));
+				log_error("JSON netname node '%s' has no bits attribute.\n", design->twines.unescaped_str(net_ref));
 
 			JsonNode *bits_node = net_node->data_dict.at("bits");
 
 			if (bits_node->type != 'A')
-				log_error("JSON netname node '%s' has non-array bits attribute.\n", RTLIL::unescape_id(net_name));
+				log_error("JSON netname node '%s' has non-array bits attribute.\n", design->twines.unescaped_str(net_ref));
 
-			Wire *wire = wire_cache.count(net_ref) ? wire_cache.at(net_ref) : nullptr;
+			Wire *wire = module->wire(net_ref);
 
-			if (wire == nullptr) {
+			if (wire == nullptr)
 				wire = module->addWire(net_ref, GetSize(bits_node->data_array));
-				wire_cache[net_ref] = wire;
-			}
 
 			if (net_node->data_dict.count("upto") != 0) {
 				JsonNode *val = net_node->data_dict.at("upto");
@@ -496,7 +488,7 @@ void json_import(Design *design, string &modname, JsonNode *node)
 						module->connect(sigbit, State::Sz);
 					else
 						log_error("JSON netname node '%s' has invalid '%s' bit string value on bit %d.\n",
-								RTLIL::unescape_id(net_name), bitval_node->data_string.c_str(), i);
+								design->twines.unescaped_str(net_ref), bitval_node->data_string.c_str(), i);
 				} else
 				if (bitval_node->type == 'N') {
 					int bitidx = bitval_node->data_number;
@@ -507,7 +499,7 @@ void json_import(Design *design, string &modname, JsonNode *node)
 						signal_bits[bitidx] = sigbit;
 					}
 				} else
-					log_error("JSON netname node '%s' has invalid bit value on bit %d.\n", RTLIL::unescape_id(net_name), i);
+					log_error("JSON netname node '%s' has invalid bit value on bit %d.\n", design->twines.unescaped_str(net_ref), i);
 			}
 
 			if (net_node->data_dict.count("attributes"))
@@ -524,39 +516,39 @@ void json_import(Design *design, string &modname, JsonNode *node)
 
 		for (auto &cell_node_it : cells_node->data_dict)
 		{
-			std::string cell_name = RTLIL::escape_id(cell_node_it.first.c_str());
+			IdString cell_ref = design->twines.add(RTLIL::escape_id(cell_node_it.first));
 			JsonNode *cell_node = cell_node_it.second;
 
 			if (cell_node->type != 'D')
-				log_error("JSON cells node '%s' is not a dictionary.\n", RTLIL::unescape_id(cell_name));
+				log_error("JSON cells node '%s' is not a dictionary.\n", design->twines.unescaped_str(cell_ref));
 
 			if (cell_node->data_dict.count("type") == 0)
-				log_error("JSON cells node '%s' has no type attribute.\n", RTLIL::unescape_id(cell_name));
+				log_error("JSON cells node '%s' has no type attribute.\n", design->twines.unescaped_str(cell_ref));
 
 			JsonNode *type_node = cell_node->data_dict.at("type");
 
 			if (type_node->type != 'S')
-				log_error("JSON cells node '%s' has a non-string type.\n", RTLIL::unescape_id(cell_name));
+				log_error("JSON cells node '%s' has a non-string type.\n", design->twines.unescaped_str(cell_ref));
 
-			std::string cell_type = RTLIL::escape_id(type_node->data_string.c_str());
+			IdString cell_type = design->twines.add(RTLIL::escape_id(type_node->data_string));
 
-			Cell *cell = module->addCell(design->twines.add(std::string(cell_name)), design->twines.add(std::string(cell_type)));
+			Cell *cell = module->addCell(cell_ref, cell_type);
 
 			if (cell_node->data_dict.count("connections") == 0)
-				log_error("JSON cells node '%s' has no connections attribute.\n", RTLIL::unescape_id(cell_name));
+				log_error("JSON cells node '%s' has no connections attribute.\n", design->twines.unescaped_str(cell_ref));
 
 			JsonNode *connections_node = cell_node->data_dict.at("connections");
 
 			if (connections_node->type != 'D')
-				log_error("JSON cells node '%s' has non-dictionary connections attribute.\n", RTLIL::unescape_id(cell_name));
+				log_error("JSON cells node '%s' has non-dictionary connections attribute.\n", design->twines.unescaped_str(cell_ref));
 
 			for (auto &conn_it : connections_node->data_dict)
 			{
-				std::string conn_name = RTLIL::escape_id(conn_it.first.c_str());
+				IdString conn_ref = design->twines.add(RTLIL::escape_id(conn_it.first));
 				JsonNode *conn_node = conn_it.second;
 
 				if (conn_node->type != 'A')
-					log_error("JSON cells node '%s' connection '%s' is not an array.\n", RTLIL::unescape_id(cell_name), RTLIL::unescape_id(conn_name));
+					log_error("JSON cells node '%s' connection '%s' is not an array.\n", design->twines.unescaped_str(cell_ref), design->twines.unescaped_str(conn_ref));
 
 				SigSpec sig;
 
@@ -575,7 +567,7 @@ void json_import(Design *design, string &modname, JsonNode *node)
 							sig.append(State::Sz);
 						else
 							log_error("JSON cells node '%s' connection '%s' has invalid '%s' bit string value on bit %d.\n",
-									RTLIL::unescape_id(cell_name), RTLIL::unescape_id(conn_name), bitval_node->data_string.c_str(), i);
+									design->twines.unescaped_str(cell_ref), design->twines.unescaped_str(conn_ref), bitval_node->data_string.c_str(), i);
 					} else
 					if (bitval_node->type == 'N') {
 						int bitidx = bitval_node->data_number;
@@ -584,11 +576,11 @@ void json_import(Design *design, string &modname, JsonNode *node)
 						sig.append(signal_bits.at(bitidx));
 					} else
 						log_error("JSON cells node '%s' connection '%s' has invalid bit value on bit %d.\n",
-								RTLIL::unescape_id(cell_name), RTLIL::unescape_id(conn_name), i);
+								design->twines.unescaped_str(cell_ref), design->twines.unescaped_str(conn_ref), i);
 
 				}
 
-				cell->setPort(design->twines.add(std::string(conn_name)), sig);
+				cell->setPort(conn_ref, sig);
 			}
 
 			if (cell_node->data_dict.count("attributes"))
@@ -608,28 +600,27 @@ void json_import(Design *design, string &modname, JsonNode *node)
 
 		for (auto &memory_node_it : memories_node->data_dict)
 		{
-			std::string memory_name = RTLIL::escape_id(memory_node_it.first.c_str());
 			JsonNode *memory_node = memory_node_it.second;
 
 			RTLIL::Memory *mem = new RTLIL::Memory;
-			mem->name = design->twines.add(std::string(memory_name));
+			mem->name = design->twines.add(RTLIL::escape_id(memory_node_it.first));
 			mem->module = module;
 
 			if (memory_node->type != 'D')
-				log_error("JSON memory node '%s' is not a dictionary.\n", RTLIL::unescape_id(memory_name));
+				log_error("JSON memory node '%s' is not a dictionary.\n", design->twines.unescaped_str(mem->name));
 
 			if (memory_node->data_dict.count("width") == 0)
-				log_error("JSON memory node '%s' has no width attribute.\n", RTLIL::unescape_id(memory_name));
+				log_error("JSON memory node '%s' has no width attribute.\n", design->twines.unescaped_str(mem->name));
 			JsonNode *width_node = memory_node->data_dict.at("width");
 			if (width_node->type != 'N')
-				log_error("JSON memory node '%s' has a non-number width.\n", RTLIL::unescape_id(memory_name));
+				log_error("JSON memory node '%s' has a non-number width.\n", design->twines.unescaped_str(mem->name));
 			mem->width = width_node->data_number;
 
 			if (memory_node->data_dict.count("size") == 0)
-				log_error("JSON memory node '%s' has no size attribute.\n", RTLIL::unescape_id(memory_name));
+				log_error("JSON memory node '%s' has no size attribute.\n", design->twines.unescaped_str(mem->name));
 			JsonNode *size_node = memory_node->data_dict.at("size");
 			if (size_node->type != 'N')
-				log_error("JSON memory node '%s' has a non-number size.\n", RTLIL::unescape_id(memory_name));
+				log_error("JSON memory node '%s' has a non-number size.\n", design->twines.unescaped_str(mem->name));
 			mem->size = size_node->data_number;
 
 			mem->start_offset = 0;

@@ -626,7 +626,7 @@ void counter_worker(
 	cell->unsetParam(ID::Y_WIDTH);
 
 	//Change the cell type
-	cell->type = ID::$__COUNT_;
+	cell->type = ID($__COUNT_);
 
 	//Hook up resets
 	if(extract.has_reset)

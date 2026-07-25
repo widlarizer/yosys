@@ -125,7 +125,7 @@ void Mem::emit() {
 				memid = module->design->twines.add(NEW_ID);
 			cell = module->addCell(memid, ID($mem_v2));
 		}
-		cell->type_impl = ID::$mem_v2;
+		cell->type_impl = ID($mem_v2);
 		cell->attributes = attributes;
 		cell->parameters[ID::MEMID] = Const(module->design->twines.str(memid));
 		cell->parameters[ID::WIDTH] = Const(width);
@@ -301,7 +301,7 @@ void Mem::emit() {
 		for (auto &port : rd_ports) {
 			if (!port.cell)
 				port.cell = module->addCell(NEW_ID, ID($memrd_v2));
-			port.cell->type_impl = ID::$memrd_v2;
+			port.cell->type_impl = ID($memrd_v2);
 			port.cell->attributes = port.attributes;
 			port.cell->parameters[ID::MEMID] = module->design->twines.str(memid);
 			port.cell->parameters[ID::ABITS] = GetSize(port.addr);
@@ -326,7 +326,7 @@ void Mem::emit() {
 		for (auto &port : wr_ports) {
 			if (!port.cell)
 				port.cell = module->addCell(NEW_ID, ID($memwr_v2));
-			port.cell->type_impl = ID::$memwr_v2;
+			port.cell->type_impl = ID($memwr_v2);
 			port.cell->attributes = port.attributes;
 			if (port.cell->parameters.count(ID::PRIORITY))
 				port.cell->parameters.erase(ID::PRIORITY);
@@ -346,11 +346,11 @@ void Mem::emit() {
 		for (auto &init : inits) {
 			bool v2 = !init.en.is_fully_ones();
 			if (!init.cell)
-				init.cell = module->addCell(NEW_ID, v2 ? ID::$meminit_v2 : ID::$meminit);
+				init.cell = module->addCell(NEW_ID, v2 ? ID($meminit_v2) : ID($meminit));
 			else {
 				if (!v2)
 					init.cell->unsetPort(ID::EN);
-				init.cell->type_impl = v2 ? ID::$meminit_v2 : ID::$meminit;
+				init.cell->type_impl = v2 ? ID($meminit_v2) : ID($meminit);
 			}
 			init.cell->attributes = init.attributes;
 			init.cell->parameters[ID::MEMID] = module->design->twines.str(memid);

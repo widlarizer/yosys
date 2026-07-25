@@ -86,17 +86,17 @@ void simplemap_bitop(RTLIL::Module *module, RTLIL::Cell *cell)
 	RTLIL::SigSpec sig_b = cell->getPort(ID::B);
 	RTLIL::SigSpec sig_y = cell->getPort(ID::Y);
 
-	if (!cell->type.in(IdString{ID::$bweqx})) {
+	if (!cell->type.in(IdString{ID($bweqx)})) {
 		sig_a.extend_u0(GetSize(sig_y), cell->parameters.at(ID::A_SIGNED).as_bool());
 		sig_b.extend_u0(GetSize(sig_y), cell->parameters.at(ID::B_SIGNED).as_bool());
 	}
 
 	IdString gate_type;
-	if (cell->type.in(IdString{ID::$and}))   gate_type = IdString{ID::$_AND_};
-	if (cell->type.in(IdString{ID::$or}))    gate_type = IdString{ID::$_OR_};
-	if (cell->type.in(IdString{ID::$xor}))   gate_type = IdString{ID::$_XOR_};
-	if (cell->type.in(IdString{ID::$xnor}))  gate_type = IdString{ID::$_XNOR_};
-	if (cell->type.in(IdString{ID::$bweqx})) gate_type = IdString{ID::$_XNOR_};
+	if (cell->type.in(IdString{ID($and)}))   gate_type = IdString{ID($_AND_)};
+	if (cell->type.in(IdString{ID($or)}))    gate_type = IdString{ID($_OR_)};
+	if (cell->type.in(IdString{ID($xor)}))   gate_type = IdString{ID($_XOR_)};
+	if (cell->type.in(IdString{ID($xnor)}))  gate_type = IdString{ID($_XNOR_)};
+	if (cell->type.in(IdString{ID($bweqx)})) gate_type = IdString{ID($_XNOR_)};
 	log_assert(gate_type != IdString{});
 
 	for (int i = 0; i < GetSize(sig_y); i++) {
@@ -117,11 +117,11 @@ void simplemap_reduce(RTLIL::Module *module, RTLIL::Cell *cell)
 		return;
 
 	if (sig_a.size() == 0) {
-		if (cell->type.in(IdString{ID::$reduce_and}))  module->connect(RTLIL::SigSig(sig_y, RTLIL::SigSpec(1, sig_y.size())));
-		if (cell->type.in(IdString{ID::$reduce_or}))   module->connect(RTLIL::SigSig(sig_y, RTLIL::SigSpec(0, sig_y.size())));
-		if (cell->type.in(IdString{ID::$reduce_xor}))  module->connect(RTLIL::SigSig(sig_y, RTLIL::SigSpec(0, sig_y.size())));
-		if (cell->type.in(IdString{ID::$reduce_xnor})) module->connect(RTLIL::SigSig(sig_y, RTLIL::SigSpec(1, sig_y.size())));
-		if (cell->type.in(IdString{ID::$reduce_bool})) module->connect(RTLIL::SigSig(sig_y, RTLIL::SigSpec(0, sig_y.size())));
+		if (cell->type.in(IdString{ID($reduce_and)}))  module->connect(RTLIL::SigSig(sig_y, RTLIL::SigSpec(1, sig_y.size())));
+		if (cell->type.in(IdString{ID($reduce_or)}))   module->connect(RTLIL::SigSig(sig_y, RTLIL::SigSpec(0, sig_y.size())));
+		if (cell->type.in(IdString{ID($reduce_xor)}))  module->connect(RTLIL::SigSig(sig_y, RTLIL::SigSpec(0, sig_y.size())));
+		if (cell->type.in(IdString{ID($reduce_xnor)})) module->connect(RTLIL::SigSig(sig_y, RTLIL::SigSpec(1, sig_y.size())));
+		if (cell->type.in(IdString{ID($reduce_bool)})) module->connect(RTLIL::SigSig(sig_y, RTLIL::SigSpec(0, sig_y.size())));
 		return;
 	}
 
@@ -131,11 +131,11 @@ void simplemap_reduce(RTLIL::Module *module, RTLIL::Cell *cell)
 	}
 
 	IdString gate_type;
-	if (cell->type.in(IdString{ID::$reduce_and}))  gate_type = IdString{ID::$_AND_};
-	if (cell->type.in(IdString{ID::$reduce_or}))   gate_type = IdString{ID::$_OR_};
-	if (cell->type.in(IdString{ID::$reduce_xor}))  gate_type = IdString{ID::$_XOR_};
-	if (cell->type.in(IdString{ID::$reduce_xnor})) gate_type = IdString{ID::$_XOR_};
-	if (cell->type.in(IdString{ID::$reduce_bool})) gate_type = IdString{ID::$_OR_};
+	if (cell->type.in(IdString{ID($reduce_and)}))  gate_type = IdString{ID($_AND_)};
+	if (cell->type.in(IdString{ID($reduce_or)}))   gate_type = IdString{ID($_OR_)};
+	if (cell->type.in(IdString{ID($reduce_xor)}))  gate_type = IdString{ID($_XOR_)};
+	if (cell->type.in(IdString{ID($reduce_xnor)})) gate_type = IdString{ID($_XOR_)};
+	if (cell->type.in(IdString{ID($reduce_bool)})) gate_type = IdString{ID($_OR_)};
 	log_assert(gate_type != IdString{});
 
 	RTLIL::Cell *last_output_cell = NULL;
@@ -162,7 +162,7 @@ void simplemap_reduce(RTLIL::Module *module, RTLIL::Cell *cell)
 		sig_a = sig_t;
 	}
 
-	if (cell->type.in(IdString{ID::$reduce_xnor})) {
+	if (cell->type.in(IdString{ID($reduce_xnor)})) {
 		RTLIL::SigSpec sig_t = module->addWire(NEW_ID);
 		RTLIL::Cell *gate = module->addCell(NEW_ID, ID($_NOT_));
 		transfer_src(gate, cell);
@@ -246,8 +246,8 @@ void simplemap_logbin(RTLIL::Module *module, RTLIL::Cell *cell)
 	}
 
 	IdString gate_type;
-	if (cell->type.in(IdString{ID::$logic_and})) gate_type = IdString{ID::$_AND_};
-	if (cell->type.in(IdString{ID::$logic_or}))  gate_type = IdString{ID::$_OR_};
+	if (cell->type.in(IdString{ID($logic_and)})) gate_type = IdString{ID($_AND_)};
+	if (cell->type.in(IdString{ID($logic_or)}))  gate_type = IdString{ID($_OR_)};
 	log_assert(gate_type != IdString{});
 
 	RTLIL::Cell *gate = module->addCell(NEW_ID, gate_type);
@@ -263,7 +263,7 @@ void simplemap_eqne(RTLIL::Module *module, RTLIL::Cell *cell)
 	RTLIL::SigSpec sig_b = cell->getPort(ID::B);
 	RTLIL::SigSpec sig_y = cell->getPort(ID::Y);
 	bool is_signed = cell->parameters.at(ID::A_SIGNED).as_bool();
-	bool is_ne = cell->type.in(IdString{ID::$ne}, IdString{ID::$nex});
+	bool is_ne = cell->type.in(IdString{ID($ne)}, IdString{ID($nex)});
 
 	RTLIL::SigSpec xor_out = module->addWire(NEW_ID, max(GetSize(sig_a), GetSize(sig_b)));
 	RTLIL::Cell *xor_cell = module->addXor(NEW_ID, sig_a, sig_b, xor_out, is_signed);

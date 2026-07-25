@@ -119,7 +119,7 @@ struct EquivMakeWorker
 			if ((it->name.isPublic() || inames) && blacklist_names.count(it->name) == 0)
 				cell_names.insert(it->name);
 			gold_clone->rename(it, gold_clone->design->twines.add(std::string{it->name.str() + "_gold"}));
-			if (it->type.in(ID::$input_port, ID::$output_port, ID::$public))
+			if (it->type.in(ID($input_port), ID($output_port), ID($public)))
 				gold_clone->remove(it);
 		}
 
@@ -133,7 +133,7 @@ struct EquivMakeWorker
 			if ((it->name.isPublic() || inames) && blacklist_names.count(it->name) == 0)
 				cell_names.insert(it->name);
 			gate_clone->rename(it, gate_clone->design->twines.add(std::string{it->name.str() + "_gate"}));
-			if (it->type.in(ID::$input_port, ID::$output_port, ID::$public))
+			if (it->type.in(ID($input_port), ID($output_port), ID($public)))
 				gate_clone->remove(it);
 		}
 

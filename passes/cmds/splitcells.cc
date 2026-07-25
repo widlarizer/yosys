@@ -68,7 +68,7 @@ struct SplitcellsWorker
 
 	int split(Cell *cell, const std::string &format)
 	{
-		if (cell->type.in(ID::$and, ID::$mux, ID::$not, ID::$or, ID::$pmux, ID::$xnor, ID::$xor))
+		if (cell->type.in(ID($and), ID($mux), ID($not), ID($or), ID($pmux), ID($xnor), ID($xor)))
 		{
 			SigSpec outsig = sigmap(cell->getPort(ID::Y));
 			if (GetSize(outsig) <= 1) return 0;
@@ -134,8 +134,8 @@ struct SplitcellsWorker
 			return GetSize(slices)-1;
 		}
 
-		if (cell->type.in(ID::$ff, ID::$dff, ID::$dffe, ID::$dffsr, ID::$dffsre, ID::$adff, ID::$adffe, ID::$aldff, ID::$aldffe,
-				ID::$sdff, ID::$sdffce, ID::$sdffe, ID::$dlatch, ID::$dlatchsr, ID::$adlatch))
+		if (cell->type.in(ID($ff), ID($dff), ID($dffe), ID($dffsr), ID($dffsre), ID($adff), ID($adffe), ID($aldff), ID($aldffe),
+				ID($sdff), ID($sdffce), ID($sdffe), ID($dlatch), ID($dlatchsr), ID($adlatch)))
 		{
 			auto splitports = {ID::D, ID::Q, ID::AD, ID::SET, ID::CLR};
 			auto splitparams = {ID::ARST_VALUE, ID::SRST_VALUE};

@@ -198,7 +198,7 @@ struct Macc
 
 	void to_cell(RTLIL::Cell *cell)
 	{
-		cell->type_impl = ID::$macc_v2;
+		cell->type_impl = ID($macc_v2);
 
 		int nproducts = 0, naddends = 0;
 		Const a_signed, b_signed, a_widths, b_widths, product_negated;

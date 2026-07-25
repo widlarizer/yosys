@@ -76,7 +76,7 @@ int check_bufnorm_wire(RTLIL::Module *module, RTLIL::Wire *wire)
 			if (!dsig.is_wire() || dsig.as_wire() != wire)
 				log_warning("bufNorm: wire %s.%s driverCell_ %s port %s does not connect back to this wire\n",
 					log_id(module), log_id(wire), log_id(driver), module->design->twines.str(dport).c_str()), counter++;
-			if (wire->port_input && !wire->port_output && driver->type != ID::$input_port)
+			if (wire->port_input && !wire->port_output && driver->type != ID($input_port))
 				log_warning("bufNorm: module input wire %s.%s is driven by non-$input_port cell %s of type %s\n",
 					log_id(module), log_id(wire), log_id(driver), log_id(driver->type)), counter++;
 		}
@@ -366,7 +366,7 @@ struct CheckPass : public Pass {
 					counter++;
 				}
 
-				if (cell->type == ID::$connect) {
+				if (cell->type == ID($connect)) {
 					// Inefficient, but rare case in sane design
 					auto sig_a = cell->getPort(ID::A);
 					auto sig_b = cell->getPort(ID::B);
@@ -410,7 +410,7 @@ struct CheckPass : public Pass {
 					}
 				}
 
-				if (yosys_celltypes.cell_evaluable(cell->type) || cell->type.in(ID::$mem_v2, ID::$memrd, ID::$memrd_v2) \
+				if (yosys_celltypes.cell_evaluable(cell->type) || cell->type.in(ID($mem_v2), ID($memrd), ID($memrd_v2)) \
 						|| cell->is_builtin_ff()) {
 					if (!edges_db.add_edges_from_cell(cell))
 						coarsened_cells.insert(cell);

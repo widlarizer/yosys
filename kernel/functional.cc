@@ -524,10 +524,10 @@ public:
 		for (auto riter = module->ports.rbegin(); riter != module->ports.rend(); ++riter) {
 			auto *wire = module->wire(*riter);
 			if (wire && wire->port_input) {
-				factory.add_input(wire->name.ref(), ID::$input, Sort(wire->width));
+				factory.add_input(wire->name.ref(), ID($input), Sort(wire->width));
 			}
 			if (wire && wire->port_output) {
-				auto &output = factory.add_output(wire->name.ref(), ID::$output, Sort(wire->width));
+				auto &output = factory.add_output(wire->name.ref(), ID($output), Sort(wire->width));
 				output.set_value(enqueue(DriveChunk(DriveChunkWire(wire, 0, wire->width))));
 			}
 		}
@@ -567,7 +567,7 @@ private:
 		// - Since wr port j can only have priority over wr port i if j > i, if we do writes in
 		//   ascending index order the result will obey the priorty relation.
 		vector<Node> read_results;
-		auto &state = factory.add_state(mem->cell->name.ref(), ID::$state, Sort(ceil_log2(mem->size), mem->width));
+		auto &state = factory.add_state(mem->cell->name.ref(), ID($state), Sort(ceil_log2(mem->size), mem->width));
 		state.set_initial_value(MemContents(mem));
 		Node node = factory.value(state);
 		for (size_t i = 0; i < mem->wr_ports.size(); i++) {
@@ -613,7 +613,7 @@ private:
 				log_error("The design contains a %s flip-flop at %s. This is not supported by the functional backend. "
 					"Call async2sync or clk2fflogic to avoid this error.\n", cell->type.unescape(), cell);
 			IdString ff_name = ff.name;
-			auto &state = factory.add_state(ff_name, ID::$state, Sort(ff.width));
+			auto &state = factory.add_state(ff_name, ID($state), Sort(ff.width));
 			Node q_value = factory.value(state);
 			factory.suggest_name(q_value, ff_name);
 			factory.update_pending(cell_outputs.at({cell, ID(Q)}), q_value);

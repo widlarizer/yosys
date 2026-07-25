@@ -152,7 +152,7 @@ static void run_ice40_opts(Module *module)
 				cell->unsetPort(ID(I3));
 				cell->unsetPort(ID::CO);
 				cell->unsetPort(ID::O);
-				cell->type = ID::$lut;
+				cell->type = ID($lut);
 				cell->setPort(ID::A, std::move(sig_a));
 				cell->setPort(ID::Y, std::move(sig_y));
 				cell->setParam(ID::WIDTH, 4);
@@ -184,7 +184,7 @@ static void run_ice40_opts(Module *module)
 		module->design->scratchpad_set_bool("opt.did_something", true);
 		log("Mapping SB_LUT4 cell %s.%s back to logic.\n", module, cell);
 
-		cell->type = ID::$lut;
+		cell->type = ID($lut);
 		cell->setParam(ID::WIDTH, 4);
 		cell->setParam(ID::LUT, cell->getParam(ID(LUT_INIT)));
 		cell->unsetParam(ID(LUT_INIT));

@@ -707,7 +707,7 @@ bool set_keep_print(std::map<RTLIL::Module*, bool> &cache, RTLIL::Module *mod)
 			if (mod->meta_->name == c->type)
 				continue;
 			RTLIL::Module *m = mod->design->module(c->type);
-			if ((m != nullptr && set_keep_print(cache, m)) || c->type == ID::$print)
+			if ((m != nullptr && set_keep_print(cache, m)) || c->type == ID($print))
 				return cache[mod] = true;
 		}
 	return cache[mod];
@@ -720,7 +720,7 @@ bool set_keep_assert(std::map<RTLIL::Module*, bool> &cache, RTLIL::Module *mod)
 			if (mod->meta_->name == c->type)
 				continue;
 			RTLIL::Module *m = mod->design->module(c->type);
-			if ((m != nullptr && set_keep_assert(cache, m)) || c->type.in(ID::$check, ID::$assert, ID::$assume, ID::$live, ID::$fair, ID::$cover))
+			if ((m != nullptr && set_keep_assert(cache, m)) || c->type.in(ID($check), ID($assert), ID($assume), ID($live), ID($fair), ID($cover)))
 				return cache[mod] = true;
 		}
 	return cache[mod];

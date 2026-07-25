@@ -787,7 +787,7 @@ struct XpropWorker
 			SigSpec y_1 = module->addWire(NEW_ID, GetSize(sig_y));
 			SigSpec y_x = module->addWire(NEW_ID, GetSize(sig_y));
 
-			IdString encoded_type = cell->type == ID::$shiftx ? IdString{ID::$shift} : cell->type;
+			IdString encoded_type = cell->type == ID($shiftx) ? IdString{ID($shift)} : cell->type;
 
 			if (cell->type == ID($shiftx)) {
 				std::swap(enc_a.is_0, enc_a.is_x);

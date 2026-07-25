@@ -12,7 +12,7 @@ struct PmuxBPortIterator {
     int port_idx;
     int port_count;
     PmuxBPortIterator(Cell* mux) : cell(mux) {
-        log_assert(mux->type == ID::$mux || mux->type == ID::$pmux);
+        log_assert(mux->type == ID($mux) || mux->type == ID($pmux));
         port_idx = 0;
         b = mux->getPort(ID::B).to_sigbit_vector();
         

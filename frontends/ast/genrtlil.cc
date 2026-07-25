@@ -147,7 +147,7 @@ static RTLIL::SigSpec mux2rtlil(AstNode *that, const RTLIL::SigSpec &cond, const
 	std::stringstream sstr;
 	sstr << "$ternary$" << RTLIL::encode_filename(*that->location.begin.filename) << ":" << that->location.begin.line << "$" << (autoidx++);
 
-	RTLIL::Cell *cell = current_module->addCell(current_module->design->twines.add(sstr.str()), ID::$mux);
+	RTLIL::Cell *cell = current_module->addCell(current_module->design->twines.add(sstr.str()), ID($mux));
 	set_src_attr(cell, that);
 
 	RTLIL::Wire *wire = current_module->addWire(current_module->design->twines.add(std::string{cell->name.str() + "_Y"}), left.size());
@@ -858,7 +858,7 @@ struct AST_INTERNAL::ProcessGenerator
 				}
 				RTLIL::Const polarity = polarity_builder.build();
 
-				RTLIL::Cell *cell = current_module->addCell(current_module->design->twines.add(sstr.str()), ID::$print);
+				RTLIL::Cell *cell = current_module->addCell(current_module->design->twines.add(sstr.str()), ID($print));
 				set_src_attr(cell, ast);
 				cell->setParam(ID::TRG_WIDTH, triggers.size());
 				cell->setParam(ID::TRG_ENABLE, (always->type == AST_INITIAL) || !triggers.empty());
@@ -956,7 +956,7 @@ struct AST_INTERNAL::ProcessGenerator
 				}
 				RTLIL::Const polarity = polarity_builder.build();
 
-				RTLIL::Cell *cell = current_module->addCell(current_module->design->twines.add(std::string(cellname)), ID::$check);
+				RTLIL::Cell *cell = current_module->addCell(current_module->design->twines.add(std::string(cellname)), ID($check));
 				set_src_attr(cell, ast);
 				cell->set_bool_attribute(ID(keep));
 				for (auto &attr : ast->attributes) {
@@ -2077,7 +2077,7 @@ RTLIL::SigSpec AstNode::genRTLIL(int width_hint, bool sign_hint)
 			std::stringstream sstr;
 			sstr << "$memrd$" << str << "$" << RTLIL::encode_filename(*location.begin.filename) << ":" << location.begin.line << "$" << (autoidx++);
 
-			RTLIL::Cell *cell = current_module->addCell(current_module->design->twines.add(sstr.str()), ID::$memrd);
+			RTLIL::Cell *cell = current_module->addCell(current_module->design->twines.add(sstr.str()), ID($memrd));
 			set_src_attr(cell, this);
 
 			IdString mem_tw = current_module->design->twines.find(str);
@@ -2118,7 +2118,7 @@ RTLIL::SigSpec AstNode::genRTLIL(int width_hint, bool sign_hint)
 
 			SigSpec en_sig = children[2]->genRTLIL();
 
-			RTLIL::Cell *cell = current_module->addCell(current_module->design->twines.add(sstr.str()), ID::$meminit_v2);
+			RTLIL::Cell *cell = current_module->addCell(current_module->design->twines.add(sstr.str()), ID($meminit_v2));
 			set_src_attr(cell, this);
 
 			int mem_width, mem_size, addr_bits;
@@ -2169,7 +2169,7 @@ RTLIL::SigSpec AstNode::genRTLIL(int width_hint, bool sign_hint)
 			if (GetSize(check) != 1)
 				check = current_module->ReduceBool(NEW_ID, check);
 
-			RTLIL::Cell *cell = current_module->addCell(current_module->design->twines.add(std::string(cellname)), ID::$check);
+			RTLIL::Cell *cell = current_module->addCell(current_module->design->twines.add(std::string(cellname)), ID($check));
 			set_src_attr(cell, this);
 			for (auto &attr : attributes) {
 				if (attr.first == ID::src)

@@ -363,10 +363,10 @@ struct proc_dlatch_db_t
 			cell->setPort(ID::A, sig_any_valid_b);
 
 		if (GetSize(sig_new_s) == 1) {
-			cell->type = ID::$mux;
+			cell->type = ID($mux);
 			cell->unsetParam(ID::S_WIDTH);
 		} else {
-			cell->type = ID::$pmux;
+			cell->type = ID($pmux);
 			cell->setParam(ID::S_WIDTH, GetSize(sig_new_s));
 		}
 

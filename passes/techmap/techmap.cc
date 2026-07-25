@@ -613,7 +613,7 @@ struct TechmapWorker
 
 							if (extmapper_name == "maccmap") {
 								log("Creating %s with maccmap.\n", log_id(extmapper_module->name));
-								if (!extmapper_cell->type.in(IdString{ID::$macc}, IdString{ID::$macc_v2}))
+								if (!extmapper_cell->type.in(IdString{ID($macc)}, IdString{ID($macc_v2)}))
 									log_error("The maccmap mapper can only map $macc/$macc_v2 (not %s) cells!\n", extmapper_cell->type.unescape());
 								maccmap(extmapper_module, extmapper_cell);
 								extmapper_module->remove(extmapper_cell);

@@ -63,8 +63,8 @@ TEST(TwinePublicityTest, StaticHandlesAreTagged)
 	EXPECT_TRUE(twine_is_public(ID::A));
 	EXPECT_EQ(pool.str(ID::A), "\\A");
 	EXPECT_EQ(pool.unescaped_str(ID::A), "A");
-	EXPECT_FALSE(twine_is_public(ID::$and));
-	EXPECT_EQ(pool.str(ID::$and), "$and");
+	EXPECT_FALSE(twine_is_public(ID($and)));
+	EXPECT_EQ(pool.str(ID($and)), "$and");
 }
 
 TEST(TwinePublicityTest, LookupReturnsTaggedHandle)

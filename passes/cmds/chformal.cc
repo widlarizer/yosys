@@ -438,7 +438,7 @@ struct ChformalPass : public Pass {
 					if (cell->getPort(ID::ARGS).empty()) {
 						module->remove(cell);
 					} else {
-						cell->type = ID::$print;
+						cell->type = ID($print);
 						cell->setPort(ID::EN, combined_en);
 						cell->unsetPort(ID::A);
 						cell->unsetParam(ID(FLAVOR));

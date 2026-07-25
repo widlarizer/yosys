@@ -519,19 +519,19 @@ struct ShregmapPass : public Pass {
 			bool en_neg = enpol == "neg" || enpol == "any" || enpol == "any_or_none";
 
 			if (clk_pos && en_none)
-				opts.ffcells[ID::$_DFF_P_] = make_pair(ID::D, ID::Q);
+				opts.ffcells[ID($_DFF_P_)] = make_pair(ID::D, ID::Q);
 			if (clk_neg && en_none)
-				opts.ffcells[ID::$_DFF_N_] = make_pair(ID::D, ID::Q);
+				opts.ffcells[ID($_DFF_N_)] = make_pair(ID::D, ID::Q);
 
 			if (clk_pos && en_pos)
-				opts.ffcells[ID::$_DFFE_PP_] = make_pair(ID::D, ID::Q);
+				opts.ffcells[ID($_DFFE_PP_)] = make_pair(ID::D, ID::Q);
 			if (clk_pos && en_neg)
-				opts.ffcells[ID::$_DFFE_PN_] = make_pair(ID::D, ID::Q);
+				opts.ffcells[ID($_DFFE_PN_)] = make_pair(ID::D, ID::Q);
 
 			if (clk_neg && en_pos)
-				opts.ffcells[ID::$_DFFE_NP_] = make_pair(ID::D, ID::Q);
+				opts.ffcells[ID($_DFFE_NP_)] = make_pair(ID::D, ID::Q);
 			if (clk_neg && en_neg)
-				opts.ffcells[ID::$_DFFE_NN_] = make_pair(ID::D, ID::Q);
+				opts.ffcells[ID($_DFFE_NN_)] = make_pair(ID::D, ID::Q);
 
 			if (en_pos || en_neg)
 				opts.ffe = true;

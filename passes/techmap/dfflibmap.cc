@@ -506,7 +506,7 @@ static void dfflibmap(RTLIL::Design *design, RTLIL::Module *module)
 	for (auto cell : module->cells()) {
 		if (design->selected(module, cell) && cell_mappings.count(cell->type) > 0)
 			cell_list.push_back(cell);
-		if (cell->type.in(IdString{ID::$_NOT_}))
+		if (cell->type.in(IdString{ID($_NOT_)}))
 			notmap[sigmap(cell->getPort(ID::A))].insert(cell);
 	}
 

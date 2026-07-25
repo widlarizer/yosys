@@ -423,7 +423,7 @@ struct ShareWorker
 			return true;
 		}
 
-		if (config.generic_bin_ops(c1->type) || c1->type == ID::$alu)
+		if (config.generic_bin_ops(c1->type) || c1->type == ID($alu))
 		{
 			if (!config.opt_aggressive)
 			{
@@ -555,7 +555,7 @@ struct ShareWorker
 			return supercell;
 		}
 
-		if (config.generic_bin_ops(c1->type) || config.generic_cbin_ops(c1->type) || c1->type == ID::$alu)
+		if (config.generic_bin_ops(c1->type) || config.generic_cbin_ops(c1->type) || c1->type == ID($alu))
 		{
 			bool modified_src_cells = false;
 

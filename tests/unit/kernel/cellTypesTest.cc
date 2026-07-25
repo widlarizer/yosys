@@ -24,7 +24,7 @@ TEST(CellTypesTest, basic)
 	older.setup_type(bleh, {ID::G}, {ID::H, ID::I}, false, true);
 	newer.setup_type(bleh, {ID::G}, {ID::H, ID::I}, false, true);
 	EXPECT_EQ(older.cell_known(aaaaa), newer.cell_known(aaaaa));
-	EXPECT_EQ(older.cell_known(ID::$and), newer.cell_known(ID::$and));
+	EXPECT_EQ(older.cell_known(ID($and)), newer.cell_known(ID($and)));
 	auto check_port = [&](auto type, auto port) {
 		EXPECT_EQ(older.cell_port_dir(type, port), newer.cell_port_dir(type, port));
 		EXPECT_EQ(older.cell_input(type, port), newer.cell_input(type, port));

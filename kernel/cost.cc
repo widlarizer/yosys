@@ -171,7 +171,7 @@ unsigned int CellCosts::get(RTLIL::Cell *cell)
 		unsigned int max = max_inp_width(cell);
 		log_debug("%s max*coef %d * %d\n", cell->name, max, max_inp_coef(cell->type));
 		return max * max_inp_coef(cell->type);
-	} else if (is_div_mod(cell->type) || cell->type == ID::$mul) {
+	} else if (is_div_mod(cell->type) || cell->type == ID($mul)) {
 		// quadratic with sum of port widths
 		unsigned int sum = port_width_sum(cell);
 		unsigned int coef = cell->type == ID($mul) ? 3 : 5;

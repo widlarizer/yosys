@@ -257,11 +257,11 @@ namespace Functional {
 		void topological_sort();
 		void forward_buf();
 		IRInput const& input(IdString name, IdString kind) const { return _inputs.at({name, kind}); }
-		IRInput const& input(IdString name) const { return input(name, ID::$input); }
+		IRInput const& input(IdString name) const { return input(name, ID($input)); }
 		IROutput const& output(IdString name, IdString kind) const { return _outputs.at({name, kind}); }
-		IROutput const& output(IdString name) const { return output(name, ID::$output); }
+		IROutput const& output(IdString name) const { return output(name, ID($output)); }
 		IRState const& state(IdString name, IdString kind) const { return _states.at({name, kind}); }
-		IRState const& state(IdString name) const { return state(name, ID::$state); }
+		IRState const& state(IdString name) const { return state(name, ID($state)); }
 		bool has_input(IdString name, IdString kind) const { return _inputs.count({name, kind}); }
 		bool has_output(IdString name, IdString kind) const { return _outputs.count({name, kind}); }
 		bool has_state(IdString name, IdString kind) const { return _states.count({name, kind}); }

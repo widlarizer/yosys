@@ -139,7 +139,7 @@ struct EquivMarkWorker
 
 		for (auto cell : module->cells())
 		{
-			if (cell_regions.count(cell->name) || cell->type != ID::$equiv)
+			if (cell_regions.count(cell->name) || cell->type != ID($equiv))
 				continue;
 
 			SigSpec sig_a = sigmap(cell->getPort(ID::A));

@@ -47,11 +47,11 @@ pool<std::string> validate_design_and_get_inputs(RTLIL::Module *module, bool ass
 			found_1bit_output = true;
 	}
 	for (auto cell : module->cells()) {
-		if (cell->type == ID::$allconst)
+		if (cell->type == ID($allconst))
 			found_input = true;
-		if (cell->type == ID::$anyconst)
+		if (cell->type == ID($anyconst))
 			found_hole = true;
-		if (cell->type.in(ID::$assert, ID::$assume))
+		if (cell->type.in(ID($assert), ID($assume)))
 			found_assert_assume = true;
 	}
 	if (!found_input)
@@ -74,7 +74,7 @@ void specialize_from_file(RTLIL::Module *module, const std::string &file) {
 	dict<RTLIL::SigBit, RTLIL::State> hole_assignments;
 
 	for (auto cell : module->cells())
-		if (cell->type == ID::$anyconst)
+		if (cell->type == ID($anyconst))
 			anyconst_loc_to_cell[module->design->src_leaves(cell)] = cell;
 
 	std::ifstream fin(file.c_str());
@@ -132,7 +132,7 @@ void specialize(RTLIL::Module *module, const QbfSolutionType &sol, bool quiet = 
 	auto hole_loc_idx_to_sigbit = sol.get_hole_loc_idx_sigbit_map(module);
 	pool<RTLIL::Cell *> anyconsts_to_remove;
 	for (auto cell : module->cells())
-		if (cell->type == ID::$anyconst)
+		if (cell->type == ID($anyconst))
 			if (hole_loc_idx_to_sigbit.find(std::make_pair(module->design->src_leaves(cell), 0)) != hole_loc_idx_to_sigbit.end())
 				anyconsts_to_remove.insert(cell);
 	for (auto cell : anyconsts_to_remove)
@@ -165,7 +165,7 @@ void allconstify_inputs(RTLIL::Module *module, const pool<std::string> &input_wi
 		RTLIL::Wire *input = module->wire(search.find(n));
 		log_assert(input != nullptr);
 
-		RTLIL::Cell *allconst = module->addCell("$allconst$" + n, ID::$allconst);
+		RTLIL::Cell *allconst = module->addCell("$allconst$" + n, ID($allconst));
 		allconst->setParam(ID(WIDTH), input->width);
 		allconst->setPort(ID::Y, input);
 		allconst->adopt_src_from(input);

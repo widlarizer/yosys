@@ -314,7 +314,7 @@ struct EquivStructPass : public Pass {
 	}
 	void execute(std::vector<std::string> args, Design *design) override
 	{
-		pool<IdString> fwonly_cells({ ID::$equiv });
+		pool<IdString> fwonly_cells({ ID($equiv) });
 		bool mode_icells = false;
 		bool mode_fwd = false;
 		int max_iter = -1;
