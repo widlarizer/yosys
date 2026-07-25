@@ -43,6 +43,12 @@ namespace AST {
 	unsigned long long astnode_count() { return astnodes; }
 }
 
+TwinePool &AST::ast_name_pool()
+{
+	static TwinePool pool;
+	return pool;
+}
+
 // instantiate global variables (private API)
 namespace AST_INTERNAL {
 	bool flag_nodisplay, flag_dump_ast1, flag_dump_ast2, flag_no_dump_ptr, flag_dump_vlog1, flag_dump_vlog2, flag_dump_rtlil, flag_nolatches, flag_nomeminit;
@@ -187,14 +193,14 @@ std::string AST::type2str(AstNodeType type)
 }
 
 // check if attribute exists and has non-zero value
-bool AstNode::get_bool_attribute(const std::string &id)
+bool AstNode::get_bool_attribute(IdString id)
 {
 	if (attributes.count(id) == 0)
 		return false;
 
 	auto& attr = attributes.at(id);
 	if (attr->type != AST_CONSTANT)
-		attr->input_error("Attribute `%s' with non-constant value!\n", id);
+		attr->input_error("Attribute `%s' with non-constant value!\n", attr_name_str(id));
 
 	return attr->integer != 0;
 }
@@ -391,7 +397,7 @@ void AstNode::dumpAst(FILE *f, std::string indent) const
 	fprintf(f, "\n");
 
 	for (auto &it : attributes) {
-		fprintf(f, "%s  ATTR %s:\n", indent.c_str(), it.first.c_str());
+		fprintf(f, "%s  ATTR %s:\n", indent.c_str(), attr_name_str(it.first).c_str());
 		it.second->dumpAst(f, indent + "    ");
 	}
 
@@ -431,7 +437,7 @@ void AstNode::dumpVlog(FILE *f, std::string indent) const
 	}
 
 	for (auto &it : attributes) {
-		fprintf(f, "%s" "(* %s = ", indent.c_str(), id2vl(it.first).c_str());
+		fprintf(f, "%s" "(* %s = ", indent.c_str(), id2vl(attr_name_str(it.first)).c_str());
 		it.second->dumpVlog(f, "");
 		fprintf(f, " *)%s", indent.empty() ? "" : "\n");
 	}
@@ -1120,7 +1126,7 @@ void AST::set_src_attr(RTLIL::AttrObject *obj, const AstNode *ast)
 {
 	if (!current_module || !current_module->design)
 		return;
-	auto it = ast->attributes.find(ID::str(ID::src));
+	auto it = ast->attributes.find(ID::src);
 	if (it != ast->attributes.end() && it->second->type == AST_CONSTANT) {
 		// An explicit (* src *) attribute (e.g. when re-reading written output)
 		// takes precedence over the parse position
@@ -1235,55 +1241,55 @@ static RTLIL::Module *process_module(RTLIL::Design *design, AstNode *ast, bool d
 		}
 		for (auto &attr: ast->attributes)
 			log_assert((bool)attr.second.get());
-		if (flag_nowb && ast->attributes.count(ID::str(ID::whitebox))) {
-			ast->attributes.erase(ID::str(ID::whitebox));
+		if (flag_nowb && ast->attributes.count(ID::whitebox)) {
+			ast->attributes.erase(ID::whitebox);
 		}
 		for (auto &attr: ast->attributes)
 			log_assert((bool)attr.second.get());
-		if (ast->attributes.count(ID::str(ID::lib_whitebox))) {
+		if (ast->attributes.count(ID::lib_whitebox)) {
 			if (flag_lib && !flag_nowb) {
-				ast->attributes[ID::str(ID::whitebox)] = std::move(
-					ast->attributes[ID::str(ID::lib_whitebox)]
+				ast->attributes[ID::whitebox] = std::move(
+					ast->attributes[ID::lib_whitebox]
 				);
 			}
-			ast->attributes.erase(ID::str(ID::lib_whitebox));
+			ast->attributes.erase(ID::lib_whitebox);
 		}
 		for (auto &attr: ast->attributes)
 			log_assert((bool)attr.second.get());
 
-		if (!blackbox_module && ast->attributes.count(ID::str(ID::blackbox))) {
-			auto& n = ast->attributes.at(ID::str(ID::blackbox));
+		if (!blackbox_module && ast->attributes.count(ID::blackbox)) {
+			auto& n = ast->attributes.at(ID::blackbox);
 			if (n->type != AST_CONSTANT)
 				ast->input_error("Got blackbox attribute with non-constant value!\n");
 			blackbox_module = n->asBool();
 		}
 
-		if (blackbox_module && ast->attributes.count(ID::str(ID::whitebox))) {
-			auto& n = ast->attributes.at(ID::str(ID::whitebox));
+		if (blackbox_module && ast->attributes.count(ID::whitebox)) {
+			auto& n = ast->attributes.at(ID::whitebox);
 			if (n->type != AST_CONSTANT)
 				ast->input_error("Got whitebox attribute with non-constant value!\n");
 			blackbox_module = !n->asBool();
 		}
 
-		if (ast->attributes.count(ID::str(ID::noblackbox))) {
+		if (ast->attributes.count(ID::noblackbox)) {
 			if (blackbox_module) {
-				auto& n = ast->attributes.at(ID::str(ID::noblackbox));
+				auto& n = ast->attributes.at(ID::noblackbox);
 				if (n->type != AST_CONSTANT)
 					ast->input_error("Got noblackbox attribute with non-constant value!\n");
 				blackbox_module = !n->asBool();
 			}
-			ast->attributes.erase(ID::str(ID::noblackbox));
+			ast->attributes.erase(ID::noblackbox);
 		}
 		for (auto &attr: ast->attributes)
 			log_assert((bool)attr.second.get());
 		if (blackbox_module)
 		{
-			if (ast->attributes.count(ID::str(ID::whitebox))) {
-				ast->attributes.erase(ID::str(ID::whitebox));
+			if (ast->attributes.count(ID::whitebox)) {
+				ast->attributes.erase(ID::whitebox);
 			}
 
-			if (ast->attributes.count(ID::str(ID::lib_whitebox))) {
-				ast->attributes.erase(ID::str(ID::lib_whitebox));
+			if (ast->attributes.count(ID::lib_whitebox)) {
+				ast->attributes.erase(ID::lib_whitebox);
 			}
 
 			std::vector<std::unique_ptr<AstNode>> new_children;
@@ -1300,7 +1306,7 @@ static RTLIL::Module *process_module(RTLIL::Design *design, AstNode *ast, bool d
 
 			ast->children.swap(new_children);
 
-			if (ast->attributes.count(ID::str(ID::blackbox)) == 0) {
+			if (ast->attributes.count(ID::blackbox) == 0) {
 				ast->set_attribute(ID::blackbox, AstNode::mkconst_int(ast->location, 1, false));
 			}
 		}
@@ -1309,11 +1315,11 @@ static RTLIL::Module *process_module(RTLIL::Design *design, AstNode *ast, bool d
 
 		for (auto &attr : ast->attributes) {
 			log_assert((bool)attr.second.get());
-			if (attr.first == ID::str(ID::src))
+			if (attr.first == ID::src)
 				continue;
 			if (attr.second->type != AST_CONSTANT)
-				ast->input_error("Attribute `%s' with non-constant value!\n", attr.first);
-			module->attributes[design->twines.add(std::string(attr.first))] = attr.second->asAttrConst();
+				ast->input_error("Attribute `%s' with non-constant value!\n", attr_name_str(attr.first));
+			module->attributes[design->twines.add(attr_name_str(attr.first))] = attr.second->asAttrConst();
 		}
 		for (size_t i = 0; i < ast->children.size(); i++) {
 			const auto& node = ast->children[i];
@@ -1339,11 +1345,11 @@ static RTLIL::Module *process_module(RTLIL::Design *design, AstNode *ast, bool d
 	}
 	else {
 		for (auto &attr : ast->attributes) {
-			if (attr.first == ID::str(ID::src))
+			if (attr.first == ID::src)
 				continue;
 			if (attr.second->type != AST_CONSTANT)
 				continue;
-			module->attributes[design->twines.add(std::string(attr.first))] = attr.second->asAttrConst();
+			module->attributes[design->twines.add(attr_name_str(attr.first))] = attr.second->asAttrConst();
 		}
 		for (const auto& node : ast->children)
 			if (node->type == AST_PARAMETER)
@@ -1898,7 +1904,7 @@ std::string AstModule::derive_common(RTLIL::Design *design, const dict<IdString,
 
 	auto new_ast = ast->clone();
 	auto loc = ast->location;
-	if (!new_ast->attributes.count(ID::str(ID::hdlname)))
+	if (!new_ast->attributes.count(ID::hdlname))
 		new_ast->set_attribute(ID::hdlname, AstNode::mkconst_str(loc, stripped_name.substr(1)));
 
 	para_counter = 0;

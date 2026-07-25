@@ -56,11 +56,11 @@ static RTLIL::SigSpec uniop2rtlil(AstNode *that, IdString type, int result_width
 
 	if (gen_attributes)
 		for (auto &attr : that->attributes) {
-			if (attr.first == ID::str(ID::src))
+			if (attr.first == ID::src)
 				continue;
 			if (attr.second->type != AST_CONSTANT)
-				that->input_error("Attribute `%s' with non-constant value!\n", attr.first);
-			cell->attributes[current_module->design->twines.add(std::string(attr.first))] = attr.second->asAttrConst();
+				that->input_error("Attribute `%s' with non-constant value!\n", attr_name_str(attr.first));
+			cell->attributes[current_module->design->twines.add(attr_name_str(attr.first))] = attr.second->asAttrConst();
 		}
 
 	cell->parameters[ID::A_SIGNED] = RTLIL::Const(that->children[0]->is_signed);
@@ -90,11 +90,11 @@ static void widthExtend(AstNode *that, RTLIL::SigSpec &sig, int width, bool is_s
 
 	if (that != nullptr)
 		for (auto &attr : that->attributes) {
-			if (attr.first == ID::str(ID::src))
+			if (attr.first == ID::src)
 				continue;
 			if (attr.second->type != AST_CONSTANT)
-				that->input_error("Attribute `%s' with non-constant value!\n", attr.first);
-			cell->attributes[current_module->design->twines.add(std::string(attr.first))] = attr.second->asAttrConst();
+				that->input_error("Attribute `%s' with non-constant value!\n", attr_name_str(attr.first));
+			cell->attributes[current_module->design->twines.add(attr_name_str(attr.first))] = attr.second->asAttrConst();
 		}
 
 	cell->parameters[ID::A_SIGNED] = RTLIL::Const(is_signed);
@@ -118,11 +118,11 @@ static RTLIL::SigSpec binop2rtlil(AstNode *that, IdString type, int result_width
 	wire->is_signed = that->is_signed;
 
 	for (auto &attr : that->attributes) {
-		if (attr.first == ID::str(ID::src))
+		if (attr.first == ID::src)
 			continue;
 		if (attr.second->type != AST_CONSTANT)
-			that->input_error("Attribute `%s' with non-constant value!\n", attr.first);
-		cell->attributes[current_module->design->twines.add(std::string(attr.first))] = attr.second->asAttrConst();
+			that->input_error("Attribute `%s' with non-constant value!\n", attr_name_str(attr.first));
+		cell->attributes[current_module->design->twines.add(attr_name_str(attr.first))] = attr.second->asAttrConst();
 	}
 
 	cell->parameters[ID::A_SIGNED] = RTLIL::Const(that->children[0]->is_signed);
@@ -155,11 +155,11 @@ static RTLIL::SigSpec mux2rtlil(AstNode *that, const RTLIL::SigSpec &cond, const
 	wire->is_signed = that->is_signed;
 
 	for (auto &attr : that->attributes) {
-		if (attr.first == ID::str(ID::src))
+		if (attr.first == ID::src)
 			continue;
 		if (attr.second->type != AST_CONSTANT)
-			that->input_error("Attribute `%s' with non-constant value!\n", attr.first);
-		cell->attributes[current_module->design->twines.add(std::string(attr.first))] = attr.second->asAttrConst();
+			that->input_error("Attribute `%s' with non-constant value!\n", attr_name_str(attr.first));
+		cell->attributes[current_module->design->twines.add(attr_name_str(attr.first))] = attr.second->asAttrConst();
 	}
 
 	cell->parameters[ID::WIDTH] = RTLIL::Const(left.size());
@@ -366,11 +366,11 @@ struct AST_INTERNAL::ProcessGenerator
 		proc = current_module->addProcess(current_module->design->twines.add(std::string{stringf("$proc$%s:%d$%d", RTLIL::encode_filename(*always->location.begin.filename), always->location.begin.line, autoidx++)}));
 		set_src_attr(proc, always.get());
 		for (auto &attr : always->attributes) {
-			if (attr.first == ID::str(ID::src))
+			if (attr.first == ID::src)
 				continue;
 			if (attr.second->type != AST_CONSTANT)
-				always->input_error("Attribute `%s' with non-constant value!\n", attr.first);
-			proc->attributes[current_module->design->twines.add(std::string(attr.first))] = attr.second->asAttrConst();
+				always->input_error("Attribute `%s' with non-constant value!\n", attr_name_str(attr.first));
+			proc->attributes[current_module->design->twines.add(attr_name_str(attr.first))] = attr.second->asAttrConst();
 		}
 		current_case = &proc->root_case;
 
@@ -708,11 +708,11 @@ struct AST_INTERNAL::ProcessGenerator
 				current_case->switches.push_back(sw);
 
 				for (auto &attr : ast->attributes) {
-					if (attr.first == ID::str(ID::src))
+					if (attr.first == ID::src)
 						continue;
 					if (attr.second->type != AST_CONSTANT)
-						ast->input_error("Attribute `%s' with non-constant value!\n", attr.first);
-					sw->attributes[current_module->design->twines.add(std::string(attr.first))] = attr.second->asAttrConst();
+						ast->input_error("Attribute `%s' with non-constant value!\n", attr_name_str(attr.first));
+					sw->attributes[current_module->design->twines.add(attr_name_str(attr.first))] = attr.second->asAttrConst();
 				}
 
 				RTLIL::SigSpec this_case_eq_lvalue;
@@ -960,11 +960,11 @@ struct AST_INTERNAL::ProcessGenerator
 				set_src_attr(cell, ast);
 				cell->set_bool_attribute(ID(keep));
 				for (auto &attr : ast->attributes) {
-					if (attr.first == ID::str(ID::src))
+					if (attr.first == ID::src)
 						continue;
 					if (attr.second->type != AST_CONSTANT)
-						log_file_error(*ast->location.begin.filename, ast->location.begin.line, "Attribute `%s' with non-constant value!\n", attr.first);
-					cell->attributes[current_module->design->twines.add(std::string(attr.first))] = attr.second->asAttrConst();
+						log_file_error(*ast->location.begin.filename, ast->location.begin.line, "Attribute `%s' with non-constant value!\n", attr_name_str(attr.first));
+					cell->attributes[current_module->design->twines.add(attr_name_str(attr.first))] = attr.second->asAttrConst();
 				}
 				cell->setParam(ID::FLAVOR, flavor);
 				cell->setParam(ID::TRG_WIDTH, triggers.size());
@@ -1549,11 +1549,11 @@ RTLIL::SigSpec AstNode::genRTLIL(int width_hint, bool sign_hint)
 			wire->attributes[type == AST_PARAMETER ? ID::parameter : ID::localparam] = 1;
 
 			for (auto &attr : attributes) {
-				if (attr.first == ID::str(ID::src))
+				if (attr.first == ID::src)
 					continue;
 				if (attr.second->type != AST_CONSTANT)
-					input_error("Attribute `%s' with non-constant value!\n", attr.first);
-				wire->attributes[current_module->design->twines.add(std::string(attr.first))] = attr.second->asAttrConst();
+					input_error("Attribute `%s' with non-constant value!\n", attr_name_str(attr.first));
+				wire->attributes[current_module->design->twines.add(attr_name_str(attr.first))] = attr.second->asAttrConst();
 			}
 		}
 		break;
@@ -1579,11 +1579,11 @@ RTLIL::SigSpec AstNode::genRTLIL(int width_hint, bool sign_hint)
 			wire->is_signed = is_signed;
 
 			for (auto &attr : attributes) {
-				if (attr.first == ID::str(ID::src))
+				if (attr.first == ID::src)
 					continue;
 				if (attr.second->type != AST_CONSTANT)
-					input_error("Attribute `%s' with non-constant value!\n", attr.first);
-				wire->attributes[current_module->design->twines.add(std::string(attr.first))] = attr.second->asAttrConst();
+					input_error("Attribute `%s' with non-constant value!\n", attr_name_str(attr.first));
+				wire->attributes[current_module->design->twines.add(attr_name_str(attr.first))] = attr.second->asAttrConst();
 			}
 
 			if (is_wand) wire->set_bool_attribute(ID::wand);
@@ -1613,11 +1613,11 @@ RTLIL::SigSpec AstNode::genRTLIL(int width_hint, bool sign_hint)
 			}
 
 			for (auto &attr : attributes) {
-				if (attr.first == ID::str(ID::src))
+				if (attr.first == ID::src)
 					continue;
 				if (attr.second->type != AST_CONSTANT)
-					input_error("Attribute `%s' with non-constant value!\n", attr.first);
-				memory->attributes[current_module->design->twines.add(std::string(attr.first))] = attr.second->asAttrConst();
+					input_error("Attribute `%s' with non-constant value!\n", attr_name_str(attr.first));
+				memory->attributes[current_module->design->twines.add(attr_name_str(attr.first))] = attr.second->asAttrConst();
 			}
 		}
 		break;
@@ -2172,11 +2172,11 @@ RTLIL::SigSpec AstNode::genRTLIL(int width_hint, bool sign_hint)
 			RTLIL::Cell *cell = current_module->addCell(current_module->design->twines.add(std::string(cellname)), ID::$check);
 			set_src_attr(cell, this);
 			for (auto &attr : attributes) {
-				if (attr.first == ID::str(ID::src))
+				if (attr.first == ID::src)
 					continue;
 				if (attr.second->type != AST_CONSTANT)
-					input_error("Attribute `%s' with non-constant value!\n", attr.first);
-				cell->attributes[current_module->design->twines.add(std::string(attr.first))] = attr.second->asAttrConst();
+					input_error("Attribute `%s' with non-constant value!\n", attr_name_str(attr.first));
+				cell->attributes[current_module->design->twines.add(attr_name_str(attr.first))] = attr.second->asAttrConst();
 			}
 			cell->setParam(ID(FLAVOR), flavor);
 			cell->parameters[ID::TRG_WIDTH] = 0;
@@ -2264,7 +2264,7 @@ RTLIL::SigSpec AstNode::genRTLIL(int width_hint, bool sign_hint)
 							if (arg->type == AST_IDENTIFIER && arg->id2ast && arg->id2ast->is_signed && !arg->is_signed)
 								// fully-sliced signed wire will be resolved
 								// once the module becomes available
-								log_assert(attributes.count(ID::str(ID::reprocess_after)));
+								log_assert(attributes.count(ID::reprocess_after));
 							else
 								log_assert(arg->is_signed == sig.as_wire()->is_signed);
 						} else if (arg->is_signed) {
@@ -2294,11 +2294,11 @@ RTLIL::SigSpec AstNode::genRTLIL(int width_hint, bool sign_hint)
 				cell->set_bool_attribute(ID::module_not_derived);
 
 			for (auto &attr : attributes) {
-				if (attr.first == ID::str(ID::src))
+				if (attr.first == ID::src)
 					continue;
 				if (attr.second->type != AST_CONSTANT)
-					input_error("Attribute `%s' with non-constant value.\n", attr.first);
-				cell->attributes[current_module->design->twines.add(std::string(attr.first))] = attr.second->asAttrConst();
+					input_error("Attribute `%s' with non-constant value.\n", attr_name_str(attr.first));
+				cell->attributes[current_module->design->twines.add(attr_name_str(attr.first))] = attr.second->asAttrConst();
 			}
 			if (cell->type == ID($specify2)) {
 				int src_width = GetSize(cell->getPort(ID::SRC));
@@ -2405,8 +2405,8 @@ RTLIL::SigSpec AstNode::genRTLIL(int width_hint, bool sign_hint)
 				set_src_attr(cell, this);
 				cell->parameters[ID::WIDTH] = width;
 
-				if (attributes.count(ID::str(ID::reg))) {
-					auto &attr = attributes.at(ID::str(ID::reg));
+				if (attributes.count(ID::reg)) {
+					auto &attr = attributes.at(ID::reg);
 					if (attr->type != AST_CONSTANT)
 						input_error("Attribute `reg' with non-constant value!\n");
 					cell->attributes[ID::reg] =  attr->asAttrConst();

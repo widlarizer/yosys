@@ -36,6 +36,15 @@ YOSYS_NAMESPACE_BEGIN
 
 namespace AST
 {
+	// Scratch pool used to intern attribute names before any Design exists.
+	// Constid keys (ID::foo) resolve identically in every pool; arbitrary
+	// (* foo *) names only need to round-trip back to text, so there is no
+	// cross-pool copy: at RTLIL generation time we recover the escaped text
+	// via attr_name_str() and re-intern it into the owning Design's pool.
+	TwinePool &ast_name_pool();
+	inline IdString intern_attr_name(const std::string &name) { return ast_name_pool().add(std::string(name)); }
+	inline std::string attr_name_str(IdString id) { return ast_name_pool().str(id); }
+
 	// all node types, type2str() must be extended
 	// whenever a new node type is added here
 	enum AstNodeType
@@ -183,13 +192,13 @@ namespace AST
 		// the list of child nodes for this node
 		std::vector<std::unique_ptr<AstNode>> children;
 
-		// The list of attributes assigned to this node. The AST exists before
-		// any Design does, so attribute names are escaped text, not IdStrings.
-		std::map<std::string, std::unique_ptr<AstNode>> attributes;
-		bool get_bool_attribute(const std::string &id);
-		// Convenience for the constid (ID::) handles the AST checks against;
-		// those carry their own name, so no TwinePool is needed.
-		bool get_bool_attribute(IdString id) { return get_bool_attribute(ID::str(id)); }
+		// The list of attributes assigned to this node. Keys are IdStrings
+		// resolved against AST::ast_name_pool() (see there), not a Design's
+		// pool: the AST exists before any Design does.
+		std::map<IdString, std::unique_ptr<AstNode>> attributes;
+		bool get_bool_attribute(IdString id);
+		// Convenience for arbitrary (* foo *) attribute names.
+		bool get_bool_attribute(const std::string &id) { return get_bool_attribute(intern_attr_name(id)); }
 
 		// node content - most of it is unused in most node types
 		std::string str;
@@ -360,14 +369,15 @@ namespace AST
 		// to evaluate widths of dynamic ranges)
 		std::unique_ptr<AstNode> clone_at_zero();
 
-		void set_attribute(const std::string &key, std::unique_ptr<AstNode> node)
+		void set_attribute(IdString key, std::unique_ptr<AstNode> node)
 		{
 			node->set_in_param_flag(true);
 			attributes[key] = std::move(node);
 		}
-		void set_attribute(IdString key, std::unique_ptr<AstNode> node)
+		// Convenience for arbitrary (* foo *) attribute names.
+		void set_attribute(const std::string &key, std::unique_ptr<AstNode> node)
 		{
-			set_attribute(ID::str(key), std::move(node));
+			set_attribute(intern_attr_name(key), std::move(node));
 		}
 
 		// helper to set in_lvalue/in_param flags from the hierarchy context (the actual flag

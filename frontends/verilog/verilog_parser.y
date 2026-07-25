@@ -157,14 +157,14 @@
 		static void append_attr(AstNode *ast, std::unique_ptr<dict<std::string, std::unique_ptr<AstNode>>> al)
 		{
 			for (auto &it : *al) {
-				ast->attributes[it.first] = std::move(it.second);
+				ast->attributes[AST::intern_attr_name(it.first)] = std::move(it.second);
 			}
 		}
 
 		static void append_attr_clone(AstNode *ast, std::unique_ptr<dict<std::string, std::unique_ptr<AstNode>>> &al)
 		{
 			for (auto &it : *al) {
-				ast->attributes[it.first] = it.second->clone();
+				ast->attributes[AST::intern_attr_name(it.first)] = it.second->clone();
 			}
 		}
 
@@ -748,7 +748,7 @@ module_arg_opt_assignment:
 		if (extra->ast_stack.back()->children.size() > 0 && extra->ast_stack.back()->children.back()->type == AST_WIRE) {
 			if (extra->ast_stack.back()->children.back()->is_input) {
 				auto& n = extra->ast_stack.back()->children.back();
-				n->attributes[ID::str(ID::defaultvalue)] = std::move($2);
+				n->attributes[ID::defaultvalue] = std::move($2);
 			} else {
 				auto wire = std::make_unique<AstNode>(@$, AST_IDENTIFIER);
 				wire->str = extra->ast_stack.back()->children.back()->str;
@@ -1880,7 +1880,7 @@ enum_type: TOK_ENUM {
 		auto* tnode = tnode_owned.get();
 		extra->astbuf1 = std::move(tnode_owned);
 		tnode->type = AST_WIRE;
-		tnode->attributes[ID::str(ID::enum_type)] = AstNode::mkconst_str(@$, extra->cell_hack->str);
+		tnode->attributes[ID::enum_type] = AstNode::mkconst_str(@$, extra->cell_hack->str);
 		extra->cell_hack = nullptr;
 		// drop constant but keep any range
 		tnode->children.erase(tnode->children.begin());
@@ -2106,19 +2106,19 @@ wire_name_and_opt_assign:
 		bool attr_allconst = false;
 		bool attr_allseq = false;
 		if (extra->ast_stack.back()->children.back()->get_bool_attribute(ID::anyconst)) {
-			extra->ast_stack.back()->children.back()->attributes.erase(ID::str(ID::anyconst));
+			extra->ast_stack.back()->children.back()->attributes.erase(ID::anyconst);
 			attr_anyconst = true;
 		}
 		if (extra->ast_stack.back()->children.back()->get_bool_attribute(ID::anyseq)) {
-			extra->ast_stack.back()->children.back()->attributes.erase(ID::str(ID::anyseq));
+			extra->ast_stack.back()->children.back()->attributes.erase(ID::anyseq);
 			attr_anyseq = true;
 		}
 		if (extra->ast_stack.back()->children.back()->get_bool_attribute(ID::allconst)) {
-			extra->ast_stack.back()->children.back()->attributes.erase(ID::str(ID::allconst));
+			extra->ast_stack.back()->children.back()->attributes.erase(ID::allconst);
 			attr_allconst = true;
 		}
 		if (extra->ast_stack.back()->children.back()->get_bool_attribute(ID::allseq)) {
-			extra->ast_stack.back()->children.back()->attributes.erase(ID::str(ID::allseq));
+			extra->ast_stack.back()->children.back()->attributes.erase(ID::allseq);
 			attr_allseq = true;
 		}
 		if (extra->current_wire_rand || attr_anyconst || attr_anyseq || attr_allconst || attr_allseq) {
@@ -2134,7 +2134,7 @@ wire_name_and_opt_assign:
 				fcall->str = "\\$allconst";
 			if (attr_allseq)
 				fcall->str = "\\$allseq";
-			fcall->attributes[ID::str(ID::reg)] = AstNode::mkconst_str(@$, RTLIL::unescape_id(wire->str));
+			fcall->attributes[ID::reg] = AstNode::mkconst_str(@$, RTLIL::unescape_id(wire->str));
 			extra->ast_stack.back()->children.push_back(std::make_unique<AstNode>(@$, AST_ASSIGN, std::move(wire), std::move(fcall)));
 		}
 	} |
@@ -2142,7 +2142,7 @@ wire_name_and_opt_assign:
 		auto wire = std::make_unique<AstNode>(@$, AST_IDENTIFIER);
 		wire->str = extra->ast_stack.back()->children.back()->str;
 		if (extra->astbuf1->is_input) {
-			extra->astbuf1->attributes[ID::str(ID::defaultvalue)] = std::move($3);
+			extra->astbuf1->attributes[ID::defaultvalue] = std::move($3);
 		}
 		else if (extra->astbuf1->is_reg || extra->astbuf1->is_logic){
 			auto assign = std::make_unique<AstNode>(@$, AST_ASSIGN_LE, std::move(wire), std::move($3));
@@ -2435,7 +2435,7 @@ cell_port:
 	attr TOK_WILDCARD_CONNECT {
 		if (!mode->sv)
 			err_at_loc(@2, "Wildcard port connections are only supported in SystemVerilog mode.");
-		extra->cell_hack->attributes[ID::str(ID::wildcard_port_conns)] = AstNode::mkconst_int(@2, 1, false);
+		extra->cell_hack->attributes[ID::wildcard_port_conns] = AstNode::mkconst_int(@2, 1, false);
 	};
 
 always_comb_or_latch:
@@ -2459,7 +2459,7 @@ always_stmt:
 		AstNode* node = extra->pushChild(std::make_unique<AstNode>(@$, AST_ALWAYS));
 		append_attr(node, std::move($1));
 		if ($2)
-			node->attributes[ID::str(ID::always_ff)] = AstNode::mkconst_int(@2, 1, false);
+			node->attributes[ID::always_ff] = AstNode::mkconst_int(@2, 1, false);
 	} always_cond {
 		(void)extra->pushChild(std::make_unique<AstNode>(@$, AST_BLOCK));
 	} behavioral_stmt {
@@ -2475,9 +2475,9 @@ always_stmt:
 		AstNode* node = extra->pushChild(std::make_unique<AstNode>(@$, AST_ALWAYS));
 		append_attr(node, std::move($1));
 		if ($2)
-			node->attributes[ID::str(ID::always_latch)] = AstNode::mkconst_int(@2, 1, false);
+			node->attributes[ID::always_latch] = AstNode::mkconst_int(@2, 1, false);
 		else
-			node->attributes[ID::str(ID::always_comb)] = AstNode::mkconst_int(@2, 1, false);
+			node->attributes[ID::always_comb] = AstNode::mkconst_int(@2, 1, false);
 		(void)extra->pushChild(std::make_unique<AstNode>(@$, AST_BLOCK));
 	} behavioral_stmt {
 		extra->ast_stack.pop_back();
@@ -3007,12 +3007,12 @@ case_type:
 
 opt_synopsys_attr:
 	opt_synopsys_attr TOK_SYNOPSYS_FULL_CASE {
-		if (extra->ast_stack.back()->attributes.count(ID::str(ID::full_case)) == 0)
-			extra->ast_stack.back()->attributes[ID::str(ID::full_case)] = AstNode::mkconst_int(@$, 1, false);
+		if (extra->ast_stack.back()->attributes.count(ID::full_case) == 0)
+			extra->ast_stack.back()->attributes[ID::full_case] = AstNode::mkconst_int(@$, 1, false);
 	} |
 	opt_synopsys_attr TOK_SYNOPSYS_PARALLEL_CASE {
-		if (extra->ast_stack.back()->attributes.count(ID::str(ID::parallel_case)) == 0)
-			extra->ast_stack.back()->attributes[ID::str(ID::parallel_case)] = AstNode::mkconst_int(@$, 1, false);
+		if (extra->ast_stack.back()->attributes.count(ID::parallel_case) == 0)
+			extra->ast_stack.back()->attributes[ID::parallel_case] = AstNode::mkconst_int(@$, 1, false);
 	} |
 	%empty;
 
@@ -3025,7 +3025,7 @@ optional_else:
 		extra->ast_stack.pop_back();
 		auto block_owned = std::make_unique<AstNode>(@$, AST_BLOCK);
 		auto* block = block_owned.get();
-		block->attributes[ID::str(ID::promoted_if)] = AstNode::mkconst_int(@$, 1, false);
+		block->attributes[ID::promoted_if] = AstNode::mkconst_int(@$, 1, false);
 		AstNode* cond = extra->saveChild(
 			std::make_unique<AstNode>(@$, AST_COND,
 				std::make_unique<AstNode>(@$, AST_DEFAULT),

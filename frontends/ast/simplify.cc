@@ -183,9 +183,9 @@ Fmt AstNode::processFormat(int stage, bool sformat_like, int default_base, size_
 void AstNode::annotateTypedEnums(AstNode *template_node)
 {
 	//check if enum
-	if (template_node->attributes.count(ID::str(ID::enum_type))) {
+	if (template_node->attributes.count(ID::enum_type)) {
 		//get reference to enum node:
-		std::string enum_type = template_node->attributes[ID::str(ID::enum_type)]->str.c_str();
+		std::string enum_type = template_node->attributes[ID::enum_type]->str.c_str();
 		//			log("enum_type=%s (count=%lu)\n", enum_type, current_scope.count(enum_type));
 		//			log("current scope:\n");
 		//			for (auto &it : current_scope)
@@ -600,7 +600,7 @@ std::unique_ptr<AstNode> AstNode::make_index_range(AstNode *decl_node, bool unpa
 AstNode *AstNode::get_struct_member() const
 {
 	AstNode *member_node;
-	if (attributes.count(ID::str(ID::wiretype)) && (member_node = attributes.at(ID::str(ID::wiretype)).get()) &&
+	if (attributes.count(ID::wiretype) && (member_node = attributes.at(ID::wiretype).get()) &&
 		(member_node->type == AST_STRUCT_ITEM || member_node->type == AST_STRUCT || member_node->type == AST_UNION))
 	{
 		return member_node;
@@ -712,7 +712,7 @@ const RTLIL::Module* AstNode::lookup_cell_module()
 	log_assert(type == AST_CELL);
 
 	auto reprocess_after = [this] (const std::string &modname) {
-		if (!attributes.count(ID::str(ID::reprocess_after)))
+		if (!attributes.count(ID::reprocess_after))
 			set_attribute(ID::reprocess_after, AstNode::mkconst_str(location, modname));
 	};
 
@@ -951,10 +951,11 @@ static bool is_autonamed_block(const std::string &str) {
 // nosync to local variables as necessary
 static void check_auto_nosync(AstNode *node)
 {
-	std::vector<std::string> attrs_to_drop;
+	std::vector<IdString> attrs_to_drop;
 	for (const auto& elem : node->attributes) {
+		std::string attr_str = attr_name_str(elem.first);
 		// skip attributes that don't begin with the prefix
-		if (elem.first.compare(0, auto_nosync_prefix.size(),
+		if (attr_str.compare(0, auto_nosync_prefix.size(),
 					auto_nosync_prefix.c_str()))
 			continue;
 
@@ -962,7 +963,7 @@ static void check_auto_nosync(AstNode *node)
 		attrs_to_drop.push_back(elem.first);
 
 		// find the wire based on the attribute
-		std::string wire_name = elem.first.substr(auto_nosync_prefix.size());
+		std::string wire_name = attr_str.substr(auto_nosync_prefix.size());
 		auto it = current_scope.find(wire_name);
 		if (it == current_scope.end())
 			continue;
@@ -979,8 +980,8 @@ static void check_auto_nosync(AstNode *node)
 	}
 
 	// remove the attributes we've "consumed"
-	for (const std::string &str : attrs_to_drop) {
-		auto it = node->attributes.find(str);
+	for (IdString id : attrs_to_drop) {
+		auto it = node->attributes.find(id);
 		node->attributes.erase(it);
 	}
 
@@ -1148,7 +1149,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 					reg->is_reg = true;
 					reg->is_signed = node->is_signed;
 					for (auto &it : node->attributes)
-						if (it.first != ID::str(ID::mem2reg))
+						if (it.first != ID::mem2reg)
 							reg->set_attribute(it.first, it.second->clone());
 					reg->location.begin.filename = node->location.begin.filename;
 					reg->location = node->location;
@@ -1383,7 +1384,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 
 		for (auto& child : children)
 			if (child->type == AST_ALWAYS &&
-					child->attributes.count(ID::str(ID::always_comb)))
+					child->attributes.count(ID::always_comb))
 				check_auto_nosync(child.get());
 	}
 
@@ -1654,8 +1655,8 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 			auto item_node = current_scope[children[0]->str];
 			if (item_node->type == AST_STRUCT || item_node->type == AST_UNION) {
 				set_attribute(ID::wiretype, item_node->clone());
-				size_packed_struct(attributes[ID::str(ID::wiretype)].get(), 0);
-				add_members_to_scope(attributes[ID::str(ID::wiretype)].get(), str);
+				size_packed_struct(attributes[ID::wiretype].get(), 0);
+				add_members_to_scope(attributes[ID::wiretype].get(), str);
 			}
 		}
 		while (!children[0]->basic_prep && children[0]->simplify(false, stage, -1, false) == true)
@@ -2246,14 +2247,14 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 				range_left = children[0]->range_left;
 				range_right = children[0]->range_right;
 				bool force_upto = false, force_downto = false;
-				if (attributes.count(ID::str(ID::force_upto))) {
-					auto* val = attributes[ID::str(ID::force_upto)].get();
+				if (attributes.count(ID::force_upto)) {
+					auto* val = attributes[ID::force_upto].get();
 					if (val->type != AST_CONSTANT)
 						input_error("Attribute `force_upto' with non-constant value!\n");
 					force_upto = val->asAttrConst().as_bool();
 				}
-				if (attributes.count(ID::str(ID::force_downto))) {
-					auto* val = attributes[ID::str(ID::force_downto)].get();
+				if (attributes.count(ID::force_downto)) {
+					auto* val = attributes[ID::force_downto].get();
 					if (val->type != AST_CONSTANT)
 						input_error("Attribute `force_downto' with non-constant value!\n");
 					force_downto = val->asAttrConst().as_bool();
@@ -2264,7 +2265,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 					std::swap(range_left, range_right);
 					range_swapped = force_upto;
 				}
-				if (range_left == range_right && !attributes.count(ID::str(ID::single_bit_vector)))
+				if (range_left == range_right && !attributes.count(ID::single_bit_vector))
 					set_attribute(ID::single_bit_vector, mkconst_int(location, 1, false));
 			}
 		} else {
@@ -2274,7 +2275,7 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 			range_swapped = false;
 			range_left = 0;
 			range_right = 0;
-			attributes.erase(ID::str(ID::single_bit_vector));
+			attributes.erase(ID::single_bit_vector);
 		}
 	}
 
@@ -2748,13 +2749,13 @@ bool AstNode::simplify(bool const_fold, int stage, int width_hint, bool sign_hin
 		expand_genblock(str + ".");
 
 		// if this is an autonamed block is in an always_comb
-		if (current_always && current_always->attributes.count(ID::str(ID::always_comb))
+		if (current_always && current_always->attributes.count(ID::always_comb)
 				&& is_autonamed_block(str))
 			// track local variables in this block so we can consider adding
 			// nosync once the block has been fully elaborated
 			for (auto& child : children)
 				if (child->type == AST_WIRE &&
-						!child->attributes.count(ID::str(ID::nosync)))
+						!child->attributes.count(ID::nosync))
 					mark_auto_nosync(this, child.get());
 
 		std::vector<std::unique_ptr<AstNode>> new_children;
@@ -4278,7 +4279,7 @@ skip_dynamic_range_lvalue_expansion:;
 		decl->replace_result_wire_name_in_function(str, "$result"); // enables recursion
 		decl->expand_genblock(prefix);
 
-		if (decl->type == AST_FUNCTION && !decl->attributes.count(ID::str(ID::via_celltype)))
+		if (decl->type == AST_FUNCTION && !decl->attributes.count(ID::via_celltype))
 		{
 			bool require_const_eval = decl->has_const_only_constructs();
 			bool all_args_const = true;
@@ -4342,9 +4343,9 @@ skip_dynamic_range_lvalue_expansion:;
 			goto replace_fcall_with_id;
 		}
 
-		if (decl->attributes.count(ID::str(ID::via_celltype)))
+		if (decl->attributes.count(ID::via_celltype))
 		{
-			std::string celltype = decl->attributes.at(ID::str(ID::via_celltype))->asAttrConst().decode_string();
+			std::string celltype = decl->attributes.at(ID::via_celltype)->asAttrConst().decode_string();
 			std::string outport = str;
 
 			if (celltype.find(' ') != std::string::npos) {
@@ -4358,13 +4359,15 @@ skip_dynamic_range_lvalue_expansion:;
 			cell->str = prefix.substr(0, GetSize(prefix)-1);
 			cell->children[0]->str = celltype;
 
-			for (auto& attr : decl->attributes)
-				if (attr.first.rfind("\\via_celltype_defparam_", 0) == 0)
+			for (auto& attr : decl->attributes) {
+				std::string attr_str = attr_name_str(attr.first);
+				if (attr_str.rfind("\\via_celltype_defparam_", 0) == 0)
 				{
 					auto cell_arg = std::make_unique<AstNode>(location, AST_PARASET, attr.second->clone());
-					cell_arg->str = RTLIL::escape_id(attr.first.substr(strlen("\\via_celltype_defparam_")));
+					cell_arg->str = RTLIL::escape_id(attr_str.substr(strlen("\\via_celltype_defparam_")));
 					cell->children.push_back(std::move(cell_arg));
 				}
+			}
 
 			for (auto& child : decl->children)
 				if (child->type == AST_WIRE && (child->is_input || child->is_output || (type == AST_FCALL && child->str == str)))
@@ -4438,7 +4441,7 @@ skip_dynamic_range_lvalue_expansion:;
 					wire->is_reg = true;
 					wire->set_attribute(ID::nosync, AstNode::mkconst_int(location, 1, false));
 					if (child->type == AST_ENUM_ITEM)
-						wire->set_attribute(ID::enum_base_type, std::move(child->attributes[ID::str(ID::enum_base_type)]));
+						wire->set_attribute(ID::enum_base_type, std::move(child->attributes[ID::enum_base_type]));
 
 					wire_cache[child->str] = wire;
 
@@ -4453,7 +4456,7 @@ skip_dynamic_range_lvalue_expansion:;
 					// convert purely constant arguments into localparams
 					if (child->is_input && child->type == AST_WIRE && arg->type == AST_CONSTANT && node_contains_assignment_to(decl, child.get())) {
 						wire->type = AST_LOCALPARAM;
-						wire->attributes.erase(ID::str(ID::nosync));
+						wire->attributes.erase(ID::nosync);
 						wire->children.insert(wire->children.begin(), arg->clone());
 						// args without a range implicitly have width 1
 						if (wire->children.back()->type != AST_RANGE) {
@@ -6133,7 +6136,7 @@ void AstNode::allocateDefaultEnumValues()
 {
 	log_assert(type==AST_ENUM);
 	log_assert(children.size() > 0);
-	if (children.front()->attributes.count(ID::str(ID::enum_base_type)))
+	if (children.front()->attributes.count(ID::enum_base_type))
 		return; // already elaborated
 	int last_enum_int = -1;
 	for (auto& node : children) {
@@ -6217,7 +6220,7 @@ std::string AstNode::try_pop_module_prefix() const
 		std::string new_str = "\\" + str.substr(pos + 1);
 		if (current_scope.count(new_str)) {
 			std::string prefix = str.substr(0, pos);
-			auto it = current_scope_ast->attributes.find(ID::str(ID::hdlname));
+			auto it = current_scope_ast->attributes.find(ID::hdlname);
 			if ((it != current_scope_ast->attributes.end() && it->second->str == prefix.substr(1))
 					|| prefix == current_scope_ast->str)
 				return new_str;
