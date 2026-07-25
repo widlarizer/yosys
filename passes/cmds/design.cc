@@ -267,7 +267,7 @@ struct DesignPass : public Pass {
 
 			for (auto mod : copy_src_modules)
 			{
-				log("Importing %s as %s.\n", mod, design->twines.unescaped_str(as_name_ref));
+				log("Importing %s as %s.\n", log_id(mod), design->twines.unescaped_str(as_name_ref));
 
 				RTLIL::Module *t = mod->clone(copy_to_design, as_name_ref);
 				t->attributes.erase(ID::top);

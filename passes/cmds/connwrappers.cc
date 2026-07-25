@@ -33,8 +33,6 @@ struct ConnwrappersWorker
 		bool is_signed;
 	};
 
-	// Declarations come from the command line, ahead of any Design, so they
-	// are keyed by escaped name text and resolved per module in work().
 	std::set<std::string> decl_celltypes;
 	std::map<std::pair<std::string, std::string>, portdecl_t> decls;
 

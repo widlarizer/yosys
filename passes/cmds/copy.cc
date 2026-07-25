@@ -47,10 +47,10 @@ struct CopyPass : public Pass {
 		TwineSearch search(&design->twines);
 		IdString src_ref = search.find(src_name);
 		if (design->module(src_ref) == nullptr)
-			log_cmd_error("Can't find source module %s.\n", src_name);
+			log_cmd_error("Can't find source module %s.\n", src_name.c_str());
 
 		if (design->module(search.find(trg_name)) != nullptr)
-			log_cmd_error("Target module name %s already exists.\n", trg_name);
+			log_cmd_error("Target module name %s already exists.\n", trg_name.c_str());
 
 		design->module(src_ref)->clone(design, design->twines.add(std::string{trg_name}));
 	}

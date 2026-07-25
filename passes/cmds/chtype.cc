@@ -36,7 +36,7 @@ static IdString publish(TwinePool &twines, IdString id) {
 static void publish_design(RTLIL::Design* design) {
 	auto saved_modules = design->modules_;
 	design->modules_.clear();
-	for (auto& [name, mod] : saved_modules) {
+	for (auto& [_, mod] : saved_modules) {
 		IdString new_name = publish(design->twines, mod->name);
 		mod->name = new_name;
 		design->modules_[new_name] = mod;

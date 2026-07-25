@@ -27,7 +27,6 @@
 #include "kernel/yosys.h"
 #include "libs/json11/json11.hpp"
 #include "passes/techmap/libparse.h"
-#include <charconv>
 
 USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
@@ -195,7 +194,7 @@ struct statdata_t {
 			local_num_memory_bits += it.second->width * it.second->size;
 		}
 		for (auto cell : mod->selected_cells()) {
-			std::string cell_type = cell->type;
+			std::string cell_type = design->twines.str(cell->type);
 			if (width_mode) {
 				if (cell->type.in(ID($not), ID($pos), ID($neg), ID($logic_not), ID($logic_and), ID($logic_or), ID($reduce_and),
 						 ID($reduce_or), ID($reduce_xor), ID($reduce_xnor), ID($reduce_bool), ID($lut), ID($and), ID($or),
@@ -222,8 +221,8 @@ struct statdata_t {
 
 			if (!cell_area.empty()) {
 				// check if cell_area provides a area calculator
-				if (cell_area.count(std::string(cell->type))) {
-					cell_area_t cell_data = cell_area.at(std::string(cell->type));
+				if (cell_area.count(design->twines.str(cell->type))) {
+					cell_area_t cell_data = cell_area.at(design->twines.str(cell->type));
 					if (cell_data.single_parameter_area.size() > 0) {
 						// assume that we just take the max of the A,B,Y ports
 
@@ -764,14 +763,14 @@ statdata_t hierarchy_builder(RTLIL::Design *design, const RTLIL::Module *top_mod
 		top_mod = design->top_module();
 	statdata_t mod_data(design, top_mod, width_mode, cell_area, techname);
 	for (auto cell : top_mod->selected_cells()) {
-		if (cell_area.count(std::string(cell->type)) == 0) {
+		if (cell_area.count(design->twines.str(cell->type)) == 0) {
 			if (design->has(cell->type)) {
 				if (!(design->module(cell->type)->attributes.count(ID::blackbox))) {
 					// deal with modules
 					mod_data.add(
 					  hierarchy_builder(design, design->module(cell->type), mod_stat, width_mode, cell_area, techname));
-					mod_data.num_submodules_by_type[cell->type]++;
-					mod_data.submodules_area_by_type[cell->type] += mod_stat.at(cell->type).area;
+					mod_data.num_submodules_by_type[design->twines.str(cell->type)]++;
+					mod_data.submodules_area_by_type[design->twines.str(cell->type)] += mod_stat.at(cell->type).area;
 					mod_data.submodule_area += mod_stat.at(cell->type).area;
 					mod_data.num_submodules++;
 					mod_data.unknown_cell_area.erase(cell->type);
@@ -787,9 +786,9 @@ statdata_t hierarchy_builder(RTLIL::Design *design, const RTLIL::Module *top_mod
 					// deal with blackbox cells
 					if (design->module(cell->type)->attributes.count(ID::area) &&
 					    design->module(cell->type)->attributes.at(ID::area).size() == 0) {
-						mod_data.num_submodules_by_type[cell->type]++;
+						mod_data.num_submodules_by_type[design->twines.str(cell->type)]++;
 						mod_data.num_submodules++;
-						mod_data.submodules_area_by_type[cell->type] +=
+						mod_data.submodules_area_by_type[design->twines.str(cell->type)] +=
 						  double(design->module(cell->type)->attributes.at(ID::area).as_int());
 						mod_data.area += double(design->module(cell->type)->attributes.at(ID::area).as_int());
 						mod_data.unknown_cell_area.erase(cell->type);

@@ -597,7 +597,7 @@ struct MuxcoverWorker
 
 	void run()
 	{
-		log("Covering MUX trees in module %s..\n", module);
+		log("Covering MUX trees in module %s..\n", log_id(module));
 
 		treeify();
 

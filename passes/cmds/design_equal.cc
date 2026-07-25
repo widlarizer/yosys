@@ -74,7 +74,7 @@ public:
 		}
 		for (const auto &it : b->attributes)
 			if (a->attributes.count(it.first) == 0)
-				return "missing attribute " + std::string(mod_a->design->twines.unescaped_str(it.first)) + " in first design";
+				return "missing attribute " + std::string(mod_b->design->twines.unescaped_str(it.first)) + " in first design";
 		return "";
 	}
 
@@ -148,7 +148,7 @@ public:
 		}
 		for (const auto &it : b->parameters)
 			if (a->parameters.count(it.first) == 0)
-				return "parameter mismatch: missing parameter " + std::string(mod_a->design->twines.unescaped_str(it.first)) + " in first design";
+				return "parameter mismatch: missing parameter " + std::string(mod_b->design->twines.unescaped_str(it.first)) + " in first design";
 
 		for (const auto &it : a->connections()) {
 			if (b->connections().count(it.first) == 0)

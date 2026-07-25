@@ -79,9 +79,8 @@ struct ConstmapPass : public Pass {
 		cell_portname_ref = design->twines.add(std::string{cell_portname});
 		cell_paramname_ref = design->twines.add(std::string{cell_paramname});
 
-		TwineSearch design_search(&design->twines);
-		if (design->has(design_search.find(celltype))) {
-			Module *existing = design->module(design_search.find(celltype));
+		if (design->has(celltype_ref)) {
+			Module *existing = design->module(celltype_ref);
 			bool has_port = false;
 			for (auto &p : existing->ports){
 				if (p == cell_portname_ref){

@@ -78,7 +78,6 @@ struct Lut2muxPass : public Pass {
 	void execute(std::vector<std::string> args, RTLIL::Design *design) override
 	{
 		log_header(design, "Executing LUT2MUX pass (convert $lut to $mux/$_MUX_).\n");
-			log("ARGS:"); for (auto &a: args) log(" [%s]", a.c_str()); log("\n");
 
 		size_t argidx;
 		bool word_mode = false;
@@ -97,7 +96,7 @@ struct Lut2muxPass : public Pass {
 			if (cell->type == ID($lut)) {
 				IdString cell_name = cell->name;
 				int count = lut2mux(cell, word_mode);
-				log("Converted %s.%s to %d MUX cells.\n", module, module->design->twines.unescaped_str(cell_name), count);
+				log("Converted %s.%s to %d MUX cells.\n", log_id(module), log_id(cell_name), count);
 			}
 		}
 	}

@@ -43,12 +43,11 @@ static void add_formal(RTLIL::Module *module, const std::string &celltype, const
 		log_error("Could not find wire with name \"%s\".\n", name);
 	}
 	else {
-		IdString _type = module->design->twines.add(Twine{"$" + celltype});
-		RTLIL::Cell *formal_cell = module->addCell(NEW_ID, _type);
+		RTLIL::Cell *formal_cell = module->addCell(NEW_ID, Twine{"$" + celltype});
 		formal_cell->setPort(ID::A, wire);
 		if(enable_name == "") {
 			formal_cell->setPort(ID::EN, State::S1);
-			log("Added $%s cell for wire \"%s.%s\"\n", celltype, log_id(module), name);
+			log("Added $%s cell for wire \"%s.%s\"\n", celltype, module->name, name);
 		}
 		else {
 			RTLIL::Wire *enable_wire = module->wire(search.find(escaped_enable_name));
@@ -56,7 +55,7 @@ static void add_formal(RTLIL::Module *module, const std::string &celltype, const
 				log_error("Could not find enable wire with name \"%s\".\n", enable_name);
 
 			formal_cell->setPort(ID::EN, enable_wire);
-			log("Added $%s cell for wire \"%s.%s\" enabled by wire \"%s.%s\".\n", celltype, log_id(module), name, log_id(module), enable_name);
+			log("Added $%s cell for wire \"%s.%s\" enabled by wire \"%s.%s\".\n", celltype, module->name, name, module->name, enable_name);
 		}
 	}
 }
@@ -82,9 +81,9 @@ static void add_wire(RTLIL::Design *design, RTLIL::Module *module, std::string n
 			wire = nullptr;
 
 		if (wire == nullptr)
-			log_cmd_error("Found incompatible object with same name in module %s!\n", log_id(module));
+			log_cmd_error("Found incompatible object with same name in module %s!\n", module->name);
 
-		log("Module %s already has such an object.\n", log_id(module));
+		log("Module %s already has such an object.\n", module->name);
 	}
 	else
 	{
@@ -96,12 +95,13 @@ static void add_wire(RTLIL::Design *design, RTLIL::Module *module, std::string n
 			module->fixup_ports();
 		}
 
-		log("Added wire %s to module %s.\n", name, log_id(module));
+		log("Added wire %s to module %s.\n", name, module->name);
 	}
 
 	if (!flag_global)
 		return;
 
+	IdString port_id = design->twines.add(Twine{name});
 	for (auto cell : module->cells())
 	{
 		RTLIL::Module *mod = design->module(cell->type);
@@ -111,11 +111,11 @@ static void add_wire(RTLIL::Design *design, RTLIL::Module *module, std::string n
 			continue;
 		if (mod->get_blackbox_attribute())
 			continue;
-		if (cell->hasPort(design->twines.add(Twine{name})))
+		if (cell->hasPort(port_id))
 			continue;
 
-		cell->setPort(design->twines.add(Twine{name}), wire);
-		log("Added connection %s to cell %s.%s (%s).\n", name, log_id(module), log_id(cell), cell->type);
+		cell->setPort(port_id, wire);
+		log("Added connection %s to cell %s.%s (%s).\n", name, module->name, cell->name, cell->type);
 	}
 }
 

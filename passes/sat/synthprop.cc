@@ -37,8 +37,6 @@ struct SynthPropWorker
 	// pointer to main design
 	RTLIL::Design *design;
 
-	RTLIL::IdString top_name;
-
 	RTLIL::Module *module;
 
 	std::string map_file;
@@ -161,8 +159,7 @@ void SynthPropWorker::run()
 	if (tracing_data[module].names.size() == 0) return;
 
 	if (!reset_name.empty()) {
-		int width = tracing_data[module].names.size();		
-		TwineSearch search(&design->twines);
+		int width = tracing_data[module].names.size();
 		SigSpec reset = module->wire(reset_name);
 		reset.extend_u0(width, true);
 
@@ -258,7 +255,6 @@ struct SyntProperties : public Pass {
 		if (top == nullptr)
 			log_cmd_error("Can't find top module in current design!\n");
 
-		TwineSearch search(&design->twines);
 		auto *reset = top->wire(worker.reset_name);
 		if (!worker.reset_name.empty() && reset == nullptr)
 			log_cmd_error("Can't find reset line in current design!\n");

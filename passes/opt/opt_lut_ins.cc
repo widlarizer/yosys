@@ -39,8 +39,7 @@ struct OptLutInsPass : public Pass {
 		log("\n");
 		log("    -tech <technology>\n");
 		log("        Instead of generic $lut cells, operate on LUT cells specific\n");
-		log("        to the given technology.  Valid values are: xilinx, lattice,\n");
-		log("        gowin, analogdevices.\n");
+		log("        to the given technology.  Valid values are: xilinx, lattice, gowin.\n");
 		log("\n");
 	}
 	void execute(std::vector<std::string> args, RTLIL::Design *design) override
@@ -60,11 +59,11 @@ struct OptLutInsPass : public Pass {
 		extra_args(args, argidx, design);
 
 		if (techname != "" && techname != "xilinx" && techname != "lattice" && techname != "analogdevices" && techname != "gowin")
-			log_cmd_error("Unsupported technology: '%s'\n", techname);
+			log_cmd_error("Unsupported technology: '%s'\n", techname.c_str());
 
 		for (auto module : design->selected_modules())
 		{
-			log("Optimizing LUTs in %s.\n", module);
+			log("Optimizing LUTs in %s.\n", log_id(module));
 
 			std::vector<Cell *> remove_cells;
 			// Gather LUTs.
@@ -181,8 +180,8 @@ struct OptLutInsPass : public Pass {
 				}
 				if (!doit)
 					continue;
-				log("  Optimizing lut %s (%d -> %d)\n", cell, GetSize(inputs), GetSize(new_inputs));
-				if (techname == "lattice" || techname == "ecp5") {
+				log("  Optimizing lut %s (%d -> %d)\n", log_id(cell), GetSize(inputs), GetSize(new_inputs));
+				if (techname == "lattice") {
 					// Pad the LUT to 4 inputs, adding consts from the front.
 					int extra = 4 - GetSize(new_inputs);
 					log_assert(extra >= 0);

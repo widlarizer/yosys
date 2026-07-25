@@ -76,7 +76,7 @@ struct ConnectPass : public Pass {
 		log("\n");
 		log("\n");
 		log("Per default signal alias names are resolved and all signal names are mapped\n");
-		log("to the signal name of the primary driver. Using the -nomap option deactivates\n");
+		log("the the signal name of the primary driver. Using the -nomap option deactivates\n");
 		log("this behavior.\n");
 		log("\n");
 		log("The connect command operates in one module only. Either only one module must\n");
@@ -86,8 +86,6 @@ struct ConnectPass : public Pass {
 		log("making it.\n");
 		log("\n");
 		log("This command does not operate on module with processes.\n");
-		log("\n");
-		log("Overriding any bits connected to a module input port will remove the input port.\n");
 		log("\n");
 	}
 	void execute(std::vector<std::string> args, RTLIL::Design *design) override
@@ -134,7 +132,7 @@ struct ConnectPass : public Pass {
 		RTLIL::Module *module = nullptr;
 		for (auto mod : design->selected_modules()) {
 			if (module != nullptr)
-				log_cmd_error("Multiple modules selected: %s, %s\n", module->name.str().c_str(), mod->name.str().c_str());
+				log_cmd_error("Multiple modules selected: %s, %s\n", log_id(module->name), log_id(mod->name));
 			module = mod;
 		}
 		if (module == nullptr)

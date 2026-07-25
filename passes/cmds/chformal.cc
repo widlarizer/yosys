@@ -330,7 +330,7 @@ struct ChformalPass : public Pass {
 				for (auto cell : constr_cells)
 				{
 					if (is_triggered_check_cell(cell))
-						log_error("Cannot delay edge triggered $check cell %s, run async2sync or clk2fflogic first.\n", cell);
+						log_error("Cannot delay edge triggered $check cell %s, run async2sync or clk2fflogic first.\n", log_id(cell));
 
 					for (int i = 0; i < mode_arg; i++)
 					{
@@ -378,7 +378,7 @@ struct ChformalPass : public Pass {
 						cover->setParam(ID(FLAVOR), Const("cover"));
 
 						for (auto const &conn : cell->connections())
-							if (conn.first != ID::A && conn.first != ID::EN)
+							if (!conn.first.in(ID::A, ID::EN))
 								cover->setPort(conn.first, conn.second);
 						cover->setPort(ID::A, cell->getPort(ID::EN));
 						cover->setPort(ID::EN, State::S1);
@@ -413,7 +413,7 @@ struct ChformalPass : public Pass {
 						continue;
 
 					if (is_triggered_check_cell(cell))
-						log_error("Cannot lower edge triggered $check cell %s, run async2sync or clk2fflogic first.\n", cell);
+						log_error("Cannot lower edge triggered $check cell %s, run async2sync or clk2fflogic first.\n", log_id(cell));
 
 
 					Cell *plain_cell = module->addCell(NEW_ID, formal_flavor(cell));
