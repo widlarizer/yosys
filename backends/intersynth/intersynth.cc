@@ -131,8 +131,8 @@ struct IntersynthBackend : public Backend {
 			if (module->memories.size() == 0 && module->processes.size() == 0 && module->cells().size() == 0)
 				continue;
 
-			if (selected && !design->selected_whole_module(module->meta_->name)) {
-				if (design->selected_module(module->meta_->name))
+			if (selected && !design->selected_whole_module(module->name)) {
+				if (design->selected_module(module->name))
 					log_cmd_error("Can't handle partially selected module %s!\n", module->name.str().c_str());
 				continue;
 			}

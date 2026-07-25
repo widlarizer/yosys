@@ -260,7 +260,7 @@ struct Smt2Worker
 			if (!wire->port_input || GetSize(wire) != 1)
 				continue;
 			SigBit bit = sigmap(wire);
-			IdString module_name = module->meta_->name;
+			IdString module_name = module->name;
 			if (clock_posedge.count(bit))
 				mod_clk_cache[module_name][wire->name].first = true;
 			if (clock_negedge.count(bit))
@@ -277,7 +277,7 @@ struct Smt2Worker
 
 	const char *get_id(Module *m)
 	{
-		return get_id(m->meta_->name);
+		return get_id(m->name);
 	}
 
 	const char *get_id(Cell *c)
@@ -1481,7 +1481,7 @@ struct Smt2Worker
 
 		if (statebv) {
 			f << stringf("(define-sort |%s_s| () (_ BitVec %d))\n", get_id(module), statebv_width);
-			IdString module_name = module->meta_->name;
+			IdString module_name = module->name;
 			mod_stbv_width[module_name] = statebv_width;
 		} else
 		if (statedt) {
@@ -1536,7 +1536,7 @@ struct Smt2Worker
 	std::string witness_signal(const char *type, int width, int offset, const std::string &smtname, int smtid, RTLIL::Wire *wire, int smtoffset = 0)
 	{
 		std::vector<std::string> hiername;
-		if (wire->meta_->name.isPublic()) {
+		if (wire->name.isPublic()) {
 			auto hdlname = wire->get_string_attribute(ID::hdlname);
 			for (auto token : split_tokens(hdlname))
 				hiername.push_back("\\" + token);
@@ -1887,7 +1887,7 @@ struct Smt2Backend : public Backend {
 			not_ready_yet:;
 			}
 			if (sorted_modules_idx == sorted_modules.size())
-				log_error("Cyclic dependency between modules found! Cycle includes module %s.\n", module_deps.begin()->first->design->twines.str(module_deps.begin()->first->meta_->name).c_str());
+				log_error("Cyclic dependency between modules found! Cycle includes module %s.\n", module_deps.begin()->first->design->twines.str(module_deps.begin()->first->name).c_str());
 			while (sorted_modules_idx < sorted_modules.size())
 				module_deps.erase(sorted_modules.at(sorted_modules_idx++));
 		}

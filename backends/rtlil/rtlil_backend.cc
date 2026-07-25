@@ -246,7 +246,7 @@ void RTLIL_BACKEND::dump_memory(std::ostream &f, std::string indent, const RTLIL
 		f << stringf("size %d ", memory->size);
 	if (memory->start_offset != 0)
 		f << stringf("offset %d ", memory->start_offset);
-	f << twine_ref(design, memory->meta_->name, mode) << twine_cmt(design, memory->meta_->name, mode) << "\n";
+	f << twine_ref(design, memory->name, mode) << twine_cmt(design, memory->name, mode) << "\n";
 }
 
 void RTLIL_BACKEND::dump_cell(std::ostream &f, std::string indent, const RTLIL::Cell *cell, const RTLIL::Design *design, DumpMode mode)
@@ -354,7 +354,7 @@ void RTLIL_BACKEND::dump_proc(std::ostream &f, std::string indent, const RTLIL::
 {
 	dump_attributes(f, indent, proc, design, mode);
 	f << stringf("%s" "process ", indent);
-	f << twine_ref(design, proc->meta_->name, mode) << twine_cmt(design, proc->meta_->name, mode) << "\n";
+	f << twine_ref(design, proc->name, mode) << twine_cmt(design, proc->name, mode) << "\n";
 	dump_proc_case_body(f, indent + "  ", &proc->root_case, design, mode);
 	for (auto* sync : proc->syncs)
 		dump_proc_sync(f, indent + "  ", sync, design, mode);
@@ -378,7 +378,7 @@ void RTLIL_BACKEND::dump_module(std::ostream &f, std::string indent, RTLIL::Modu
 		dump_attributes(f, indent, module, design, mode);
 
 		f << stringf("%s" "module ", indent);
-		f << twine_ref(design, module->meta_->name, mode) << twine_cmt(design, module->meta_->name, mode) << "\n";
+		f << twine_ref(design, module->name, mode) << twine_cmt(design, module->name, mode) << "\n";
 
 		if (!module->avail_parameters.empty()) {
 			if (only_selected)
@@ -428,7 +428,7 @@ void RTLIL_BACKEND::dump_module(std::ostream &f, std::string indent, RTLIL::Modu
 
 		bool first_conn_line = true;
 		for (const auto& [lhs, rhs] : module->connections()) {
-			bool show_conn = !only_selected || design->selected_whole_module(module->meta_->name);
+			bool show_conn = !only_selected || design->selected_whole_module(module->name);
 			if (!show_conn) {
 				RTLIL::SigSpec sigs = lhs;
 				sigs.append(rhs);
@@ -458,9 +458,9 @@ void RTLIL_BACKEND::dump_design(std::ostream &f, RTLIL::Design *design, bool onl
 	if (!flag_m) {
 		int count_selected_mods = 0;
 		for (auto* module : design->modules()) {
-			if (design->selected_whole_module(module->meta_->name))
+			if (design->selected_whole_module(module->name))
 				flag_m = true;
-			if (design->selected_module(module->meta_->name)) {
+			if (design->selected_module(module->name)) {
 				count_selected_mods++;
 				if (module->has_processes())
 					log_warning("Module %s contains processes. Case action sources attributes will be lost.\n", log_id(module));
@@ -479,7 +479,7 @@ void RTLIL_BACKEND::dump_design(std::ostream &f, RTLIL::Design *design, bool onl
 	}
 
 	for (const auto& [_, module] : reversed(design->modules_)) {
-		if (!only_selected || design->selected_module(module->meta_->name)) {
+		if (!only_selected || design->selected_module(module->name)) {
 			if (only_selected)
 				f << stringf("\n");
 			dump_module(f, "", module, design, only_selected, flag_m, flag_n, mode);

@@ -284,10 +284,10 @@ struct SimplecWorker
 
 	void create_module_struct(Module *mod)
 	{
-		if (generated_structs.count(mod->meta_->name))
+		if (generated_structs.count(mod->name))
 			return;
 
-		generated_structs.insert(mod->meta_->name);
+		generated_structs.insert(mod->name);
 		sigmaps[mod].set(mod);
 
 		for (Wire *w : mod->wires())
@@ -532,7 +532,7 @@ struct SimplecWorker
 								Module *parent_mod = work->parent->module;
 								Cell *parent_cell = parent_mod->cell(work->hiername);
 
-								IdString port_name = outbit.wire->meta_->name;
+								IdString port_name = outbit.wire->name;
 								int port_offset = outbit.offset;
 								SigBit parent_bit = sigmaps.at(parent_mod)(parent_cell->getPort(port_name)[port_offset]);
 
@@ -640,7 +640,7 @@ struct SimplecWorker
 		reactivated_cells.clear();
 
 		funct_declarations.push_back("");
-		funct_declarations.push_back(stringf("static void %s(struct %s_state_t *state)", func_name, cid(design->twines.str(work->module->meta_->name))));
+		funct_declarations.push_back(stringf("static void %s(struct %s_state_t *state)", func_name, cid(design->twines.str(work->module->name))));
 		funct_declarations.push_back("{");
 		for (auto &line : preamble)
 			funct_declarations.push_back(line);
@@ -694,7 +694,7 @@ struct SimplecWorker
 	{
 		vector<string> preamble;
 		eval_init(work, preamble);
-		make_func(work, cid(design->twines.str(work->module->meta_->name)) + "_init", preamble);
+		make_func(work, cid(design->twines.str(work->module->name)) + "_init", preamble);
 	}
 
 	void make_eval_func(HierDirtyFlags *work)
@@ -708,7 +708,7 @@ struct SimplecWorker
 					work->set_dirty(bit);
 		}
 
-		make_func(work, cid(design->twines.str(work->module->meta_->name)) + "_eval", preamble);
+		make_func(work, cid(design->twines.str(work->module->name)) + "_eval", preamble);
 	}
 
 	void make_tick_func(HierDirtyFlags* /* work */)

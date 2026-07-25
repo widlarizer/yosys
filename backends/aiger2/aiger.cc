@@ -561,7 +561,7 @@ struct Index {
 				if (!first)
 					ret += ".";
 				if (!cell)
-					ret += design->twines.str(minfo.module->meta_->name);
+					ret += design->twines.str(minfo.module->name);
 				else
 					ret += cell->name.unescape();
 				first = false;
@@ -653,7 +653,7 @@ struct Index {
 			// step into the upper module
 			Cell *instance = cursor.exit(*this);
 			{
-				IdString portname = bit.wire->meta_->name;
+				IdString portname = bit.wire->name;
 				if (!instance->hasPort(portname))
 					log_error("Input port %s on instance %s of %s unconnected\n",
 							  design->twines.str(portname).c_str(), instance, instance->type);
@@ -906,7 +906,7 @@ struct XAigerAnalysis : Index<XAigerAnalysis, int, 0, 0> {
 		int max = 1;
 		for (auto wire : mod->wires()) {
 			if (wire->port_input && !wire->port_output) {
-				SigSpec port = driver->getPort(wire->meta_->name);
+				SigSpec port = driver->getPort(wire->name);
 				for (int i = 0; i < std::min(wire->width, port.size()); i++) {
 					int ilevel = visit(cursor, port[i]);
 					max = std::max(max, ilevel + 1);
@@ -1000,7 +1000,7 @@ struct XAigerWriter : AigerWriter {
 				log_assert(cursor.is_top()); // TODO
 				driven_by_opaque_box.insert(bit);
 				map_file << "pi " << pis.size() - 1 << " " << bit.offset
-						<< " " << design->twines.str(bit.wire->meta_->name).c_str() << "\n";
+						<< " " << design->twines.str(bit.wire->name).c_str() << "\n";
 			}
 		} else {
 			log_assert(!box_port);
@@ -1134,8 +1134,8 @@ struct XAigerWriter : AigerWriter {
 		}
 
 		for (auto [cursor, box, def] : nonopaque_boxes) {
-			// use `def->meta_->name` not `box->type` as we want the derived type
-			Cell *holes_wb = holes_module->addCell(NEW_ID, def->meta_->name);
+			// use `def->name` not `box->type` as we want the derived type
+			Cell *holes_wb = holes_module->addCell(NEW_ID, def->name);
 			int holes_pi_idx = 0;
 
 			if (map_file.is_open()) {
@@ -1178,7 +1178,7 @@ struct XAigerWriter : AigerWriter {
 						while (holes_pi_idx >= (int) holes_pis.size()) {
 							Wire *w = holes_module->addWire(NEW_ID, 1);
 							w->port_input = true;
-							holes_module->ports.push_back(w->meta_->name);
+							holes_module->ports.push_back(w->name);
 							holes_pis.push_back(w);
 						}
 						in_conn.append(holes_pis[holes_pi_idx]);
@@ -1207,7 +1207,7 @@ struct XAigerWriter : AigerWriter {
 					// holes
 					Wire *w = holes_module->addWire(NEW_ID, port->width);
 					w->port_output = true;
-					holes_module->ports.push_back(w->meta_->name);
+					holes_module->ports.push_back(w->name);
 					holes_wb->setPort(port_id, w);
 				} else {
 					log_error("Ambiguous port direction on %s/%s\n",

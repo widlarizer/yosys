@@ -144,7 +144,7 @@ void reset_auto_counter(RTLIL::Module *module)
 	auto_name_counter = 0;
 	auto_name_offset = 0;
 
-	reset_auto_counter_id(module->design->twines.flat_string(module->meta_->name), false);
+	reset_auto_counter_id(module->design->twines.flat_string(module->name), false);
 
 	for (auto w : module->wires())
 		reset_auto_counter_id(w->name, true);
@@ -2742,8 +2742,8 @@ struct VerilogBackend : public Backend {
 		for (auto module : design->modules()) {
 			if (module->get_blackbox_attribute() != blackboxes)
 				continue;
-			if (selected && !design->selected_whole_module(module->meta_->name)) {
-				if (design->selected_module(module->meta_->name))
+			if (selected && !design->selected_whole_module(module->name)) {
+				if (design->selected_module(module->name))
 					log_cmd_error("Can't handle partially selected module %s!\n", module->name.str().c_str());
 				continue;
 			}

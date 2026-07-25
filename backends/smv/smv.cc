@@ -91,7 +91,7 @@ struct SmvWorker
 			ct(module->design), sigmap(module), module(module), f(f), verbose(verbose), idcounter(0)
 	{
 		for (auto mod : module->design->modules())
-			cid(mod->meta_->name, true);
+			cid(mod->name, true);
 
 		for (auto wire : module->wires())
 			cid(wire->name, true);
@@ -209,7 +209,7 @@ struct SmvWorker
 
 	void run()
 	{
-		f << stringf("MODULE %s\n", cid(module->meta_->name));
+		f << stringf("MODULE %s\n", cid(module->name));
 
 		for (auto wire : module->wires())
 		{

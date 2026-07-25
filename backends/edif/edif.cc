@@ -194,7 +194,7 @@ struct EdifBackend : public Backend {
 
 		for (auto module : design->modules())
 		{
-			IdString module_type = module->meta_->name;
+			IdString module_type = module->name;
 			lib_cell_ports[module_type];
 
 			for (auto port : module->ports)
@@ -326,7 +326,7 @@ struct EdifBackend : public Backend {
 			not_ready_yet:;
 			}
 			if (sorted_modules_idx == sorted_modules.size())
-				log_error("Cyclic dependency between modules found! Cycle includes module %s.\n", design->twines.str(module_deps.begin()->first->meta_->name));
+				log_error("Cyclic dependency between modules found! Cycle includes module %s.\n", design->twines.str(module_deps.begin()->first->name));
 			while (sorted_modules_idx < sorted_modules.size())
 				module_deps.erase(sorted_modules.at(sorted_modules_idx++));
 		}

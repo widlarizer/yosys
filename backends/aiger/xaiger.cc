@@ -245,7 +245,7 @@ struct XAigerWriter
 						continue;
 				}
 
-				auto inst_name_id = inst_module->meta_->name;
+				IdString inst_name_id = inst_module->name;
 				if (!timing.count(inst_name_id))
 					timing.setup_module(inst_module);
 

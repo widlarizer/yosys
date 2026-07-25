@@ -160,7 +160,7 @@ struct JsonWriter
 			log_error("Module %s contains processes, which are not supported by JSON backend (run `proc` first).\n", module);
 		}
 
-		f << stringf("    %s: {\n", get_name(module->meta_->name));
+		f << stringf("    %s: {\n", get_name(module->name));
 
 		f << stringf("      \"attributes\": {");
 		write_parameters(module->attributes, /*for_module=*/true, module);
@@ -250,8 +250,8 @@ struct JsonWriter
 				if (use_selection && !module->selected(it.second))
 					continue;
 				f << stringf("%s\n", first ? "" : ",");
-				f << stringf("        %s: {\n", get_name(it.second->meta_->name));
-				f << stringf("          \"hide_name\": %s,\n", design->twines.str(it.second->meta_->name)[0] == '$' ? "1" : "0");
+				f << stringf("        %s: {\n", get_name(it.second->name));
+				f << stringf("          \"hide_name\": %s,\n", design->twines.str(it.second->name)[0] == '$' ? "1" : "0");
 				f << stringf("          \"attributes\": {");
 				write_parameters(it.second->attributes, false, it.second);
 				f << stringf("\n          },\n");

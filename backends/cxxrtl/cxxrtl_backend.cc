@@ -643,7 +643,7 @@ std::string get_hdl_name(T *object)
 	if (object->has_attribute(ID::hdlname))
 		return object->get_string_attribute(ID::hdlname);
 	else {
-		// For Wire/Cell with ->name, Module/Memory with ->meta_->name
+		// For Wire/Cell with ->name, Module/Memory with ->name
 		std::string name;
 		if constexpr (std::is_same_v<T, RTLIL::Wire> || std::is_same_v<T, RTLIL::Cell>) {
 			name = object->name.str();
@@ -827,7 +827,7 @@ struct CxxrtlWorker {
 
 	std::string mangle(const RTLIL::Module *module)
 	{
-		return mangle_module_name(module->meta_->name, /*is_blackbox=*/module->get_bool_attribute(ID::cxxrtl_blackbox));
+		return mangle_module_name(module->name, /*is_blackbox=*/module->get_bool_attribute(ID::cxxrtl_blackbox));
 	}
 
 	std::string mangle(const Mem *mem)
@@ -837,7 +837,7 @@ struct CxxrtlWorker {
 
 	std::string mangle(const RTLIL::Memory *memory)
 	{
-		return mangle_memory_name(memory->meta_->name);
+		return mangle_memory_name(memory->name);
 	}
 
 	std::string mangle(const RTLIL::Cell *cell)
@@ -2463,7 +2463,7 @@ struct CxxrtlWorker {
 									else
 										has_driven_comb = true;
 							} else if (wire->port_output) {
-								switch (cxxrtl_port_type(module, wire->meta_->name)) {
+								switch (cxxrtl_port_type(module, wire->name)) {
 									case CxxrtlPortType::SYNC:
 										has_driven_sync = true;
 										break;
@@ -2794,7 +2794,7 @@ struct CxxrtlWorker {
 		RTLIL::Module *top_module = nullptr;
 		std::vector<RTLIL::Module*> modules;
 
-		// Custom comparator for Module* that uses new meta_->name field
+		// Custom comparator for Module* that uses new name field
 		struct CompareModuleByName {
 			bool operator()(const RTLIL::Module *a, const RTLIL::Module *b) const {
 				if (a == nullptr || b == nullptr)
