@@ -131,6 +131,7 @@ extern int64_t twine_gc_ns;
 extern int twine_gc_count;
 
 namespace RTLIL { using YOSYS_NAMESPACE_PREFIX ID; }
+namespace RTLIL { using YOSYS_NAMESPACE_PREFIX IdString; }
 
 namespace RTLIL {
 	// Attribute and parameter names are IdStrings into the owning Design's
