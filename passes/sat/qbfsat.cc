@@ -165,7 +165,7 @@ void allconstify_inputs(RTLIL::Module *module, const pool<std::string> &input_wi
 		RTLIL::Wire *input = module->wire(search.find(n));
 		log_assert(input != nullptr);
 
-		RTLIL::Cell *allconst = module->addCell(Twine{"$allconst$" + n}, ID::$allconst);
+		RTLIL::Cell *allconst = module->addCell("$allconst$" + n, ID::$allconst);
 		allconst->setParam(ID(WIDTH), input->width);
 		allconst->setPort(ID::Y, input);
 		allconst->adopt_src_from(input);

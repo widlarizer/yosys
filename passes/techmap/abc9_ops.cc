@@ -340,7 +340,7 @@ void prep_bypass(RTLIL::Design *design)
 				if (!port->port_output)
 					continue;
 				auto dst = bypass_module->addWire(port_name, port);
-				auto src = bypass_module->addWire(Twine{"$abc9byp$" + design->twines.str(port_name)}, GetSize(port));
+				auto src = bypass_module->addWire("$abc9byp$" + design->twines.str(port_name), GetSize(port));
 				src->port_input = true;
 				// For these new input ports driven by the replaced
 				//   cell, then create a new simple-path specify entry:
@@ -399,7 +399,7 @@ void prep_bypass(RTLIL::Design *design)
 						if (c.wire) {
 							auto port = bypass_module->wire(c.wire->name);
 							if (!port)
-								port = bypass_module->addWire(c.wire->name, c.wire);
+								port = bypass_module->addWire(c.wire->name.ref(), c.wire);
 							c.wire = port;
 						}
 						new_sig.append(std::move(c));
@@ -442,7 +442,7 @@ void prep_bypass(RTLIL::Design *design)
 				auto w = unmap_module->addWire(to_unmap(port_name), inst_module->wire(port_name));
 				if (w->port_output) {
 					w->attributes.erase(ID::init);
-					auto w2 = unmap_module->addWire(Twine{"$abc9byp$" + design->twines.str(port_name)}, GetSize(w));
+					auto w2 = unmap_module->addWire("$abc9byp$" + design->twines.str(port_name), GetSize(w));
 					w2->port_input = true;
 					unmap_module->connect(w, w2);
 				}
@@ -939,7 +939,7 @@ void prep_xaiger(RTLIL::Module *module, bool dff)
 			log_assert(w);
 			if (!w->port_output)
 				continue;
-			Wire *holes_wire = holes_module->addWire(Twine{stringf("$abc%s.%s", cell->name, design->twines.unescaped_str(port_name))}, GetSize(w));
+			Wire *holes_wire = holes_module->addWire(stringf("$abc%s.%s", cell->name, design->twines.unescaped_str(port_name)), GetSize(w));
 			holes_wire->port_output = true;
 			holes_wire->port_id = port_id++;
 			holes_module->ports.push_back(holes_wire->name);

@@ -3553,6 +3553,18 @@ RTLIL::Wire *RTLIL::Module::addWire(Twine &&name, int width)
 	return addWire(design->twines.add(std::move(name)), width);
 }
 
+RTLIL::Wire *RTLIL::Module::addWire(std::string name, int width)
+{
+	log_assert(design);
+	return addWire(design->twines.add(std::move(name)), width);
+}
+
+RTLIL::Wire *RTLIL::Module::addWire(std::string name, const RTLIL::Wire *other)
+{
+	log_assert(design);
+	return addWire(design->twines.add(std::move(name)), other);
+}
+
 void RTLIL::copy_attr_dict(dict<IdString, RTLIL::Const> &dst,
 		const dict<IdString, RTLIL::Const> &src,
 		const RTLIL::Design *src_design, RTLIL::Design *dst_design)
@@ -3604,6 +3616,12 @@ RTLIL::Cell *RTLIL::Module::addCell(IdString name, IdString type)
 }
 
 RTLIL::Cell *RTLIL::Module::addCell(Twine &&name, IdString type)
+{
+	log_assert(design);
+	return addCell(design->twines.add(std::move(name)), type);
+}
+
+RTLIL::Cell *RTLIL::Module::addCell(std::string name, IdString type)
 {
 	log_assert(design);
 	return addCell(design->twines.add(std::move(name)), type);

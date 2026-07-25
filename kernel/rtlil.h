@@ -2434,6 +2434,11 @@ public:
 	// Convenience: adds name into twines, then dispatches.
 	RTLIL::Wire *addWire(Twine &&name, int width = 1);
 	RTLIL::Wire *addWire(Twine &&name, const RTLIL::Wire *other);
+	// Convenience: a raw name string, publicity parsed from a leading \ / $
+	// (like the old IdString(std::string) path). Kept so callers need not wrap
+	// a stringf()/escape_id() result in Twine{}.
+	RTLIL::Wire *addWire(std::string name, int width = 1);
+	RTLIL::Wire *addWire(std::string name, const RTLIL::Wire *other);
 
 	// Primary overloads.
 	RTLIL::Cell *addCell(IdString name, IdString type);
@@ -2443,6 +2448,8 @@ public:
 	RTLIL::Cell *addCell(Twine &&name, IdString type);
 	RTLIL::Cell *addCell(IdString name, Twine &&type);
 	RTLIL::Cell *addCell(Twine &&name, const RTLIL::Cell *other);
+	// Convenience: raw name string, publicity parsed from a leading \ / $.
+	RTLIL::Cell *addCell(std::string name, IdString type);
 
 	// CellAdderMixin hook: cells added here are attached, so set src directly.
 	void cell_set_src(RTLIL::Cell *cell, IdString src) { cell->set_src_attribute(src); }

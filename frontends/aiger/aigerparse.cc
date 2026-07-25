@@ -527,7 +527,7 @@ void AigerReader::parse_xaiger()
 					module->remove(output_cell);
 				}
 
-				RTLIL::Cell *cell = module->addCell(Twine{stringf("$sc$aiger%d$%d", aiger_autoidx, rootNodeID)}, mapping_cell.type);
+				RTLIL::Cell *cell = module->addCell(stringf("$sc$aiger%d$%d", aiger_autoidx, rootNodeID), mapping_cell.type);
 				cell->setPort(mapping_cell.out, output_sig);
 
 				for (unsigned j = 0; j < mapping_cell.ins.size(); ++j) {
@@ -581,7 +581,7 @@ void AigerReader::parse_xaiger()
 				log_assert(boxUniqueId > 0);
 				uint32_t oldBoxNum = parse_xaiger_literal(f);
 				IdString _type = module->design->twines.add(std::string{stringf("$__boxid%u", boxUniqueId)});
-				RTLIL::Cell* cell = module->addCell(Twine{stringf("$box%u", oldBoxNum)}, _type);
+				RTLIL::Cell* cell = module->addCell(stringf("$box%u", oldBoxNum), _type);
 				cell->setPort(ID::i, SigSpec(State::S0, boxInputs));
 				cell->setPort(ID::o, SigSpec(State::S0, boxOutputs));
 				cell->attributes[ID::abc9_box_seq] = oldBoxNum;
@@ -614,7 +614,7 @@ void AigerReader::parse_aiger_ascii()
 			log_error("Line %u cannot be interpreted as an input!\n", line_count);
 		log_debug2("%d is an input\n", l1);
 		log_assert(!(l1 & 1)); // Inputs can't be inverted
-		RTLIL::Wire *wire = module->addWire(Twine{stringf("$aiger$i%d", l1 >> 1)});
+		RTLIL::Wire *wire = module->addWire(stringf("$aiger$i%d", l1 >> 1));
 		wire->port_input = true;
 		module->connect(createWireIfNotExists(module, l1), wire);
 		inputs.push_back(wire);
@@ -636,7 +636,7 @@ void AigerReader::parse_aiger_ascii()
 			log_error("Line %u cannot be interpreted as a latch!\n", line_count);
 		log_debug2("%d %d is a latch\n", l1, l2);
 		log_assert(!(l1 & 1));
-		RTLIL::Wire *q_wire = module->addWire(Twine{stringf("$aiger$l%d", l1 >> 1)});
+		RTLIL::Wire *q_wire = module->addWire(stringf("$aiger$l%d", l1 >> 1));
 		module->connect(createWireIfNotExists(module, l1), q_wire);
 		RTLIL::Wire *d_wire = createWireIfNotExists(module, l2);
 
@@ -674,7 +674,7 @@ void AigerReader::parse_aiger_ascii()
 		std::getline(f, line); // Ignore up to start of next line
 
 		log_debug2("%d is an output\n", l1);
-		RTLIL::Wire *wire = module->addWire(Twine{stringf("$aiger$o%d", i)});
+		RTLIL::Wire *wire = module->addWire(stringf("$aiger$o%d", i));
 		wire->port_output = true;
 		module->connect(wire, createWireIfNotExists(module, l1));
 		outputs.push_back(wire);
@@ -739,7 +739,7 @@ void AigerReader::parse_aiger_binary()
 	// Parse inputs
 	for (unsigned i = 1; i <= I; ++i) {
 		log_debug2("%d is an input\n", i);
-		RTLIL::Wire *wire = module->addWire(Twine{stringf("$aiger$i%d", i)});
+		RTLIL::Wire *wire = module->addWire(stringf("$aiger$i%d", i));
 		wire->port_input = true;
 		module->connect(createWireIfNotExists(module, i << 1), wire);
 		inputs.push_back(wire);
@@ -761,7 +761,7 @@ void AigerReader::parse_aiger_binary()
 		if (!(f >> l2))
 			log_error("Line %u cannot be interpreted as a latch!\n", line_count);
 		log_debug("%d %d is a latch\n", l1, l2);
-		RTLIL::Wire *q_wire = module->addWire(Twine{stringf("$aiger$l%d", l1 >> 1)});
+		RTLIL::Wire *q_wire = module->addWire(stringf("$aiger$l%d", l1 >> 1));
 		module->connect(createWireIfNotExists(module, l1), q_wire);
 		RTLIL::Wire *d_wire = createWireIfNotExists(module, l2);
 
@@ -799,7 +799,7 @@ void AigerReader::parse_aiger_binary()
 		std::getline(f, line); // Ignore up to start of next line
 
 		log_debug2("%d is an output\n", l1);
-		RTLIL::Wire *wire = module->addWire(Twine{stringf("$aiger$o%d", i)});
+		RTLIL::Wire *wire = module->addWire(stringf("$aiger$o%d", i));
 		wire->port_output = true;
 		module->connect(wire, createWireIfNotExists(module, l1));
 		outputs.push_back(wire);

@@ -244,7 +244,7 @@ struct WrapcellPass : Pass {
 					goto replace_cell;
 
 				subm = d->addModule(name_ref);
-				subcell = subm->addCell(Twine{"$1"}, IdString(cell->type));
+				subcell = subm->addCell("$1", IdString(cell->type));
 				for (auto conn : cell->connections()) {
 					if (ct.cell_output(cell->type, conn.first)) {
 						// Insert marker bits as placehodlers which need to be replaced
