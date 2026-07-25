@@ -270,11 +270,11 @@ struct ChparamPass : public Pass {
 			Module *new_module = design->module(module->derive(design, new_parameters));
 			if (module != new_module) {
 				Module *m = new_module->clone();
-				m->meta_->name = module->meta_->name;
+				m->name = module->name;
 				design->remove(module);
 				design->add(m);
 			}
-			if (old_modnames.count(new_module->meta_->name) == 0)
+			if (old_modnames.count(new_module->name) == 0)
 				design->remove(new_module);
 		}
 	}

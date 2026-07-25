@@ -309,7 +309,7 @@ struct Graph {
 		{
 			GraphNode *g = nullptr;
 
-			if (!grp.second.selected_module(module->meta_->name))
+			if (!grp.second.selected_module(module->name))
 				continue;
 
 			for (auto wire : module->wires()) {

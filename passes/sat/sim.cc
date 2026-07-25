@@ -680,9 +680,9 @@ struct SimInstance
 			dirty_memories.clear();
 
 			for (auto wire : queue_outports)
-				if (instance->hasPort(wire->meta_->name)) {
+				if (instance->hasPort(wire->name)) {
 					Const value = get_state(wire);
-					parent->set_state(instance->getPort(wire->meta_->name), value);
+					parent->set_state(instance->getPort(wire->name), value);
 				}
 
 			queue_outports.clear();

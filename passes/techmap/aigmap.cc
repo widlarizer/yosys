@@ -87,7 +87,7 @@ struct AigmapPass : public Pass {
 					not_replaced_count++;
 					stat_not_replaced[cell->type]++;
 					if (select_mode)
-						new_sel.insert(cell->name.ref());
+						new_sel.insert(cell->name);
 					continue;
 				}
 
@@ -111,7 +111,7 @@ struct AigmapPass : public Pass {
 							bit = module->addWire(NEW_ID);
 							auto gate = module->addNandGate(NEW_ID, A, B, bit);
 							if (select_mode)
-								new_sel.insert(gate->name.ref());
+								new_sel.insert(gate->name);
 
 							goto skip_inverter;
 						} else {
@@ -122,7 +122,7 @@ struct AigmapPass : public Pass {
 								bit = module->addWire(NEW_ID);
 								auto gate = module->addAndGate(NEW_ID, A, B, bit);
 								if (select_mode)
-									new_sel.insert(gate->name.ref());
+									new_sel.insert(gate->name);
 							}
 						}
 					}
@@ -132,7 +132,7 @@ struct AigmapPass : public Pass {
 						auto gate = module->addNotGate(NEW_ID, bit, new_bit);
 						bit = new_bit;
 						if (select_mode)
-							new_sel.insert(gate->name.ref());
+							new_sel.insert(gate->name);
 
 					}
 
@@ -172,7 +172,7 @@ struct AigmapPass : public Pass {
 
 			if (select_mode) {
 				RTLIL::Selection& sel = design->selection();
-				sel.selected_members[module->meta_->name] = std::move(new_sel);
+				sel.selected_members[module->name] = std::move(new_sel);
 			}
 
 		}

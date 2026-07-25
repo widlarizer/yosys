@@ -397,9 +397,9 @@ void prep_bypass(RTLIL::Design *design)
 					SigSpec new_sig;
 					for (auto c : sig.chunks()) {
 						if (c.wire) {
-							auto port = bypass_module->wire(c.wire->name.ref());
+							auto port = bypass_module->wire(c.wire->name);
 							if (!port)
-								port = bypass_module->addWire(c.wire->name.ref(), c.wire);
+								port = bypass_module->addWire(c.wire->name, c.wire);
 							c.wire = port;
 						}
 						new_sig.append(std::move(c));
@@ -921,7 +921,7 @@ void prep_xaiger(RTLIL::Module *module, bool dff)
 								holes_wire = holes_module->addWire(holes_design->twines.add(stringf("\\i%d", box_inputs)));
 								holes_wire->port_input = true;
 								holes_wire->port_id = port_id++;
-								holes_module->ports.push_back(holes_wire->name.ref());
+								holes_module->ports.push_back(holes_wire->name);
 							}
 							conn.append(holes_wire);
 						}
@@ -942,7 +942,7 @@ void prep_xaiger(RTLIL::Module *module, bool dff)
 			Wire *holes_wire = holes_module->addWire(Twine{stringf("$abc%s.%s", cell->name, design->twines.unescaped_str(port_name))}, GetSize(w));
 			holes_wire->port_output = true;
 			holes_wire->port_id = port_id++;
-			holes_module->ports.push_back(holes_wire->name.ref());
+			holes_module->ports.push_back(holes_wire->name);
 			if (holes_cell) // whitebox
 				holes_module->connect(holes_wire, holes_cell->getPort(to_holes(port_name)));
 			else // blackbox
@@ -987,7 +987,7 @@ void prep_lut(RTLIL::Design *design, int maxlut)
 		std::sort(delays.begin(), delays.end());
 
 		int K = GetSize(delays);
-		auto entry = t_lut{module->name.ref(), it->second.as_int(), std::move(delays)};
+		auto entry = t_lut{module->name, it->second.as_int(), std::move(delays)};
 		auto r = table.emplace(K, entry);
 		if (!r.second) {
 			if (r.first->second.area != entry.area)
@@ -1109,7 +1109,7 @@ void prep_box(RTLIL::Design *design)
 			ss << std::endl;
 		}
 		else {
-			auto r2 = box_ports.insert(module->name.ref());
+			auto r2 = box_ports.insert(module->name);
 			if (r2.second) {
 				// Make carry in the last PI, and carry out the last PO
 				//   since ABC requires it this way

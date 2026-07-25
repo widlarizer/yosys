@@ -540,7 +540,7 @@ struct TechmapWorker
 		for (auto cell : cells.sorted)
 		{
 			log_assert(handled_cells.count(cell) == 0);
-			log_assert(cell == module->cell(cell->name.ref()));
+			log_assert(cell == module->cell(cell->name));
 			bool mapped_cell = false;
 
 			for (auto &tpl_name : celltypeMap.at(cell->type))

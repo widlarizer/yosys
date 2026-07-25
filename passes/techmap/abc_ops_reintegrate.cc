@@ -272,7 +272,7 @@ void reintegrate(RTLIL::Module *module, bool dff_mode, std::string map_filename)
 		if (!m->attributes.count(ID::abc9_box_id))
 			continue;
 
-		auto r = box_ports.insert(m->name.ref());
+		auto r = box_ports.insert(m->name);
 		if (!r.second)
 			continue;
 

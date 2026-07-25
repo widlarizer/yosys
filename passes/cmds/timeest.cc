@@ -365,7 +365,7 @@ struct EstimateSta {
 		if (select) {
 			RTLIL::Selection sel(false);
 			for (auto member : to_select)
-				sel.selected_members[m->meta_->name].insert(member);
+				sel.selected_members[m->name].insert(member);
 			m->design->selection_stack.back() = sel;
 			m->design->selection_stack.back().optimize(m->design);
 		}

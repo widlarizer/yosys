@@ -146,7 +146,7 @@ struct TestSelectPass : public Pass {
 		for (auto *mod : sub_sel) {
 			if (mod->is_selected_whole()) {
 				log_debug("  Adding %s.\n", mod);
-				selected_modules.insert(mod->meta_->name);
+				selected_modules.insert(mod->name);
 			} else for (auto *memb : mod->selected_members()) {
 				log_debug("  Adding %s.%s.\n", mod, mod->design->obj_name(memb).c_str());
 				selected_members[mod->meta_->name].insert(memb);

@@ -497,7 +497,7 @@ void mutate_list(Design *design, const mutate_opts_t &opts, const string &filena
 					if (bit.wire && bit.wire->name.isPublic() && (cell->output(conn.first) || bit_user_cnt[bit] == 1)) {
 						for (auto &s : design->src_leaves(bit.wire))
 							entry.src.insert(s);
-						entry.wire = bit.wire->name.ref();
+						entry.wire = bit.wire->name;
 						entry.wirebit = bit.offset;
 					}
 

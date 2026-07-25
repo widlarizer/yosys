@@ -130,10 +130,10 @@ struct EquivStructWorker
 				equiv_bits.add(sig_b, sig_a);
 				equiv_inputs.insert(sig_a);
 				equiv_inputs.insert(sig_b);
-				cells.insert(cell->meta_->name);
+				cells.insert(cell->name);
 			} else {
 				if (mode_icells || module->design->module(cell->type))
-					cells.insert(cell->meta_->name);
+					cells.insert(cell->name);
 			}
 
 		for (auto cell : module->selected_cells())

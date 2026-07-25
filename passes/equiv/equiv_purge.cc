@@ -108,10 +108,10 @@ struct EquivPurgeWorker
 				for (auto &port : cell->connections()) {
 					if (cell->input(port.first))
 						for (auto bit : sigmap(port.second))
-							up_cell2bits[cell->meta_->name].insert(bit);
+							up_cell2bits[cell->name].insert(bit);
 					if (cell->output(port.first))
 						for (auto bit : sigmap(port.second))
-							up_bit2cells[bit].insert(cell->meta_->name);
+							up_bit2cells[bit].insert(cell->name);
 				}
 				continue;
 			}

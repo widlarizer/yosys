@@ -215,7 +215,7 @@ struct AddPass : public Pass {
 		for (auto module : design->modules())
 		{
 			log_assert(module != nullptr);
-			if (!design->selected_whole_module(module->meta_->name))
+			if (!design->selected_whole_module(module->name))
 				continue;
 			if (module->get_bool_attribute(ID::blackbox))
 				continue;

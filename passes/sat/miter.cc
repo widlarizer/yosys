@@ -91,7 +91,7 @@ void create_miter_equiv(struct Pass *that, std::vector<std::string> args, RTLIL:
 	for (auto gold_wire : gold_module->wires()) {
 		if (gold_wire->port_id == 0)
 			continue;
-		RTLIL::Wire *gate_wire = gate_module->wire(gold_wire->meta_->name);
+		RTLIL::Wire *gate_wire = gate_module->wire(gold_wire->name);
 		if (gate_wire == nullptr)
 			goto match_gold_port_error;
 		if (gold_wire->width != gate_wire->width)
@@ -113,7 +113,7 @@ void create_miter_equiv(struct Pass *that, std::vector<std::string> args, RTLIL:
 	for (auto gate_wire : gate_module->wires()) {
 		if (gate_wire->port_id == 0)
 			continue;
-		RTLIL::Wire *gold_wire = gold_module->wire(gate_wire->meta_->name);
+		RTLIL::Wire *gold_wire = gold_module->wire(gate_wire->name);
 		if (gold_wire == nullptr)
 			goto match_gate_port_error;
 		if (gate_wire->width != gold_wire->width)
@@ -156,7 +156,7 @@ void create_miter_equiv(struct Pass *that, std::vector<std::string> args, RTLIL:
 				RTLIL::SigSpec w_masked = miter_module->And(NEW_ID, w, miter_module->Not(NEW_ID, w_x));
 				w = miter_module->And(NEW_ID, w_any, w_masked);
 			}
-			gate_cell->setPort(gold_wire->meta_->name, w);
+			gate_cell->setPort(gold_wire->name, w);
 			continue;
 		}
 
@@ -166,7 +166,7 @@ void create_miter_equiv(struct Pass *that, std::vector<std::string> args, RTLIL:
 			w->port_input = true;
 
 			gold_cell->setPort(gold_wire->meta_->name, w);
-			gate_cell->setPort(gold_wire->meta_->name, w);
+			gate_cell->setPort(gold_wire->name, w);
 		}
 
 		if (gold_wire->port_output)
@@ -335,7 +335,7 @@ void create_miter_assert(struct Pass *that, std::vector<std::string> args, RTLIL
 
 	if (!miter_name.empty()) {
 		module = module->clone();
-		module->meta_->name = miter_name;
+		module->name = miter_name;
 		design->add(module);
 	}
 

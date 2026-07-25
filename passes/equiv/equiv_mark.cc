@@ -49,17 +49,17 @@ struct EquivMarkWorker
 		for (auto cell : module->cells())
 		{
 			if (cell->type == ID($equiv))
-				equiv_cells.insert(cell->meta_->name);
+				equiv_cells.insert(cell->name);
 
 			for (auto &port : cell->connections())
 			{
 				if (cell->input(port.first))
 					for (auto bit : sigmap(port.second))
-						up_cell2bits[cell->meta_->name].insert(bit);
+						up_cell2bits[cell->name].insert(bit);
 
 				if (cell->output(port.first))
 					for (auto bit : sigmap(port.second))
-						up_bit2cells[bit].insert(cell->meta_->name);
+						up_bit2cells[bit].insert(cell->name);
 			}
 		}
 
@@ -153,7 +153,7 @@ struct EquivMarkWorker
 			for (auto bit : sig_b)
 				queue.insert(bit);
 
-			cell_regions[cell->meta_->name] = next_region;
+			cell_regions[cell->name] = next_region;
 			mark();
 		}
 

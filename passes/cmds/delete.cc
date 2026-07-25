@@ -68,12 +68,12 @@ struct DeletePass : public Pass {
 		std::vector<RTLIL::Module *> delete_mods;
 		for (auto module : design->modules())
 		{
-			if (design->selected_whole_module(module->meta_->name) && !flag_input && !flag_output) {
+			if (design->selected_whole_module(module->name) && !flag_input && !flag_output) {
 				delete_mods.push_back(module);
 				continue;
 			}
 
-			if (!design->selected_module(module->meta_->name))
+			if (!design->selected_module(module->name))
 				continue;
 
 			if (flag_input || flag_output) {

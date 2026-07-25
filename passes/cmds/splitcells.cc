@@ -37,7 +37,7 @@ struct SplitcellsWorker
 				if (!cell->output(conn.first)) continue;
 				for (int i = 0; i < GetSize(conn.second); i++) {
 					SigBit bit(sigmap(conn.second[i]));
-					bit_drivers_db[bit] = tuple<IdString,IdString,int>(cell->meta_->name, conn.first, i);
+					bit_drivers_db[bit] = tuple<IdString,IdString,int>(cell->name, conn.first, i);
 				}
 			}
 		}
@@ -48,7 +48,7 @@ struct SplitcellsWorker
 				for (int i = 0; i < GetSize(conn.second); i++) {
 					SigBit bit(sigmap(conn.second[i]));
 					if (!bit_drivers_db.count(bit)) continue;
-					bit_users_db[bit].insert(tuple<IdString,IdString,int>(cell->meta_->name,
+					bit_users_db[bit].insert(tuple<IdString,IdString,int>(cell->name,
 							conn.first, i-std::get<2>(bit_drivers_db[bit])));
 				}
 			}

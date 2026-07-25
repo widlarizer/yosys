@@ -154,16 +154,16 @@ struct SccWorker
 
 					for (auto bit : subcell->getPort(ID::SRC))
 					{
-						if (!bit.wire || !cell->hasPort(bit.wire->meta_->name))
+						if (!bit.wire || !cell->hasPort(bit.wire->name))
 							continue;
-						inputSignals.append(sigmap(cell->getPort(bit.wire->meta_->name)));
+						inputSignals.append(sigmap(cell->getPort(bit.wire->name)));
 					}
 
 					for (auto bit : subcell->getPort(ID::DST))
 					{
-						if (!bit.wire || !cell->hasPort(bit.wire->meta_->name))
+						if (!bit.wire || !cell->hasPort(bit.wire->name))
 							continue;
-						outputSignals.append(sigmap(cell->getPort(bit.wire->meta_->name)));
+						outputSignals.append(sigmap(cell->getPort(bit.wire->name)));
 					}
 				}
 			} else {
@@ -232,7 +232,7 @@ struct SccWorker
 			RTLIL::SigSpec prevsig, nextsig, sig;
 
 			for (auto cell : cells) {
-				sel.selected_members[module->meta_->name].insert(cell->meta_->name);
+				sel.selected_members[module->name].insert(cell->name);
 				prevsig.append(cellToPrevSig[cell]);
 				nextsig.append(cellToNextSig[cell]);
 			}
@@ -243,7 +243,7 @@ struct SccWorker
 
 			for (auto &chunk : sig.chunks())
 				if (chunk.wire != NULL)
-					sel.selected_members[module->meta_->name].insert(chunk.wire->meta_->name);
+					sel.selected_members[module->name].insert(chunk.wire->name);
 		}
 	}
 };

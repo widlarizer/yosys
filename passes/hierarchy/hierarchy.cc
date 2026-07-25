@@ -624,7 +624,7 @@ bool expand_module(RTLIL::Design *design, RTLIL::Module *module, bool flag_check
 				int port_id = atoi(portname_str.substr(1).data());
 				for (auto wire : mod->wires())
 					if (wire->port_id == port_id) {
-						portname = wire->meta_->name;
+						portname = wire->name;
 						break;
 					}
 			}
@@ -1309,7 +1309,7 @@ struct HierarchyPass : public Pass {
 			for (auto module : design->modules())
 				for (auto wire : module->wires())
 					if (wire->port_input && wire->attributes.count(ID::defaultvalue))
-						defaults_db[module->meta_->name][wire->name] = wire->attributes.at(ID::defaultvalue);
+						defaults_db[module->name][wire->name] = wire->attributes.at(ID::defaultvalue);
 		}
 		// Process SV implicit wildcard port connections
 		std::set<Module*> blackbox_derivatives;
@@ -1343,7 +1343,7 @@ struct HierarchyPass : public Pass {
 					// Find ports of the module that aren't explicitly connected
 					if (!wire->port_input && !wire->port_output)
 						continue;
-					if (old_connections.count(wire->meta_->name))
+					if (old_connections.count(wire->name))
 						continue;
 					// Make sure a wire of correct name exists in the parent
 					Wire* parent_wire = find_implicit_port_wire(module, cell, wire->name.str());
@@ -1359,7 +1359,7 @@ struct HierarchyPass : public Pass {
 						log_error("Width mismatch between wire (%d bits) and port (%d bits) for implicit port connection `%s' of cell %s.%s (%s).\n",
 								parent_wire->width, wire->width,
 								wire, module, cell, cell->type.unescape());
-					cell->setPort(wire->meta_->name, parent_wire);
+					cell->setPort(wire->name, parent_wire);
 				}
 				cell->attributes.erase(ID::wildcard_port_conns);
 			}

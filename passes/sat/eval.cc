@@ -93,10 +93,10 @@ struct BruteForceEquivChecker
 			if (w->port_id == 0)
 				continue;
 
-			if (mod2->wire(w->name.ref()) == nullptr)
+			if (mod2->wire(w->name) == nullptr)
 				log_cmd_error("Port %s in module 1 has no counterpart in module 2!\n", w->name);
 
-			RTLIL::Wire *w2 = mod2->wire(w->name.ref());
+			RTLIL::Wire *w2 = mod2->wire(w->name);
 			if (w->width != w2->width || w->port_input != w2->port_input || w->port_output != w2->port_output)
 				log_cmd_error("Port %s in module 1 does not match its counterpart in module 2!\n", w->name);
 

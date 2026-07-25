@@ -174,7 +174,7 @@ static void select_all(RTLIL::Design *design, RTLIL::Selection &lhs)
 	for (auto mod : design->modules()) {
 		if (!lhs.selects_boxes && mod->get_blackbox_attribute())
 			continue;
-		lhs.selected_modules.insert(mod->meta_->name);
+		lhs.selected_modules.insert(mod->name);
 	}
 	lhs.full_selection = false;
 	lhs.complete_selection = false;
@@ -201,9 +201,9 @@ static void select_op_neg(RTLIL::Design *design, RTLIL::Selection &lhs)
 	{
 		if (!lhs.selects_boxes && mod->get_blackbox_attribute())
 			continue;
-		if (lhs.selected_whole_module(mod->meta_->name))
+		if (lhs.selected_whole_module(mod->name))
 			continue;
-		if (!lhs.selected_module(mod->meta_->name)) {
+		if (!lhs.selected_module(mod->name)) {
 			new_sel.selected_modules.insert(mod->meta_->name);
 			continue;
 		}
@@ -216,7 +216,7 @@ static void select_op_neg(RTLIL::Design *design, RTLIL::Selection &lhs)
 				new_sel.selected_members[mod->meta_->name].insert(it.first);
 		for (auto cell : mod->cells())
 			if (!lhs.selected_member(mod->meta_->name, cell->meta_->name))
-				new_sel.selected_members[mod->meta_->name].insert(cell->meta_->name);
+				new_sel.selected_members[mod->name].insert(cell->name);
 		for (auto &it : mod->processes)
 			if (!lhs.selected_member(mod->meta_->name, it.first))
 				new_sel.selected_members[mod->meta_->name].insert(it.first);
@@ -240,7 +240,7 @@ static void select_op_random(RTLIL::Design *design, RTLIL::Selection &lhs, int c
 
 	for (auto mod : design->modules())
 	{
-		if (!lhs.selected_module(mod->meta_->name))
+		if (!lhs.selected_module(mod->name))
 			continue;
 
 		for (auto cell : mod->cells()) {
@@ -249,7 +249,7 @@ static void select_op_random(RTLIL::Design *design, RTLIL::Selection &lhs, int c
 		}
 
 		for (auto wire : mod->wires()) {
-			if (lhs.selected_member(mod->meta_->name, wire->meta_->name))
+			if (lhs.selected_member(mod->name, wire->name))
 				objects.push_back(make_pair(mod->meta_->name, wire->meta_->name));
 		}
 	}
@@ -271,7 +271,7 @@ static void select_op_submod(RTLIL::Design *design, RTLIL::Selection &lhs)
 {
 	for (auto mod : design->modules())
 	{
-		if (lhs.selected_whole_module(mod->meta_->name))
+		if (lhs.selected_whole_module(mod->name))
 		{
 			for (auto cell : mod->cells())
 			{
@@ -287,9 +287,9 @@ static void select_op_cells_to_modules(RTLIL::Design *design, RTLIL::Selection &
 {
 	RTLIL::Selection new_sel(false, lhs.selects_boxes, design);
 	for (auto mod : design->modules())
-		if (lhs.selected_module(mod->meta_->name))
+		if (lhs.selected_module(mod->name))
 			for (auto cell : mod->cells())
-				if (lhs.selected_member(mod->meta_->name, cell->meta_->name) && (design->module(cell->type) != nullptr))
+				if (lhs.selected_member(mod->name, cell->name) && (design->module(cell->type) != nullptr))
 					new_sel.selected_modules.insert(cell->type);
 	lhs = new_sel;
 }
@@ -300,7 +300,7 @@ static void select_op_module_to_cells(RTLIL::Design *design, RTLIL::Selection &l
 	for (auto mod : design->modules())
 		for (auto cell : mod->cells())
 			if ((design->module(cell->type) != nullptr) && lhs.selected_whole_module(cell->type))
-				new_sel.selected_members[mod->meta_->name].insert(cell->meta_->name);
+				new_sel.selected_members[mod->name].insert(cell->name);
 	lhs = new_sel;
 }
 
@@ -318,21 +318,21 @@ static void select_op_alias(RTLIL::Design *design, RTLIL::Selection &lhs)
 	{
 		if (!lhs.selects_boxes && mod->get_blackbox_attribute())
 			continue;
-		if (lhs.selected_whole_module(mod->meta_->name))
+		if (lhs.selected_whole_module(mod->name))
 			continue;
-		if (!lhs.selected_module(mod->meta_->name))
+		if (!lhs.selected_module(mod->name))
 			continue;
 
 		SigMap sigmap(mod);
 		SigPool selected_bits;
 
 		for (auto wire : mod->wires())
-			if (lhs.selected_member(mod->meta_->name, wire->meta_->name))
+			if (lhs.selected_member(mod->name, wire->name))
 				selected_bits.add(sigmap(wire));
 
 		for (auto wire : mod->wires())
 			if (!lhs.selected_member(mod->meta_->name, wire->meta_->name) && selected_bits.check_any(sigmap(wire)))
-				lhs.selected_members[mod->meta_->name].insert(wire->meta_->name);
+				lhs.selected_members[mod->name].insert(wire->name);
 	}
 }
 
@@ -417,24 +417,24 @@ static void select_op_diff(RTLIL::Design *design, RTLIL::Selection &lhs, const R
 
 		RTLIL::Module *mod = design->module(it.first);
 
-		if (lhs.selected_modules.count(mod->meta_->name) > 0)
+		if (lhs.selected_modules.count(mod->name) > 0)
 		{
 			for (auto wire : mod->wires())
-				lhs.selected_members[mod->meta_->name].insert(wire->meta_->name);
+				lhs.selected_members[mod->name].insert(wire->name);
 			for (auto &it : mod->memories)
-				lhs.selected_members[mod->meta_->name].insert(it.first);
+				lhs.selected_members[mod->name].insert(it.first);
 			for (auto cell : mod->cells())
-				lhs.selected_members[mod->meta_->name].insert(cell->meta_->name);
+				lhs.selected_members[mod->name].insert(cell->name);
 			for (auto &it : mod->processes)
-				lhs.selected_members[mod->meta_->name].insert(it.first);
+				lhs.selected_members[mod->name].insert(it.first);
 			lhs.selected_modules.erase(mod->meta_->name);
 		}
 
-		if (lhs.selected_members.count(mod->meta_->name) == 0)
+		if (lhs.selected_members.count(mod->name) == 0)
 			continue;
 
 		for (auto &it2 : it.second)
-			lhs.selected_members[mod->meta_->name].erase(it2);
+			lhs.selected_members[mod->name].erase(it2);
 	}
 }
 
@@ -519,14 +519,14 @@ static int select_op_expand(RTLIL::Design *design, RTLIL::Selection &lhs, std::v
 	bool is_input, is_output;
 	for (auto mod : design->modules())
 	{
-		if (lhs.selected_whole_module(mod->meta_->name) || !lhs.selected_module(mod->meta_->name))
+		if (lhs.selected_whole_module(mod->name) || !lhs.selected_module(mod->name))
 			continue;
 
 		std::set<RTLIL::Wire*> selected_wires;
-		auto selected_members = lhs.selected_members[mod->meta_->name];
+		auto selected_members = lhs.selected_members[mod->name];
 
 		for (auto wire : mod->wires())
-			if (lhs.selected_member(mod->meta_->name, wire->meta_->name) && limits.count(wire->meta_->name) == 0)
+			if (lhs.selected_member(mod->name, wire->name) && limits.count(wire->name) == 0)
 				selected_wires.insert(wire);
 
 		for (auto &conn : mod->connections())
@@ -569,7 +569,7 @@ static int select_op_expand(RTLIL::Design *design, RTLIL::Selection &lhs, std::v
 			is_output = mode == 'x' || ct.cell_output(cell->type, conn.first);
 			for (auto &chunk : conn.second.chunks())
 				if (chunk.wire != nullptr) {
-					if (max_objects != 0 && selected_wires.count(chunk.wire) > 0 && selected_members.count(cell->name.ref()) == 0)
+					if (max_objects != 0 && selected_wires.count(chunk.wire) > 0 && selected_members.count(cell->name) == 0)
 						if (mode == 'x' || (mode == 'i' && is_output) || (mode == 'o' && is_input))
 							lhs.selected_members[mod->meta_->name].insert(cell->name.ref()), sel_objects++, max_objects--;
 					if (max_objects != 0 && selected_members.count(cell->name.ref()) > 0 && limits.count(cell->name) == 0 && selected_members.count(chunk.wire->name.ref()) == 0)
@@ -907,7 +907,7 @@ static void select_stmt(RTLIL::Design *design, std::string arg, bool disable_emp
 			arg_mod_found[arg_mod] = true;
 
 		if (arg_memb == "") {
-			sel.selected_modules.insert(mod->meta_->name);
+			sel.selected_modules.insert(mod->name);
 			continue;
 		}
 
@@ -1561,7 +1561,7 @@ struct SelectPass : public Pass {
 			sel->optimize(design);
 			for (auto mod : design->all_selected_modules())
 			{
-				if (sel->selected_whole_module(mod->meta_->name) && list_mode)
+				if (sel->selected_whole_module(mod->name) && list_mode)
 					log("%s\n", mod);
 				if (!list_mod_mode)
 					for (auto it : mod->selected_members())

@@ -236,10 +236,10 @@ struct SplitnetsPass : public Pass {
 					if (sig == wire)
 						continue;
 
-					vector<IdString> &new_ports = module_ports_db[module->meta_->name][wire->meta_->name];
+					vector<IdString> &new_ports = module_ports_db[module->name][wire->name];
 
 					for (SigSpec c : sig.chunks())
-						new_ports.push_back(c.as_wire()->meta_->name);
+						new_ports.push_back(c.as_wire()->name);
 				}
 			}
 

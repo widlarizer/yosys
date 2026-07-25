@@ -103,7 +103,7 @@ struct RecoverModuleWorker {
         // Create a mapping from primary name-bit in the box-flattened module to original sigbit
         SigMap orig_sigmap(mod);
         for (auto wire : mod->wires()) {
-            Wire *flat_wire = flat->wire(wire->name.ref());
+            Wire *flat_wire = flat->wire(wire->name);
             if (!flat_wire)
                 continue;
             for (int i = 0; i < wire->width; i++) {
@@ -111,7 +111,7 @@ struct RecoverModuleWorker {
                 SigBit flat_sigbit = (*sigmap)(SigBit(flat_wire, i));
                 if (!orig_sigbit.wire || !flat_sigbit.wire)
                     continue;
-                flat2orig[IdBit(flat_sigbit.wire->name.ref(), flat_sigbit.offset)] = orig_sigbit;
+                flat2orig[IdBit(flat_sigbit.wire->name, flat_sigbit.offset)] = orig_sigbit;
             }
         }
         find_driven_bits();
@@ -127,7 +127,7 @@ struct RecoverModuleWorker {
                 SigBit bit(wire, i);
                 bit = (*sigmap)(bit);
                 if (bit.wire)
-                    bit2driver[IdBit(bit.wire->name.ref(), bit.offset)] = nullptr;
+                    bit2driver[IdBit(bit.wire->name, bit.offset)] = nullptr;
             }
         }
         // Add cell outputs
@@ -138,7 +138,7 @@ struct RecoverModuleWorker {
                 for (auto bit : conn.second) {
                     auto resolved = (*sigmap)(bit);
                     if (resolved.wire)
-                        bit2driver[IdBit(resolved.wire->name.ref(), resolved.offset)] = cell;
+                        bit2driver[IdBit(resolved.wire->name, resolved.offset)] = cell;
                 }
             }
         }
@@ -148,7 +148,7 @@ struct RecoverModuleWorker {
                 SigBit bit(wire, i);
                 bit = (*sigmap)(bit);
                 if (bit.wire)
-                    bit2primary[IdBit(wire->name.ref(), i)] = IdBit(bit.wire->name.ref(), bit.offset);
+                    bit2primary[IdBit(wire->name, i)] = IdBit(bit.wire->name, bit.offset);
             }
         }
     }
@@ -215,7 +215,7 @@ struct RecoverModuleWorker {
             for (auto bit : (*sigmap)(conn.second)) {
                 if (!bit.wire)
                     continue;
-                IdBit idbit(bit.wire->name.ref(), bit.offset);
+                IdBit idbit(bit.wire->name, bit.offset);
                 if (anchor_bits.count(idbit))
                     continue;
                 if (cell->input(conn.first))
@@ -244,7 +244,7 @@ struct RecoverModuleWorker {
                 for (auto bit : (*sigmap)(conn.second)) {
                     if (!bit.wire)
                         continue;
-                    IdBit idbit(bit.wire->name.ref(), bit.offset);
+                    IdBit idbit(bit.wire->name, bit.offset);
                     if (!bit2depth.count(idbit))
                         continue;
                     cell_depth = std::max(cell_depth, bit2depth.at(idbit));
@@ -256,7 +256,7 @@ struct RecoverModuleWorker {
                 for (auto bit : (*sigmap)(conn.second)) {
                     if (!bit.wire)
                         continue;
-                    IdBit idbit(bit.wire->name.ref(), bit.offset);
+                    IdBit idbit(bit.wire->name, bit.offset);
                     bit2depth[idbit] = std::max(bit2depth[idbit], cell_depth + 1);
                 }
             }
@@ -306,7 +306,7 @@ struct RecoverModuleWorker {
                 for (SigBit in_bit : (*sigmap)(conn.second)) {
                     if (!in_bit.wire)
                         continue;
-                    IdBit in_idbit(in_bit.wire->name.ref(), in_bit.offset);
+                    IdBit in_idbit(in_bit.wire->name, in_bit.offset);
                     to_import.push(in_idbit);
                 }
             }

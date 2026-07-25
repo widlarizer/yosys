@@ -41,7 +41,7 @@ struct dff_map_bit_info_t {
 
 bool consider_wire(RTLIL::Wire *wire, std::map<IdString, dff_map_info_t> &dff_dq_map)
 {
-	if (wire->name[0] == '$' || dff_dq_map.count(wire->name.ref()))
+	if (wire->name[0] == '$' || dff_dq_map.count(wire->name))
 		return false;
 	if (wire->port_input)
 		return false;
@@ -50,7 +50,7 @@ bool consider_wire(RTLIL::Wire *wire, std::map<IdString, dff_map_info_t> &dff_dq
 
 bool consider_cell(RTLIL::Design *design, std::set<IdString> &dff_cells, RTLIL::Cell *cell)
 {
-	if (cell->name[0] == '$' || dff_cells.count(cell->name.ref()))
+	if (cell->name[0] == '$' || dff_cells.count(cell->name))
 		return false;
 	if (cell->type[0] == '\\' && (design->module(cell->type) == nullptr))
 		return false;
@@ -91,7 +91,7 @@ void find_dff_wires(std::set<IdString> &dff_wires, RTLIL::Module *module)
 
 	for (auto w : module->wires()) {
 		if (dffsignals.check_any(w))
-			dff_wires.insert(w->name.ref());
+			dff_wires.insert(w->name);
 	}
 }
 
@@ -383,7 +383,7 @@ struct ExposePass : public Pass {
 					if (flag_evert)
 						for (auto cell : module->cells())
 							if (design->selected(module, cell) && consider_cell(design, dff_cells[module], cell))
-								shared_cells.insert(cell->name.ref());
+								shared_cells.insert(cell->name);
 
 					first_module = module;
 				}
@@ -459,12 +459,12 @@ struct ExposePass : public Pass {
 			for (auto w : module->wires())
 			{
 				if (flag_shared) {
-					if (shared_wires.count(w->name.ref()) == 0)
+					if (shared_wires.count(w->name) == 0)
 						continue;
 				} else {
 					if (!design->selected(module, w) || !consider_wire(w, dff_dq_maps[module]))
 						continue;
-					if (flag_dff && !dff_wires.count(w->name.ref()))
+					if (flag_dff && !dff_wires.count(w->name))
 						continue;
 				}
 
@@ -617,7 +617,7 @@ struct ExposePass : public Pass {
 				for (auto cell : module->cells())
 				{
 					if (flag_shared) {
-						if (shared_cells.count(cell->name.ref()) == 0)
+						if (shared_cells.count(cell->name) == 0)
 							continue;
 					} else {
 						if (!design->selected(module, cell) || !consider_cell(design, dff_cells[module], cell))
