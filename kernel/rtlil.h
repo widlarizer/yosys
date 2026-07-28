@@ -666,7 +666,7 @@ struct RTLIL::ObjMeta
 
 struct RTLIL::AttrObject
 {
-	dict<IdString, RTLIL::Const> attributes;
+	dict<RTLIL::IdString, RTLIL::Const> attributes;
 
 	// Pointer to a per-object metadata record in some pool (typically
 	// the owning Design's). Nullable: cleared until first non-null write
@@ -1193,8 +1193,8 @@ struct RTLIL::Selection
 	bool complete_selection;
 	// selection covers full design, not including boxed modules
 	bool full_selection;
-	pool<IdString> selected_modules;
-	dict<IdString, pool<IdString>> selected_members;
+	pool<RTLIL::IdString> selected_modules;
+	dict<RTLIL::IdString, pool<RTLIL::IdString>> selected_members;
 	RTLIL::Design *current_design;
 
 	// create a new selection
@@ -1210,18 +1210,18 @@ struct RTLIL::Selection
 
 	// checks if the given module exists in the current design and is a
 	// boxed module, warning the user if the current design is not set
-	bool boxed_module(IdString mod_name) const;
+	bool boxed_module(RTLIL::IdString mod_name) const;
 
 	// checks if the given module is included in this selection
-	bool selected_module(IdString mod_name) const;
+	bool selected_module(RTLIL::IdString mod_name) const;
 
 	// checks if the given module is wholly included in this selection,
 	// i.e. not partially selected
-	bool selected_whole_module(IdString mod_name) const;
+	bool selected_whole_module(RTLIL::IdString mod_name) const;
 
 	// checks if the given member from the given module is included in this
 	// selection
-	bool selected_member(IdString mod_name, IdString memb_name) const;
+	bool selected_member(RTLIL::IdString mod_name, RTLIL::IdString memb_name) const;
 
 	// optimizes this selection for the given design by:
 	// - removing non-existent modules and members, any boxed modules and
@@ -1292,7 +1292,7 @@ struct RTLIL::Monitor
 	virtual ~Monitor() { }
 	virtual void notify_module_add(RTLIL::Module*) { }
 	virtual void notify_module_del(RTLIL::Module*) { }
-	virtual void notify_connect(RTLIL::Cell*, IdString, const RTLIL::SigSpec&, const RTLIL::SigSpec&) { }
+	virtual void notify_connect(RTLIL::Cell*, RTLIL::IdString, const RTLIL::SigSpec&, const RTLIL::SigSpec&) { }
 	virtual void notify_connect(RTLIL::Module*, const RTLIL::SigSig&) { }
 	virtual void notify_connect(RTLIL::Module*, const std::vector<RTLIL::SigSig>&) { }
 	virtual void notify_blackout(RTLIL::Module*) { }
@@ -1313,7 +1313,7 @@ struct RTLIL::Design
 	void bufNormalize(bool enable=true);
 
 	int refcount_modules_;
-	dict<IdString, RTLIL::Module*> modules_;
+	dict<RTLIL::IdString, RTLIL::Module*> modules_;
 	std::vector<RTLIL::Binding*> bindings_;
 
 	TwinePool twines;
@@ -1400,16 +1400,16 @@ struct RTLIL::Design
 	const RTLIL::Module *module(IdString name) const;
 	RTLIL::Module *top_module() const;
 
-	bool has(IdString id) const {
+	bool has(RTLIL::IdString id) const {
 		return modules_.count(id) != 0;
 	}
 
 	void add(RTLIL::Module *module);
 	void add(RTLIL::Binding *binding);
 
-	RTLIL::Module *addModule(IdString name);
+	RTLIL::Module *addModule(RTLIL::IdString name);
 	void remove(RTLIL::Module *module);
-	void rename(RTLIL::Module *module, IdString new_name);
+	void rename(RTLIL::Module *module, RTLIL::IdString new_name);
 
 	void scratchpad_unset(const std::string &varname);
 
@@ -1433,15 +1433,15 @@ struct RTLIL::Design
 	void clone_into(RTLIL::Design *dst) const;
 
 	// checks if the given module is included in the current selection
-	bool selected_module(IdString mod_name) const;
+	bool selected_module(RTLIL::IdString mod_name) const;
 
 	// checks if the given module is wholly included in the current
 	// selection, i.e. not partially selected
-	bool selected_whole_module(IdString mod_name) const;
+	bool selected_whole_module(RTLIL::IdString mod_name) const;
 
 	// checks if the given member from the given module is included in the
 	// current selection
-	bool selected_member(IdString mod_name, IdString memb_name) const;
+	bool selected_member(RTLIL::IdString mod_name, RTLIL::IdString memb_name) const;
 
 	// checks if the given module is included in the current selection
 	bool selected_module(RTLIL::Module *mod) const;
@@ -1698,23 +1698,23 @@ public:
 	void absorb_attrs(dict<IdString, RTLIL::Const> &&buf);
 
 	// access cell ports
-	bool hasPort(IdString portname) const;
-	void unsetPort(IdString portname);
-	void setPort(IdString portname, RTLIL::SigSpec signal);
-	const RTLIL::SigSpec &getPort(IdString portname) const;
-	const dict<IdString, RTLIL::SigSpec> &connections() const;
+	bool hasPort(RTLIL::IdString portname) const;
+	void unsetPort(RTLIL::IdString portname);
+	void setPort(RTLIL::IdString portname, RTLIL::SigSpec signal);
+	const RTLIL::SigSpec &getPort(RTLIL::IdString portname) const;
+	const dict<RTLIL::IdString, RTLIL::SigSpec> &connections() const;
 
 	// information about cell ports
 	bool known() const;
-	bool input(IdString portname) const;
-	bool output(IdString portname) const;
-	PortDir port_dir(IdString portname) const;
+	bool input(RTLIL::IdString portname) const;
+	bool output(RTLIL::IdString portname) const;
+	PortDir port_dir(RTLIL::IdString portname) const;
 
 	// access cell parameters
-	bool hasParam(IdString paramname) const;
-	void unsetParam(IdString paramname);
-	void setParam(IdString paramname, RTLIL::Const value);
-	const RTLIL::Const &getParam(IdString paramname) const;
+	bool hasParam(RTLIL::IdString paramname) const;
+	void unsetParam(RTLIL::IdString paramname);
+	void setParam(RTLIL::IdString paramname, RTLIL::Const value);
+	const RTLIL::Const &getParam(RTLIL::IdString paramname) const;
 
 	void sort();
 	void check();

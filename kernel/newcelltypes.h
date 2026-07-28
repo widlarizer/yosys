@@ -19,17 +19,17 @@ constexpr int MAX_CELLS = 300;
 constexpr int MAX_PORTS = 20;
 struct CellTableBuilder {
 	struct PortList {
-		std::array<IdString, MAX_PORTS> ports{};
+		std::array<RTLIL::IdString, MAX_PORTS> ports{};
 		size_t count = 0;
 		constexpr PortList() = default;
-		constexpr PortList(std::initializer_list<IdString> init) {
+		constexpr PortList(std::initializer_list<RTLIL::IdString> init) {
 			for (auto p : init) {
 				ports[count++] = p;
 			}
 		}
 		constexpr auto begin() const { return ports.begin(); }
 		constexpr auto end() const { return ports.begin() + count; }
-		constexpr bool contains(IdString port) const {
+		constexpr bool contains(RTLIL::IdString port) const {
 			for (size_t i = 0; i < count; i++) {
 				if (port == ports[i])
 					return true;
@@ -50,14 +50,14 @@ struct CellTableBuilder {
 		bool is_tristate = false;
 	};
 	struct CellInfo {
-		IdString type;
+		RTLIL::IdString type;
 		PortList inputs, outputs;
 		Features features;
 	};
 	std::array<CellInfo, MAX_CELLS> cells{};
 	size_t count = 0;
 
-	constexpr void setup_type(IdString type, std::initializer_list<IdString> inputs, std::initializer_list<IdString> outputs, const Features& features) {
+	constexpr void setup_type(RTLIL::IdString type, std::initializer_list<RTLIL::IdString> inputs, std::initializer_list<RTLIL::IdString> outputs, const Features& features) {
 		cells[count++] = {type, PortList(inputs), PortList(outputs), features};
 	}
 	constexpr void setup_internals_other()
@@ -98,13 +98,13 @@ struct CellTableBuilder {
 	{
 		Features features {};
 		features.is_evaluable = true;
-		std::initializer_list<IdString> unary_ops = {
+		std::initializer_list<RTLIL::IdString> unary_ops = {
 			ID($not), ID($pos), ID($buf), ID($neg),
 			ID($reduce_and), ID($reduce_or), ID($reduce_xor), ID($reduce_xnor), ID($reduce_bool),
 			ID($logic_not), ID($slice), ID($lut), ID($sop)
 		};
 
-		std::initializer_list<IdString> binary_ops = {
+		std::initializer_list<RTLIL::IdString> binary_ops = {
 			ID($and), ID($or), ID($xor), ID($xnor),
 			ID($shl), ID($shr), ID($sshl), ID($sshr), ID($shift), ID($shiftx),
 			ID($lt), ID($le), ID($eq), ID($ne), ID($eqx), ID($nex), ID($ge), ID($gt),
@@ -549,8 +549,8 @@ namespace {
 };
 
 struct NewCellType {
-	IdString type;
-	pool<IdString> inputs, outputs;
+	RTLIL::IdString type;
+	pool<RTLIL::IdString> inputs, outputs;
 	bool is_evaluable;
 	bool is_combinatorial;
 	bool is_synthesizable;
@@ -590,7 +590,7 @@ struct NewCellTypes {
 		setup_type(module->meta_->name, inputs, outputs);
 	}
 
-	void setup_type(IdString type, const pool<IdString> &inputs, const pool<IdString> &outputs, bool is_evaluable = false, bool is_combinatorial = false, bool is_synthesizable = false) {
+	void setup_type(RTLIL::IdString type, const pool<RTLIL::IdString> &inputs, const pool<RTLIL::IdString> &outputs, bool is_evaluable = false, bool is_combinatorial = false, bool is_synthesizable = false) {
 		NewCellType ct = {type, inputs, outputs, is_evaluable, is_combinatorial, is_synthesizable};
 		custom_cell_types[ct.type] = ct;
 	}
@@ -623,7 +623,7 @@ struct NewCellTypes {
 		return it != custom_cell_types.end() && it->second.inputs.count(port) != 0;
 	}
 
-	RTLIL::PortDir cell_port_dir(IdString type, IdString port) const
+	RTLIL::PortDir cell_port_dir(RTLIL::IdString type, RTLIL::IdString port) const
 	{
 		bool is_input, is_output;
 		if (static_cell_types(type)) {

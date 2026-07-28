@@ -29,7 +29,7 @@ struct TimingInfo
 {
 	struct NameBit
 	{
-		IdString name;
+		RTLIL::IdString name;
 		int offset;
 		NameBit() : offset(0) {}
 		NameBit(IdString name, int offset) : name(name), offset(offset) {}
@@ -71,7 +71,7 @@ struct TimingInfo
 		bool has_inputs;
 	};
 
-	dict<IdString, ModuleTiming> data;
+	dict<RTLIL::IdString, ModuleTiming> data;
 
 	TimingInfo()
 	{
@@ -198,10 +198,10 @@ struct TimingInfo
 		return t;
 	}
 
-	decltype(data)::const_iterator find(IdString module_name) const { return data.find(module_name); }
+	decltype(data)::const_iterator find(RTLIL::IdString module_name) const { return data.find(module_name); }
 	decltype(data)::const_iterator end() const { return data.end(); }
-	int count(IdString module_name) const { return data.count(module_name); }
-	const ModuleTiming& at(IdString module_name) const { return data.at(module_name); }
+	int count(RTLIL::IdString module_name) const { return data.count(module_name); }
+	const ModuleTiming& at(RTLIL::IdString module_name) const { return data.at(module_name); }
 };
 
 YOSYS_NAMESPACE_END

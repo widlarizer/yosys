@@ -638,14 +638,14 @@ RTLIL::Const RTLIL::Const::extract(int offset, int len, RTLIL::State padding) co
 }
 #undef check /* check(condition) for Const */
 
-bool RTLIL::AttrObject::has_attribute(IdString id) const
+bool RTLIL::AttrObject::has_attribute(RTLIL::IdString id) const
 {
 	if (id == ID::src)
 		return meta_ != nullptr && meta_->src != Twine::Null;
 	return attributes.count(id);
 }
 
-void RTLIL::AttrObject::set_bool_attribute(IdString id, bool value)
+void RTLIL::AttrObject::set_bool_attribute(RTLIL::IdString id, bool value)
 {
 	log_assert(id != ID::src);
 	if (value)
@@ -654,7 +654,7 @@ void RTLIL::AttrObject::set_bool_attribute(IdString id, bool value)
 		attributes.erase(id);
 }
 
-bool RTLIL::AttrObject::get_bool_attribute(IdString id) const
+bool RTLIL::AttrObject::get_bool_attribute(RTLIL::IdString id) const
 {
 	if (id == ID::src)
 		return meta_ != nullptr && meta_->src != Twine::Null;
@@ -664,7 +664,7 @@ bool RTLIL::AttrObject::get_bool_attribute(IdString id) const
 	return it->second.as_bool();
 }
 
-void RTLIL::AttrObject::set_string_attribute(IdString id, string value)
+void RTLIL::AttrObject::set_string_attribute(RTLIL::IdString id, string value)
 {
 	// ID::src on the base AttrObject is not routable here because the base
 	// through the subtype helper (Cell::set_src_attribute / Wire::… / …)
@@ -676,7 +676,7 @@ void RTLIL::AttrObject::set_string_attribute(IdString id, string value)
 		attributes[id] = value;
 }
 
-string RTLIL::AttrObject::get_string_attribute(IdString id) const
+string RTLIL::AttrObject::get_string_attribute(RTLIL::IdString id) const
 {
 	log_assert(id != ID::src && "get_string_attribute(ID::src) on AttrObject base; use the subtype helper");
 	std::string value;
@@ -1099,7 +1099,7 @@ vector<string> RTLIL::AttrObject::get_hdlname_attribute() const
 	return split_tokens(get_string_attribute(ID::hdlname), " ");
 }
 
-void RTLIL::AttrObject::set_intvec_attribute(IdString id, const vector<int> &data)
+void RTLIL::AttrObject::set_intvec_attribute(RTLIL::IdString id, const vector<int> &data)
 {
 	std::stringstream attrval;
 	for (auto &i : data) {
@@ -1110,7 +1110,7 @@ void RTLIL::AttrObject::set_intvec_attribute(IdString id, const vector<int> &dat
 	attributes[id] = RTLIL::Const(attrval.str());
 }
 
-vector<int> RTLIL::AttrObject::get_intvec_attribute(IdString id) const
+vector<int> RTLIL::AttrObject::get_intvec_attribute(RTLIL::IdString id) const
 {
 	vector<int> data;
 	auto it = attributes.find(id);
@@ -1128,7 +1128,7 @@ vector<int> RTLIL::AttrObject::get_intvec_attribute(IdString id) const
 	return data;
 }
 
-bool RTLIL::Selection::boxed_module(IdString mod_name) const
+bool RTLIL::Selection::boxed_module(RTLIL::IdString mod_name) const
 {
 	if (current_design != nullptr) {
 		auto module = current_design->module(mod_name);
@@ -1140,7 +1140,7 @@ bool RTLIL::Selection::boxed_module(IdString mod_name) const
 	}
 }
 
-bool RTLIL::Selection::selected_module(IdString mod_name) const
+bool RTLIL::Selection::selected_module(RTLIL::IdString mod_name) const
 {
 	if (complete_selection)
 		return true;
@@ -1155,7 +1155,7 @@ bool RTLIL::Selection::selected_module(IdString mod_name) const
 	return false;
 }
 
-bool RTLIL::Selection::selected_whole_module(IdString mod_name) const
+bool RTLIL::Selection::selected_whole_module(RTLIL::IdString mod_name) const
 {
 	if (complete_selection)
 		return true;
@@ -1168,7 +1168,7 @@ bool RTLIL::Selection::selected_whole_module(IdString mod_name) const
 	return false;
 }
 
-bool RTLIL::Selection::selected_member(IdString mod_name, IdString memb_name) const
+bool RTLIL::Selection::selected_member(RTLIL::IdString mod_name, RTLIL::IdString memb_name) const
 {
 	if (complete_selection)
 		return true;
@@ -1202,7 +1202,7 @@ void RTLIL::Selection::optimize(RTLIL::Design *design)
 		return;
 	}
 
-	std::vector<IdString> del_list, add_list;
+	std::vector<RTLIL::IdString> del_list, add_list;
 
 	del_list.clear();
 	for (auto mod_name : selected_modules) {
@@ -1348,7 +1348,7 @@ void RTLIL::Design::add(RTLIL::Binding *binding)
 	bindings_.push_back(binding);
 }
 
-RTLIL::Module *RTLIL::Design::addModule(IdString name)
+RTLIL::Module *RTLIL::Design::addModule(RTLIL::IdString name)
 {
 	if (modules_.count(name) != 0)
 		log_error("Attempted to add new module named '%s', but a module by that name already exists\n", twines.str(name));
@@ -1452,7 +1452,7 @@ void RTLIL::Design::remove(RTLIL::Module *module)
 	delete module;
 }
 
-void RTLIL::Design::rename(RTLIL::Module *module, IdString new_name)
+void RTLIL::Design::rename(RTLIL::Module *module, RTLIL::IdString new_name)
 {
 	modules_.erase(module->meta_->name);
 	module->meta_->name = new_name;
@@ -1517,14 +1517,14 @@ bool RTLIL::Design::selected_module(IdString mod_name) const
 	return selection().selected_module(mod_name);
 }
 
-bool RTLIL::Design::selected_whole_module(IdString mod_name) const
+bool RTLIL::Design::selected_whole_module(RTLIL::IdString mod_name) const
 {
 	if (selected_active_module != Twine::Null && mod_name != selected_active_module)
 		return false;
 	return selection().selected_whole_module(mod_name);
 }
 
-bool RTLIL::Design::selected_member(IdString mod_name, IdString memb_name) const
+bool RTLIL::Design::selected_member(RTLIL::IdString mod_name, RTLIL::IdString memb_name) const
 {
 	if (selected_active_module != Twine::Null && mod_name != selected_active_module)
 		return false;
@@ -1744,7 +1744,7 @@ void RTLIL::Module::makeblackbox()
 	set_bool_attribute(ID::blackbox);
 }
 
-void RTLIL::Module::expand_interfaces(RTLIL::Design *, const dict<IdString, RTLIL::Module *> &)
+void RTLIL::Module::expand_interfaces(RTLIL::Design *, const dict<RTLIL::IdString, RTLIL::Module *> &)
 {
 	log_error("Class doesn't support expand_interfaces (module: `%s')!\n", design->twines.str(meta_->name).c_str());
 }
@@ -1754,7 +1754,7 @@ bool RTLIL::Module::reprocess_if_necessary(RTLIL::Design *)
 	return false;
 }
 
-IdString RTLIL::Module::derive(RTLIL::Design*, const dict<IdString, RTLIL::Const> &, bool mayfail)
+RTLIL::IdString RTLIL::Module::derive(RTLIL::Design*, const dict<RTLIL::IdString, RTLIL::Const> &, bool mayfail)
 {
 	if (mayfail)
 		return Twine::Null;
@@ -1762,14 +1762,14 @@ IdString RTLIL::Module::derive(RTLIL::Design*, const dict<IdString, RTLIL::Const
 }
 
 
-IdString RTLIL::Module::derive(RTLIL::Design*, const dict<IdString, RTLIL::Const> &, const dict<IdString, RTLIL::Module*> &, const dict<IdString, IdString> &, bool mayfail)
+RTLIL::IdString RTLIL::Module::derive(RTLIL::Design*, const dict<RTLIL::IdString, RTLIL::Const> &, const dict<RTLIL::IdString, RTLIL::Module*> &, const dict<RTLIL::IdString, RTLIL::IdString> &, bool mayfail)
 {
 	if (mayfail)
 		return Twine::Null;
 	log_error("Module `%s' is used with parameters but is not parametric!\n", design->twines.str(meta_->name).c_str());
 }
 
-size_t RTLIL::Module::count_id(IdString id)
+size_t RTLIL::Module::count_id(RTLIL::IdString id)
 {
 	return wires_.count(id) + cells_.count(id) + memories.count(id) + processes.count(id);
 }
@@ -1797,7 +1797,7 @@ namespace {
 					cell_name, cell->type.str(), __FILE__, linenr, buf.str());
 		}
 
-		int param(IdString name)
+		int param(RTLIL::IdString name)
 		{
 			auto it = cell->parameters.find(name);
 			if (it == cell->parameters.end())
@@ -1806,7 +1806,7 @@ namespace {
 			return it->second.as_int();
 		}
 
-		int param_bool(IdString name)
+		int param_bool(RTLIL::IdString name)
 		{
 			int v = param(name);
 			if (GetSize(cell->parameters.at(name)) > 32)
@@ -1816,7 +1816,7 @@ namespace {
 			return v;
 		}
 
-		int param_bool(IdString name, bool expected)
+		int param_bool(RTLIL::IdString name, bool expected)
 		{
 			int v = param_bool(name);
 			if (v != expected)
@@ -1824,20 +1824,20 @@ namespace {
 			return v;
 		}
 
-		void param_bits(IdString name, int width)
+		void param_bits(RTLIL::IdString name, int width)
 		{
 			param(name);
 			if (GetSize(cell->parameters.at(name)) != width)
 				error(__LINE__);
 		}
 
-		std::string param_string(IdString name)
+		std::string param_string(RTLIL::IdString name)
 		{
 			param(name);
 			return cell->parameters.at(name).decode_string();
 		}
 
-		void port(IdString name, int width)
+		void port(RTLIL::IdString name, int width)
 		{
 			auto it = cell->connections_.find(name);
 			if (it == cell->connections_.end())
@@ -3337,7 +3337,7 @@ void RTLIL::Module::remove(RTLIL::Process *process)
 	delete process;
 }
 
-void RTLIL::Module::rename(RTLIL::Wire *wire, IdString new_name)
+void RTLIL::Module::rename(RTLIL::Wire *wire, RTLIL::IdString new_name)
 {
 	log_assert(wire->meta_ && wire->meta_->name != Twine::Null);
 	IdString old_id = wire->meta_->name;
@@ -3349,7 +3349,7 @@ void RTLIL::Module::rename(RTLIL::Wire *wire, IdString new_name)
 	add(wire);
 }
 
-void RTLIL::Module::rename(RTLIL::Cell *cell, IdString new_name)
+void RTLIL::Module::rename(RTLIL::Cell *cell, RTLIL::IdString new_name)
 {
 	log_assert(cell->meta_ && cell->meta_->name != Twine::Null);
 	IdString old_id = cell->meta_->name;
@@ -3360,7 +3360,7 @@ void RTLIL::Module::rename(RTLIL::Cell *cell, IdString new_name)
 	add(cell);
 }
 
-void RTLIL::Module::rename(IdString old_name, IdString new_name)
+void RTLIL::Module::rename(RTLIL::IdString old_name, RTLIL::IdString new_name)
 {
 	IdString old_id = old_name;
 	if (old_id != Twine::Null && wires_.count(old_id))
@@ -3403,7 +3403,7 @@ void RTLIL::Module::swap_names(RTLIL::Cell *c1, RTLIL::Cell *c2)
 	std::swap(c1->meta_->name, c2->meta_->name);
 }
 
-IdString RTLIL::Module::uniquify(IdString name)
+RTLIL::IdString RTLIL::Module::uniquify(RTLIL::IdString name)
 {
 	int index = 0;
 	return uniquify(name, index);
@@ -3534,7 +3534,7 @@ void RTLIL::Module::fixup_ports()
 	}
 }
 
-RTLIL::Wire *RTLIL::Module::addWire(IdString name, int width)
+RTLIL::Wire *RTLIL::Module::addWire(RTLIL::IdString name, int width)
 {
 	log_assert(design);
 	log_assert(width >= 0 && width < RTLIL::WIDTH_LIMIT);
@@ -5033,19 +5033,19 @@ std::map<unsigned int, RTLIL::Cell*> *RTLIL::Cell::get_all_cells(void)
 }
 #endif
 
-bool RTLIL::Cell::hasPort(IdString portname) const
+bool RTLIL::Cell::hasPort(RTLIL::IdString portname) const
 {
 	return connections_.count(portname) != 0;
 }
 
 // bufnorm
 
-const RTLIL::SigSpec &RTLIL::Cell::getPort(IdString portname) const
+const RTLIL::SigSpec &RTLIL::Cell::getPort(RTLIL::IdString portname) const
 {
 	return connections_.at(portname);
 }
 
-const dict<IdString, RTLIL::SigSpec> &RTLIL::Cell::connections() const
+const dict<RTLIL::IdString, RTLIL::SigSpec> &RTLIL::Cell::connections() const
 {
 	return connections_;
 }
@@ -5086,7 +5086,7 @@ bool RTLIL::Cell::input(IdString portname) const
 	return false;
 }
 
-bool RTLIL::Cell::output(IdString portname) const
+bool RTLIL::Cell::output(RTLIL::IdString portname) const
 {
 	if (yosys_celltypes.cell_known(type_impl))
 		return yosys_celltypes.cell_output(type_impl, portname);
@@ -5097,7 +5097,7 @@ bool RTLIL::Cell::output(IdString portname) const
 	return false;
 }
 
-RTLIL::PortDir RTLIL::Cell::port_dir(IdString portname) const
+RTLIL::PortDir RTLIL::Cell::port_dir(RTLIL::IdString portname) const
 {
 	if (yosys_celltypes.cell_known(type_impl))
 		return yosys_celltypes.cell_port_dir(type_impl, portname);
@@ -5110,22 +5110,22 @@ RTLIL::PortDir RTLIL::Cell::port_dir(IdString portname) const
 	return PortDir::PD_UNKNOWN;
 }
 
-bool RTLIL::Cell::hasParam(IdString paramname) const
+bool RTLIL::Cell::hasParam(RTLIL::IdString paramname) const
 {
 	return parameters.count(paramname) != 0;
 }
 
-void RTLIL::Cell::unsetParam(IdString paramname)
+void RTLIL::Cell::unsetParam(RTLIL::IdString paramname)
 {
 	parameters.erase(paramname);
 }
 
-void RTLIL::Cell::setParam(IdString paramname, RTLIL::Const value)
+void RTLIL::Cell::setParam(RTLIL::IdString paramname, RTLIL::Const value)
 {
 	parameters[paramname] = std::move(value);
 }
 
-const RTLIL::Const &RTLIL::Cell::getParam(IdString paramname) const
+const RTLIL::Const &RTLIL::Cell::getParam(RTLIL::IdString paramname) const
 {
 	const auto &it = parameters.find(paramname);
 	if (it != parameters.end())

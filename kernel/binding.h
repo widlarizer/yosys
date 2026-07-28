@@ -31,8 +31,8 @@ struct RTLIL::Binding
 	// The target of the binding is represented by target_type and
 	// target_name (see comments above the fields).
 
-	Binding(IdString target_type,
-	        IdString target_name);
+	Binding(RTLIL::IdString target_type,
+	        RTLIL::IdString target_name);
 
 	virtual ~Binding() {}
 
@@ -43,17 +43,17 @@ struct RTLIL::Binding
 protected:
 	// May be empty. If not, it's the name of the module or interface to
 	// bind to.
-	IdString target_type;
+	RTLIL::IdString target_type;
 
 	// If target_type is nonempty (the usual case), this is a hierarchical
 	// reference to the bind target. If target_type is empty, we have to
 	// wait until the hierarchy pass to figure out whether this was the name
 	// of a module/interface type or an instance.
-	IdString target_name;
+	RTLIL::IdString target_name;
 
 	// An attribute name which contains an ID that's unique across binding
 	// instances (used to ensure we don't apply a binding twice to a module)
-	IdString attr_name;
+	RTLIL::IdString attr_name;
 };
 
 YOSYS_NAMESPACE_END

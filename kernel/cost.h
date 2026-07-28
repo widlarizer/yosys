@@ -28,16 +28,16 @@ struct CellCosts
 {
 
 	private:
-	dict<IdString, int> mod_cost_cache_;
+	dict<RTLIL::IdString, int> mod_cost_cache_;
 	Design *design_ = nullptr;
 
 	public:
 	CellCosts(RTLIL::Design *design) : design_(design) { }
 
-	static const dict<IdString, int>& default_gate_cost() {
+	static const dict<RTLIL::IdString, int>& default_gate_cost() {
 		// Default size heuristics for several common PDK standard cells
 		// used by abc and stat
-		static const dict<IdString, int> db = {
+		static const dict<RTLIL::IdString, int> db = {
 			{ ID($_BUF_),    1 },
 			{ ID($_NOT_),    2 },
 			{ ID($_AND_),    4 },
@@ -58,10 +58,10 @@ struct CellCosts
 		return db;
 	}
 
-	static const dict<IdString, int>& cmos_gate_cost() {
+	static const dict<RTLIL::IdString, int>& cmos_gate_cost() {
 		// Estimated CMOS transistor counts for several common PDK standard cells
 		// used by stat and optionally by abc
-		static const dict<IdString, int> db = {
+		static const dict<RTLIL::IdString, int> db = {
 			{ ID($_BUF_),     1 },
 			{ ID($_NOT_),     2 },
 			{ ID($_AND_),     6 },
