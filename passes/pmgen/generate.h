@@ -50,12 +50,12 @@ void pmtest_addports(Module *module)
 				ibits.append(bit);
 		}
 		if (!ibits.empty()) {
-			Wire *w = module->addWire(Twine{stringf("\\i%d", icnt++)}, GetSize(ibits));
+			Wire *w = module->addWire(stringf("\\i%d", icnt++), GetSize(ibits));
 			w->port_input = true;
 			module->connect(ibits, w);
 		}
 		if (!obits.empty()) {
-			Wire *w = module->addWire(Twine{stringf("\\o%d", ocnt++)}, GetSize(obits));
+			Wire *w = module->addWire(stringf("\\o%d", ocnt++), GetSize(obits));
 			w->port_output = true;
 			module->connect(w, obits);
 		}

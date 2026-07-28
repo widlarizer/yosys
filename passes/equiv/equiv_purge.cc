@@ -51,7 +51,7 @@ struct EquivPurgeWorker
 			if (module->count_id(search.find(name)))
 				continue;
 
-			Wire *wire = module->addWire(Twine{name}, GetSize(sig));
+			Wire *wire = module->addWire(name, GetSize(sig));
 			wire->port_output = true;
 			module->connect(wire, sig);
 			log("  Module output: %s (%s)\n", log_signal(wire), log_id(cellname));
@@ -79,7 +79,7 @@ struct EquivPurgeWorker
 			if (module->count_id(search.find(name)))
 				continue;
 
-			Wire *wire = module->addWire(Twine{name}, GetSize(sig));
+			Wire *wire = module->addWire(name, GetSize(sig));
 			wire->port_input = true;
 			module->connect(sig, wire);
 			log("  Module input: %s (%s)\n", log_signal(wire), log_signal(sig));

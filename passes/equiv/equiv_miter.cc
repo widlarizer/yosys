@@ -234,7 +234,7 @@ struct EquivMiterWorker
 						cmp_name[i] = '_';
 					else if (cmp_name[i] == ' ')
 						cmp_name = cmp_name.substr(0, i) + cmp_name.substr(i+1);
-				auto w = miter_module->addWire(Twine{cmp_name});
+				auto w = miter_module->addWire(cmp_name);
 				w->port_output = true;
 				miter_module->connect(w, cmp);
 			}

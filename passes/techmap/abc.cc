@@ -755,7 +755,7 @@ void AbcModuleState::handle_loops(AbcSigMap &assign_map, RTLIL::Module *module)
 
 			std::stringstream sstr;
 			sstr << "$abcloop$" << (autoidx++);
-			RTLIL::Wire *wire = module->addWire(Twine{sstr.str()});
+			RTLIL::Wire *wire = module->addWire(sstr.str());
 
 			bool first_line = true;
 			for (int id2 : edges[id1]) {

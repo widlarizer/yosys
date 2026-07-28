@@ -87,7 +87,7 @@ static void add_wire(RTLIL::Design *design, RTLIL::Module *module, std::string n
 	}
 	else
 	{
-		wire = module->addWire(Twine{name}, width);
+		wire = module->addWire(name, width);
 		wire->port_input = flag_input;
 		wire->port_output = flag_output;
 

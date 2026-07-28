@@ -201,7 +201,7 @@ void assume_miter_outputs(RTLIL::Module *module, bool assume_neg) {
 		std::vector<RTLIL::Wire *> buf;
 		for (auto j = 0; j + 1 < GetSize(wires_to_assume); j += 2) {
 			std::stringstream strstr; strstr << i << "_" << j;
-			RTLIL::Wire *and_wire = module->addWire(Twine{"\\_qbfsat_and_" + strstr.str()}, 1);
+			RTLIL::Wire *and_wire = module->addWire("\\_qbfsat_and_" + strstr.str(), 1);
 			module->addLogicAnd(Twine{"$_qbfsat_and_" + strstr.str()}, wires_to_assume[j], wires_to_assume[j+1], and_wire, false, wires_to_assume[j]->src_ref());
 			buf.push_back(and_wire);
 		}
@@ -211,7 +211,7 @@ void assume_miter_outputs(RTLIL::Module *module, bool assume_neg) {
 	}
 
 	log_assert(wires_to_assume.size() == 1);
-	module->addAssume(Twine{"$assume_qbfsat_miter_outputs"}, wires_to_assume[0], RTLIL::S1);
+	module->addAssume("$assume_qbfsat_miter_outputs", wires_to_assume[0], RTLIL::S1);
 }
 
 QbfSolutionType call_qbf_solver(RTLIL::Module *mod, const QbfSolveOptions &opt, const std::string &tempdir_name, const bool quiet = false, const int iter_num = 0) {

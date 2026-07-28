@@ -255,7 +255,7 @@ void create_miter_equiv(struct Pass *that, std::vector<std::string> args, RTLIL:
 			if (flag_make_cover)
 			{
 				auto cover_condition = miter_module->Not(NEW_ID, this_condition);
-				miter_module->addCover(Twine{"\\cover_" + gold_wire->name.unescape()}, cover_condition, State::S1);
+				miter_module->addCover("\\cover_" + gold_wire->name.unescape(), cover_condition, State::S1);
 			}
 
 			all_conditions.append(this_condition);

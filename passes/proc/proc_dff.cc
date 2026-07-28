@@ -100,7 +100,7 @@ void gen_dffsr_complex(RTLIL::Module *mod, RTLIL::SigSpec sig_d, RTLIL::SigSpec 
 	std::stringstream sstr;
 	sstr << "$procdff$" << (autoidx++);
 
-	RTLIL::Cell *cell = mod->addDffsr(Twine{sstr.str()}, clk, sig_sr_set, sig_sr_clr, sig_d, sig_q, clk_polarity);
+	RTLIL::Cell *cell = mod->addDffsr(sstr.str(), clk, sig_sr_set, sig_sr_clr, sig_d, sig_q, clk_polarity);
 	cell->attributes = proc->attributes;
 	transfer_wire_sources(sig_q, cell);
 	cell->module->design->merge_src(cell, proc);

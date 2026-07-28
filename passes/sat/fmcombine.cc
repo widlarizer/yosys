@@ -363,7 +363,7 @@ struct FmcombinePass : public Pass {
 
 		FmcombineWorker worker(design, gold_cell->type, opts);
 		worker.generate();
-		IdString combined_cell_name = module->uniquify(Twine{stringf("\\%s_%s", gold_cell, gate_cell)});
+		IdString combined_cell_name = module->uniquify(stringf("\\%s_%s", gold_cell, gate_cell));
 
 		Cell *cell = module->addCell(combined_cell_name, worker.combined_type);
 		cell->attributes = gold_cell->attributes;

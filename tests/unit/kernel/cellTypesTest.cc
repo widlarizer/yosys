@@ -11,8 +11,7 @@ YOSYS_NAMESPACE_BEGIN
 
 TEST(CellTypesTest, basic)
 {
-	yosys_setup();
-	log_files.push_back(stdout);
+	// yosys_setup() is done once for the whole binary by YosysSetupEnvironment.
 	CellTypes older;
 	NewCellTypes newer;
 	older.setup(nullptr);
@@ -87,7 +86,6 @@ TEST(CellTypesTest, basic)
 			check_port(type, port);
 		EXPECT_EQ(expected_ff_types.count(type) > 0, StaticCellTypes::categories.is_ff(type));
 	}
-	yosys_shutdown();
 }
 
 YOSYS_NAMESPACE_END

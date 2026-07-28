@@ -1950,6 +1950,13 @@ inline RTLIL::SigBit::SigBit(const RTLIL::SigSpec &sig) {
 	*this = SigBit(*it);
 }
 
+template<typename N>
+inline constexpr bool is_unpooled_name_v =
+	std::is_same_v<std::decay_t<N>, Twine> || std::is_same_v<std::decay_t<N>, std::string> ||
+	std::is_same_v<std::decay_t<N>, const char*> || std::is_same_v<std::decay_t<N>, char*>;
+
+#define YS_UNPOOLED_NAME(N) std::enable_if_t<is_unpooled_name_v<N>, int> = 0
+
 template<typename Derived>
 class CellAdderMixin {
 public:
@@ -1998,7 +2005,10 @@ public:
 	RTLIL::Cell* addModFloor (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
 	RTLIL::Cell* addPow (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool a_signed = false, bool b_signed = false, IdString src = Twine::Null);
 
-	RTLIL::Cell* addFa (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_c, const RTLIL::SigSpec &sig_x, const RTLIL::SigSpec &sig_y, IdString src = Twine::Null);
+	RTLIL::Cell* addFa (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_c, const RTLIL::SigSpec &sig_x, const RTLIL::SigSpec &sig_y, IdString src = Twine::Null);
+	template<typename N, YS_UNPOOLED_NAME(N)>
+	RTLIL::Cell* addFa (N name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_c, const RTLIL::SigSpec &sig_x, const RTLIL::SigSpec &sig_y, IdString src = Twine::Null)
+		{ return addFa(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_a, sig_b, sig_c, sig_x, sig_y, src); }
 
 	RTLIL::Cell* addLogicNot (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
 	RTLIL::Cell* addLogicAnd (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
@@ -2015,14 +2025,27 @@ public:
 
 	RTLIL::Cell* addSlice  (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, RTLIL::Const offset, IdString src = Twine::Null);
 	RTLIL::Cell* addConcat (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, IdString src = Twine::Null);
-	RTLIL::Cell* addLut    (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, RTLIL::Const lut, IdString src = Twine::Null);
+	RTLIL::Cell* addLut    (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, RTLIL::Const lut, IdString src = Twine::Null);
+	template<typename N, YS_UNPOOLED_NAME(N)>
+	RTLIL::Cell* addLut    (N name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, RTLIL::Const lut, IdString src = Twine::Null)
+		{ return addLut(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_a, sig_y, std::move(lut), src); }
 	RTLIL::Cell* addTribuf (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_y, IdString src = Twine::Null);
-	RTLIL::Cell* addAssert (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, IdString src = Twine::Null);
-	RTLIL::Cell* addAssume (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, IdString src = Twine::Null);
+	RTLIL::Cell* addAssert (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, IdString src = Twine::Null);
+	template<typename N, YS_UNPOOLED_NAME(N)>
+	RTLIL::Cell* addAssert (N name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, IdString src = Twine::Null)
+		{ return addAssert(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_a, sig_en, src); }
+	RTLIL::Cell* addAssume (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, IdString src = Twine::Null);
+	template<typename N, YS_UNPOOLED_NAME(N)>
+	RTLIL::Cell* addAssume (N name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, IdString src = Twine::Null)
+		{ return addAssume(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_a, sig_en, src); }
 	RTLIL::Cell* addLive   (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, IdString src = Twine::Null);
 	RTLIL::Cell* addFair   (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, IdString src = Twine::Null);
-	RTLIL::Cell* addCover  (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, IdString src = Twine::Null);
+	RTLIL::Cell* addCover  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, IdString src = Twine::Null);
+	template<typename N, YS_UNPOOLED_NAME(N)>
+	RTLIL::Cell* addCover  (N name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, IdString src = Twine::Null)
+		{ return addCover(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_a, sig_en, src); }
 	RTLIL::Cell* addEquiv  (Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, IdString src = Twine::Null);
+
 
 	RTLIL::Cell* addSr    (IdString name, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr, const RTLIL::SigSpec &sig_q, bool set_polarity = true, bool clr_polarity = true, IdString src = Twine::Null);
 
@@ -2042,7 +2065,8 @@ public:
 		{ return addDffe(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_clk, sig_en, sig_d, sig_q, clk_polarity, en_polarity, src); }
 	RTLIL::Cell* addDffsr (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr, RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool set_polarity = true, bool clr_polarity = true, IdString src = Twine::Null);
 
-	RTLIL::Cell* addDffsr (Twine &&name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr, RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool set_polarity = true, bool clr_polarity = true, IdString src = Twine::Null)
+	template<typename N, YS_UNPOOLED_NAME(N)>
+	RTLIL::Cell* addDffsr (N name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr, RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool set_polarity = true, bool clr_polarity = true, IdString src = Twine::Null)
 		{ return addDffsr(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_clk, sig_set, sig_clr, sig_d, sig_q, clk_polarity, set_polarity, clr_polarity, src); }
 	RTLIL::Cell* addDffsre (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr, RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool en_polarity = true, bool set_polarity = true, bool clr_polarity = true, IdString src = Twine::Null);
 
@@ -2089,22 +2113,43 @@ public:
 	RTLIL::Cell* addDlatchsr (Twine &&name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr, RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool en_polarity = true, bool set_polarity = true, bool clr_polarity = true, IdString src = Twine::Null)
 		{ return addDlatchsr(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_en, sig_set, sig_clr, sig_d, sig_q, en_polarity, set_polarity, clr_polarity, src); }
 
-	RTLIL::Cell* addBufGate    (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_y, IdString src = Twine::Null);
-	RTLIL::Cell* addNotGate    (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_y, IdString src = Twine::Null);
-	RTLIL::Cell* addAndGate    (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, IdString src = Twine::Null);
-	RTLIL::Cell* addNandGate   (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, IdString src = Twine::Null);
-	RTLIL::Cell* addOrGate     (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, IdString src = Twine::Null);
-	RTLIL::Cell* addNorGate    (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, IdString src = Twine::Null);
-	RTLIL::Cell* addXorGate    (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, IdString src = Twine::Null);
-	RTLIL::Cell* addXnorGate   (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, IdString src = Twine::Null);
-	RTLIL::Cell* addAndnotGate (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, IdString src = Twine::Null);
-	RTLIL::Cell* addOrnotGate  (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, IdString src = Twine::Null);
-	RTLIL::Cell* addMuxGate    (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_s, const RTLIL::SigBit &sig_y, IdString src = Twine::Null);
-	RTLIL::Cell* addNmuxGate   (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_s, const RTLIL::SigBit &sig_y, IdString src = Twine::Null);
-	RTLIL::Cell* addAoi3Gate   (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, const RTLIL::SigBit &sig_y, IdString src = Twine::Null);
-	RTLIL::Cell* addOai3Gate   (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, const RTLIL::SigBit &sig_y, IdString src = Twine::Null);
-	RTLIL::Cell* addAoi4Gate   (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, const RTLIL::SigBit &sig_d, const RTLIL::SigBit &sig_y, IdString src = Twine::Null);
-	RTLIL::Cell* addOai4Gate   (Twine &&name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, const RTLIL::SigBit &sig_d, const RTLIL::SigBit &sig_y, IdString src = Twine::Null);
+#define YS_GATE_ADDER_2(_func) \
+	RTLIL::Cell* _func(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_y, IdString src = Twine::Null); \
+	template<typename N, YS_UNPOOLED_NAME(N)> \
+	RTLIL::Cell* _func(N name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_y, IdString src = Twine::Null) \
+		{ return _func(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_a, sig_y, src); }
+#define YS_GATE_ADDER_3(_func) \
+	RTLIL::Cell* _func(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, IdString src = Twine::Null); \
+	template<typename N, YS_UNPOOLED_NAME(N)> \
+	RTLIL::Cell* _func(N name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, IdString src = Twine::Null) \
+		{ return _func(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_a, sig_b, sig_y, src); }
+#define YS_GATE_ADDER_4(_func, _third) \
+	RTLIL::Cell* _func(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &_third, const RTLIL::SigBit &sig_y, IdString src = Twine::Null); \
+	template<typename N, YS_UNPOOLED_NAME(N)> \
+	RTLIL::Cell* _func(N name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &_third, const RTLIL::SigBit &sig_y, IdString src = Twine::Null) \
+		{ return _func(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_a, sig_b, _third, sig_y, src); }
+#define YS_GATE_ADDER_5(_func) \
+	RTLIL::Cell* _func(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, const RTLIL::SigBit &sig_d, const RTLIL::SigBit &sig_y, IdString src = Twine::Null); \
+	template<typename N, YS_UNPOOLED_NAME(N)> \
+	RTLIL::Cell* _func(N name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, const RTLIL::SigBit &sig_d, const RTLIL::SigBit &sig_y, IdString src = Twine::Null) \
+		{ return _func(static_cast<Derived*>(this)->design->twines.add(std::move(name)), sig_a, sig_b, sig_c, sig_d, sig_y, src); }
+
+	YS_GATE_ADDER_2(addBufGate)
+	YS_GATE_ADDER_2(addNotGate)
+	YS_GATE_ADDER_3(addAndGate)
+	YS_GATE_ADDER_3(addNandGate)
+	YS_GATE_ADDER_3(addOrGate)
+	YS_GATE_ADDER_3(addNorGate)
+	YS_GATE_ADDER_3(addXorGate)
+	YS_GATE_ADDER_3(addXnorGate)
+	YS_GATE_ADDER_3(addAndnotGate)
+	YS_GATE_ADDER_3(addOrnotGate)
+	YS_GATE_ADDER_4(addMuxGate, sig_s)
+	YS_GATE_ADDER_4(addNmuxGate, sig_s)
+	YS_GATE_ADDER_4(addAoi3Gate, sig_c)
+	YS_GATE_ADDER_4(addOai3Gate, sig_c)
+	YS_GATE_ADDER_5(addAoi4Gate)
+	YS_GATE_ADDER_5(addOai4Gate)
 
 	RTLIL::Cell* addSrGate     (IdString name, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr,
 			const RTLIL::SigSpec &sig_q, bool set_polarity = true, bool clr_polarity = true, IdString src = Twine::Null);
@@ -2426,6 +2471,8 @@ public:
 
 	IdString uniquify(IdString name);
 	IdString uniquify(Twine&& name);
+	template<typename S, std::enable_if_t<std::is_same_v<std::decay_t<S>, std::string>, int> = 0>
+	IdString uniquify(S name) { return uniquify(design->twines.add(std::move(name))); }
 	IdString uniquify(IdString name, int &index);
 	IdString uniquify(Twine&& name, int &index);
 

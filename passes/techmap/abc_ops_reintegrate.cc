@@ -393,7 +393,7 @@ void reintegrate(RTLIL::Module *module, bool dff_mode, std::string map_filename)
 				if (!driver_lut) {
 					// If a driver couldn't be found (could be from PI or box CI)
 					// then implement using a LUT
-					RTLIL::Cell *cell = module->addLut(Twine{remap_name(stringf("$lut%s", mapped_cell->name))},
+					RTLIL::Cell *cell = module->addLut(remap_name(stringf("$lut%s", mapped_cell->name)),
 							RTLIL::SigBit(module->wire(rn(design, a_bit.wire->name)), a_bit.offset),
 							RTLIL::SigBit(module->wire(rn(design, y_bit.wire->name)), y_bit.offset),
 							RTLIL::Const::from_string("01"));

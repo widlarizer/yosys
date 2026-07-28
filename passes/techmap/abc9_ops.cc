@@ -427,7 +427,7 @@ void prep_bypass(RTLIL::Design *design)
 				if (cell->output(conn.first)) {
 					bypass_cell->setPort(to_map(conn.first), port);
 					auto n = "$abc9byp$" + design->twines.str(conn.first);
-					auto w = map_module->addWire(Twine{n}, GetSize(conn.second));
+					auto w = map_module->addWire(n, GetSize(conn.second));
 					replace_cell->setPort(to_map(conn.first), w);
 					bypass_cell->setPort(map_design->twines.add(Twine{n}), w);
 				}

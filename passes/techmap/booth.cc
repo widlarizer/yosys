@@ -203,7 +203,7 @@ struct BoothPassWorker {
 
 		IdString src_ref = src.empty() ? Twine::Null : mod->design->twines.add(Twine{src});
 		for (int i = 0; i < sig_a.size(); i++)
-			mod->addFa(Twine{stringf("%s[%d]", name, i)}, sig_a[i], sig_b[i],
+			mod->addFa(stringf("%s[%d]", name, i), sig_a[i], sig_b[i],
 				   sig_c[i], sig_x[i], sig_y[i], src_ref);
 	}
 

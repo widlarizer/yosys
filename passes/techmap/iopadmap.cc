@@ -327,7 +327,7 @@ struct IopadmapPass : public Pass {
 							log("Mapping port %s.%s[%d] using %s.\n", module, wire, i, tinoutpad_celltype);
 
 							Cell *cell = module->addCell(
-								module->uniquify(Twine{stringf("$iopadmap$%s.%s[%d]", module, wire, i)}),
+								module->uniquify(stringf("$iopadmap$%s.%s[%d]", module, wire, i)),
 								module->design->twines.add(std::string{RTLIL::escape_id(tinoutpad_celltype)}));
 
 							if (tinoutpad_neg_oe)
@@ -351,7 +351,7 @@ struct IopadmapPass : public Pass {
 							log("Mapping port %s.%s[%d] using %s.\n", module, wire, i, toutpad_celltype);
 
 							Cell *cell = module->addCell(
-								module->uniquify(Twine{stringf("$iopadmap$%s.%s[%d]", module, wire, i)}),
+								module->uniquify(stringf("$iopadmap$%s.%s[%d]", module, wire, i)),
 								module->design->twines.add(std::string{RTLIL::escape_id(toutpad_celltype)}));
 
 							if (toutpad_neg_oe)
@@ -433,7 +433,7 @@ struct IopadmapPass : public Pass {
 						SigBit wire_bit(wire, i);
 
 						RTLIL::Cell *cell = module->addCell(
-							module->uniquify(Twine{stringf("$iopadmap$%s.%s", module->name.unescape(), wire->name.unescape())}),
+							module->uniquify(stringf("$iopadmap$%s.%s", module->name.unescape(), wire->name.unescape())),
 							module->design->twines.add(std::string{RTLIL::escape_id(celltype)}));
 						cell->setPort(module->design->twines.add(std::string{RTLIL::escape_id(portname_int)}), wire_bit);
 
@@ -449,14 +449,14 @@ struct IopadmapPass : public Pass {
 				else
 				{
 					RTLIL::Cell *cell = module->addCell(
-						module->uniquify(Twine{stringf("$iopadmap$%s.%s", module->name.unescape(), wire->name.unescape())}),
+						module->uniquify(stringf("$iopadmap$%s.%s", module->name.unescape(), wire->name.unescape())),
 						module->design->twines.add(std::string{RTLIL::escape_id(celltype)}));
 					cell->setPort(module->design->twines.add(std::string{RTLIL::escape_id(portname_int)}), RTLIL::SigSpec(wire));
 
 					if (!portname_pad.empty()) {
 						RTLIL::Wire *new_wire = NULL;
 						new_wire = module->addWire(
-							module->uniquify(Twine{stringf("$iopadmap$%s", wire)}),
+							module->uniquify(stringf("$iopadmap$%s", wire)),
 							wire);
 						module->swap_names(new_wire, wire);
 						wire->attributes.clear();
@@ -500,7 +500,7 @@ struct IopadmapPass : public Pass {
 			for (auto &it : rewrite_bits) {
 				RTLIL::Wire *wire = it.first;
 				RTLIL::Wire *new_wire = module->addWire(
-					module->uniquify(Twine{stringf("$iopadmap$%s", wire)}),
+					module->uniquify(stringf("$iopadmap$%s", wire)),
 					wire);
 				module->swap_names(new_wire, wire);
 				wire->attributes.clear();

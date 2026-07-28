@@ -361,7 +361,7 @@ RTLIL::Wire* AigerReader::createWireIfNotExists(RTLIL::Module *module, unsigned 
 	}
 
 	log_debug2("Creating %s = ~$aiger%d$%d\n", wire_name.c_str(), aiger_autoidx, variable);
-	module->addNotGate(Twine{stringf("$not$aiger%d$%d", aiger_autoidx, variable)}, wire_inv, wire);
+	module->addNotGate(stringf("$not$aiger%d$%d", aiger_autoidx, variable), wire_inv, wire);
 
 	return wire;
 }
@@ -458,7 +458,7 @@ void AigerReader::parse_xaiger()
 				RTLIL::Cell *output_cell = module->cell(design->twines.find(stringf("$and$aiger%d$%d", aiger_autoidx, rootNodeID)));
 				log_assert(output_cell);
 				module->remove(output_cell);
-				module->addLut(Twine{stringf("$lut$aiger%d$%d", aiger_autoidx, rootNodeID)}, input_sig, output_sig, std::move(lut_mask));
+				module->addLut(stringf("$lut$aiger%d$%d", aiger_autoidx, rootNodeID), input_sig, output_sig, std::move(lut_mask));
 			}
 		}
 		else if (c == 'M') { // cell 'M'apping
@@ -487,14 +487,14 @@ void AigerReader::parse_xaiger()
 
 				auto module = design->addModule(design->twines.add(std::string{RTLIL::escape_id(cellName)}));
 				module->set_bool_attribute(ID::blackbox);
-				module->addWire(Twine{RTLIL::escape_id(outPinName)})->port_output = true;
+				module->addWire(RTLIL::escape_id(outPinName))->port_output = true;
 
 				for (unsigned j = 0; j < inPinNum; ++j) {
 					auto inPinName = std::string{};
 					std::getline(f, inPinName, '\0');
 					log_debug2("M:    inPinName=%s\n", inPinName);
 					mapping_cell.ins.push_back(design->twines.add(std::string{RTLIL::escape_id(inPinName)}));
-					module->addWire(Twine{RTLIL::escape_id(inPinName)})->port_input = true;
+					module->addWire(RTLIL::escape_id(inPinName))->port_input = true;
 				}
 
 				module->fixup_ports();

@@ -239,17 +239,17 @@ struct MemoryMapWorker
 				if (static_only) {
 					// non-static part is a ROM, we only reach this with keepdc
 					if (formal) {
-						c = module->addCell(Twine{ff_id}, ID($ff));
+						c = module->addCell(ff_id, ID($ff));
 					} else {
-						c = module->addCell(Twine{ff_id}, ID($dff));
+						c = module->addCell(ff_id, ID($dff));
 						c->parameters[ID::CLK_POLARITY] = RTLIL::Const(RTLIL::State::S1);
 						c->setPort(ID::CLK, RTLIL::SigSpec(RTLIL::State::S0));
 					}
 				} else if (async_wr) {
 					log_assert(formal); // General async write not implemented yet, checked against above
-					c = module->addCell(Twine{ff_id}, ID($ff));
+					c = module->addCell(ff_id, ID($ff));
 				} else {
-					c = module->addCell(Twine{ff_id}, ID($dff));
+					c = module->addCell(ff_id, ID($dff));
 					c->parameters[ID::CLK_POLARITY] = RTLIL::Const(refclock_pol);
 					c->setPort(ID::CLK, refclock);
 				}
@@ -314,8 +314,8 @@ struct MemoryMapWorker
 					c->setPort(ID::S, rd_addr.extract(abits-j-1, 1));
 					count_mux++;
 
-					c->setPort(ID::A, module->addWire(Twine{genid(mem.memid, "$rdmux", i, "", j, "", k, "$a")}, GetSize(port.data)));
-					c->setPort(ID::B, module->addWire(Twine{genid(mem.memid, "$rdmux", i, "", j, "", k, "$b")}, GetSize(port.data)));
+					c->setPort(ID::A, module->addWire(genid(mem.memid, "$rdmux", i, "", j, "", k, "$a"), GetSize(port.data)));
+					c->setPort(ID::B, module->addWire(genid(mem.memid, "$rdmux", i, "", j, "", k, "$b"), GetSize(port.data)));
 
 					next_rd_signals.push_back(c->getPort(ID::A));
 					next_rd_signals.push_back(c->getPort(ID::B));
