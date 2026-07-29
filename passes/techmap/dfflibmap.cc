@@ -519,14 +519,14 @@ static void dfflibmap(RTLIL::Design *design, RTLIL::Module *module)
 		IdString cell_type = cell->type;
 		IdString cell_name(cell->name);
 		auto cell_connections = cell->connections();
-		std::string src = cell->get_src_attribute();
+		IdString src = cell->src_ref();
 
 		module->remove(cell);
 
 		cell_mapping &cm = cell_mappings[cell_type];
 		RTLIL::Cell *new_cell = module->addCell(cell_name, twines.add(std::string(cm.cell_name)));
 
-		new_cell->set_src_attribute(twines.add_verbatim(src));
+		new_cell->set_src_attribute(src);
 
 		bool has_q = false, has_qn = false;
 		for (auto &port : cm.ports) {

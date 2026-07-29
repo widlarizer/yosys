@@ -147,17 +147,15 @@ struct Ice40WrapCarryPass : public Pass {
 					lut->setPort(ID::A, { I3, cell->getPort(ID::B), cell->getPort(ID::A), cell->getPort(ID(I0)) });
 					lut->setPort(ID::Y, cell->getPort(ID::O));
 
-					std::string carry_src, lut_src, fallback_src;
-					if (cell->src_id() != Twine::Null)
-						fallback_src = cell->get_src_attribute();
+					IdString carry_src = cell->src_id(), lut_src = cell->src_id();
 					for (const auto &a : cell->attributes) {
 						// Match the prefixed src first so we don't fall through
 						// to the generic SB_CARRY./SB_LUT4. prefix copy.
 						std::string aname = twines.str(a.first);
 						if (aname == "\\SB_CARRY.\\src") {
-							carry_src = a.second.decode_string();
+							carry_src = twines.add_verbatim(a.second.decode_string());
 						} else if (aname == "\\SB_LUT4.\\src") {
-							lut_src = a.second.decode_string();
+							lut_src = twines.add_verbatim(a.second.decode_string());
 						} else if (aname.starts_with("\\SB_CARRY.\\")) {
 							carry->attributes[twines.add(aname.substr(strlen("\\SB_CARRY.")))] = a.second;
 						} else if (aname.starts_with("\\SB_LUT4.\\")) {
@@ -168,10 +166,8 @@ struct Ice40WrapCarryPass : public Pass {
 							log_abort();
 						}
 					}
-					if (carry_src.empty()) carry_src = fallback_src;
-					if (lut_src.empty()) lut_src = fallback_src;
-					if (!carry_src.empty()) carry->set_src_attribute(module->design->twines.add_verbatim(carry_src));
-					if (!lut_src.empty()) lut->set_src_attribute(module->design->twines.add_verbatim(lut_src));
+					carry->set_src_attribute(carry_src);
+					lut->set_src_attribute(lut_src);
 
 					module->remove(cell);
 				}

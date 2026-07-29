@@ -44,7 +44,7 @@ struct MemoryMapWorker
 
 	// src of the Mem currently being lowered, so every cell created on its
 	// behalf inherits source-location tracking from the original $mem_v2.
-	std::string mem_src;
+	IdString mem_src;
 
 	MemoryMapWorker(RTLIL::Design *design, RTLIL::Module *module) : design(design), module(module), sigmap(module), initvals(&sigmap, module) {}
 
@@ -91,7 +91,7 @@ struct MemoryMapWorker
 		std::pair<RTLIL::SigSpec, RTLIL::SigSpec> key(addr_sig, addr_val);
 		log_assert(GetSize(addr_sig) == GetSize(addr_val));
 
-		IdString src_ref = mem_src.empty() ? Twine::Null : design->twines.add_verbatim(mem_src);
+		IdString src_ref = mem_src;
 		if (decoder_cache.count(key) == 0) {
 			if (GetSize(addr_sig) < 2) {
 				decoder_cache[key] = module->Eq(NEW_ID, addr_sig, addr_val, false, src_ref);
@@ -118,7 +118,7 @@ struct MemoryMapWorker
 		// pool slot directly.
 		{
 			IdString mid = (mem.module && mem.module->design) ? mem.module->design->obj_src_id(&mem) : Twine::Null;
-			mem_src = (mid != Twine::Null) ? design->twines.str(mid) : std::string();
+			mem_src = mid;
 		}
 
 		SigSpec init_data = mem.get_init_data();
@@ -253,7 +253,7 @@ struct MemoryMapWorker
 					c->parameters[ID::CLK_POLARITY] = RTLIL::Const(refclock_pol);
 					c->setPort(ID::CLK, refclock);
 				}
-				c->set_src_attribute(mem_src.empty() ? Twine::Null : design->twines.add_verbatim(mem_src));
+				c->set_src_attribute(mem_src);
 				c->parameters[ID::WIDTH] = mem.width;
 
 				RTLIL::Wire *w_in = module->addWire(design->twines.add(genid(mem.memid, "", addr, "$d")), mem.width);
@@ -308,7 +308,7 @@ struct MemoryMapWorker
 				for (size_t k = 0; k < rd_signals.size(); k++)
 				{
 					RTLIL::Cell *c = module->addCell(genid(mem.memid, "$rdmux", i, "", j, "", k), ID($mux));
-					c->set_src_attribute(mem_src.empty() ? Twine::Null : design->twines.add_verbatim(mem_src));
+					c->set_src_attribute(mem_src);
 					c->parameters[ID::WIDTH] = GetSize(port.data);
 					c->setPort(ID::Y, rd_signals[k]);
 					c->setPort(ID::S, rd_addr.extract(abits-j-1, 1));
@@ -368,7 +368,7 @@ struct MemoryMapWorker
 						if (wr_bit != State::S1)
 						{
 							RTLIL::Cell *c = module->addCell(design->twines.add(genid(mem.memid, "$wren", addr, "", j, "", wr_offset)), ID($and));
-							c->set_src_attribute(mem_src.empty() ? Twine::Null : design->twines.add_verbatim(mem_src));
+							c->set_src_attribute(mem_src);
 							c->parameters[ID::A_SIGNED] = RTLIL::Const(0);
 							c->parameters[ID::B_SIGNED] = RTLIL::Const(0);
 							c->parameters[ID::A_WIDTH] = RTLIL::Const(1);
@@ -382,7 +382,7 @@ struct MemoryMapWorker
 						}
 
 						RTLIL::Cell *c = module->addCell(design->twines.add(genid(mem.memid, "$wrmux", addr, "", j, "", wr_offset)), ID($mux));
-						c->set_src_attribute(mem_src.empty() ? Twine::Null : design->twines.add_verbatim(mem_src));
+						c->set_src_attribute(mem_src);
 						c->parameters[ID::WIDTH] = wr_width;
 						c->setPort(ID::A, sig.extract(wr_offset, wr_width));
 						c->setPort(ID::B, port.data.extract(wr_offset + sub * mem.width, wr_width));

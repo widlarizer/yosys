@@ -384,7 +384,7 @@ struct ChformalPass : public Pass {
 						cover->setPort(ID::EN, State::S1);
 					} else {
 						module->addCover(NEW_ID_SUFFIX("coverenable"),
-							cell->getPort(ID::EN), State::S1, module->design->twines.add_verbatim(cell->get_src_attribute()));
+							cell->getPort(ID::EN), State::S1, cell->src_ref());
 					}
 				}
 			}

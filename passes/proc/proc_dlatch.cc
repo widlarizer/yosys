@@ -299,7 +299,7 @@ struct proc_dlatch_db_t
 		return make_inner(children);
 	}
 
-	SigBit make_hold(int n, string &src)
+	SigBit make_hold(int n, IdString src)
 	{
 		if (n == true_node)
 			return State::S1;
@@ -427,7 +427,7 @@ void proc_dlatch(proc_dlatch_db_t &db, RTLIL::Process *proc, LatchPolicy policy)
 	RTLIL::SigSig latches_bits, nolatches_bits;
 	dict<SigBit, SigBit> latches_out_in;
 	dict<SigBit, int> latches_hold, latches_rst, latches_set;
-	std::string src = proc->get_src_attribute();
+	IdString src = proc->src_ref();
 
 	for (auto sr : proc->syncs)
 	{
@@ -545,7 +545,7 @@ void proc_dlatch(proc_dlatch_db_t &db, RTLIL::Process *proc, LatchPolicy policy)
 				cell = db.module->addAdlatch(NEW_ID, en, db.make_hold(nset, src), rhs, lhs, RTLIL::Const(State::S1, width));
 			else
 				cell = db.module->addDlatch(NEW_ID, en, rhs, lhs);
-			cell->set_src_attribute(db.module->design->twines.add_verbatim(src));
+			cell->set_src_attribute(src);
 			db.generated_dlatches.insert(cell);
 
 			if (proc->get_bool_attribute(ID::always_comb))
