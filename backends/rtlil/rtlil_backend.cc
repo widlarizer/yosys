@@ -153,11 +153,6 @@ void RTLIL_BACKEND::dump_twines(std::ostream &f, const RTLIL::Design *design)
 			f << stringf("  suffix %zu %zu ", id, n.suffix().prefix);
 			dump_const(f, RTLIL::Const(n.suffix().tail));
 			f << stringf("\n");
-		} else if (n.is_concat()) {
-			f << stringf("  concat %zu", id);
-			for (IdString c : n.children())
-				f << stringf(" %zu", c);
-			f << stringf("\n");
 		}
 	}
 	f << stringf("end\n");

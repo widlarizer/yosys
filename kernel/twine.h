@@ -167,8 +167,6 @@ struct Twine {
 				std::monostate,
 				// "leaf", regular deduplicated string
 				Leaf,
-				// "concat", for src only, requires concatenating character convention - '|' for src attributes, others for others in the future
-				std::vector<IdString>,
 				// "suffix", deduplicates shared prefixes
 				Suffix,
 				// transient suffix constructed with NEW_ID and NEW_ID_SUFFIX
@@ -177,12 +175,9 @@ struct Twine {
 
 	bool is_dead() const { return std::holds_alternative<std::monostate>(data); }
 	bool is_leaf() const { return std::holds_alternative<Leaf>(data); }
-	bool is_concat() const { return std::holds_alternative<std::vector<IdString>>(data); }
 	bool is_suffix() const { return std::holds_alternative<Suffix>(data); }
 	bool is_auto_prefix() const { return std::holds_alternative<AutoSuffix>(data); }
-	bool is_flat() const { return is_leaf() || is_suffix(); }
 	const std::string &leaf() const { return std::get<Leaf>(data).s; }
-	const std::vector<IdString> &children() const { return std::get<std::vector<IdString>>(data); }
 	const Suffix &suffix() const { return std::get<Suffix>(data); }
 };
 
@@ -580,26 +575,18 @@ struct TwinePool : HashConsPool<TwinePool, Twine, IdString> {
 	static const Twine& static_node(size_t idx) { return globals_[idx]; }
 	static IdString untag(IdString ref) { return twine_untag(ref); }
 
-	// Nodes store content only: strip publicity tags off child handles.
+	// Nodes store content only: strip the publicity tag off the prefix.
 	static void canonicalize(Twine& t) {
-		if (auto *children = std::get_if<std::vector<IdString>>(&t.data)) {
-			for (IdString &c : *children)
-				c = twine_untag(c);
-		} else if (auto *sfx = std::get_if<Twine::Suffix>(&t.data)) {
+		if (auto *sfx = std::get_if<Twine::Suffix>(&t.data))
 			sfx->prefix = twine_untag(sfx->prefix);
-		}
 	}
 
 	static size_t hash_node(const Twine& t);
 
 	template<typename F>
 	static void for_each_child(const Twine& t, F&& f) {
-		if (t.is_concat()) {
-			for (IdString c : t.children())
-				f(c);
-		} else if (t.is_suffix()) {
+		if (t.is_suffix())
 			f(t.suffix().prefix);
-		}
 	}
 
 	void dump(IdString ref, std::ostream& os = std::cout) const {
@@ -610,14 +597,6 @@ struct TwinePool : HashConsPool<TwinePool, Twine, IdString> {
 				os << "Dead()";
 			} else if constexpr (std::is_same_v<T, Twine::Leaf>) {
 				os << "Leaf(\"" << val.s << "\")";
-			} else if constexpr (std::is_same_v<T, std::vector<IdString>>) {
-				os << "Concat[";
-				for (size_t i = 0; i < val.size(); ++i) {
-					if (i > 0)
-						os << ", ";
-					dump(val[i], os);
-				}
-				os << "]";
 			} else if constexpr (std::is_same_v<T, Twine::Suffix>) {
 				os << "Suffix(prefix: ";
 				dump(val.prefix, os);
@@ -637,12 +616,6 @@ struct TwinePool : HashConsPool<TwinePool, Twine, IdString> {
 			if constexpr (std::is_same_v<T, std::monostate>) {
 			} else if constexpr (std::is_same_v<T, Twine::Leaf>) {
 				os << val.s;
-			} else if constexpr (std::is_same_v<T, std::vector<IdString>>) {
-				for (size_t i = 0; i < val.size(); ++i) {
-					if (i > 0)
-						os << "|";
-					print(val[i], os);
-				}
 			} else if constexpr (std::is_same_v<T, Twine::Suffix>) {
 				print(val.prefix, os);
 				os << val.tail;
@@ -659,12 +632,6 @@ struct TwinePool : HashConsPool<TwinePool, Twine, IdString> {
 			if constexpr (std::is_same_v<T, std::monostate>) {
 			} else if constexpr (std::is_same_v<T, Twine::Leaf>) {
 				out += val.s;
-			} else if constexpr (std::is_same_v<T, std::vector<IdString>>) {
-				for (size_t i = 0; i < val.size(); ++i) {
-					if (i > 0)
-						out += '|';
-					append_str(val[i], out);
-				}
 			} else if constexpr (std::is_same_v<T, Twine::Suffix>) {
 				append_str(val.prefix, out);
 				out += val.tail;
@@ -705,17 +672,7 @@ struct TwinePool : HashConsPool<TwinePool, Twine, IdString> {
 		return twine_tag(add_inner(std::move(t)), is_public);
 	}
 
-	IdString add_verbatim(std::string s) {
-		return add_inner(Twine{Twine::Leaf{std::move(s)}});
-	}
-
 	IdString add(std::string s) { return add_escaped(*this, std::move(s)); }
-
-	IdString concat(std::span<const IdString> ids) {
-		if (ids.size() == 1)
-			return ids[0];
-		return add(Twine{std::vector<IdString>(ids.begin(), ids.end())});
-	}
 
 	IdString copy_from(const TwinePool& src, IdString ref) {
 		if (ref == Twine::Null)
@@ -729,13 +686,6 @@ struct TwinePool : HashConsPool<TwinePool, Twine, IdString> {
 		const Twine& t = src[untagged];
 		if (t.is_leaf())
 			return twine_tag(add(Twine{Twine::Leaf{t.leaf()}}), is_public);
-		if (t.is_concat()) {
-			std::vector<IdString> children;
-			children.reserve(t.children().size());
-			for (IdString c : t.children())
-				children.push_back(copy_from(src, c));
-			return twine_tag(add(Twine{std::move(children)}), is_public);
-		}
 		if (t.is_suffix())
 			return twine_tag(add(Twine{Twine::Suffix{copy_from(src, t.suffix().prefix), t.suffix().tail}}), is_public);
 		return Twine::Null;
@@ -769,11 +719,6 @@ inline size_t TwinePool::hash_node(const Twine& t) {
 		if constexpr (std::is_same_v<T, Twine::Leaf>) {
 			h.eat(val.s);
 			// combine(std::hash<std::string>{}(val));
-		} else if constexpr (std::is_same_v<T, std::vector<IdString>>) {
-			for (auto ref : val) {
-				h.eat(ref);
-				// combine(std::hash<IdString>{}(ref));
-			}
 		} else if constexpr (std::is_same_v<T, Twine::Suffix>) {
 			h.eat(val.prefix);
 			h.eat(val.tail);
@@ -810,8 +755,6 @@ struct DeepTwineHash {
 
 		if (n.is_leaf()) {
 			combine(hash, std::string_view(n.leaf()));
-		} else if (n.is_concat()) {
-			for (auto child : n.children()) combine(hash, child);
 		} else if (n.is_suffix()) {
 			combine(hash, n.suffix().prefix);
 			combine(hash, std::string_view(n.suffix().tail));
@@ -847,11 +790,6 @@ struct DeepTwineEq {
 			if (!sv.starts_with(n.leaf())) return false;
 			sv.remove_prefix(n.leaf().size());
 			return true;
-		} else if (n.is_concat()) {
-			for (auto child : n.children()) {
-				if (!consume(child, sv)) return false;
-			}
-			return true;
 		} else if (n.is_suffix()) {
 			if (!consume(n.suffix().prefix, sv)) return false;
 			if (!sv.starts_with(n.suffix().tail)) return false;
@@ -885,9 +823,7 @@ struct DeepTwineEq {
 			const Twine& node = (*pool)[ref];
 			if (node.is_dead()) return;
 			if (node.is_leaf()) result += node.leaf();
-			else if (node.is_concat()) {
-				for (auto child : node.children()) self(self, child);
-			} else if (node.is_suffix()) {
+			else if (node.is_suffix()) {
 				self(self, node.suffix().prefix);
 				result += node.suffix().tail;
 			}
@@ -936,14 +872,8 @@ struct TwineChildPool {
 			}
 		} else if (auto *sfx = std::get_if<Twine::Suffix>(&t.data)) {
 			is_public = twine_is_public(sfx->prefix);
-		} else if (auto *children = std::get_if<std::vector<IdString>>(&t.data)) {
-			is_public = !children->empty() && twine_is_public(children->front());
 		}
 		return twine_tag(add_inner(std::move(t)), is_public);
-	}
-
-	IdString add_verbatim(std::string s) {
-		return add_inner(Twine{Twine::Leaf{std::move(s)}});
 	}
 
 	IdString add(std::string s) { return add_escaped(*this, std::move(s)); }
@@ -955,12 +885,8 @@ struct TwineChildPool {
 		remap_.clear();
 		remap_.reserve(local_.size());
 		for (Twine& t : local_) {
-			if (t.is_concat()) {
-				for (IdString& c : std::get<std::vector<IdString>>(t.data))
-					c = resolve(c);
-			} else if (t.is_suffix()) {
+			if (t.is_suffix())
 				std::get<Twine::Suffix>(t.data).prefix = resolve(std::get<Twine::Suffix>(t.data).prefix);
-			}
 			remap_.push_back(dest.add(std::move(t)));
 		}
 		local_.clear();

@@ -49,14 +49,6 @@ struct DumpTwinesPass : public Pass {
 			} else if (n.is_suffix()) {
 				log("  @%zu suffix @%zu + \"%s\"", (size_t)id,
 						(size_t)n.suffix().prefix, n.suffix().tail.c_str());
-			} else if (n.is_concat()) {
-				std::string children;
-				for (IdString c : n.children()) {
-					if (!children.empty())
-						children += ", ";
-					children += "@" + std::to_string((size_t)c);
-				}
-				log("  @%zu concat [%s]", (size_t)id, children.c_str());
 			} else {
 				log("  @%zu dead", (size_t)id);
 			}

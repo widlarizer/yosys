@@ -56,10 +56,9 @@ struct RTLILFrontendWorker {
 	std::vector<IdString> twine_parser_holds;
 
 	struct TwineDesc {
-		enum Kind { Leaf, Suffix, Concat } kind;
+		enum Kind { Leaf, Suffix } kind;
 		std::string text;
 		size_t parent = 0;
-		std::vector<size_t> children;
 		bool materializing = false;
 	};
 	dict<size_t, TwineDesc> twine_descs;
@@ -605,14 +604,6 @@ struct RTLILFrontendWorker {
 			ref = design->twines.add(Twine{Twine::Suffix{
 					materialize_file_twine(desc.parent), desc.text}});
 			break;
-		case TwineDesc::Concat: {
-			std::vector<IdString> children;
-			children.reserve(desc.children.size());
-			for (size_t c : desc.children)
-				children.push_back(materialize_file_twine(c));
-			ref = design->twines.add(Twine{children});
-			break;
-		}
 		}
 		desc.materializing = false;
 		twine_remap[id] = ref;
@@ -714,15 +705,7 @@ struct RTLILFrontendWorker {
 				expect_eol();
 				continue;
 			}
-			if (try_parse_keyword("concat")) {
-				size_t file_id = parse_integer();
-				TwineDesc &desc = twine_descs[file_id];
-				desc.kind = TwineDesc::Concat;
-				while (!try_parse_eol())
-					desc.children.push_back(parse_integer());
-				continue;
-			}
-			error("Expected `leaf`, `suffix` or `concat` inside twines block, got `%s'.",
+			error("Expected `leaf` or `suffix` inside twines block, got `%s'.",
 					error_token());
 		}
 		std::vector<size_t> ordered_ids;
