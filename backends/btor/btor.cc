@@ -117,6 +117,31 @@ struct BtorWorker
 		info_lines.push_back(fmt.format(args...));
 	}
 
+	// A src-derived symbol must not collide with one already emitted or with
+	// an id this module already has. Resolving through the pool is only the
+	// string-to-handle step: a handle that names nothing in this module is
+	// not a collision.
+	string uniquify_srcsym(string src)
+	{
+		auto taken = [&](const string &s) {
+			if (srcsymbols.count(s))
+				return true;
+			IdString ref = src_search.find("\\" + s);
+			return ref != Twine::Null && module->count_id(ref) != 0;
+		};
+		if (taken(src)) {
+			for (int i = 1;; i++) {
+				string s = stringf("%s-%d", src.c_str(), i);
+				if (!taken(s)) {
+					src = s;
+					break;
+				}
+			}
+		}
+		srcsymbols.insert(src);
+		return src;
+	}
+
 	template<typename T>
 	string getinfo(T *obj, bool srcsym = false)
 	{
@@ -126,19 +151,7 @@ struct BtorWorker
 			string src = module && module->design ? module->design->get_src_attribute(obj) : std::string();
 			if (srcsym && infostr[0] == '$') {
 				std::replace(src.begin(), src.end(), ' ', '_');
-				IdString src_ref = src_search.find(src);
-				if (srcsymbols.count(src) || src_ref != Twine::Null) {
-					for (int i = 1;; i++) {
-						string s = stringf("%s-%d", src, i);
-						IdString s_ref = src_search.find(s);
-						if (!srcsymbols.count(s) && s_ref == Twine::Null) {
-							src = s;
-							break;
-						}
-					}
-				}
-				srcsymbols.insert(src);
-				infostr = src;
+				infostr = uniquify_srcsym(std::move(src));
 			} else {
 				infostr += " ; " + src;
 			}
@@ -154,19 +167,7 @@ struct BtorWorker
 			string src = module && module->design ? module->design->get_src_attribute(mem) : std::string();
 			if (srcsym && infostr[0] == '$') {
 				std::replace(src.begin(), src.end(), ' ', '_');
-				IdString src_ref = src_search.find(src);
-				if (srcsymbols.count(src) || src_ref != Twine::Null) {
-					for (int i = 1;; i++) {
-						string s = stringf("%s-%d", src, i);
-						IdString s_ref = src_search.find(s);
-						if (!srcsymbols.count(s) && s_ref == Twine::Null) {
-							src = s;
-							break;
-						}
-					}
-				}
-				srcsymbols.insert(src);
-				infostr = src;
+				infostr = uniquify_srcsym(std::move(src));
 			} else {
 				infostr += " ; " + src;
 			}
