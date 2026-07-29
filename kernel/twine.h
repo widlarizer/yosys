@@ -691,11 +691,15 @@ struct TwineChildPool {
 
 	// TODO duplicated code
 	IdString add(std::string&& s) {
-		if (s.size()) {
+		if (s.size() > 1) {
 			if (s[0] == '\\')
 				return twine_tag(add(Twine{s.substr(1)}), true);
+			else if (s[0] == '$')
+				return twine_tag(add(Twine{std::move(s)}), false);
 			else
 				return twine_tag(add(Twine{std::move(s)}), true);
+		} else if (s.size() > 0) {
+			return twine_tag(add(Twine{std::move(s)}), true);
 		} else {
 		 	return Twine::Null;
 		}
