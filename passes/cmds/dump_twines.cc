@@ -61,21 +61,16 @@ struct DumpTwinesPass : public Pass {
 		log("src pool: %zu nodes\n", srcs.size());
 		for (size_t idx = 0; idx < srcs.backing.size(); ++idx) {
 			const Src &n = srcs.backing[idx];
-			if (n.is_leaf()) {
-				log("  @%zu leaf \"%s\"", idx, n.leaf().c_str());
-			} else if (n.is_suffix()) {
-				log("  @%zu suffix @%zu + \"%s\"", idx,
-						n.suffix().prefix.value, n.suffix().tail.c_str());
-			} else if (n.is_set()) {
-				std::string children;
-				for (SrcRef c : n.set()) {
-					if (!children.empty())
-						children += ", ";
-					children += "@" + std::to_string(c.value);
-				}
-				log("  @%zu set [%s]", idx, children.c_str());
-			} else {
+			if (n.is_dead()) {
 				log("  @%zu dead", idx);
+			} else {
+				std::string members;
+				for (IdString m : n.members()) {
+					if (!members.empty())
+						members += ", ";
+					members += "@" + std::to_string(m.value);
+				}
+				log("  @%zu set [%s]", idx, members.c_str());
 			}
 			if (flat)
 				log(" -> \"%s\"", srcs.str(SrcRef(idx)).c_str());

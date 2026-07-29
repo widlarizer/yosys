@@ -117,10 +117,6 @@ struct BtorWorker
 		info_lines.push_back(fmt.format(args...));
 	}
 
-	// A src-derived symbol must not collide with one already emitted or with
-	// an id this module already has. Resolving through the pool is only the
-	// string-to-handle step: a handle that names nothing in this module is
-	// not a collision.
 	string uniquify_srcsym(string src)
 	{
 		auto taken = [&](const string &s) {

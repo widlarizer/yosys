@@ -165,20 +165,12 @@ void RTLIL_BACKEND::dump_srcs(std::ostream &f, const RTLIL::Design *design)
 	f << stringf("srcs\n");
 	for (size_t idx = 0; idx < design->srcs.backing.size(); ++idx) {
 		const Src &n = design->srcs.backing[idx];
-		if (n.is_leaf()) {
-			f << stringf("  leaf %zu ", idx);
-			dump_const(f, RTLIL::Const(n.leaf()));
-			f << stringf("\n");
-		} else if (n.is_suffix()) {
-			f << stringf("  suffix %zu %zu ", idx, n.suffix().prefix.value);
-			dump_const(f, RTLIL::Const(n.suffix().tail));
-			f << stringf("\n");
-		} else if (n.is_set()) {
-			f << stringf("  set %zu", idx);
-			for (SrcRef c : n.set())
-				f << stringf(" %zu", c.value);
-			f << stringf("\n");
-		}
+		if (n.is_dead())
+			continue;
+		f << stringf("  set %zu", idx);
+		for (IdString member : n.members())
+			f << stringf(" %zu", member.value);
+		f << stringf("\n");
 	}
 	f << stringf("end\n");
 }

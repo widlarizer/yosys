@@ -81,17 +81,17 @@ IdString remap_flattened_name(RTLIL::Design *design, IdString obj_ref,
 		const Twine::Suffix &sfx = node.suffix();
 		IdString prefix = remap_flattened_name(design, twine_tag(sfx.prefix, obj_ref.isPublic()),
 				pub_prefix_ref, priv_prefix_ref, separator, memo);
-		result = design->twines.add(Twine{Twine::Suffix{prefix, sfx.tail}});
+		result = design->twines.add(Twine::Suffix{prefix, sfx.tail});
 	} else {
 		std::string escaped = design->twines.str(obj_ref);
 		std::string_view obj = escaped;
 		if (!obj.empty() && obj[0] == '\\') {
-			result = design->twines.add(Twine{Twine::Suffix{pub_prefix_ref, separator + std::string(obj.substr(1))}});
+			result = design->twines.add(Twine::Suffix{pub_prefix_ref, separator + std::string(obj.substr(1))});
 		} else {
 			constexpr std::string_view flatten_prefix = "$flatten";
 			if (obj.substr(0, flatten_prefix.size()) == flatten_prefix)
 				obj.remove_prefix(flatten_prefix.size());
-			result = design->twines.add(Twine{Twine::Suffix{priv_prefix_ref, std::string(obj)}});
+			result = design->twines.add(Twine::Suffix{priv_prefix_ref, std::string(obj)});
 		}
 	}
 	memo[obj_ref] = result;

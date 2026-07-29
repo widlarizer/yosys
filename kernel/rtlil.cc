@@ -1004,6 +1004,10 @@ size_t RTLIL::Design::gc_twines()
 	}
 
 	// Sweep: backing refs are stable, so survivors need no remapping.
+	for (SrcRef ref : live_srcs)
+		for (IdString member : srcs[ref].members())
+			live.insert(member);
+
 	size_t erased = twines.gc(live) + srcs.gc(live_srcs);
 
 	int64_t time_ns = PerformanceTimer::query() - start;
@@ -3387,7 +3391,7 @@ IdString RTLIL::Module::uniquify(IdString name, int &index)
 	}
 
 	while (1) {
-		IdString new_name = twine_tag(design->twines.add(Twine{Twine::Suffix{name, stringf("_%d", index)}}), twine_is_public(name));
+		IdString new_name = twine_tag(design->twines.add(Twine::Suffix{name, stringf("_%d", index)}), twine_is_public(name));
 		if (count_id(new_name) == 0)
 			return new_name;
 		index++;

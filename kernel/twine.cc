@@ -10,7 +10,7 @@ IdString twine_populate(std::string name) {
 	// in TWINE_PUBLIC_BIT on the ID:: handle, not in the stored string.
 	log_assert(name[0] == '\\');
 	name = name.substr(1);
-	TwinePool::globals_.push_back(Twine{Twine::Leaf{std::move(name)}});
+	TwinePool::globals_.push_back(Twine::Leaf{std::move(name)});
 	return TwinePool::globals_.size() - 1;
 }
 void twine_prepopulate() {
@@ -159,7 +159,7 @@ void twine_prepopulate() {
 
 // 	// Internal child ref: the suffix node owns one ref on its parent.
 // 	retain(parent);
-// 	IdString id = alloc_slot_(Twine{Twine::Suffix{parent, std::string{tail}}});
+// 	IdString id = alloc_slot_(Twine::Suffix{parent, std::string{tail}});
 // 	suffix_index_.insert(id);
 // 	refcount(id) = 1;
 // 	return id;
@@ -492,7 +492,7 @@ void twine_prepopulate() {
 // 			}
 // 		}
 // 		// IdString new_id = static_cast<IdString>(new_nodes.size());
-// 		new_nodes.push_back(Twine{Twine::Suffix{new_parent, n.suffix().tail}});
+// 		new_nodes.push_back(Twine::Suffix{new_parent, n.suffix().tail});
 // 		IdString new_id = &new_nodes.back();
 // 		new_refcount.push_back(0);
 // 		remap[old_id] = new_id;

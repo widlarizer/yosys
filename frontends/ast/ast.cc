@@ -1112,7 +1112,7 @@ static IdString build_hier_content(TwinePool &pool, std::string_view content)
 	if (dot == std::string_view::npos)
 		return pool.add(std::string{content}).tag(true);
 	IdString prefix = build_hier_content(pool, content.substr(0, dot));
-	return pool.add(Twine{Twine::Suffix{prefix, std::string{content.substr(dot)}}});
+	return pool.add(Twine::Suffix{prefix, std::string{content.substr(dot)}});
 }
 
 IdString AST::intern_hier_name(RTLIL::Design *design, std::string_view escaped)
@@ -1144,12 +1144,10 @@ void AST::set_src_attr(RTLIL::AttrObject *obj, const AstNode *ast)
 	// carrying only ":line.col-line.col". For a typical large design with
 	// thousands of objects in one file this collapses N copies of a long
 	// path into 1 Leaf + N short Suffix tails.
-	SrcPool *pool = &current_module->design->srcs;
-	SrcRef file_id = pool->add(*loc.begin.filename);
-	std::string tail = stringf(":%d.%d-%d.%d",
-			loc.begin.line, loc.begin.column,
-			loc.end.line, loc.end.column);
-	current_module->design->obj_set_src_id(obj, pool->add_suffix(file_id, tail));
+	current_module->design->obj_set_src_id(obj,
+			current_module->design->srcs.add(*loc.begin.filename,
+					stringf(":%d.%d-%d.%d", loc.begin.line, loc.begin.column,
+							loc.end.line, loc.end.column)));
 }
 
 static bool param_has_no_default(const AstNode* param) {

@@ -1317,7 +1317,7 @@ struct RTLIL::Design
 	std::vector<RTLIL::Binding*> bindings_;
 
 	TwinePool twines;
-	SrcPool srcs;
+	SrcPool srcs{&twines};
 
 	// Per-Design ObjMeta pool: stable storage (deque) + LIFO freelist of
 	// returned slots. AttrObject::meta_ points into obj_meta_storage_.
@@ -1943,7 +1943,9 @@ inline RTLIL::SigBit::SigBit(const RTLIL::SigSpec &sig) {
 
 template<typename N>
 inline constexpr bool is_unpooled_name_v =
-	std::is_same_v<std::decay_t<N>, Twine> || std::is_same_v<std::decay_t<N>, std::string> ||
+	std::is_same_v<std::decay_t<N>, Twine> || std::is_same_v<std::decay_t<N>, Twine::Leaf> ||
+	std::is_same_v<std::decay_t<N>, Twine::Suffix> || std::is_same_v<std::decay_t<N>, Twine::AutoSuffix> ||
+	std::is_same_v<std::decay_t<N>, std::string> ||
 	std::is_same_v<std::decay_t<N>, const char*> || std::is_same_v<std::decay_t<N>, char*>;
 
 #define YS_UNPOOLED_NAME(N) std::enable_if_t<is_unpooled_name_v<N>, int> = 0
@@ -2516,13 +2518,13 @@ public:
 	// CellAdderMixin hook: cells added here are attached, so set src directly.
 	void cell_set_src(RTLIL::Cell *cell, SrcRef src) { cell->set_src_attribute(src); }
 
-	IdString intern(Twine &&name) { return design->twines.add(std::move(name)); }
+	IdString intern(Twine name) { return design->twines.add(std::move(name)); }
 	IdString intern(std::string name) { return design->twines.add(std::move(name)); }
 
 	// NEW_ID analog for twine names; see NEW_ID in yosys_common.h.
 	IdString new_name(const std::string *prefix) {
-		IdString pref = design->twines.add(Twine{Twine::Leaf{*prefix}});
-		return design->twines.add(Twine{Twine::Suffix{pref, std::to_string(autoidx++)}});
+		IdString pref = design->twines.add(Twine::Leaf{*prefix});
+		return design->twines.add(Twine::Suffix{pref, std::to_string(autoidx++)});
 	}
 
 	RTLIL::Memory *addMemory(IdString name);

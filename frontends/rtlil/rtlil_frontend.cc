@@ -65,14 +65,7 @@ struct RTLILFrontendWorker {
 
 	dict<size_t, SrcRef> src_remap;
 
-	struct SrcDesc {
-		enum Kind { Leaf, Suffix, Set } kind;
-		std::string text;
-		size_t parent = 0;
-		std::vector<size_t> children;
-		bool materializing = false;
-	};
-	dict<size_t, SrcDesc> src_descs;
+	dict<size_t, std::vector<size_t>> src_descs;
 
 	template <typename... Args>
 	[[noreturn]]
@@ -598,11 +591,11 @@ struct RTLILFrontendWorker {
 		IdString ref;
 		switch (desc.kind) {
 		case TwineDesc::Leaf:
-			ref = design->twines.add(desc.text);
+			ref = design->twines.add_inner(Twine::Leaf{desc.text});
 			break;
 		case TwineDesc::Suffix:
-			ref = design->twines.add(Twine{Twine::Suffix{
-					materialize_file_twine(desc.parent), desc.text}});
+			ref = design->twines.add_inner(Twine::Suffix{
+					materialize_file_twine(desc.parent), desc.text});
 			break;
 		}
 		desc.materializing = false;
@@ -610,7 +603,6 @@ struct RTLILFrontendWorker {
 		return ref;
 	}
 
-	// Tolerates nodes listed out of dependency order
 	SrcRef materialize_file_src(size_t id)
 	{
 		auto rit = src_remap.find(id);
@@ -619,28 +611,11 @@ struct RTLILFrontendWorker {
 		auto dit = src_descs.find(id);
 		if (dit == src_descs.end())
 			error("Unknown src reference @%zu at line %d", id, line_num);
-		SrcDesc &desc = dit->second;
-		if (desc.materializing)
-			error("Cyclic src reference @%zu at line %d", id, line_num);
-		desc.materializing = true;
-		SrcRef ref;
-		switch (desc.kind) {
-		case SrcDesc::Leaf:
-			ref = design->srcs.add(desc.text);
-			break;
-		case SrcDesc::Suffix:
-			ref = design->srcs.add_suffix(materialize_file_src(desc.parent), desc.text);
-			break;
-		case SrcDesc::Set: {
-			std::vector<SrcRef> children;
-			children.reserve(desc.children.size());
-			for (size_t c : desc.children)
-				children.push_back(materialize_file_src(c));
-			ref = design->srcs.merge(std::span<const SrcRef>{children});
-			break;
-		}
-		}
-		desc.materializing = false;
+		std::vector<IdString> members;
+		members.reserve(dit->second.size());
+		for (size_t c : dit->second)
+			members.push_back(materialize_file_twine(c));
+		SrcRef ref = design->srcs.adopt(std::span<const IdString>{members});
 		src_remap[id] = ref;
 		return ref;
 	}
@@ -719,40 +694,20 @@ struct RTLILFrontendWorker {
 		expect_eol();
 	}
 
-	// Same shape as parse_twines, over the design's separate src pool.
 	void parse_srcs()
 	{
 		expect_eol();
 		while (true) {
 			if (try_parse_keyword("end"))
 				break;
-			if (try_parse_keyword("leaf")) {
-				size_t file_id = parse_integer();
-				SrcDesc &desc = src_descs[file_id];
-				desc.kind = SrcDesc::Leaf;
-				desc.text = parse_string();
-				expect_eol();
-				continue;
-			}
-			if (try_parse_keyword("suffix")) {
-				size_t file_id = parse_integer();
-				SrcDesc &desc = src_descs[file_id];
-				desc.kind = SrcDesc::Suffix;
-				desc.parent = parse_integer();
-				desc.text = parse_string();
-				expect_eol();
-				continue;
-			}
 			if (try_parse_keyword("set")) {
 				size_t file_id = parse_integer();
-				SrcDesc &desc = src_descs[file_id];
-				desc.kind = SrcDesc::Set;
+				std::vector<size_t> &members = src_descs[file_id];
 				while (!try_parse_eol())
-					desc.children.push_back(parse_integer());
+					members.push_back(parse_integer());
 				continue;
 			}
-			error("Expected `leaf`, `suffix` or `set` inside srcs block, got `%s'.",
-					error_token());
+			error("Expected `set` inside srcs block, got `%s'.", error_token());
 		}
 		std::vector<size_t> ordered_ids;
 		ordered_ids.reserve(src_descs.size());

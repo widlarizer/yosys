@@ -66,7 +66,7 @@ struct PrefixApplier
 	PrefixApplier(RTLIL::Design *dst, IdString prefix, RTLIL::Design *src)
 		: dst(dst), src(src), cell_name(prefix)
 	{
-		pub_prefix = dst->twines.add(Twine{Twine::Suffix{prefix, "."}});
+		pub_prefix = dst->twines.add(Twine::Suffix{prefix, "."});
 	}
 
 	// "$techmap<cell>." can't reuse the cell name's nodes (a tail is appended,
@@ -89,10 +89,10 @@ struct PrefixApplier
 		if (node.is_suffix()) {
 			const Twine::Suffix &sfx = node.suffix();
 			IdString prefix = name(twine_tag(sfx.prefix, obj_ref.isPublic()));
-			result = dst->twines.add(Twine{Twine::Suffix{prefix, sfx.tail}});
+			result = dst->twines.add(Twine::Suffix{prefix, sfx.tail});
 		} else {
 			IdString prefix = obj_ref.isPublic() ? pub_prefix : techmap_prefix();
-			result = dst->twines.add(Twine{Twine::Suffix{prefix, node.leaf()}});
+			result = dst->twines.add(Twine::Suffix{prefix, node.leaf()});
 		}
 		memo[obj_ref] = result;
 		return result;

@@ -50,7 +50,7 @@ static RTLIL::SigSpec uniop2rtlil(AstNode *that, IdString type, int result_width
 	RTLIL::Cell *cell = current_module->addCell(name, type);
 	set_src_attr(cell, that);
 
-	RTLIL::Wire *wire = current_module->addWire(Twine{Twine::Suffix{cell->name, "_Y"}}, result_width);
+	RTLIL::Wire *wire = current_module->addWire(Twine::Suffix{cell->name, "_Y"}, result_width);
 	set_src_attr(wire, that);
 	wire->is_signed = that->is_signed;
 
@@ -113,7 +113,7 @@ static RTLIL::SigSpec binop2rtlil(AstNode *that, IdString type, int result_width
 	RTLIL::Cell *cell = current_module->addCell(name, type);
 	set_src_attr(cell, that);
 
-	RTLIL::Wire *wire = current_module->addWire(Twine{Twine::Suffix{cell->name, "_Y"}}, result_width);
+	RTLIL::Wire *wire = current_module->addWire(Twine::Suffix{cell->name, "_Y"}, result_width);
 	set_src_attr(wire, that);
 	wire->is_signed = that->is_signed;
 
