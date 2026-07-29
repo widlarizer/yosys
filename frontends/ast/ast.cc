@@ -1131,12 +1131,12 @@ void AST::set_src_attr(RTLIL::AttrObject *obj, const AstNode *ast)
 		// An explicit (* src *) attribute (e.g. when re-reading written output)
 		// takes precedence over the parse position
 		current_module->design->set_src_attribute(obj,
-				current_module->design->twines.add_verbatim(it->second->asAttrConst().decode_string()));
+				current_module->design->srcs.add(it->second->asAttrConst().decode_string()));
 		return;
 	}
 	const auto &loc = ast->location;
 	if (!loc.begin.filename || loc.begin.filename->empty()) {
-		current_module->design->set_src_attribute(obj, current_module->design->twines.add_verbatim(ast->loc_string()));
+		current_module->design->set_src_attribute(obj, current_module->design->srcs.add(ast->loc_string()));
 		return;
 	}
 	// Split filename and per-location tail so the filename interns once
@@ -1144,13 +1144,12 @@ void AST::set_src_attr(RTLIL::AttrObject *obj, const AstNode *ast)
 	// carrying only ":line.col-line.col". For a typical large design with
 	// thousands of objects in one file this collapses N copies of a long
 	// path into 1 Leaf + N short Suffix tails.
-	TwinePool *pool = &current_module->design->twines;
-	IdString file_id = pool->add_verbatim(*loc.begin.filename);
+	SrcPool *pool = &current_module->design->srcs;
+	SrcRef file_id = pool->add(*loc.begin.filename);
 	std::string tail = stringf(":%d.%d-%d.%d",
 			loc.begin.line, loc.begin.column,
 			loc.end.line, loc.end.column);
-	IdString suffix_id = pool->add(Twine{Twine::Suffix{file_id, tail}});
-	current_module->design->obj_set_src_id(obj, suffix_id);
+	current_module->design->obj_set_src_id(obj, pool->add_suffix(file_id, tail));
 }
 
 static bool param_has_no_default(const AstNode* param) {

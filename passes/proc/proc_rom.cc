@@ -193,7 +193,7 @@ struct RomWorker
 			delete cs;
 		sw->cases.clear();
 		sw->signal = sw->signal.extract(0, swsigbits);
-		IdString action_src = sw->src_id();
+		SrcRef action_src = sw->src_id();
 		if (abits == GetSize(sw->signal)) {
 			sw->signal = SigSpec();
 			RTLIL::CaseRule *cs = new RTLIL::CaseRule;

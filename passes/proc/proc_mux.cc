@@ -43,7 +43,7 @@ PRIVATE_NAMESPACE_BEGIN
  * Nested switches build branching trees of muxes.
  */
 
-using SnippetSourceMap = std::vector<dict<const RTLIL::CaseRule*, IdString>>;
+using SnippetSourceMap = std::vector<dict<const RTLIL::CaseRule*, SrcRef>>;
 struct SnippetSourceMapBuilder {
 	SnippetSourceMap map;
 	void insert(int snippet, const RTLIL::CaseRule* cs, const RTLIL::SyncAction& action) {
@@ -55,7 +55,7 @@ struct SnippetSourceMapBuilder {
 };
 struct SnippetSourceMapper {
 	const SnippetSourceMap map;
-	void try_map_into(pool<IdString>& sources, int snippet, const RTLIL::CaseRule* cs) const {
+	void try_map_into(pool<SrcRef>& sources, int snippet, const RTLIL::CaseRule* cs) const {
 		if ((size_t)snippet < map.size()) {
 			const auto& snippet_map = map[snippet];
 			auto src_it = snippet_map.find(cs);
@@ -64,7 +64,7 @@ struct SnippetSourceMapper {
 				return;
 			}
 		}
-		IdString cs_src = cs->src_id();
+		SrcRef cs_src = cs->src_id();
 		if (cs_src != Twine::Null) {
 			sources.insert(cs_src);
 		}
@@ -209,7 +209,7 @@ struct MuxGenCtx {
 	bool ifxmode;
 	const SnippetSourceMapper& source_mapper;
 	int current_snippet;
-	pool<IdString>& snippet_sources;
+	pool<SrcRef>& snippet_sources;
 
 	// Returns signal for the select input of a mux
 	RTLIL::SigSpec gen_cmp() {
@@ -242,13 +242,13 @@ struct MuxGenCtx {
 				// create compare cell
 				RTLIL::Cell *eq_cell = mod->addCell(mod->design->twines.add(std::string{stringf("%s_CMP%d", sstr.str(), cmp_wire->width)}), ifxmode ? ID($eqx) : ID($eq));
 				apply_attrs(eq_cell, sw, cs);
-				std::vector<IdString> eq_sources;
+				std::vector<SrcRef> eq_sources;
 				if (sw->signal_src != Twine::Null)
 					eq_sources.push_back(sw->signal_src);
 				if (cs->compare_src != Twine::Null && cs->compare_src != sw->signal_src)
 					eq_sources.push_back(cs->compare_src);
 				if (!eq_sources.empty())
-					eq_cell->set_src_attribute(mod->design->twines.concat(std::span<const IdString>{eq_sources}));
+					eq_cell->set_src_attribute(mod->design->srcs.merge(std::span<const SrcRef>{eq_sources}));
 
 				eq_cell->parameters[ID::A_SIGNED] = RTLIL::Const(0);
 				eq_cell->parameters[ID::B_SIGNED] = RTLIL::Const(0);
@@ -477,7 +477,7 @@ RTLIL::SigSpec signal_to_mux_tree(MuxTreeContext ctx)
 
 		// Detect groups of parallel cases
 		std::vector<int> pgroups = parallel_groups(ctx, sw);
-		pool<IdString> case_sources;
+		pool<SrcRef> case_sources;
 		// Create sources for default cases
 		for (auto cs2 : sw -> cases) {
 			if (cs2->compare.empty()) {
@@ -521,8 +521,8 @@ RTLIL::SigSpec signal_to_mux_tree(MuxTreeContext ctx)
 		}
 		if (auto* mux = mux_gen_ctx.last_mux_cell) {
 			if (!case_sources.empty()) {
-				std::vector<IdString> refs(case_sources.begin(), case_sources.end());
-				mux->set_src_attribute(mux->module->design->twines.concat(std::span<const IdString>{refs}));
+				std::vector<SrcRef> refs(case_sources.begin(), case_sources.end());
+				mux->set_src_attribute(mux->module->design->srcs.merge(std::span<const SrcRef>{refs}));
 			}
 			log_assert(mux->getPort(ID::Y).is_wire());
 			mux->getPort(ID::Y).as_wire()->transfer_src_attribute(mux);

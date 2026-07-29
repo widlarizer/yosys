@@ -174,7 +174,7 @@ struct FfData : FfTypeData {
 	// source cell's pool slot survives if the cell itself is removed
 	// before emit() runs. Null when the source cell had no src (default
 	// IdString() is index 0, a valid constid, so it must be Null here).
-	IdString src_twine = Twine::Null;
+	SrcRef src_twine = Src::Null;
 
 	FfData(Module *module = nullptr, FfInitVals *initvals = nullptr, IdString name = IdString()) : module(module), initvals(initvals), cell(nullptr), name(name) {
 		width = 0;

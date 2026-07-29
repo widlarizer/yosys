@@ -660,7 +660,7 @@ public:
 
 struct RTLIL::ObjMeta
 {
-	IdString src = Twine::Null;
+	SrcRef src = Src::Null;
 	IdString name = Twine::Null;  // used by Wire/Cell names (per-Design twines)
 };
 
@@ -1317,6 +1317,7 @@ struct RTLIL::Design
 	std::vector<RTLIL::Binding*> bindings_;
 
 	TwinePool twines;
+	SrcPool srcs;
 
 	// Per-Design ObjMeta pool: stable storage (deque) + LIFO freelist of
 	// returned slots. AttrObject::meta_ points into obj_meta_storage_.
@@ -1326,10 +1327,10 @@ struct RTLIL::Design
 	RTLIL::ObjMeta *alloc_obj_meta();
 	void free_obj_meta(RTLIL::ObjMeta *m);
 
-	IdString obj_src_id(const RTLIL::AttrObject *obj) const {
+	SrcRef obj_src_id(const RTLIL::AttrObject *obj) const {
 		return (obj->meta_ ? obj->meta_->src : Twine::Null);
 	}
-	void obj_set_src_id(RTLIL::AttrObject *obj, IdString id);
+	void obj_set_src_id(RTLIL::AttrObject *obj, SrcRef id);
 	void obj_release_src(RTLIL::AttrObject *obj);
 
 	std::string obj_name(const RTLIL::AttrObject *obj) const {
@@ -1346,38 +1347,31 @@ struct RTLIL::Design
 	// void obj_release_name(RTLIL::AttrObject *obj);
 
 	// Replacements for the methods that used to live on AttrObject and
-	// took an explicit TwinePool*. Same semantics; the pool resolves
-	// to this->twines internally.
-	void set_src_attribute(RTLIL::AttrObject *obj, IdString src);
+	// took an explicit pool. Same semantics; the pool resolves to
+	// this->srcs internally.
+	void set_src_attribute(RTLIL::AttrObject *obj, SrcRef src);
 	std::string get_src_attribute(const RTLIL::AttrObject *obj) const;
 	void adopt_src_from(RTLIL::AttrObject *obj, const RTLIL::AttrObject *source);
 	void adopt_src_from(RTLIL::AttrObject *obj, const RTLIL::AttrObject *source,
-			const TwinePool *src_pool);
+			const SrcPool *src_pool);
 	void absorb_attrs(RTLIL::AttrObject *obj, dict<IdString, RTLIL::Const> &&buf);
 
-	// Merge `source`'s src attribute into `target`'s src attribute via the
-	// twine pool. After the call `target` carries the combined "@N" ref.
-	// Handles every case: source has a "@N" ref → reuse that Id; source
-	// has a legacy pipe-joined literal → split and intern each leaf;
-	// target had pre-existing src → its leaves are folded in too. Use
-	// this instead of `target->add_strpool_attribute(ID::src, source->get_strpool_attribute(ID::src))`,
-	// which round-trips through a flat string and corrupts "@N" refs.
+	// Unions `source`'s src into `target`'s. Locations already present on
+	// `target` are not repeated. Use this instead of round-tripping through
+	// a pipe-joined string, which loses the pool's sharing.
 	void merge_src(RTLIL::AttrObject *target, const RTLIL::AttrObject *source);
 
 
-	// Returns the resolved leaf-string set backing obj's src attribute.
-	// "@N" refs are expanded through the pool; legacy pipe-joined
-	// literals are split. Use this instead of get_strpool_attribute(ID::src)
-	// when you actually need to iterate the path:line.col entries.
+	// The individual locations backing obj's src attribute, unjoined. Use
+	// this when you actually need to iterate the path:line.col entries.
 	pool<std::string> src_leaves(const RTLIL::AttrObject *obj) const;
 
-	// Walk the design, collect the set of "@N" ids actually referenced by
-	// any AttrObject's src, then compact twines to contain only those
-	// nodes plus their transitive leaf children, and rewrite every cell
-	// src attribute through the resulting old-id -> new-id remap.
-	// Intermediate concats produced by successive merges become unreferenced
-	// once a fresh concat takes their place on the surviving cell, so this
-	// is what reaps them. Returns the number of nodes freed.
+	// Walk the design, collect every name and src handle a live object
+	// still refers to, then drop the unreachable nodes from both pools.
+	// Surviving nodes keep their ids. Intermediate src sets produced by
+	// successive merges become unreferenced once a fresh set takes their
+	// place on the surviving cell, so this is what reaps them. Returns the
+	// number of nodes freed.
 	size_t gc_twines();
 
 	std::vector<std::unique_ptr<AST::AstNode>> verilog_packages, verilog_globals;
@@ -1576,10 +1570,10 @@ public:
 
 	// Context-aware src helpers. Resolve Design via module->design and
 	// route to the per-Design meta vector; assert the wire is attached.
-	IdString src_id() const;
-	IdString src_ref() const { return src_id(); }
-	void set_src_id(IdString id);
-	void set_src_attribute(IdString src);
+	SrcRef src_id() const;
+	SrcRef src_ref() const { return src_id(); }
+	void set_src_id(SrcRef id);
+	void set_src_attribute(SrcRef src);
 	std::string get_src_attribute() const;
 	// Transfer src from `source` verbatim (same pool). Asserts attached
 	// to a design.
@@ -1631,10 +1625,10 @@ struct RTLIL::Memory : public RTLIL::AttrObject
 
 	// Context-aware src helpers. Resolve Design via module->design and
 	// route to the per-Design meta vector; assert the memory is attached.
-	IdString src_id() const;
-	IdString src_ref() const { return src_id(); }
-	void set_src_id(IdString id);
-	void set_src_attribute(IdString src);
+	SrcRef src_id() const;
+	SrcRef src_ref() const { return src_id(); }
+	void set_src_id(SrcRef id);
+	void set_src_attribute(SrcRef src);
 	std::string get_src_attribute() const;
 	void adopt_src_from(const RTLIL::AttrObject *source);
 	void absorb_attrs(dict<IdString, RTLIL::Const> &&buf);
@@ -1685,10 +1679,10 @@ public:
 
 	// Context-aware src helpers. Resolve Design via module->design and
 	// route to the per-Design meta vector; assert the cell is attached.
-	IdString src_id() const;
-	IdString src_ref() const { return src_id(); }
-	void set_src_id(IdString id);
-	void set_src_attribute(IdString src);
+	SrcRef src_id() const;
+	SrcRef src_ref() const { return src_id(); }
+	void set_src_id(SrcRef id);
+	void set_src_attribute(SrcRef src);
 	std::string get_src_attribute() const;
 	void adopt_src_from(const RTLIL::AttrObject *source);
 	void transfer_src_attribute(const RTLIL::AttrObject *source) { adopt_src_from(source); }
@@ -1746,7 +1740,7 @@ struct RTLIL::CaseRule : public RTLIL::AttrObject
 	std::vector<RTLIL::SigSpec> compare;
 	std::vector<RTLIL::SyncAction> actions;
 	std::vector<RTLIL::SwitchRule*> switches;
-	IdString compare_src = Twine::Null;
+	SrcRef compare_src = Src::Null;
 
 	~CaseRule();
 
@@ -1758,10 +1752,10 @@ struct RTLIL::CaseRule : public RTLIL::AttrObject
 	void setModuleRecursive(RTLIL::Module *m);
 
 	// Context-aware src helpers via module->design.
-	IdString src_id() const;
-	IdString src_ref() const { return src_id(); }
-	void set_src_id(IdString id);
-	void set_src_attribute(IdString src);
+	SrcRef src_id() const;
+	SrcRef src_ref() const { return src_id(); }
+	void set_src_id(SrcRef id);
+	void set_src_attribute(SrcRef src);
 	std::string get_src_attribute() const;
 	void adopt_src_from(const RTLIL::AttrObject *source);
 	void absorb_attrs(dict<IdString, RTLIL::Const> &&buf);
@@ -1777,7 +1771,7 @@ struct RTLIL::SwitchRule : public RTLIL::AttrObject
 	RTLIL::Module *module = nullptr;
 
 	RTLIL::SigSpec signal;
-	IdString signal_src = Twine::Null;
+	SrcRef signal_src = Src::Null;
 	std::vector<RTLIL::CaseRule*> cases;
 
 	~SwitchRule();
@@ -1787,10 +1781,10 @@ struct RTLIL::SwitchRule : public RTLIL::AttrObject
 	void setModuleRecursive(RTLIL::Module *m);
 
 	// Context-aware src helpers via module->design.
-	IdString src_id() const;
-	IdString src_ref() const { return src_id(); }
-	void set_src_id(IdString id);
-	void set_src_attribute(IdString src);
+	SrcRef src_id() const;
+	SrcRef src_ref() const { return src_id(); }
+	void set_src_id(SrcRef id);
+	void set_src_attribute(SrcRef src);
 	std::string get_src_attribute() const;
 	void adopt_src_from(const RTLIL::AttrObject *source);
 	void absorb_attrs(dict<IdString, RTLIL::Const> &&buf);
@@ -1812,10 +1806,10 @@ struct RTLIL::MemWriteAction : RTLIL::AttrObject
 	RTLIL::Const priority_mask;
 
 	// Context-aware src helpers via module->design.
-	IdString src_id() const;
-	IdString src_ref() const { return src_id(); }
-	void set_src_id(IdString id);
-	void set_src_attribute(IdString src);
+	SrcRef src_id() const;
+	SrcRef src_ref() const { return src_id(); }
+	void set_src_id(SrcRef id);
+	void set_src_attribute(SrcRef src);
 	std::string get_src_attribute() const;
 	void adopt_src_from(const RTLIL::AttrObject *source);
 	void absorb_attrs(dict<IdString, RTLIL::Const> &&buf);
@@ -1825,7 +1819,7 @@ struct RTLIL::SyncAction
 {
 	RTLIL::SigSpec lhs;
 	RTLIL::SigSpec rhs;
-	IdString src = Twine::Null;
+	SrcRef src = Src::Null;
 };
 
 struct RTLIL::SyncRule
@@ -1861,10 +1855,10 @@ public:
 
 	// Context-aware src helpers. Resolve Design via module->design and
 	// route to the per-Design meta vector; assert the process is attached.
-	IdString src_id() const;
-	IdString src_ref() const { return src_id(); }
-	void set_src_id(IdString id);
-	void set_src_attribute(IdString src);
+	SrcRef src_id() const;
+	SrcRef src_ref() const { return src_id(); }
+	void set_src_id(SrcRef id);
+	void set_src_attribute(SrcRef src);
 	std::string get_src_attribute() const;
 	void adopt_src_from(const RTLIL::AttrObject *source);
 	void absorb_attrs(dict<IdString, RTLIL::Const> &&buf);
@@ -1970,384 +1964,384 @@ class CellAdderMixin {
 public:
 	// The add* methods create a cell and return the created cell. All signals must exist in advance.
 
-	RTLIL::Cell* addNot (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addNot (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addNot)
-	RTLIL::Cell* addPos (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addPos (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addPos)
-	RTLIL::Cell* addBuf (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addBuf (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addBuf)
-	RTLIL::Cell* addNeg (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addNeg (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addNeg)
 
-	RTLIL::Cell* addAnd  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addAnd  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addAnd)
-	RTLIL::Cell* addOr   (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addOr   (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addOr)
-	RTLIL::Cell* addXor  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addXor  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addXor)
-	RTLIL::Cell* addXnor (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addXnor (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addXnor)
 
-	RTLIL::Cell* addReduceAnd  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addReduceAnd  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addReduceAnd)
-	RTLIL::Cell* addReduceOr   (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addReduceOr   (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addReduceOr)
-	RTLIL::Cell* addReduceXor  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addReduceXor  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addReduceXor)
-	RTLIL::Cell* addReduceXnor (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addReduceXnor (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addReduceXnor)
-	RTLIL::Cell* addReduceBool (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addReduceBool (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addReduceBool)
 
-	RTLIL::Cell* addShl    (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addShl    (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addShl)
-	RTLIL::Cell* addShr    (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addShr    (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addShr)
-	RTLIL::Cell* addSshl   (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addSshl   (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addSshl)
-	RTLIL::Cell* addSshr   (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addSshr   (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addSshr)
-	RTLIL::Cell* addShift  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addShift  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addShift)
-	RTLIL::Cell* addShiftx (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addShiftx (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addShiftx)
 
-	RTLIL::Cell* addLt  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addLt  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addLt)
-	RTLIL::Cell* addLe  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addLe  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addLe)
-	RTLIL::Cell* addEq  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addEq  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addEq)
-	RTLIL::Cell* addNe  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addNe  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addNe)
-	RTLIL::Cell* addEqx (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addEqx (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addEqx)
-	RTLIL::Cell* addNex (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addNex (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addNex)
-	RTLIL::Cell* addGe  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addGe  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addGe)
-	RTLIL::Cell* addGt  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addGt  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addGt)
 
-	RTLIL::Cell* addAdd (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addAdd (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addAdd)
-	RTLIL::Cell* addSub (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addSub (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addSub)
-	RTLIL::Cell* addMul (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addMul (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addMul)
 	// truncating division
-	RTLIL::Cell* addDiv (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addDiv (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addDiv)
 	// truncating modulo
-	RTLIL::Cell* addMod (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addMod (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addMod)
-	RTLIL::Cell* addDivFloor (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addDivFloor (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addDivFloor)
-	RTLIL::Cell* addModFloor (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addModFloor (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addModFloor)
-	RTLIL::Cell* addPow (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool a_signed = false, bool b_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addPow (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool a_signed = false, bool b_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addPow)
 
-	RTLIL::Cell* addFa (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_c, const RTLIL::SigSpec &sig_x, const RTLIL::SigSpec &sig_y, IdString src = Twine::Null);
+	RTLIL::Cell* addFa (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_c, const RTLIL::SigSpec &sig_x, const RTLIL::SigSpec &sig_y, SrcRef src = Src::Null);
 	YS_NAME_FWD(addFa)
 
-	RTLIL::Cell* addLogicNot (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addLogicNot (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addLogicNot)
-	RTLIL::Cell* addLogicAnd (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addLogicAnd (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addLogicAnd)
-	RTLIL::Cell* addLogicOr  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::Cell* addLogicOr  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(addLogicOr)
 
-	RTLIL::Cell* addMux  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_y, IdString src = Twine::Null);
+	RTLIL::Cell* addMux  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_y, SrcRef src = Src::Null);
 	YS_NAME_FWD(addMux)
-	RTLIL::Cell* addPmux (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_y, IdString src = Twine::Null);
+	RTLIL::Cell* addPmux (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_y, SrcRef src = Src::Null);
 	YS_NAME_FWD(addPmux)
-	RTLIL::Cell* addBmux (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_y, IdString src = Twine::Null);
+	RTLIL::Cell* addBmux (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_y, SrcRef src = Src::Null);
 	YS_NAME_FWD(addBmux)
-	RTLIL::Cell* addDemux (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_y, IdString src = Twine::Null);
+	RTLIL::Cell* addDemux (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_y, SrcRef src = Src::Null);
 	YS_NAME_FWD(addDemux)
 
-	RTLIL::Cell* addBweqx  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, IdString src = Twine::Null);
+	RTLIL::Cell* addBweqx  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, SrcRef src = Src::Null);
 	YS_NAME_FWD(addBweqx)
-	RTLIL::Cell* addBwmux  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_y, IdString src = Twine::Null);
+	RTLIL::Cell* addBwmux  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_y, SrcRef src = Src::Null);
 	YS_NAME_FWD(addBwmux)
 
-	RTLIL::Cell* addSlice  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, RTLIL::Const offset, IdString src = Twine::Null);
+	RTLIL::Cell* addSlice  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, RTLIL::Const offset, SrcRef src = Src::Null);
 	YS_NAME_FWD(addSlice)
-	RTLIL::Cell* addConcat (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, IdString src = Twine::Null);
+	RTLIL::Cell* addConcat (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, SrcRef src = Src::Null);
 	YS_NAME_FWD(addConcat)
-	RTLIL::Cell* addLut    (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, RTLIL::Const lut, IdString src = Twine::Null);
+	RTLIL::Cell* addLut    (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, RTLIL::Const lut, SrcRef src = Src::Null);
 	YS_NAME_FWD(addLut)
-	RTLIL::Cell* addTribuf (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_y, IdString src = Twine::Null);
+	RTLIL::Cell* addTribuf (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_y, SrcRef src = Src::Null);
 	YS_NAME_FWD(addTribuf)
-	RTLIL::Cell* addAssert (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, IdString src = Twine::Null);
+	RTLIL::Cell* addAssert (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, SrcRef src = Src::Null);
 	YS_NAME_FWD(addAssert)
-	RTLIL::Cell* addAssume (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, IdString src = Twine::Null);
+	RTLIL::Cell* addAssume (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, SrcRef src = Src::Null);
 	YS_NAME_FWD(addAssume)
-	RTLIL::Cell* addLive   (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, IdString src = Twine::Null);
+	RTLIL::Cell* addLive   (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, SrcRef src = Src::Null);
 	YS_NAME_FWD(addLive)
-	RTLIL::Cell* addFair   (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, IdString src = Twine::Null);
+	RTLIL::Cell* addFair   (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, SrcRef src = Src::Null);
 	YS_NAME_FWD(addFair)
-	RTLIL::Cell* addCover  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, IdString src = Twine::Null);
+	RTLIL::Cell* addCover  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, SrcRef src = Src::Null);
 	YS_NAME_FWD(addCover)
-	RTLIL::Cell* addEquiv  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, IdString src = Twine::Null);
+	RTLIL::Cell* addEquiv  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, SrcRef src = Src::Null);
 	YS_NAME_FWD(addEquiv)
 
-	RTLIL::Cell* addSr    (IdString name, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr, const RTLIL::SigSpec &sig_q, bool set_polarity = true, bool clr_polarity = true, IdString src = Twine::Null);
+	RTLIL::Cell* addSr    (IdString name, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr, const RTLIL::SigSpec &sig_q, bool set_polarity = true, bool clr_polarity = true, SrcRef src = Src::Null);
 	YS_NAME_FWD(addSr)
-	RTLIL::Cell* addFf    (IdString name, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, IdString src = Twine::Null);
+	RTLIL::Cell* addFf    (IdString name, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, SrcRef src = Src::Null);
 	YS_NAME_FWD(addFf)
-	RTLIL::Cell* addDff   (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_d,   const RTLIL::SigSpec &sig_q, bool clk_polarity = true, IdString src = Twine::Null);
+	RTLIL::Cell* addDff   (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_d,   const RTLIL::SigSpec &sig_q, bool clk_polarity = true, SrcRef src = Src::Null);
 	YS_NAME_FWD(addDff)
-	RTLIL::Cell* addDffe  (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en,  const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool en_polarity = true, IdString src = Twine::Null);
+	RTLIL::Cell* addDffe  (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en,  const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool en_polarity = true, SrcRef src = Src::Null);
 	YS_NAME_FWD(addDffe)
-	RTLIL::Cell* addDffsr (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr, RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool set_polarity = true, bool clr_polarity = true, IdString src = Twine::Null);
+	RTLIL::Cell* addDffsr (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr, RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool set_polarity = true, bool clr_polarity = true, SrcRef src = Src::Null);
 	YS_NAME_FWD(addDffsr)
-	RTLIL::Cell* addDffsre (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr, RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool en_polarity = true, bool set_polarity = true, bool clr_polarity = true, IdString src = Twine::Null);
+	RTLIL::Cell* addDffsre (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr, RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool en_polarity = true, bool set_polarity = true, bool clr_polarity = true, SrcRef src = Src::Null);
 	YS_NAME_FWD(addDffsre)
-	RTLIL::Cell* addAdff (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_arst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const arst_value, bool clk_polarity = true, bool arst_polarity = true, IdString src = Twine::Null);
+	RTLIL::Cell* addAdff (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_arst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const arst_value, bool clk_polarity = true, bool arst_polarity = true, SrcRef src = Src::Null);
 	YS_NAME_FWD(addAdff)
-	RTLIL::Cell* addAdffe (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_arst,  const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const arst_value, bool clk_polarity = true, bool en_polarity = true, bool arst_polarity = true, IdString src = Twine::Null);
+	RTLIL::Cell* addAdffe (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_arst,  const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const arst_value, bool clk_polarity = true, bool en_polarity = true, bool arst_polarity = true, SrcRef src = Src::Null);
 	YS_NAME_FWD(addAdffe)
-	RTLIL::Cell* addAldff (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_aload, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, const RTLIL::SigSpec &sig_ad, bool clk_polarity = true, bool aload_polarity = true, IdString src = Twine::Null);
+	RTLIL::Cell* addAldff (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_aload, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, const RTLIL::SigSpec &sig_ad, bool clk_polarity = true, bool aload_polarity = true, SrcRef src = Src::Null);
 	YS_NAME_FWD(addAldff)
-	RTLIL::Cell* addAldffe (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_aload,  const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, const RTLIL::SigSpec &sig_ad, bool clk_polarity = true, bool en_polarity = true, bool aload_polarity = true, IdString src = Twine::Null);
+	RTLIL::Cell* addAldffe (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_aload,  const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, const RTLIL::SigSpec &sig_ad, bool clk_polarity = true, bool en_polarity = true, bool aload_polarity = true, SrcRef src = Src::Null);
 	YS_NAME_FWD(addAldffe)
-	RTLIL::Cell* addSdff (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_srst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const srst_value, bool clk_polarity = true, bool srst_polarity = true, IdString src = Twine::Null);
+	RTLIL::Cell* addSdff (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_srst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const srst_value, bool clk_polarity = true, bool srst_polarity = true, SrcRef src = Src::Null);
 	YS_NAME_FWD(addSdff)
-	RTLIL::Cell* addSdffe (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_srst,  const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const srst_value, bool clk_polarity = true, bool en_polarity = true, bool srst_polarity = true, IdString src = Twine::Null);
+	RTLIL::Cell* addSdffe (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_srst,  const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const srst_value, bool clk_polarity = true, bool en_polarity = true, bool srst_polarity = true, SrcRef src = Src::Null);
 	YS_NAME_FWD(addSdffe)
-	RTLIL::Cell* addSdffce (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_srst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const srst_value, bool clk_polarity = true, bool en_polarity = true, bool srst_polarity = true, IdString src = Twine::Null);
+	RTLIL::Cell* addSdffce (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_srst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const srst_value, bool clk_polarity = true, bool en_polarity = true, bool srst_polarity = true, SrcRef src = Src::Null);
 	YS_NAME_FWD(addSdffce)
-	RTLIL::Cell* addDlatch (IdString name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool en_polarity = true, IdString src = Twine::Null);
+	RTLIL::Cell* addDlatch (IdString name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool en_polarity = true, SrcRef src = Src::Null);
 	YS_NAME_FWD(addDlatch)
-	RTLIL::Cell* addAdlatch (IdString name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_arst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const arst_value, bool en_polarity = true, bool arst_polarity = true, IdString src = Twine::Null);
+	RTLIL::Cell* addAdlatch (IdString name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_arst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, RTLIL::Const arst_value, bool en_polarity = true, bool arst_polarity = true, SrcRef src = Src::Null);
 	YS_NAME_FWD(addAdlatch)
-	RTLIL::Cell* addDlatchsr (IdString name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr, RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool en_polarity = true, bool set_polarity = true, bool clr_polarity = true, IdString src = Twine::Null);
+	RTLIL::Cell* addDlatchsr (IdString name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr, RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool en_polarity = true, bool set_polarity = true, bool clr_polarity = true, SrcRef src = Src::Null);
 	YS_NAME_FWD(addDlatchsr)
 
-	RTLIL::Cell* addBufGate(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_y, IdString src = Twine::Null);
+	RTLIL::Cell* addBufGate(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_y, SrcRef src = Src::Null);
 	YS_NAME_FWD(addBufGate)
-	RTLIL::Cell* addNotGate(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_y, IdString src = Twine::Null);
+	RTLIL::Cell* addNotGate(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_y, SrcRef src = Src::Null);
 	YS_NAME_FWD(addNotGate)
-	RTLIL::Cell* addAndGate(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, IdString src = Twine::Null);
+	RTLIL::Cell* addAndGate(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, SrcRef src = Src::Null);
 	YS_NAME_FWD(addAndGate)
-	RTLIL::Cell* addNandGate(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, IdString src = Twine::Null);
+	RTLIL::Cell* addNandGate(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, SrcRef src = Src::Null);
 	YS_NAME_FWD(addNandGate)
-	RTLIL::Cell* addOrGate(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, IdString src = Twine::Null);
+	RTLIL::Cell* addOrGate(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, SrcRef src = Src::Null);
 	YS_NAME_FWD(addOrGate)
-	RTLIL::Cell* addNorGate(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, IdString src = Twine::Null);
+	RTLIL::Cell* addNorGate(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, SrcRef src = Src::Null);
 	YS_NAME_FWD(addNorGate)
-	RTLIL::Cell* addXorGate(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, IdString src = Twine::Null);
+	RTLIL::Cell* addXorGate(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, SrcRef src = Src::Null);
 	YS_NAME_FWD(addXorGate)
-	RTLIL::Cell* addXnorGate(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, IdString src = Twine::Null);
+	RTLIL::Cell* addXnorGate(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, SrcRef src = Src::Null);
 	YS_NAME_FWD(addXnorGate)
-	RTLIL::Cell* addAndnotGate(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, IdString src = Twine::Null);
+	RTLIL::Cell* addAndnotGate(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, SrcRef src = Src::Null);
 	YS_NAME_FWD(addAndnotGate)
-	RTLIL::Cell* addOrnotGate(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, IdString src = Twine::Null);
+	RTLIL::Cell* addOrnotGate(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_y, SrcRef src = Src::Null);
 	YS_NAME_FWD(addOrnotGate)
-	RTLIL::Cell* addMuxGate(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_s, const RTLIL::SigBit &sig_y, IdString src = Twine::Null);
+	RTLIL::Cell* addMuxGate(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_s, const RTLIL::SigBit &sig_y, SrcRef src = Src::Null);
 	YS_NAME_FWD(addMuxGate)
-	RTLIL::Cell* addNmuxGate(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_s, const RTLIL::SigBit &sig_y, IdString src = Twine::Null);
+	RTLIL::Cell* addNmuxGate(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_s, const RTLIL::SigBit &sig_y, SrcRef src = Src::Null);
 	YS_NAME_FWD(addNmuxGate)
-	RTLIL::Cell* addAoi3Gate(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, const RTLIL::SigBit &sig_y, IdString src = Twine::Null);
+	RTLIL::Cell* addAoi3Gate(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, const RTLIL::SigBit &sig_y, SrcRef src = Src::Null);
 	YS_NAME_FWD(addAoi3Gate)
-	RTLIL::Cell* addOai3Gate(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, const RTLIL::SigBit &sig_y, IdString src = Twine::Null);
+	RTLIL::Cell* addOai3Gate(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, const RTLIL::SigBit &sig_y, SrcRef src = Src::Null);
 	YS_NAME_FWD(addOai3Gate)
-	RTLIL::Cell* addAoi4Gate(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, const RTLIL::SigBit &sig_d, const RTLIL::SigBit &sig_y, IdString src = Twine::Null);
+	RTLIL::Cell* addAoi4Gate(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, const RTLIL::SigBit &sig_d, const RTLIL::SigBit &sig_y, SrcRef src = Src::Null);
 	YS_NAME_FWD(addAoi4Gate)
-	RTLIL::Cell* addOai4Gate(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, const RTLIL::SigBit &sig_d, const RTLIL::SigBit &sig_y, IdString src = Twine::Null);
+	RTLIL::Cell* addOai4Gate(IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, const RTLIL::SigBit &sig_d, const RTLIL::SigBit &sig_y, SrcRef src = Src::Null);
 	YS_NAME_FWD(addOai4Gate)
 
 	RTLIL::Cell* addSrGate     (IdString name, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr,
-			const RTLIL::SigSpec &sig_q, bool set_polarity = true, bool clr_polarity = true, IdString src = Twine::Null);
+			const RTLIL::SigSpec &sig_q, bool set_polarity = true, bool clr_polarity = true, SrcRef src = Src::Null);
 
 	YS_NAME_FWD(addSrGate)
-	RTLIL::Cell* addFfGate     (IdString name, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, IdString src = Twine::Null);
+	RTLIL::Cell* addFfGate     (IdString name, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, SrcRef src = Src::Null);
 	YS_NAME_FWD(addFfGate)
-	RTLIL::Cell* addDffGate    (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, IdString src = Twine::Null);
+	RTLIL::Cell* addDffGate    (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, SrcRef src = Src::Null);
 	YS_NAME_FWD(addDffGate)
-	RTLIL::Cell* addDffeGate   (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool en_polarity = true, IdString src = Twine::Null);
+	RTLIL::Cell* addDffeGate   (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool en_polarity = true, SrcRef src = Src::Null);
 	YS_NAME_FWD(addDffeGate)
 	RTLIL::Cell* addDffsrGate  (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr,
-			RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool set_polarity = true, bool clr_polarity = true, IdString src = Twine::Null);
+			RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool set_polarity = true, bool clr_polarity = true, SrcRef src = Src::Null);
 
 	YS_NAME_FWD(addDffsrGate)
 	RTLIL::Cell* addDffsreGate (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr,
-			RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool en_polarity = true, bool set_polarity = true, bool clr_polarity = true, IdString src = Twine::Null);
+			RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool clk_polarity = true, bool en_polarity = true, bool set_polarity = true, bool clr_polarity = true, SrcRef src = Src::Null);
 
 	YS_NAME_FWD(addDffsreGate)
 	RTLIL::Cell* addAdffGate   (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_arst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
-			bool arst_value = false, bool clk_polarity = true, bool arst_polarity = true, IdString src = Twine::Null);
+			bool arst_value = false, bool clk_polarity = true, bool arst_polarity = true, SrcRef src = Src::Null);
 
 	YS_NAME_FWD(addAdffGate)
 	RTLIL::Cell* addAdffeGate  (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_arst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
-			bool arst_value = false, bool clk_polarity = true, bool en_polarity = true, bool arst_polarity = true, IdString src = Twine::Null);
+			bool arst_value = false, bool clk_polarity = true, bool en_polarity = true, bool arst_polarity = true, SrcRef src = Src::Null);
 
 	YS_NAME_FWD(addAdffeGate)
 	RTLIL::Cell* addAldffGate   (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_aload, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
-			const RTLIL::SigSpec &sig_ad, bool clk_polarity = true, bool aload_polarity = true, IdString src = Twine::Null);
+			const RTLIL::SigSpec &sig_ad, bool clk_polarity = true, bool aload_polarity = true, SrcRef src = Src::Null);
 
 	YS_NAME_FWD(addAldffGate)
 	RTLIL::Cell* addAldffeGate  (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_aload, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
-			const RTLIL::SigSpec &sig_ad, bool clk_polarity = true, bool en_polarity = true, bool aload_polarity = true, IdString src = Twine::Null);
+			const RTLIL::SigSpec &sig_ad, bool clk_polarity = true, bool en_polarity = true, bool aload_polarity = true, SrcRef src = Src::Null);
 
 	YS_NAME_FWD(addAldffeGate)
 	RTLIL::Cell* addSdffGate   (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_srst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
-			bool srst_value = false, bool clk_polarity = true, bool srst_polarity = true, IdString src = Twine::Null);
+			bool srst_value = false, bool clk_polarity = true, bool srst_polarity = true, SrcRef src = Src::Null);
 
 	YS_NAME_FWD(addSdffGate)
 	RTLIL::Cell* addSdffeGate  (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_srst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
-			bool srst_value = false, bool clk_polarity = true, bool en_polarity = true, bool srst_polarity = true, IdString src = Twine::Null);
+			bool srst_value = false, bool clk_polarity = true, bool en_polarity = true, bool srst_polarity = true, SrcRef src = Src::Null);
 
 	YS_NAME_FWD(addSdffeGate)
 	RTLIL::Cell* addSdffceGate (IdString name, const RTLIL::SigSpec &sig_clk, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_srst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
-			bool srst_value = false, bool clk_polarity = true, bool en_polarity = true, bool srst_polarity = true, IdString src = Twine::Null);
+			bool srst_value = false, bool clk_polarity = true, bool en_polarity = true, bool srst_polarity = true, SrcRef src = Src::Null);
 
 	YS_NAME_FWD(addSdffceGate)
-	RTLIL::Cell* addDlatchGate (IdString name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool en_polarity = true, IdString src = Twine::Null);
+	RTLIL::Cell* addDlatchGate (IdString name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, bool en_polarity = true, SrcRef src = Src::Null);
 	YS_NAME_FWD(addDlatchGate)
 	RTLIL::Cell* addAdlatchGate(IdString name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_arst, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q,
-			bool arst_value = false, bool en_polarity = true, bool arst_polarity = true, IdString src = Twine::Null);
+			bool arst_value = false, bool en_polarity = true, bool arst_polarity = true, SrcRef src = Src::Null);
 
 	YS_NAME_FWD(addAdlatchGate)
 	RTLIL::Cell* addDlatchsrGate  (IdString name, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_set, const RTLIL::SigSpec &sig_clr,
-			RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool en_polarity = true, bool set_polarity = true, bool clr_polarity = true, IdString src = Twine::Null);
+			RTLIL::SigSpec sig_d, const RTLIL::SigSpec &sig_q, bool en_polarity = true, bool set_polarity = true, bool clr_polarity = true, SrcRef src = Src::Null);
 
 	YS_NAME_FWD(addDlatchsrGate)
 
 	// The methods without the add* prefix create a cell and an output signal. They return the newly created output signal.
 
-	RTLIL::SigSpec Not (IdString name, const RTLIL::SigSpec &sig_a, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec Not (IdString name, const RTLIL::SigSpec &sig_a, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(Not)
-	RTLIL::SigSpec Pos (IdString name, const RTLIL::SigSpec &sig_a, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec Pos (IdString name, const RTLIL::SigSpec &sig_a, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(Pos)
-	RTLIL::SigSpec Buf (IdString name, const RTLIL::SigSpec &sig_a, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec Buf (IdString name, const RTLIL::SigSpec &sig_a, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(Buf)
-	RTLIL::SigSpec Neg (IdString name, const RTLIL::SigSpec &sig_a, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec Neg (IdString name, const RTLIL::SigSpec &sig_a, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(Neg)
 
-	RTLIL::SigSpec And  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec And  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(And)
-	RTLIL::SigSpec Or   (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec Or   (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(Or)
-	RTLIL::SigSpec Xor  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec Xor  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(Xor)
-	RTLIL::SigSpec Xnor (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec Xnor (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(Xnor)
 
-	RTLIL::SigSpec ReduceAnd  (IdString name, const RTLIL::SigSpec &sig_a, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec ReduceAnd  (IdString name, const RTLIL::SigSpec &sig_a, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(ReduceAnd)
-	RTLIL::SigSpec ReduceOr   (IdString name, const RTLIL::SigSpec &sig_a, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec ReduceOr   (IdString name, const RTLIL::SigSpec &sig_a, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(ReduceOr)
-	RTLIL::SigSpec ReduceXor  (IdString name, const RTLIL::SigSpec &sig_a, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec ReduceXor  (IdString name, const RTLIL::SigSpec &sig_a, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(ReduceXor)
-	RTLIL::SigSpec ReduceXnor (IdString name, const RTLIL::SigSpec &sig_a, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec ReduceXnor (IdString name, const RTLIL::SigSpec &sig_a, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(ReduceXnor)
-	RTLIL::SigSpec ReduceBool (IdString name, const RTLIL::SigSpec &sig_a, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec ReduceBool (IdString name, const RTLIL::SigSpec &sig_a, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(ReduceBool)
 
-	RTLIL::SigSpec Shl    (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec Shl    (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(Shl)
-	RTLIL::SigSpec Shr    (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec Shr    (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(Shr)
-	RTLIL::SigSpec Sshl   (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec Sshl   (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(Sshl)
-	RTLIL::SigSpec Sshr   (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec Sshr   (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(Sshr)
-	RTLIL::SigSpec Shift  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec Shift  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(Shift)
-	RTLIL::SigSpec Shiftx (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec Shiftx (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(Shiftx)
 
-	RTLIL::SigSpec Lt  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec Lt  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(Lt)
-	RTLIL::SigSpec Le  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec Le  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(Le)
-	RTLIL::SigSpec Eq  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec Eq  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(Eq)
-	RTLIL::SigSpec Ne  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec Ne  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(Ne)
-	RTLIL::SigSpec Eqx (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec Eqx (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(Eqx)
-	RTLIL::SigSpec Nex (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec Nex (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(Nex)
-	RTLIL::SigSpec Ge  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec Ge  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(Ge)
-	RTLIL::SigSpec Gt  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec Gt  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(Gt)
 
-	RTLIL::SigSpec Add (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec Add (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(Add)
-	RTLIL::SigSpec Sub (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec Sub (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(Sub)
-	RTLIL::SigSpec Mul (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec Mul (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(Mul)
 	// truncating division
-	RTLIL::SigSpec Div (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec Div (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(Div)
 	// truncating modulo
-	RTLIL::SigSpec Mod (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec Mod (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(Mod)
-	RTLIL::SigSpec DivFloor (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec DivFloor (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(DivFloor)
-	RTLIL::SigSpec ModFloor (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec ModFloor (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(ModFloor)
-	RTLIL::SigSpec Pow (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool a_signed = false, bool b_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec Pow (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool a_signed = false, bool b_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(Pow)
 
-	RTLIL::SigSpec LogicNot (IdString name, const RTLIL::SigSpec &sig_a, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec LogicNot (IdString name, const RTLIL::SigSpec &sig_a, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(LogicNot)
-	RTLIL::SigSpec LogicAnd (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec LogicAnd (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(LogicAnd)
-	RTLIL::SigSpec LogicOr  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, IdString src = Twine::Null);
+	RTLIL::SigSpec LogicOr  (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed = false, SrcRef src = Src::Null);
 	YS_NAME_FWD(LogicOr)
 
-	RTLIL::SigSpec Mux      (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_s, IdString src = Twine::Null);
+	RTLIL::SigSpec Mux      (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_s, SrcRef src = Src::Null);
 	YS_NAME_FWD(Mux)
-	RTLIL::SigSpec Pmux     (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_s, IdString src = Twine::Null);
+	RTLIL::SigSpec Pmux     (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_s, SrcRef src = Src::Null);
 	YS_NAME_FWD(Pmux)
-	RTLIL::SigSpec Bmux     (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, IdString src = Twine::Null);
+	RTLIL::SigSpec Bmux     (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, SrcRef src = Src::Null);
 	YS_NAME_FWD(Bmux)
-	RTLIL::SigSpec Demux     (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, IdString src = Twine::Null);
+	RTLIL::SigSpec Demux     (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, SrcRef src = Src::Null);
 	YS_NAME_FWD(Demux)
 
-	RTLIL::SigSpec Bweqx      (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, IdString src = Twine::Null);
+	RTLIL::SigSpec Bweqx      (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, SrcRef src = Src::Null);
 	YS_NAME_FWD(Bweqx)
-	RTLIL::SigSpec Bwmux      (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_s, IdString src = Twine::Null);
+	RTLIL::SigSpec Bwmux      (IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_s, SrcRef src = Src::Null);
 	YS_NAME_FWD(Bwmux)
 
-	RTLIL::SigBit BufGate    (IdString name, const RTLIL::SigBit &sig_a, IdString src = Twine::Null);
+	RTLIL::SigBit BufGate    (IdString name, const RTLIL::SigBit &sig_a, SrcRef src = Src::Null);
 	YS_NAME_FWD(BufGate)
-	RTLIL::SigBit NotGate    (IdString name, const RTLIL::SigBit &sig_a, IdString src = Twine::Null);
+	RTLIL::SigBit NotGate    (IdString name, const RTLIL::SigBit &sig_a, SrcRef src = Src::Null);
 	YS_NAME_FWD(NotGate)
-	RTLIL::SigBit AndGate    (IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, IdString src = Twine::Null);
+	RTLIL::SigBit AndGate    (IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, SrcRef src = Src::Null);
 	YS_NAME_FWD(AndGate)
-	RTLIL::SigBit NandGate   (IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, IdString src = Twine::Null);
+	RTLIL::SigBit NandGate   (IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, SrcRef src = Src::Null);
 	YS_NAME_FWD(NandGate)
-	RTLIL::SigBit OrGate     (IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, IdString src = Twine::Null);
+	RTLIL::SigBit OrGate     (IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, SrcRef src = Src::Null);
 	YS_NAME_FWD(OrGate)
-	RTLIL::SigBit NorGate    (IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, IdString src = Twine::Null);
+	RTLIL::SigBit NorGate    (IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, SrcRef src = Src::Null);
 	YS_NAME_FWD(NorGate)
-	RTLIL::SigBit XorGate    (IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, IdString src = Twine::Null);
+	RTLIL::SigBit XorGate    (IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, SrcRef src = Src::Null);
 	YS_NAME_FWD(XorGate)
-	RTLIL::SigBit XnorGate   (IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, IdString src = Twine::Null);
+	RTLIL::SigBit XnorGate   (IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, SrcRef src = Src::Null);
 	YS_NAME_FWD(XnorGate)
-	RTLIL::SigBit AndnotGate (IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, IdString src = Twine::Null);
+	RTLIL::SigBit AndnotGate (IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, SrcRef src = Src::Null);
 	YS_NAME_FWD(AndnotGate)
-	RTLIL::SigBit OrnotGate  (IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, IdString src = Twine::Null);
+	RTLIL::SigBit OrnotGate  (IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, SrcRef src = Src::Null);
 	YS_NAME_FWD(OrnotGate)
-	RTLIL::SigBit MuxGate    (IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_s, IdString src = Twine::Null);
+	RTLIL::SigBit MuxGate    (IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_s, SrcRef src = Src::Null);
 	YS_NAME_FWD(MuxGate)
-	RTLIL::SigBit NmuxGate   (IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_s, IdString src = Twine::Null);
+	RTLIL::SigBit NmuxGate   (IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_s, SrcRef src = Src::Null);
 	YS_NAME_FWD(NmuxGate)
-	RTLIL::SigBit Aoi3Gate   (IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, IdString src = Twine::Null);
+	RTLIL::SigBit Aoi3Gate   (IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, SrcRef src = Src::Null);
 	YS_NAME_FWD(Aoi3Gate)
-	RTLIL::SigBit Oai3Gate   (IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, IdString src = Twine::Null);
+	RTLIL::SigBit Oai3Gate   (IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, SrcRef src = Src::Null);
 	YS_NAME_FWD(Oai3Gate)
-	RTLIL::SigBit Aoi4Gate   (IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, const RTLIL::SigBit &sig_d, IdString src = Twine::Null);
+	RTLIL::SigBit Aoi4Gate   (IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, const RTLIL::SigBit &sig_d, SrcRef src = Src::Null);
 	YS_NAME_FWD(Aoi4Gate)
-	RTLIL::SigBit Oai4Gate   (IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, const RTLIL::SigBit &sig_d, IdString src = Twine::Null);
+	RTLIL::SigBit Oai4Gate   (IdString name, const RTLIL::SigBit &sig_a, const RTLIL::SigBit &sig_b, const RTLIL::SigBit &sig_c, const RTLIL::SigBit &sig_d, SrcRef src = Src::Null);
 	YS_NAME_FWD(Oai4Gate)
 };
 
@@ -2386,10 +2380,10 @@ public:
 
 	// Context-aware src helpers. Resolve Design via this->design and
 	// route to the per-Design meta vector; assert the module is attached.
-	IdString src_id() const;
-	IdString src_ref() const { return src_id(); }
-	void set_src_id(IdString id);
-	void set_src_attribute(IdString src);
+	SrcRef src_id() const;
+	SrcRef src_ref() const { return src_id(); }
+	void set_src_id(SrcRef id);
+	void set_src_attribute(SrcRef src);
 	std::string get_src_attribute() const;
 	void adopt_src_from(const RTLIL::AttrObject *source);
 	void absorb_attrs(dict<IdString, RTLIL::Const> &&buf);
@@ -2429,11 +2423,9 @@ public:
 	template<typename T> void rewrite_sigspecs(T &functor);
 	template<typename T> void rewrite_sigspecs2(T &functor);
 	// `src_id_verbatim`: when true, the caller guarantees that
-	// `new_mod->design->twines` is a verbatim copy of
-	// `this->design->twines`, so src_id_ values can be transferred
-	// without retain/release on the destination pool (the copied refcounts
-	// already account for the new AttrObject references). Used by
-	// Design::clone_into for wholesale design copies.
+	// `new_mod->design`'s name and src pools are verbatim copies of
+	// `this->design`'s, so handles can be transferred as-is instead of
+	// being re-interned. Used by Design::clone_into for wholesale copies.
 	void cloneInto(RTLIL::Module *new_mod, bool src_id_verbatim = false) const;
 	virtual RTLIL::Module *clone() const;
 	// Clone variant that attaches the new module to `dst` BEFORE cloneInto
@@ -2522,7 +2514,7 @@ public:
 	RTLIL::Cell *addCell(IdString name, T type) { return addCell(name, intern(std::move(type))); }
 
 	// CellAdderMixin hook: cells added here are attached, so set src directly.
-	void cell_set_src(RTLIL::Cell *cell, IdString src) { cell->set_src_attribute(src); }
+	void cell_set_src(RTLIL::Cell *cell, SrcRef src) { cell->set_src_attribute(src); }
 
 	IdString intern(Twine &&name) { return design->twines.add(std::move(name)); }
 	IdString intern(std::string name) { return design->twines.add(std::move(name)); }
@@ -2543,28 +2535,28 @@ public:
 
 	// The add* methods create a cell and return the created cell. All signals must exist in advance.
 
-	RTLIL::Cell* addAnyinit(IdString name, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, IdString src = Twine::Null);
+	RTLIL::Cell* addAnyinit(IdString name, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, SrcRef src = Src::Null);
 	YS_NAME_FWD_SELF(addAnyinit)
 
 	// The methods without the add* prefix create a cell and an output signal. They return the newly created output signal.
 
-	RTLIL::SigSpec Anyconst  (IdString name, int width = 1, IdString src = Twine::Null);
-	RTLIL::SigSpec Anyseq    (IdString name, int width = 1, IdString src = Twine::Null);
-	RTLIL::SigSpec Allconst  (IdString name, int width = 1, IdString src = Twine::Null);
-	RTLIL::SigSpec Allseq    (IdString name, int width = 1, IdString src = Twine::Null);
-	RTLIL::SigSpec Initstate (IdString name, IdString src = Twine::Null);
+	RTLIL::SigSpec Anyconst  (IdString name, int width = 1, SrcRef src = Src::Null);
+	RTLIL::SigSpec Anyseq    (IdString name, int width = 1, SrcRef src = Src::Null);
+	RTLIL::SigSpec Allconst  (IdString name, int width = 1, SrcRef src = Src::Null);
+	RTLIL::SigSpec Allseq    (IdString name, int width = 1, SrcRef src = Src::Null);
+	RTLIL::SigSpec Initstate (IdString name, SrcRef src = Src::Null);
 	YS_NAME_FWD_SELF(Anyconst)
 	YS_NAME_FWD_SELF(Anyseq)
 	YS_NAME_FWD_SELF(Allconst)
 	YS_NAME_FWD_SELF(Allseq)
 	YS_NAME_FWD_SELF(Initstate)
 
-	RTLIL::SigSpec SetTag          (IdString name, const std::string &tag, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_c, IdString src = Twine::Null);
-	RTLIL::Cell*   addSetTag       (IdString name, const std::string &tag, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_c, const RTLIL::SigSpec &sig_y, IdString src = Twine::Null);
-	RTLIL::SigSpec GetTag          (IdString name, const std::string &tag, const RTLIL::SigSpec &sig_a, IdString src = Twine::Null);
-	RTLIL::Cell*   addOverwriteTag (IdString name, const std::string &tag, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_c, IdString src = Twine::Null);
-	RTLIL::SigSpec OriginalTag     (IdString name, const std::string &tag, const RTLIL::SigSpec &sig_a, IdString src = Twine::Null);
-	RTLIL::SigSpec FutureFF        (IdString name, const RTLIL::SigSpec &sig_e, IdString src = Twine::Null);
+	RTLIL::SigSpec SetTag          (IdString name, const std::string &tag, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_c, SrcRef src = Src::Null);
+	RTLIL::Cell*   addSetTag       (IdString name, const std::string &tag, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_c, const RTLIL::SigSpec &sig_y, SrcRef src = Src::Null);
+	RTLIL::SigSpec GetTag          (IdString name, const std::string &tag, const RTLIL::SigSpec &sig_a, SrcRef src = Src::Null);
+	RTLIL::Cell*   addOverwriteTag (IdString name, const std::string &tag, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_c, SrcRef src = Src::Null);
+	RTLIL::SigSpec OriginalTag     (IdString name, const std::string &tag, const RTLIL::SigSpec &sig_a, SrcRef src = Src::Null);
+	RTLIL::SigSpec FutureFF        (IdString name, const RTLIL::SigSpec &sig_e, SrcRef src = Src::Null);
 	YS_NAME_FWD_SELF(SetTag)
 	YS_NAME_FWD_SELF(addSetTag)
 	YS_NAME_FWD_SELF(GetTag)

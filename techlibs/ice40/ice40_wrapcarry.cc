@@ -147,15 +147,15 @@ struct Ice40WrapCarryPass : public Pass {
 					lut->setPort(ID::A, { I3, cell->getPort(ID::B), cell->getPort(ID::A), cell->getPort(ID(I0)) });
 					lut->setPort(ID::Y, cell->getPort(ID::O));
 
-					IdString carry_src = cell->src_id(), lut_src = cell->src_id();
+					SrcRef carry_src = cell->src_id(), lut_src = cell->src_id();
 					for (const auto &a : cell->attributes) {
 						// Match the prefixed src first so we don't fall through
 						// to the generic SB_CARRY./SB_LUT4. prefix copy.
 						std::string aname = twines.str(a.first);
 						if (aname == "\\SB_CARRY.\\src") {
-							carry_src = twines.add_verbatim(a.second.decode_string());
+							carry_src = module->design->srcs.add(a.second.decode_string());
 						} else if (aname == "\\SB_LUT4.\\src") {
-							lut_src = twines.add_verbatim(a.second.decode_string());
+							lut_src = module->design->srcs.add(a.second.decode_string());
 						} else if (aname.starts_with("\\SB_CARRY.\\")) {
 							carry->attributes[twines.add(aname.substr(strlen("\\SB_CARRY.")))] = a.second;
 						} else if (aname.starts_with("\\SB_LUT4.\\")) {

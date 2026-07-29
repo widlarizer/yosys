@@ -634,7 +634,7 @@ struct AST_INTERNAL::ProcessGenerator
 			if (inSyncRule && lvalue_c.wire && lvalue_c.wire->get_bool_attribute(ID::nosync))
 				rhs = RTLIL::SigSpec(RTLIL::State::Sx, rhs.size());
 			remove_unwanted_lvalue_bits(lhs, rhs);
-			actions.push_back({lhs, rhs, ast ? current_module->design->twines.add_verbatim(ast->loc_string()) : Twine::Null});
+			actions.push_back({lhs, rhs, ast ? current_module->design->srcs.add(ast->loc_string()) : Twine::Null});
 			offset += lhs.size();
 		}
 	}
@@ -690,7 +690,7 @@ struct AST_INTERNAL::ProcessGenerator
 						current_case_assigned_bits.insert(bit);
 
 				remove_unwanted_lvalue_bits(lvalue, rvalue);
-				current_case->actions.push_back({lvalue, rvalue, current_module->design->twines.add_verbatim(ast->loc_string())});
+				current_case->actions.push_back({lvalue, rvalue, current_module->design->srcs.add(ast->loc_string())});
 			}
 			break;
 
@@ -704,7 +704,7 @@ struct AST_INTERNAL::ProcessGenerator
 				sw->module = current_module;
 				set_src_attr(sw, ast);
 				sw->signal = ast->children[0]->genWidthRTLIL(width_hint, sign_hint, &subst_rvalue_map.stdmap());
-				sw->signal_src = current_module->design->twines.add_verbatim(ast->children[0]->loc_string());
+				sw->signal_src = current_module->design->srcs.add(ast->children[0]->loc_string());
 				current_case->switches.push_back(sw);
 
 				for (auto &attr : ast->attributes) {
@@ -743,7 +743,7 @@ struct AST_INTERNAL::ProcessGenerator
 					current_case->module = current_module;
 					pool<RTLIL::SigBit> backup_assigned_bits = std::move(current_case_assigned_bits);
 					current_case_assigned_bits.clear();
-					current_case->compare_src = current_module->design->twines.add_verbatim(child->loc_string());
+					current_case->compare_src = current_module->design->srcs.add(child->loc_string());
 					last_generated_case = current_case;
 					std::optional<AstNode*> block;
 					for (auto& node : child->children) {
@@ -842,8 +842,8 @@ struct AST_INTERNAL::ProcessGenerator
 
 				Wire *en = current_module->addWire(current_module->design->twines.add(std::string{sstr.str() + "_EN"}), 1);
 				set_src_attr(en, ast);
-				proc->root_case.actions.push_back({en, SigSpec(false), current_module->design->twines.add_verbatim(ast->loc_string())});
-				current_case->actions.push_back({en, SigSpec(true), current_module->design->twines.add_verbatim(ast->loc_string())});
+				proc->root_case.actions.push_back({en, SigSpec(false), current_module->design->srcs.add(ast->loc_string())});
+				current_case->actions.push_back({en, SigSpec(true), current_module->design->srcs.add(ast->loc_string())});
 
 				RTLIL::SigSpec triggers;
 				RTLIL::Const::Builder polarity_builder;
@@ -940,8 +940,8 @@ struct AST_INTERNAL::ProcessGenerator
 
 				Wire *en = current_module->addWire(current_module->design->twines.add(cellname + "_EN"), 1);
 				set_src_attr(en, ast);
-				proc->root_case.actions.push_back({en, SigSpec(false), current_module->design->twines.add_verbatim(ast->loc_string())});
-				current_case->actions.push_back({en, SigSpec(true), current_module->design->twines.add_verbatim(ast->loc_string())});
+				proc->root_case.actions.push_back({en, SigSpec(false), current_module->design->srcs.add(ast->loc_string())});
+				current_case->actions.push_back({en, SigSpec(true), current_module->design->srcs.add(ast->loc_string())});
 
 				RTLIL::SigSpec triggers;
 				RTLIL::Const::Builder polarity_builder;

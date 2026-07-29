@@ -44,7 +44,7 @@ struct MemoryMapWorker
 
 	// src of the Mem currently being lowered, so every cell created on its
 	// behalf inherits source-location tracking from the original $mem_v2.
-	IdString mem_src;
+	SrcRef mem_src;
 
 	MemoryMapWorker(RTLIL::Design *design, RTLIL::Module *module) : design(design), module(module), sigmap(module), initvals(&sigmap, module) {}
 
@@ -91,7 +91,7 @@ struct MemoryMapWorker
 		std::pair<RTLIL::SigSpec, RTLIL::SigSpec> key(addr_sig, addr_val);
 		log_assert(GetSize(addr_sig) == GetSize(addr_val));
 
-		IdString src_ref = mem_src;
+		SrcRef src_ref = mem_src;
 		if (decoder_cache.count(key) == 0) {
 			if (GetSize(addr_sig) < 2) {
 				decoder_cache[key] = module->Eq(NEW_ID, addr_sig, addr_val, false, src_ref);
@@ -113,13 +113,8 @@ struct MemoryMapWorker
 		std::set<int> static_ports;
 		std::map<int, RTLIL::SigSpec> static_cells_map;
 
-		// possibly-Concat src as a single pipe-joined leaf on every
-		// new cell. set_src_attribute's parse_ref path retains the
-		// pool slot directly.
-		{
-			IdString mid = (mem.module && mem.module->design) ? mem.module->design->obj_src_id(&mem) : Twine::Null;
-			mem_src = mid;
-		}
+		mem_src = (mem.module && mem.module->design)
+				? mem.module->design->obj_src_id(&mem) : Src::Null;
 
 		SigSpec init_data = mem.get_init_data();
 

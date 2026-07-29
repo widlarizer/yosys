@@ -55,21 +55,14 @@ RTLIL::SigSpec find_any_lvalue(const RTLIL::Process *proc)
 
 void transfer_wire_sources(const SigSpec& sig, Cell* cell)
 {
-	std::vector<IdString> refs;
-	pool<IdString> seen;
-	IdString existing = cell->src_id();
-	if (existing != Twine::Null) {
-		refs.push_back(existing);
-		seen.insert(existing);
-	}
+	std::vector<SrcRef> refs;
+	refs.push_back(cell->src_id());
 	for (auto chunk : sig.chunks())
-		if (chunk.wire) {
-			IdString s = chunk.wire->src_id();
-			if (s != Twine::Null && seen.insert(s).second)
-				refs.push_back(s);
-		}
-	if (!refs.empty())
-		cell->set_src_attribute(cell->module->design->twines.concat(std::span<const IdString>{refs}));
+		if (chunk.wire)
+			refs.push_back(chunk.wire->src_id());
+	SrcRef merged = cell->module->design->srcs.merge(std::span<const SrcRef>{refs});
+	if (merged != Src::Null)
+		cell->set_src_attribute(merged);
 }
 
 void gen_dffsr_complex(RTLIL::Module *mod, RTLIL::SigSpec sig_d, RTLIL::SigSpec sig_q, RTLIL::SigSpec clk, bool clk_polarity,
@@ -171,11 +164,11 @@ void gen_dff(RTLIL::Module *mod, RTLIL::SigSpec sig_in, RTLIL::Const val_rst, RT
 
 
 template <typename T>
-static void error_at_src(const RTLIL::Design* design, IdString src, T msg) {
-	if (src == Twine::Null) {
+static void error_at_src(const RTLIL::Design* design, SrcRef src, T msg) {
+	if (src == Src::Null) {
 		log_error("%s\n", msg);
 	} else {
-		log_error("%s: %s\n", design->twines.str(src).c_str(), msg);
+		log_error("%s: %s\n", design->srcs.str(src).c_str(), msg);
 	}
 }
 template <typename T>

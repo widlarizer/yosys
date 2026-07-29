@@ -48,7 +48,7 @@ struct RTLILFrontendWorker {
 	RTLIL::Module *current_module;
 	dict<IdString, RTLIL::Const> attrbuf;
 
-	IdString pending_src = Twine::Null;
+	SrcRef pending_src = Src::Null;
 	std::vector<std::vector<RTLIL::SwitchRule*>*> switch_stack;
 	std::vector<RTLIL::CaseRule*> case_stack;
 
@@ -63,6 +63,17 @@ struct RTLILFrontendWorker {
 		bool materializing = false;
 	};
 	dict<size_t, TwineDesc> twine_descs;
+
+	dict<size_t, SrcRef> src_remap;
+
+	struct SrcDesc {
+		enum Kind { Leaf, Suffix, Set } kind;
+		std::string text;
+		size_t parent = 0;
+		std::vector<size_t> children;
+		bool materializing = false;
+	};
+	dict<size_t, SrcDesc> src_descs;
 
 	template <typename... Args>
 	[[noreturn]]
@@ -533,7 +544,7 @@ struct RTLILFrontendWorker {
 				auto [ptr, ec] = std::from_chars(raw.data() + 1, raw.data() + raw.size(), file_id);
 				if (ec != std::errc() || ptr != raw.data() + raw.size())
 					error("Malformed src twine reference %s at line %d", raw.c_str(), line_num);
-				pending_src = resolve_file_twine(file_id);
+				pending_src = materialize_file_src(file_id);
 				expect_eol();
 				return;
 			}
@@ -552,9 +563,9 @@ struct RTLILFrontendWorker {
 	// Apply a pending "@N" src reference to the object just built from attrbuf.
 	void flush_src(RTLIL::AttrObject *obj)
 	{
-		if (pending_src != Twine::Null) {
+		if (pending_src != Src::Null) {
 			design->set_src_attribute(obj, pending_src);
-			pending_src = Twine::Null;
+			pending_src = Src::Null;
 		}
 	}
 
@@ -605,6 +616,41 @@ struct RTLILFrontendWorker {
 		}
 		desc.materializing = false;
 		twine_remap[id] = ref;
+		return ref;
+	}
+
+	// Tolerates nodes listed out of dependency order
+	SrcRef materialize_file_src(size_t id)
+	{
+		auto rit = src_remap.find(id);
+		if (rit != src_remap.end())
+			return rit->second;
+		auto dit = src_descs.find(id);
+		if (dit == src_descs.end())
+			error("Unknown src reference @%zu at line %d", id, line_num);
+		SrcDesc &desc = dit->second;
+		if (desc.materializing)
+			error("Cyclic src reference @%zu at line %d", id, line_num);
+		desc.materializing = true;
+		SrcRef ref;
+		switch (desc.kind) {
+		case SrcDesc::Leaf:
+			ref = design->srcs.add(desc.text);
+			break;
+		case SrcDesc::Suffix:
+			ref = design->srcs.add_suffix(materialize_file_src(desc.parent), desc.text);
+			break;
+		case SrcDesc::Set: {
+			std::vector<SrcRef> children;
+			children.reserve(desc.children.size());
+			for (size_t c : desc.children)
+				children.push_back(materialize_file_src(c));
+			ref = design->srcs.merge(std::span<const SrcRef>{children});
+			break;
+		}
+		}
+		desc.materializing = false;
+		src_remap[id] = ref;
 		return ref;
 	}
 
@@ -687,6 +733,52 @@ struct RTLILFrontendWorker {
 		for (size_t id : ordered_ids)
 			materialize_file_twine(id);
 		twine_descs.clear();
+		expect_eol();
+	}
+
+	// Same shape as parse_twines, over the design's separate src pool.
+	void parse_srcs()
+	{
+		expect_eol();
+		while (true) {
+			if (try_parse_keyword("end"))
+				break;
+			if (try_parse_keyword("leaf")) {
+				size_t file_id = parse_integer();
+				SrcDesc &desc = src_descs[file_id];
+				desc.kind = SrcDesc::Leaf;
+				desc.text = parse_string();
+				expect_eol();
+				continue;
+			}
+			if (try_parse_keyword("suffix")) {
+				size_t file_id = parse_integer();
+				SrcDesc &desc = src_descs[file_id];
+				desc.kind = SrcDesc::Suffix;
+				desc.parent = parse_integer();
+				desc.text = parse_string();
+				expect_eol();
+				continue;
+			}
+			if (try_parse_keyword("set")) {
+				size_t file_id = parse_integer();
+				SrcDesc &desc = src_descs[file_id];
+				desc.kind = SrcDesc::Set;
+				while (!try_parse_eol())
+					desc.children.push_back(parse_integer());
+				continue;
+			}
+			error("Expected `leaf`, `suffix` or `set` inside srcs block, got `%s'.",
+					error_token());
+		}
+		std::vector<size_t> ordered_ids;
+		ordered_ids.reserve(src_descs.size());
+		for (auto &it : src_descs)
+			ordered_ids.push_back(it.first);
+		std::sort(ordered_ids.begin(), ordered_ids.end());
+		for (size_t id : ordered_ids)
+			materialize_file_src(id);
+		src_descs.clear();
 		expect_eol();
 	}
 
@@ -1102,6 +1194,10 @@ struct RTLILFrontendWorker {
 				expect_eol();
 				continue;
 			}
+			if (try_parse_keyword("srcs")) {
+				parse_srcs();
+				continue;
+			}
 			if (try_parse_keyword("twines")) {
 				parse_twines();
 				continue;
@@ -1113,6 +1209,7 @@ struct RTLILFrontendWorker {
 
 		twine_parser_holds.clear();
 		twine_remap.clear();
+		src_remap.clear();
 	}
 };
 

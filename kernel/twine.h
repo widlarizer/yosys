@@ -63,6 +63,34 @@ struct IdString {
 	Hasher hash_into(Hasher h) const { h.hash64(value); return h; }
 };
 
+// Handle into a Design's SrcPool. Deliberately not convertible to or from
+// IdString: a src is a set of locations, a name is a publicity-tagged string,
+// and mixing them up used to be a silent corruption rather than a type error.
+struct SrcRef {
+	size_t value;
+
+	static constexpr size_t kNull = ~size_t{0};
+
+	constexpr SrcRef() : value(kNull) {}
+	explicit constexpr SrcRef(size_t val) : value(val) {}
+
+	constexpr bool operator==(const SrcRef&) const = default;
+	constexpr auto operator<=>(const SrcRef&) const = default;
+
+	constexpr bool empty() const { return value == kNull; }
+
+	Hasher hash_into(Hasher h) const { h.hash64(value); return h; }
+};
+
+// The one sentinel both handle types share. Converts to and compares against
+// either, without giving them a way to convert to each other.
+struct NullRef {
+	constexpr operator IdString() const { return IdString(); }
+	constexpr operator SrcRef() const { return SrcRef(); }
+	constexpr bool operator==(IdString ref) const { return ref.value == IdString::kNull; }
+	constexpr bool operator==(SrcRef ref) const { return ref.value == SrcRef::kNull; }
+};
+
 // Tags TwineChildPool-local refs; never set on refs handed out by TwinePool.
 constexpr IdString TWINE_LOCAL_BIT = IdString(1LLU << 63);
 // Publicity tag carried on name handles. Pool nodes store name *content*
@@ -114,7 +142,7 @@ struct ID {
 #define ID(id) (ID::id)
 
 struct Twine {
-	static constexpr IdString Null = std::numeric_limits<size_t>::max();
+	static constexpr NullRef Null{};
 
 	struct Suffix {
 		IdString prefix;
@@ -245,11 +273,20 @@ struct HashConsPool {
 		return *this;
 	}
 
+	static bool is_static(Ref ref) {
+		if constexpr (Derived::kStaticCount == 0)
+			return false;
+		else
+			return ref.value < Derived::kStaticCount;
+	}
+
 	const Node& operator[] (Ref ref) const {
-		size_t idx = Derived::untag(ref).value;
-		if (idx < Derived::kStaticCount)
-			return Derived::static_node(idx);
-		return backing[idx - Derived::kStaticCount];
+		Ref idx = Derived::untag(ref);
+		if constexpr (Derived::kStaticCount != 0) {
+			if (is_static(idx))
+				return Derived::static_node(idx.value);
+		}
+		return backing[idx.value - Derived::kStaticCount];
 	}
 
 	void rebuild_index() {
@@ -332,9 +369,206 @@ struct HashConsPool {
 
 	void mark_live(Ref ref, pool<Ref>& live) const {
 		ref = Derived::untag(ref);
-		if (ref == Ref() || ref.value < Derived::kStaticCount || !live.insert(ref).second)
+		if (ref == Ref() || is_static(ref) || !live.insert(ref).second)
 			return;
 		Derived::for_each_child((*this)[ref], [&](Ref child) { mark_live(child, live); });
+	}
+};
+
+// A src attribute: a set of "path:line.col-line.col" locations. Suffix keeps
+// the sharing that makes this cheap — one long filename interns once and every
+// object contributes only its own short tail.
+struct Src {
+	static constexpr NullRef Null{};
+
+	struct Leaf {
+		std::string s;
+		auto operator<=>(const Leaf&) const = default;
+	};
+
+	struct Suffix {
+		SrcRef prefix;
+		std::string tail;
+		auto operator<=>(const Suffix&) const = default;
+	};
+
+	using Set = std::vector<SrcRef>;
+
+	std::variant<std::monostate, Leaf, Suffix, Set> data;
+
+	bool is_dead() const { return std::holds_alternative<std::monostate>(data); }
+	bool is_leaf() const { return std::holds_alternative<Leaf>(data); }
+	bool is_suffix() const { return std::holds_alternative<Suffix>(data); }
+	bool is_set() const { return std::holds_alternative<Set>(data); }
+	const std::string &leaf() const { return std::get<Leaf>(data).s; }
+	const Suffix &suffix() const { return std::get<Suffix>(data); }
+	const Set &set() const { return std::get<Set>(data); }
+};
+
+struct SrcPool : HashConsPool<SrcPool, Src, SrcRef> {
+	static constexpr size_t kStaticCount = 0;
+
+	static SrcRef untag(SrcRef ref) { return ref; }
+	static void canonicalize(Src&) {}
+
+	static size_t hash_node(const Src& n) {
+		Hasher h;
+		std::visit([&h](const auto& val) {
+			using T = std::decay_t<decltype(val)>;
+			if constexpr (std::is_same_v<T, Src::Leaf>) {
+				h.eat(val.s);
+			} else if constexpr (std::is_same_v<T, Src::Suffix>) {
+				h.eat(val.prefix.value);
+				h.eat(val.tail);
+			} else if constexpr (std::is_same_v<T, Src::Set>) {
+				for (SrcRef c : val)
+					h.eat(c.value);
+			}
+		}, n.data);
+		return h.yield();
+	}
+
+	template<typename F>
+	static void for_each_child(const Src& n, F&& f) {
+		if (n.is_set()) {
+			for (SrcRef c : n.set())
+				f(c);
+		} else if (n.is_suffix()) {
+			f(n.suffix().prefix);
+		}
+	}
+
+	SrcRef add(std::string s) {
+		if (s.empty())
+			return Src::Null;
+		return add_inner(Src{Src::Leaf{std::move(s)}});
+	}
+
+	SrcRef add_suffix(SrcRef prefix, std::string tail) {
+		if (prefix == Src::Null)
+			return add(std::move(tail));
+		return add_inner(Src{Src::Suffix{prefix, std::move(tail)}});
+	}
+
+	// Union of the given srcs: nested sets flatten and duplicates drop, but
+	// first-seen order survives so the rendered '|' join stays stable.
+	SrcRef merge(std::span<const SrcRef> refs) {
+		Src::Set flat;
+		auto push = [&](SrcRef ref) {
+			if (std::find(flat.begin(), flat.end(), ref) == flat.end())
+				flat.push_back(ref);
+		};
+		for (SrcRef ref : refs) {
+			if (ref == Src::Null)
+				continue;
+			const Src &n = (*this)[ref];
+			if (n.is_set()) {
+				for (SrcRef c : n.set())
+					push(c);
+			} else {
+				push(ref);
+			}
+		}
+		if (flat.empty())
+			return Src::Null;
+		if (flat.size() == 1)
+			return flat.front();
+		return add_inner(Src{std::move(flat)});
+	}
+
+	SrcRef merge(SrcRef a, SrcRef b) {
+		SrcRef both[] = {a, b};
+		return merge(std::span<const SrcRef>{both});
+	}
+
+	SrcRef copy_from(const SrcPool& other, SrcRef ref) {
+		if (ref == Src::Null)
+			return ref;
+		const Src& n = other[ref];
+		if (n.is_leaf())
+			return add_inner(Src{Src::Leaf{n.leaf()}});
+		if (n.is_suffix())
+			return add_inner(Src{Src::Suffix{copy_from(other, n.suffix().prefix), n.suffix().tail}});
+		if (n.is_set()) {
+			Src::Set children;
+			children.reserve(n.set().size());
+			for (SrcRef c : n.set())
+				children.push_back(copy_from(other, c));
+			return add_inner(Src{std::move(children)});
+		}
+		return Src::Null;
+	}
+
+	void append_str(SrcRef ref, std::string& out) const {
+		if (ref == Src::Null)
+			return;
+		std::visit([&](const auto& val) {
+			using T = std::decay_t<decltype(val)>;
+			if constexpr (std::is_same_v<T, Src::Leaf>) {
+				out += val.s;
+			} else if constexpr (std::is_same_v<T, Src::Suffix>) {
+				append_str(val.prefix, out);
+				out += val.tail;
+			} else if constexpr (std::is_same_v<T, Src::Set>) {
+				for (size_t i = 0; i < val.size(); ++i) {
+					if (i > 0)
+						out += '|';
+					append_str(val[i], out);
+				}
+			}
+		}, (*this)[ref].data);
+	}
+
+	std::string str(SrcRef ref) const {
+		std::string out;
+		append_str(ref, out);
+		return out;
+	}
+
+	// The individual locations, without the '|' join.
+	void leaves(SrcRef ref, pool<std::string>& out) const {
+		if (ref == Src::Null)
+			return;
+		const Src& n = (*this)[ref];
+		if (n.is_set()) {
+			for (SrcRef c : n.set())
+				out.insert(str(c));
+		} else {
+			out.insert(str(ref));
+		}
+	}
+
+	void dump(SrcRef ref, std::ostream& os = std::cout) const {
+		std::visit([&](const auto& val) {
+			using T = std::decay_t<decltype(val)>;
+			if constexpr (std::is_same_v<T, std::monostate>) {
+				os << "Dead()";
+			} else if constexpr (std::is_same_v<T, Src::Leaf>) {
+				os << "Leaf(\"" << val.s << "\")";
+			} else if constexpr (std::is_same_v<T, Src::Suffix>) {
+				os << "Suffix(prefix: ";
+				dump(val.prefix, os);
+				os << ", tail: \"" << val.tail << "\")";
+			} else if constexpr (std::is_same_v<T, Src::Set>) {
+				os << "Set[";
+				for (size_t i = 0; i < val.size(); ++i) {
+					if (i > 0)
+						os << ", ";
+					dump(val[i], os);
+				}
+				os << "]";
+			}
+		}, (*this)[ref].data);
+	}
+
+	void dump(std::ostream& os = std::cout) const {
+		os << "--- SrcPool Dump (" << backing.size() << " nodes) ---\n";
+		for (size_t idx = 0; idx < backing.size(); ++idx) {
+			os << idx << " -> ";
+			dump(SrcRef(idx), os);
+			os << '\n';
+		}
+		os << "--------------------------------\n";
 	}
 };
 

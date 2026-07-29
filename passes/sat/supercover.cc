@@ -68,7 +68,7 @@ struct SupercoverPass : public Pass {
 			for (auto wire : module->selected_wires())
 			{
 				bool counted_wire = false;
-				IdString src = wire->src_ref();
+				SrcRef src = wire->src_ref();
 
 				for (auto bit : sigmap(SigSpec(wire)))
 				{

@@ -890,12 +890,10 @@ Cell *Mem::extract_rdff(int idx, FfInitVals *initvals) {
 	if (!port.clk_enable)
 		return nullptr;
 
-	// Keep src as a "@N" reference into the design's twine pool throughout
-	// below adopts the same slot as Mem itself (via set_src_attribute's
-	// "@N" parse_ref path), and there's no flatten → re-intern → pipe-
-	// leaf round-trip on cells whose src is a Concat node.
+	// Every cell built below adopts Mem's own src handle, so there is no
+	// flatten → re-intern round-trip on cells whose src is a Set node.
 	log_assert(module && module->design);
-	IdString mem_src = module->design->obj_src_id(this);
+	SrcRef mem_src = module->design->obj_src_id(this);
 	std::string memid_str = module->design->twines.str(memid);
 
 	Cell *c;

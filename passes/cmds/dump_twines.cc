@@ -1,7 +1,7 @@
 /*
  *  yosys -- Yosys Open SYnthesis Suite
  *
- *  Inspect the design-level twine pool that backs src-attribute interning.
+ *  Inspect the design-level name and src pools.
  */
 
 #include "kernel/register.h"
@@ -12,17 +12,17 @@ USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
 struct DumpTwinesPass : public Pass {
-	DumpTwinesPass() : Pass("dump_twines", "dump the design-level src twine pool") { }
+	DumpTwinesPass() : Pass("dump_twines", "dump the design-level name and src pools") { }
 
 	void help() override
 	{
 		log("\n");
 		log("    dump_twines [-flat]\n");
 		log("\n");
-		log("Print every node in design->twines. Leaves show the literal\n");
-		log("path:line.col string, concats show their child id list. With\n");
-		log("-flat each concat is additionally rendered as the pipe-joined\n");
-		log("flat string a backend would emit.\n");
+		log("Print every node in design->twines and design->srcs. Leaves show\n");
+		log("their literal string, sets show their child id list. With -flat\n");
+		log("each node is additionally rendered as the string a backend would\n");
+		log("emit.\n");
 		log("\n");
 	}
 
@@ -64,38 +64,60 @@ struct DumpTwinesPass : public Pass {
 				log(" -> \"%s\"", pool.str(id).c_str());
 			log("\n");
 		}
+
+		const SrcPool &srcs = design->srcs;
+		log("src pool: %zu nodes\n", srcs.size());
+		for (size_t idx = 0; idx < srcs.backing.size(); ++idx) {
+			const Src &n = srcs.backing[idx];
+			if (n.is_leaf()) {
+				log("  @%zu leaf \"%s\"", idx, n.leaf().c_str());
+			} else if (n.is_suffix()) {
+				log("  @%zu suffix @%zu + \"%s\"", idx,
+						n.suffix().prefix.value, n.suffix().tail.c_str());
+			} else if (n.is_set()) {
+				std::string children;
+				for (SrcRef c : n.set()) {
+					if (!children.empty())
+						children += ", ";
+					children += "@" + std::to_string(c.value);
+				}
+				log("  @%zu set [%s]", idx, children.c_str());
+			} else {
+				log("  @%zu dead", idx);
+			}
+			if (flat)
+				log(" -> \"%s\"", srcs.str(SrcRef(idx)).c_str());
+			log("\n");
+		}
 	}
 } DumpTwinesPass;
 
 struct GcTwinesPass : public Pass {
-	GcTwinesPass() : Pass("gc_twines", "reap unreferenced entries from the src twine pool") { }
+	GcTwinesPass() : Pass("gc_twines", "reap unreferenced entries from the name and src pools") { }
 
 	void help() override
 	{
 		log("\n");
 		log("    gc_twines\n");
 		log("\n");
-		log("Walk the design, collect every \"@N\" referenced by any cell, wire,\n");
-		log("module, memory, or process attribute, and rebuild design->twines\n");
-		log("to contain only those entries plus their transitive leaf children.\n");
-		log("Cell src attributes are rewritten in place via the resulting id\n");
-		log("remap, so the design is unchanged at the path:line.col layer.\n");
+		log("Walk the design, collect every name and src handle reachable from\n");
+		log("a live object, and drop every pool node that nothing refers to.\n");
+		log("Surviving nodes keep their ids, so the design is unchanged.\n");
 		log("\n");
 		log("Useful after long opt_merge / techmap runs that leave intermediate\n");
-		log("concat nodes orphaned: each merge step splices a previous concat's\n");
-		log("leaves into the new node (the flatten invariant), so the prior\n");
-		log("concat becomes unreferenced as soon as the surviving cell's src is\n");
-		log("rewritten.\n");
+		log("src sets orphaned: each merge splices a previous set's members\n");
+		log("into the new node, so the prior set becomes unreferenced as soon\n");
+		log("as the surviving cell's src is rewritten.\n");
 		log("\n");
 	}
 
 	void execute(std::vector<std::string> args, RTLIL::Design *design) override
 	{
 		extra_args(args, 1, design);
-		size_t before = design->twines.size();
+		size_t before = design->twines.size() + design->srcs.size();
 		size_t freed = design->gc_twines();
 		log("twine gc: %zu nodes -> %zu (%zu freed)\n",
-				before, design->twines.size(), freed);
+				before, design->twines.size() + design->srcs.size(), freed);
 	}
 } GcTwinesPass;
 

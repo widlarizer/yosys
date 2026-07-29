@@ -771,7 +771,7 @@ Cell *FfData::emit() {
 	// pool, no flatten. The OwnedTwine still holds its own ref until
 	// FfData is destroyed; set_src_id retains on the cell's behalf.
 	cell->attributes = attributes;
-	if (src_twine != Twine::Null && cell->module && cell->module->design)
+	if (src_twine != Src::Null && cell->module && cell->module->design)
 		cell->set_src_id(src_twine);
 	if (initvals && !is_anyinit)
 		initvals->set_init(cell->getPort(ID::Q), val_init);

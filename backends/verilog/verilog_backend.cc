@@ -417,11 +417,11 @@ void dump_attributes(std::ostream &f, std::string indent, const RTLIL::AttrObjec
 	if (attr2comment)
 		as_comment = true;
 	if (active_module && active_module->design) {
-		IdString src = active_module->design->obj_src_id(obj);
+		SrcRef src = active_module->design->obj_src_id(obj);
 		if (src != Twine::Null) {
 			f << stringf("%s" "%s %s", indent, as_comment ? "/*" : "(*", id(ID::str(ID::src)));
 			f << stringf(" = ");
-			dump_const(f, RTLIL::Const(active_module->design->twines.str(src)), -1, 0, false, as_comment);
+			dump_const(f, RTLIL::Const(active_module->design->srcs.str(src)), -1, 0, false, as_comment);
 			f << stringf(" %s%s", as_comment ? "*/" : "*)", term);
 		}
 	}

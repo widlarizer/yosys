@@ -519,7 +519,7 @@ static void dfflibmap(RTLIL::Design *design, RTLIL::Module *module)
 		IdString cell_type = cell->type;
 		IdString cell_name(cell->name);
 		auto cell_connections = cell->connections();
-		IdString src = cell->src_ref();
+		SrcRef src = cell->src_ref();
 
 		module->remove(cell);
 

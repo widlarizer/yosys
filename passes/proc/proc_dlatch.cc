@@ -299,7 +299,7 @@ struct proc_dlatch_db_t
 		return make_inner(children);
 	}
 
-	SigBit make_hold(int n, IdString src)
+	SigBit make_hold(int n, SrcRef src)
 	{
 		if (n == true_node)
 			return State::S1;
@@ -427,7 +427,7 @@ void proc_dlatch(proc_dlatch_db_t &db, RTLIL::Process *proc, LatchPolicy policy)
 	RTLIL::SigSig latches_bits, nolatches_bits;
 	dict<SigBit, SigBit> latches_out_in;
 	dict<SigBit, int> latches_hold, latches_rst, latches_set;
-	IdString src = proc->src_ref();
+	SrcRef src = proc->src_ref();
 
 	for (auto sr : proc->syncs)
 	{

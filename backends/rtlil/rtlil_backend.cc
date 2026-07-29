@@ -115,15 +115,15 @@ void RTLIL_BACKEND::dump_const(std::ostream &f, const RTLIL::Const &data, int wi
 
 void RTLIL_BACKEND::dump_attributes(std::ostream &f, std::string indent, const RTLIL::AttrObject *obj, const RTLIL::Design *design, DumpMode mode)
 {
-	if (design && design->obj_src_id(obj) != Twine::Null) {
-		IdString id = design->obj_src_id(obj);
+	if (design && design->obj_src_id(obj) != Src::Null) {
+		SrcRef id = design->obj_src_id(obj);
 		f << stringf("%s" "attribute \\src ", indent);
 		if (mode == DumpMode::Readable) {
-			dump_const(f, RTLIL::Const(design->twines.str(id)));
+			dump_const(f, RTLIL::Const(design->srcs.str(id)));
 		} else {
-			dump_const(f, RTLIL::Const(stringf("@%zu", id)));
+			dump_const(f, RTLIL::Const(stringf("@%zu", id.value)));
 			if (mode == DumpMode::Replayable)
-				f << stringf("  # %s", design->twines.str(id).c_str());
+				f << stringf("  # %s", design->srcs.str(id).c_str());
 		}
 		f << stringf("\n");
 	}
@@ -157,6 +157,31 @@ void RTLIL_BACKEND::dump_twines(std::ostream &f, const RTLIL::Design *design)
 			f << stringf("  concat %zu", id);
 			for (IdString c : n.children())
 				f << stringf(" %zu", c);
+			f << stringf("\n");
+		}
+	}
+	f << stringf("end\n");
+}
+
+void RTLIL_BACKEND::dump_srcs(std::ostream &f, const RTLIL::Design *design)
+{
+	if (!design || design->srcs.size() == 0)
+		return;
+	f << stringf("srcs\n");
+	for (size_t idx = 0; idx < design->srcs.backing.size(); ++idx) {
+		const Src &n = design->srcs.backing[idx];
+		if (n.is_leaf()) {
+			f << stringf("  leaf %zu ", idx);
+			dump_const(f, RTLIL::Const(n.leaf()));
+			f << stringf("\n");
+		} else if (n.is_suffix()) {
+			f << stringf("  suffix %zu %zu ", idx, n.suffix().prefix.value);
+			dump_const(f, RTLIL::Const(n.suffix().tail));
+			f << stringf("\n");
+		} else if (n.is_set()) {
+			f << stringf("  set %zu", idx);
+			for (SrcRef c : n.set())
+				f << stringf(" %zu", c.value);
 			f << stringf("\n");
 		}
 	}
@@ -474,8 +499,10 @@ void RTLIL_BACKEND::dump_design(std::ostream &f, RTLIL::Design *design, bool onl
 		if (only_selected)
 			f << stringf("\n");
 		f << stringf("autoidx %d\n", autoidx);
-		if (mode != DumpMode::Readable)
+		if (mode != DumpMode::Readable) {
 			dump_twines(f, design);
+			dump_srcs(f, design);
+		}
 	}
 
 	for (const auto& [_, module] : reversed(design->modules_)) {
