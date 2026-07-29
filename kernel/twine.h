@@ -162,42 +162,209 @@ constexpr bool twine_is_public(IdString ref) { return ref.isPublic(); }
 constexpr IdString twine_untag(IdString ref)  { return ref.untag(); }
 constexpr IdString twine_tag(IdString ref, bool is_public) { return ref.tag(is_public); }
 
-struct TwineHash {
-	using is_transparent = void;
-
-	const TwinePool* pool = nullptr;
-
-	size_t operator()(const Twine& t) const noexcept;
-	size_t operator()(IdString ref) const noexcept;
-};
-
-struct TwineEq {
-	using is_transparent = void;
-
-	const TwinePool* pool = nullptr;
-
-	bool operator()(IdString a, IdString b) const noexcept;
-	bool operator()(IdString a, const Twine& b) const noexcept;
-	bool operator()(const Twine& a, IdString b) const noexcept;
-};
-
-
 IdString twine_populate(std::string name);
 void twine_prepopulate();
 
-struct TwinePool {
-	static std::vector<Twine> globals_;
-	std::deque<Twine> backing;
-	std::unordered_set<IdString, TwineHash, TwineEq> index;
+// Splits an escaped name into the content a pool node stores and the
+// publicity bit its handle carries. A bare '$' prefix is the only private
+// spelling; everything else, escape or not, is public.
+inline std::pair<std::string, bool> twine_unescape(std::string s) {
+	bool is_public = !(s.size() > 1 && s[0] == '$');
+	if (s.size() > 1 && s[0] == '\\')
+		s.erase(0, 1);
+	return {std::move(s), is_public};
+}
+
+// Shared by TwinePool and TwineChildPool: both intern the content and tag the
+// resulting handle, they only differ in where add() puts the node.
+template<typename Pool>
+inline IdString add_escaped(Pool &pool, std::string s) {
+	if (s.empty())
+		return Twine::Null;
+	auto [content, is_public] = twine_unescape(std::move(s));
+	return twine_tag(pool.add(Twine{Twine::Leaf{std::move(content)}}), is_public);
+}
+
+// Hash-consed node storage, shared by every pool. Derived supplies the node
+// type, the handle type and the handful of node-shape hooks below; publicity,
+// escaping and rendering all live above this line.
+template<typename Derived, typename Node, typename Ref>
+struct HashConsPool {
+	struct NodeHash {
+		using is_transparent = void;
+
+		const Derived* pool = nullptr;
+
+		size_t operator()(const Node& n) const noexcept { return Derived::hash_node(n); }
+		size_t operator()(Ref ref) const noexcept { return Derived::hash_node((*pool)[ref]); }
+	};
+
+	struct NodeEq {
+		using is_transparent = void;
+
+		const Derived* pool = nullptr;
+
+		bool operator()(Ref a, Ref b) const noexcept { return (*pool)[a].data == (*pool)[b].data; }
+		bool operator()(Ref a, const Node& b) const noexcept { return (*pool)[a].data == b.data; }
+		bool operator()(const Node& a, Ref b) const noexcept { return a.data == (*pool)[b].data; }
+	};
+
+	using Index = std::unordered_set<Ref, NodeHash, NodeEq>;
+
+	std::deque<Node> backing;
+	Index index;
 	// Indices of monostate, kept sorted
 	std::vector<size_t> free_list;
 
-	const Twine& operator[] (IdString ref) const {
-		ref = twine_untag(ref);
-		if (ref < STATIC_TWINE_END) {
-			return globals_[ref];
+	Derived* self() { return static_cast<Derived*>(this); }
+	const Derived* self() const { return static_cast<const Derived*>(this); }
+
+	Index fresh_index() { return Index(0, NodeHash{self()}, NodeEq{self()}); }
+
+	HashConsPool() : index(fresh_index()) { rebuild_index(); }
+	HashConsPool(const HashConsPool& other) : backing(other.backing), index(fresh_index()) {
+		rebuild_index();
+	}
+	HashConsPool(HashConsPool&& other) : backing(std::move(other.backing)), index(fresh_index()) {
+		rebuild_index();
+	}
+	HashConsPool& operator=(const HashConsPool& other) {
+		if (this != &other) {
+			backing = other.backing;
+			index = fresh_index();
+			rebuild_index();
+		}
+		return *this;
+	}
+	HashConsPool& operator=(HashConsPool&& other) {
+		if (this != &other) {
+			backing = std::move(other.backing);
+			index = fresh_index();
+			rebuild_index();
+		}
+		return *this;
+	}
+
+	const Node& operator[] (Ref ref) const {
+		size_t idx = Derived::untag(ref).value;
+		if (idx < Derived::kStaticCount)
+			return Derived::static_node(idx);
+		return backing[idx - Derived::kStaticCount];
+	}
+
+	void rebuild_index() {
+		for (size_t idx = 0; idx < Derived::kStaticCount; idx++)
+			index.insert(Ref(idx));
+		free_list.clear();
+		for (size_t idx = 0; idx < backing.size(); ++idx) {
+			if (backing[idx].is_dead())
+				free_list.push_back(idx);
+			else
+				index.insert(Ref(Derived::kStaticCount + idx));
+		}
+		std::sort(free_list.begin(), free_list.end(), std::greater<size_t>());
+	}
+
+	Ref find(Node t) const {
+		Derived::canonicalize(t);
+		if (auto it = index.find(t); it != index.end())
+			return *it;
+		return Ref();
+	}
+
+	Ref add_inner(Node t) {
+		Derived::canonicalize(t);
+
+		if (auto it = index.find(t); it != index.end()) {
+			if (yosys_xtrace) {
+				std::cout << "#X# add_inner found ";
+				self()->dump(*it);
+				std::cout << "\n";
+				std::cout << "#X# as integer " << it->value << "\n";
+			}
+			return *it;
+		}
+
+		Ref ref;
+		if (!free_list.empty()) {
+			size_t idx = free_list.back();
+			free_list.pop_back();
+			backing[idx] = std::move(t);
+			ref = Ref(Derived::kStaticCount + idx);
 		} else {
-			return backing[ref - STATIC_TWINE_END];
+			ref = Ref(Derived::kStaticCount + backing.size());
+			backing.push_back(std::move(t));
+		}
+		index.insert(ref);
+		if (yosys_xtrace) {
+			std::cout << "#X# add_inner added ";
+			self()->dump(ref);
+			std::cout << "\n";
+			std::cout << "#X# as integer " << ref.value << "\n";
+		}
+		return ref;
+	}
+
+	size_t size() const { return backing.size() - free_list.size(); }
+
+	// Erases every backing node not reachable from `roots`; refs to
+	// surviving nodes stay valid. Returns the number of erased nodes.
+	template<typename Roots>
+	size_t gc(const Roots& roots) {
+		pool<Ref> live;
+		for (Ref ref : roots)
+			mark_live(ref, live);
+		size_t erased = 0;
+		for (size_t idx = 0; idx < backing.size(); ++idx) {
+			if (backing[idx].is_dead())
+				continue;
+			if (!live.count(Ref(Derived::kStaticCount + idx))) {
+				index.erase(Ref(Derived::kStaticCount + idx));
+				free_list.push_back(idx);
+				backing[idx] = Node{};
+				erased++;
+			}
+		}
+		// TODO something like YOSYS_SORT_ID_FREE_LIST to make it optional?
+		std::sort(free_list.begin(), free_list.end(), std::greater<size_t>());
+		return erased;
+	}
+
+	void mark_live(Ref ref, pool<Ref>& live) const {
+		ref = Derived::untag(ref);
+		if (ref == Ref() || ref.value < Derived::kStaticCount || !live.insert(ref).second)
+			return;
+		Derived::for_each_child((*this)[ref], [&](Ref child) { mark_live(child, live); });
+	}
+};
+
+struct TwinePool : HashConsPool<TwinePool, Twine, IdString> {
+	static constexpr size_t kStaticCount = STATIC_TWINE_END;
+
+	static std::vector<Twine> globals_;
+
+	static const Twine& static_node(size_t idx) { return globals_[idx]; }
+	static IdString untag(IdString ref) { return twine_untag(ref); }
+
+	// Nodes store content only: strip publicity tags off child handles.
+	static void canonicalize(Twine& t) {
+		if (auto *children = std::get_if<std::vector<IdString>>(&t.data)) {
+			for (IdString &c : *children)
+				c = twine_untag(c);
+		} else if (auto *sfx = std::get_if<Twine::Suffix>(&t.data)) {
+			sfx->prefix = twine_untag(sfx->prefix);
+		}
+	}
+
+	static size_t hash_node(const Twine& t);
+
+	template<typename F>
+	static void for_each_child(const Twine& t, F&& f) {
+		if (t.is_concat()) {
+			for (IdString c : t.children())
+				f(c);
+		} else if (t.is_suffix()) {
+			f(t.suffix().prefix);
 		}
 	}
 
@@ -282,57 +449,7 @@ struct TwinePool {
 		return str(twine_untag(ref));
 	}
 
-	TwinePool() : index(0, TwineHash{this}, TwineEq{this}) {
-		rebuild_index();
-	}
-	TwinePool(const TwinePool& other) : backing(other.backing), index(0, TwineHash{this}, TwineEq{this}) {
-		rebuild_index();
-	}
-	TwinePool(TwinePool&& other) : backing(std::move(other.backing)), index(0, TwineHash{this}, TwineEq{this}) {
-		rebuild_index();
-	}
-	TwinePool& operator=(const TwinePool& other) {
-		if (this != &other) {
-			backing = other.backing;
-			index = std::unordered_set<IdString, TwineHash, TwineEq>(0, TwineHash{this}, TwineEq{this});
-			rebuild_index();
-		}
-		return *this;
-	}
-	TwinePool& operator=(TwinePool&& other) {
-		if (this != &other) {
-			backing = std::move(other.backing);
-			index = std::unordered_set<IdString, TwineHash, TwineEq>(0, TwineHash{this}, TwineEq{this});
-			rebuild_index();
-		}
-		return *this;
-	}
-
-	void rebuild_index() {
-		for (IdString ref = 0; ref < STATIC_TWINE_END; ref++)
-			index.insert(ref);
-		free_list.clear();
-		for (size_t idx = 0; idx < backing.size(); ++idx) {
-			if (backing[idx].is_dead())
-				free_list.push_back(idx);
-			else
-				index.insert(STATIC_TWINE_END + idx);
-		}
-		std::sort(free_list.begin(), free_list.end(), std::greater<size_t>());
-	}
-
-	IdString find(Twine t) const {
-		if (auto *children = std::get_if<std::vector<IdString>>(&t.data)) {
-			for (IdString &c : *children)
-				c = twine_untag(c);
-		} else if (auto *sfx = std::get_if<Twine::Suffix>(&t.data)) {
-			sfx->prefix = twine_untag(sfx->prefix);
-		}
-		if (auto it = index.find(t); it != index.end()) {
-			return *it;
-		}
-		return Twine::Null;
-	}
+	using HashConsPool::find;
 
 	// Escaped-name aware: strips a leading '\' and tags the result public,
 	// mirroring add(std::string), then resolves the content against the
@@ -340,45 +457,6 @@ struct TwinePool {
 	IdString find(const std::string &name) const {
 		bool is_public = !name.empty() && name[0] == '\\';
 		return find(Twine{Twine::Leaf{is_public ? name.substr(1) : name}}).tag(is_public);
-	}
-
-	IdString add_inner(Twine t) {
-		// Nodes store content only: strip publicity tags off child handles.
-		if (auto *children = std::get_if<std::vector<IdString>>(&t.data)) {
-			for (IdString &c : *children)
-				c = twine_untag(c);
-		} else if (auto *sfx = std::get_if<Twine::Suffix>(&t.data)) {
-			sfx->prefix = twine_untag(sfx->prefix);
-		}
-
-		if (auto it = index.find(t); it != index.end()) {
-			if (yosys_xtrace) {
-				std::cout << "#X# add_inner found ";
-				dump(*it);
-				std::cout << "\n";
-				std::cout << "#X# as integer " << *it << "\n";
-			}
-			return *it;
-		}
-
-		IdString ref;
-		if (!free_list.empty()) {
-			size_t idx = free_list.back();
-			free_list.pop_back();
-			backing[idx] = std::move(t);
-			ref = STATIC_TWINE_END + idx;
-		} else {
-			ref = STATIC_TWINE_END + backing.size();
-			backing.push_back(std::move(t));
-		}
-		index.insert(ref);
-		if (yosys_xtrace) {
-			std::cout << "#X# add_inner added ";
-			dump(ref);
-			std::cout << "\n";
-			std::cout << "#X# as integer " << ref << "\n";
-		}
-		return ref;
 	}
 
 	IdString add(Twine t) {
@@ -397,22 +475,7 @@ struct TwinePool {
 		return add_inner(Twine{Twine::Leaf{std::move(s)}});
 	}
 
-	IdString add(std::string s) {
-		if (s.size() > 1) {
-			if (s[0] == '\\')
-				return twine_tag(add(Twine{Twine::Leaf{s.substr(1)}}), true);
-			else if (s[0] == '$')
-				return twine_tag(add(Twine{Twine::Leaf{std::move(s)}}), false);
-			else
-				return twine_tag(add(Twine{Twine::Leaf{std::move(s)}}), true);
-		} else if (s.size() > 0) {
-			return twine_tag(add(Twine{Twine::Leaf{std::move(s)}}), true);
-		} else {
-		 	return Twine::Null;
-		}
-	}
-
-	size_t size() const { return backing.size() - free_list.size(); }
+	IdString add(std::string s) { return add_escaped(*this, std::move(s)); }
 
 	IdString concat(std::span<const IdString> ids) {
 		if (ids.size() == 1)
@@ -444,42 +507,6 @@ struct TwinePool {
 		return Twine::Null;
 	}
 
-	// Erases every backing node not reachable from `roots`; refs to
-	// surviving nodes stay valid. Returns the number of erased nodes.
-	template<typename Pool>
-	size_t gc(const Pool& roots) {
-		pool<IdString> live;
-		for (IdString ref : roots)
-			mark_live(ref, live);
-		size_t erased = 0;
-		for (size_t idx = 0; idx < backing.size(); ++idx) {
-			if (backing[idx].is_dead())
-				continue;
-			if (!live.count(STATIC_TWINE_END + idx)) {
-				index.erase(STATIC_TWINE_END + idx);
-				free_list.push_back(idx);
-				backing[idx] = Twine{};
-				erased++;
-			}
-		}
-		// TODO something like YOSYS_SORT_ID_FREE_LIST to make it optional?
-		std::sort(free_list.begin(), free_list.end(), std::greater<size_t>());
-		return erased;
-	}
-
-	void mark_live(IdString ref, pool<IdString>& live) const {
-		ref = twine_untag(ref);
-		if (ref == Twine::Null || ref < STATIC_TWINE_END || !live.insert(ref).second)
-			return;
-		const Twine& t = (*this)[ref];
-		if (t.is_concat()) {
-			for (IdString c : t.children())
-				mark_live(c, live);
-		} else if (t.is_suffix()) {
-			mark_live(t.suffix().prefix, live);
-		}
-	}
-
 	void dump(std::ostream& os = std::cout) const {
 		os << "--- TwinePool Dump (" << backing.size() << " nodes) ---\n";
 		for (size_t idx = 0; idx < backing.size(); ++idx) {
@@ -494,7 +521,7 @@ struct TwinePool {
 	std::string flat_string(IdString t) const { return str(t); }
 };
 
-inline size_t TwineHash::operator()(const Twine& t) const noexcept {
+inline size_t TwinePool::hash_node(const Twine& t) {
 	// size_t h = std::hash<size_t>{}(t.data.index());
 	Hasher h;
 
@@ -523,23 +550,6 @@ inline size_t TwineHash::operator()(const Twine& t) const noexcept {
 
 	return h.yield();
 }
-
-inline size_t TwineHash::operator()(IdString ref) const noexcept {
-	return (*this)((*pool)[ref]);
-}
-
-inline bool TwineEq::operator()(IdString a, IdString b) const noexcept {
-	return (*pool)[a].data == (*pool)[b].data;
-}
-
-inline bool TwineEq::operator()(IdString a, const Twine& b) const noexcept {
-	return (*pool)[a].data == b.data;
-}
-
-inline bool TwineEq::operator()(const Twine& a, IdString b) const noexcept {
-	return a.data == (*pool)[b].data;
-}
-
 
 struct DeepTwineHash {
 	using is_transparent = void;
@@ -698,25 +708,11 @@ struct TwineChildPool {
 		return twine_tag(add_inner(std::move(t)), is_public);
 	}
 
-	// TODO duplicated code
 	IdString add_verbatim(std::string s) {
 		return add_inner(Twine{Twine::Leaf{std::move(s)}});
 	}
 
-	IdString add(std::string s) {
-		if (s.size() > 1) {
-			if (s[0] == '\\')
-				return twine_tag(add(Twine{Twine::Leaf{s.substr(1)}}), true);
-			else if (s[0] == '$')
-				return twine_tag(add(Twine{Twine::Leaf{std::move(s)}}), false);
-			else
-				return twine_tag(add(Twine{Twine::Leaf{std::move(s)}}), true);
-		} else if (s.size() > 0) {
-			return twine_tag(add(Twine{Twine::Leaf{std::move(s)}}), true);
-		} else {
-		 	return Twine::Null;
-		}
-	}
+	IdString add(std::string s) { return add_escaped(*this, std::move(s)); }
 
 	bool empty() const { return local_.empty(); }
 
