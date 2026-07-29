@@ -1963,6 +1963,11 @@ inline constexpr bool is_unpooled_name_v =
 		{ return _func(static_cast<Derived*>(this)->intern(std::move(name)), \
 		               std::forward<Rest>(rest)...); }
 
+#define YS_NAME_FWD_SELF(_func) \
+	template<typename N, typename... Rest, YS_UNPOOLED_NAME(N)> \
+	decltype(auto) _func(N name, Rest&&... rest) \
+		{ return _func(intern(std::move(name)), std::forward<Rest>(rest)...); }
+
 template<typename Derived>
 class CellAdderMixin {
 public:
@@ -2504,34 +2509,20 @@ public:
 	void swap_names(RTLIL::Cell *c1, RTLIL::Cell *c2);
 
 	IdString uniquify(IdString name);
-	IdString uniquify(Twine&& name);
-	template<typename S, std::enable_if_t<std::is_same_v<std::decay_t<S>, std::string>, int> = 0>
-	IdString uniquify(S name) { return uniquify(design->twines.add(std::move(name))); }
 	IdString uniquify(IdString name, int &index);
-	IdString uniquify(Twine&& name, int &index);
+	YS_NAME_FWD_SELF(uniquify)
 
 	// Primary overloads: name already interned in design->twines.
 	RTLIL::Wire *addWire(IdString name, int width = 1);
 	RTLIL::Wire *addWire(IdString name, const RTLIL::Wire *other);
-	// Convenience: adds name into twines, then dispatches.
-	RTLIL::Wire *addWire(Twine &&name, int width = 1);
-	RTLIL::Wire *addWire(Twine &&name, const RTLIL::Wire *other);
-	// Convenience: a raw name string, publicity parsed from a leading \ / $
-	// (like the old IdString(std::string) path). Kept so callers need not wrap
-	// a stringf()/escape_id() result in Twine{}.
-	RTLIL::Wire *addWire(std::string name, int width = 1);
-	RTLIL::Wire *addWire(std::string name, const RTLIL::Wire *other);
+	YS_NAME_FWD_SELF(addWire)
 
 	// Primary overloads.
 	RTLIL::Cell *addCell(IdString name, IdString type);
 	RTLIL::Cell *addCell(IdString name, const RTLIL::Cell *other);
-	// Convenience.
-	RTLIL::Cell *addCell(Twine name, Twine type);
-	RTLIL::Cell *addCell(Twine &&name, IdString type);
-	RTLIL::Cell *addCell(IdString name, Twine &&type);
-	RTLIL::Cell *addCell(Twine &&name, const RTLIL::Cell *other);
-	// Convenience: raw name string, publicity parsed from a leading \ / $.
-	RTLIL::Cell *addCell(std::string name, IdString type);
+	YS_NAME_FWD_SELF(addCell)
+	template<typename T, YS_UNPOOLED_NAME(T)>
+	RTLIL::Cell *addCell(IdString name, T type) { return addCell(name, intern(std::move(type))); }
 
 	// CellAdderMixin hook: cells added here are attached, so set src directly.
 	void cell_set_src(RTLIL::Cell *cell, IdString src) { cell->set_src_attribute(src); }
@@ -2546,17 +2537,17 @@ public:
 	}
 
 	RTLIL::Memory *addMemory(IdString name);
-	RTLIL::Memory *addMemory(Twine &&name);
+	YS_NAME_FWD_SELF(addMemory)
 	RTLIL::Memory *addMemory(IdString name, const RTLIL::Memory *other);
 
 	RTLIL::Process *addProcess(IdString name);
-	RTLIL::Process *addProcess(Twine &&name);
+	YS_NAME_FWD_SELF(addProcess)
 	RTLIL::Process *addProcess(IdString name, const RTLIL::Process *other);
 
 	// The add* methods create a cell and return the created cell. All signals must exist in advance.
 
 	RTLIL::Cell* addAnyinit(IdString name, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, IdString src = Twine::Null);
-	RTLIL::Cell* addAnyinit(Twine &&name, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, IdString src = Twine::Null);
+	YS_NAME_FWD_SELF(addAnyinit)
 
 	// The methods without the add* prefix create a cell and an output signal. They return the newly created output signal.
 
@@ -2565,11 +2556,11 @@ public:
 	RTLIL::SigSpec Allconst  (IdString name, int width = 1, IdString src = Twine::Null);
 	RTLIL::SigSpec Allseq    (IdString name, int width = 1, IdString src = Twine::Null);
 	RTLIL::SigSpec Initstate (IdString name, IdString src = Twine::Null);
-	RTLIL::SigSpec Anyconst  (Twine &&name, int width = 1, IdString src = Twine::Null);
-	RTLIL::SigSpec Anyseq    (Twine &&name, int width = 1, IdString src = Twine::Null);
-	RTLIL::SigSpec Allconst  (Twine &&name, int width = 1, IdString src = Twine::Null);
-	RTLIL::SigSpec Allseq    (Twine &&name, int width = 1, IdString src = Twine::Null);
-	RTLIL::SigSpec Initstate (Twine &&name, IdString src = Twine::Null);
+	YS_NAME_FWD_SELF(Anyconst)
+	YS_NAME_FWD_SELF(Anyseq)
+	YS_NAME_FWD_SELF(Allconst)
+	YS_NAME_FWD_SELF(Allseq)
+	YS_NAME_FWD_SELF(Initstate)
 
 	RTLIL::SigSpec SetTag          (IdString name, const std::string &tag, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_c, IdString src = Twine::Null);
 	RTLIL::Cell*   addSetTag       (IdString name, const std::string &tag, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_c, const RTLIL::SigSpec &sig_y, IdString src = Twine::Null);
@@ -2577,12 +2568,12 @@ public:
 	RTLIL::Cell*   addOverwriteTag (IdString name, const std::string &tag, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_c, IdString src = Twine::Null);
 	RTLIL::SigSpec OriginalTag     (IdString name, const std::string &tag, const RTLIL::SigSpec &sig_a, IdString src = Twine::Null);
 	RTLIL::SigSpec FutureFF        (IdString name, const RTLIL::SigSpec &sig_e, IdString src = Twine::Null);
-	RTLIL::SigSpec SetTag          (Twine &&name, const std::string &tag, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_c, IdString src = Twine::Null);
-	RTLIL::Cell*   addSetTag       (Twine &&name, const std::string &tag, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_c, const RTLIL::SigSpec &sig_y, IdString src = Twine::Null);
-	RTLIL::SigSpec GetTag          (Twine &&name, const std::string &tag, const RTLIL::SigSpec &sig_a, IdString src = Twine::Null);
-	RTLIL::Cell*   addOverwriteTag (Twine &&name, const std::string &tag, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_c, IdString src = Twine::Null);
-	RTLIL::SigSpec OriginalTag     (Twine &&name, const std::string &tag, const RTLIL::SigSpec &sig_a, IdString src = Twine::Null);
-	RTLIL::SigSpec FutureFF        (Twine &&name, const RTLIL::SigSpec &sig_e, IdString src = Twine::Null);
+	YS_NAME_FWD_SELF(SetTag)
+	YS_NAME_FWD_SELF(addSetTag)
+	YS_NAME_FWD_SELF(GetTag)
+	YS_NAME_FWD_SELF(addOverwriteTag)
+	YS_NAME_FWD_SELF(OriginalTag)
+	YS_NAME_FWD_SELF(FutureFF)
 
 	std::string to_rtlil_str() const;
 #ifdef YOSYS_ENABLE_PYTHON

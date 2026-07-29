@@ -3409,11 +3409,6 @@ RTLIL::IdString RTLIL::Module::uniquify(RTLIL::IdString name)
 	return uniquify(name, index);
 }
 
-IdString RTLIL::Module::uniquify(Twine&& name)
-{
-	return uniquify(design->twines.add(Twine{std::move(name)}));
-}
-
 IdString RTLIL::Module::uniquify(IdString name, int &index)
 {
 	if (index == 0) {
@@ -3428,11 +3423,6 @@ IdString RTLIL::Module::uniquify(IdString name, int &index)
 			return new_name;
 		index++;
 	}
-}
-
-IdString RTLIL::Module::uniquify(Twine&& name, int &index)
-{
-	return uniquify(design->twines.add(Twine{std::move(name)}), index);
 }
 
 static bool fixup_ports_compare(const RTLIL::Wire *a, const RTLIL::Wire *b)
@@ -3547,24 +3537,6 @@ RTLIL::Wire *RTLIL::Module::addWire(RTLIL::IdString name, int width)
 	return wire;
 }
 
-RTLIL::Wire *RTLIL::Module::addWire(Twine &&name, int width)
-{
-	log_assert(design);
-	return addWire(design->twines.add(std::move(name)), width);
-}
-
-RTLIL::Wire *RTLIL::Module::addWire(std::string name, int width)
-{
-	log_assert(design);
-	return addWire(design->twines.add(std::move(name)), width);
-}
-
-RTLIL::Wire *RTLIL::Module::addWire(std::string name, const RTLIL::Wire *other)
-{
-	log_assert(design);
-	return addWire(design->twines.add(std::move(name)), other);
-}
-
 void RTLIL::copy_attr_dict(dict<IdString, RTLIL::Const> &dst,
 		const dict<IdString, RTLIL::Const> &src,
 		const RTLIL::Design *src_design, RTLIL::Design *dst_design)
@@ -3597,12 +3569,6 @@ RTLIL::Wire *RTLIL::Module::addWire(IdString name, const RTLIL::Wire *other)
 	return wire;
 }
 
-RTLIL::Wire *RTLIL::Module::addWire(Twine &&name, const RTLIL::Wire *other)
-{
-	log_assert(design);
-	return addWire(design->twines.add(std::move(name)), other);
-}
-
 RTLIL::Cell *RTLIL::Module::addCell(IdString name, IdString type)
 {
 	log_assert(design);
@@ -3613,30 +3579,6 @@ RTLIL::Cell *RTLIL::Module::addCell(IdString name, IdString type)
 	cell->meta_->name = name;
 	add(cell);
 	return cell;
-}
-
-RTLIL::Cell *RTLIL::Module::addCell(Twine &&name, IdString type)
-{
-	log_assert(design);
-	return addCell(design->twines.add(std::move(name)), type);
-}
-
-RTLIL::Cell *RTLIL::Module::addCell(std::string name, IdString type)
-{
-	log_assert(design);
-	return addCell(design->twines.add(std::move(name)), type);
-}
-
-RTLIL::Cell *RTLIL::Module::addCell(IdString name, Twine &&type)
-{
-	log_assert(design);
-	return addCell(std::move(name), design->twines.add(std::move(type)));
-}
-
-RTLIL::Cell *RTLIL::Module::addCell(Twine name, Twine type)
-{
-	log_assert(design);
-	return addCell(design->twines.add(std::move(name)), design->twines.add(std::move(type)));
 }
 
 RTLIL::Cell *RTLIL::Module::addCell(IdString name, const RTLIL::Cell *other)
@@ -3661,12 +3603,6 @@ RTLIL::Cell *RTLIL::Module::addCell(IdString name, const RTLIL::Cell *other)
 	return cell;
 }
 
-RTLIL::Cell *RTLIL::Module::addCell(Twine &&name, const RTLIL::Cell *other)
-{
-	log_assert(design);
-	return addCell(design->twines.add(std::move(name)), other);
-}
-
 RTLIL::Memory *RTLIL::Module::addMemory(IdString name)
 {
 	log_assert(design);
@@ -3676,12 +3612,6 @@ RTLIL::Memory *RTLIL::Module::addMemory(IdString name)
 	mem->meta_->name = name;
 	memories[name] = mem;
 	return mem;
-}
-
-RTLIL::Memory *RTLIL::Module::addMemory(Twine &&name)
-{
-	log_assert(design);
-	return addMemory(design->twines.add(std::move(name)));
 }
 
 RTLIL::Memory *RTLIL::Module::addMemory(IdString name, const RTLIL::Memory *other)
@@ -3708,12 +3638,6 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name)
 	proc->meta_->name = name;
 	add(proc);
 	return proc;
-}
-
-RTLIL::Process *RTLIL::Module::addProcess(Twine &&name)
-{
-	log_assert(design);
-	return addProcess(design->twines.add(std::move(name)));
 }
 
 namespace {
@@ -4669,11 +4593,6 @@ RTLIL::Cell* RTLIL::Module::addAnyinit(IdString name, const RTLIL::SigSpec &sig_
 	return cell;
 }
 
-RTLIL::Cell* RTLIL::Module::addAnyinit(Twine &&name, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, IdString src)
-{
-	return addAnyinit(design->twines.add(std::move(name)), sig_d, sig_q, src);
-}
-
 RTLIL::SigSpec RTLIL::Module::Anyconst(IdString name, int width, IdString src)
 {
 	RTLIL::SigSpec sig = addWire(NEW_ID, width);
@@ -4796,25 +4715,6 @@ RTLIL::SigSpec RTLIL::Module::FutureFF(IdString name, const RTLIL::SigSpec &sig_
 	cell->set_src_attribute(src);
 	return sig;
 }
-
-RTLIL::SigSpec RTLIL::Module::Anyconst(Twine &&name, int width, IdString src)   { return Anyconst(design->twines.add(std::move(name)), width, src); }
-RTLIL::SigSpec RTLIL::Module::Anyseq(Twine &&name, int width, IdString src)     { return Anyseq(design->twines.add(std::move(name)), width, src); }
-RTLIL::SigSpec RTLIL::Module::Allconst(Twine &&name, int width, IdString src)   { return Allconst(design->twines.add(std::move(name)), width, src); }
-RTLIL::SigSpec RTLIL::Module::Allseq(Twine &&name, int width, IdString src)     { return Allseq(design->twines.add(std::move(name)), width, src); }
-RTLIL::SigSpec RTLIL::Module::Initstate(Twine &&name, IdString src)             { return Initstate(design->twines.add(std::move(name)), src); }
-
-RTLIL::SigSpec RTLIL::Module::SetTag(Twine &&name, const std::string &tag, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_c, IdString src)
-	{ return SetTag(design->twines.add(std::move(name)), tag, sig_a, sig_s, sig_c, src); }
-RTLIL::Cell* RTLIL::Module::addSetTag(Twine &&name, const std::string &tag, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_c, const RTLIL::SigSpec &sig_y, IdString src)
-	{ return addSetTag(design->twines.add(std::move(name)), tag, sig_a, sig_s, sig_c, sig_y, src); }
-RTLIL::SigSpec RTLIL::Module::GetTag(Twine &&name, const std::string &tag, const RTLIL::SigSpec &sig_a, IdString src)
-	{ return GetTag(design->twines.add(std::move(name)), tag, sig_a, src); }
-RTLIL::Cell* RTLIL::Module::addOverwriteTag(Twine &&name, const std::string &tag, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_c, IdString src)
-	{ return addOverwriteTag(design->twines.add(std::move(name)), tag, sig_a, sig_s, sig_c, src); }
-RTLIL::SigSpec RTLIL::Module::OriginalTag(Twine &&name, const std::string &tag, const RTLIL::SigSpec &sig_a, IdString src)
-	{ return OriginalTag(design->twines.add(std::move(name)), tag, sig_a, src); }
-RTLIL::SigSpec RTLIL::Module::FutureFF(Twine &&name, const RTLIL::SigSpec &sig_e, IdString src)
-	{ return FutureFF(design->twines.add(std::move(name)), sig_e, src); }
 
 std::string RTLIL::Module::to_rtlil_str() const
 {
