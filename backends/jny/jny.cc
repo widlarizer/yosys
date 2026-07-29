@@ -44,6 +44,8 @@ struct JnyWriter
         // but for now for the PoC this looks to be sufficient
         std::unordered_map<std::string, std::vector<Cell*>> _cells{};
 
+        Design *_design = nullptr;
+
         bool _include_connections;
         bool _include_attributes;
         bool _include_properties;
@@ -120,6 +122,7 @@ struct JnyWriter
     void write_metadata(Design *design, uint16_t indent_level = 0, std::string invk = "")
     {
         log_assert(design != nullptr);
+        _design = design;
 
         design->sort();
 
@@ -211,11 +214,10 @@ struct JnyWriter
         f << _indent << "  }";
     }
 
-    void write_cell_conn(Design* design, const std::pair<IdString, RTLIL::SigSpec>& sig, uint16_t indent_level = 0) {
+    void write_cell_conn(const std::pair<RTLIL::IdString, RTLIL::SigSpec>& sig, uint16_t indent_level = 0) {
         const auto _indent = gen_indent(indent_level);
-        std::string port_name = design->twines.str(sig.first);
         f << _indent << "  {\n";
-        f << _indent << "    \"name\": \"" << escape_string(port_name) << "\",\n";
+        f << _indent << "    \"name\": \"" << escape_string(_design->twines.unescaped_str(sig.first)) << "\",\n";
         f << _indent << "    \"signals\": [\n";
 
         write_sigspec(sig.second, indent_level + 2);
@@ -233,7 +235,7 @@ struct JnyWriter
         const auto _indent = gen_indent(indent_level);
 
         f << _indent << "{\n";
-        f << stringf("  %s\"name\": \"%s\",\n", _indent, escape_string(mod->name.str()));
+        f << stringf("  %s\"name\": \"%s\",\n", _indent, escape_string(mod->name.unescape()));
         f << _indent << "  \"cell_sorts\": [\n";
 
         bool first_sort{true};
@@ -264,7 +266,7 @@ struct JnyWriter
         if (_include_attributes) {
             f << ",\n" << _indent << "  \"attributes\": {\n";
 
-            write_prams(mod->design, mod->attributes, indent_level + 2);
+            write_prams(mod->attributes, indent_level + 2);
 
             f << "\n";
             f << _indent << "  }";
@@ -280,9 +282,8 @@ struct JnyWriter
             if (!first_port)
                 f << ",\n";
 
-            std::string port_name = port_cell->module->design->twines.str(con.first);
             f << _indent << "  {\n";
-            f << stringf("    %s\"name\": \"%s\",\n", _indent, escape_string(port_name));
+            f << stringf("    %s\"name\": \"%s\",\n", _indent, escape_string(_design->twines.unescaped_str(con.first)));
             f << _indent << "    \"direction\": \"";
             if (port_cell->input(con.first))
                 f << "i";
@@ -344,7 +345,7 @@ struct JnyWriter
         }
     }
 
-    void write_prams(Design *design, dict<IdString, RTLIL::Const>& params, uint16_t indent_level = 0) {
+    void write_prams(dict<RTLIL::IdString, RTLIL::Const>& params, uint16_t indent_level = 0) {
         const auto _indent = gen_indent(indent_level);
 
         bool first_param{true};
@@ -353,10 +354,10 @@ struct JnyWriter
                 f << stringf(",\n");
             const auto param_val = param.second;
             if (!param_val.empty()) {
-                f << stringf("  %s\"%s\": ", _indent, escape_string(design->twines.unescaped_str(param.first)));
+                f << stringf("  %s\"%s\": ", _indent, escape_string(_design->twines.unescaped_str(param.first)));
                 write_param_val(param_val);
             } else {
-                f << stringf("  %s\"%s\": true", _indent, escape_string(design->twines.unescaped_str(param.first)));
+                f << stringf("  %s\"%s\": true", _indent, escape_string(_design->twines.unescaped_str(param.first)));
             }
 
             first_param = false;
@@ -378,7 +379,7 @@ struct JnyWriter
                 if (!first_conn)
                     f << ",\n";
 
-                write_cell_conn(cell->module->design, conn, indent_level + 2);
+                write_cell_conn(conn, indent_level + 2);
 
                 first_conn = false;
             }
@@ -390,7 +391,7 @@ struct JnyWriter
         if (_include_attributes) {
             f << ",\n" << _indent << "    \"attributes\": {\n";
 
-            write_prams(cell->module->design, cell->attributes, indent_level + 2);
+            write_prams(cell->attributes, indent_level + 2);
 
             f << "\n";
             f << _indent << "    }";
@@ -399,7 +400,7 @@ struct JnyWriter
         if (_include_properties) {
             f << ",\n" << _indent << "    \"parameters\": {\n";
 
-            write_prams(cell->module->design, cell->parameters, indent_level + 2);
+            write_prams(cell->parameters, indent_level + 2);
 
             f << "\n";
             f << _indent << "    }";

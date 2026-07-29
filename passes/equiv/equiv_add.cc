@@ -43,7 +43,7 @@ struct EquivAddPass : public Pass {
 	{
 		bool try_mode = false;
 
-		if (design->selected_active_module == Twine::Null)
+		if (design->selected_active_module.empty())
 			log_cmd_error("This command must be executed in module context!\n");
 
 		Module *module = design->module(design->selected_active_module);
@@ -56,7 +56,7 @@ struct EquivAddPass : public Pass {
 
 		if (GetSize(args) == 4 && args[1] == "-cell")
 		{
-			TwineSearch search(&design->twines);
+			TwineSearch search(&module->design->twines);
 			Cell *gold_cell = module->cell(search.find(RTLIL::escape_id(args[2])));
 			Cell *gate_cell = module->cell(search.find(RTLIL::escape_id(args[3])));
 

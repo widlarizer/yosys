@@ -356,6 +356,11 @@ struct DesignPass : public Pass {
 			design->selection_vars.clear();
 			design->selected_active_module = Twine::Null;
 
+			if (reset_mode && save_name.empty()) {
+				design->twines = TwinePool{};
+				design->srcs = SrcPool{&design->twines};
+			}
+
 			design->push_full_selection();
 		}
 

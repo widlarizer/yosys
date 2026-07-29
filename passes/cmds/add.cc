@@ -34,8 +34,7 @@ static void add_formal(RTLIL::Module *module, const std::string &celltype, const
 {
 	std::string escaped_name = RTLIL::escape_id(name);
 	std::string escaped_enable_name = (enable_name != "") ? RTLIL::escape_id(enable_name) : "";
-	RTLIL::Design *design = module->design;
-	TwineSearch search(&design->twines);
+	TwineSearch search(&module->design->twines);
 	RTLIL::Wire *wire = module->wire(search.find(escaped_name));
 	log_assert(is_formal_celltype(celltype));
 
@@ -47,7 +46,7 @@ static void add_formal(RTLIL::Module *module, const std::string &celltype, const
 		formal_cell->setPort(ID::A, wire);
 		if(enable_name == "") {
 			formal_cell->setPort(ID::EN, State::S1);
-			log("Added $%s cell for wire \"%s.%s\"\n", celltype, module->name, name);
+			log("Added $%s cell for wire \"%s.%s\"\n", celltype, module->name.str(), name);
 		}
 		else {
 			RTLIL::Wire *enable_wire = module->wire(search.find(escaped_enable_name));
@@ -55,7 +54,7 @@ static void add_formal(RTLIL::Module *module, const std::string &celltype, const
 				log_error("Could not find enable wire with name \"%s\".\n", enable_name);
 
 			formal_cell->setPort(ID::EN, enable_wire);
-			log("Added $%s cell for wire \"%s.%s\" enabled by wire \"%s.%s\".\n", celltype, module->name, name, module->name, enable_name);
+			log("Added $%s cell for wire \"%s.%s\" enabled by wire \"%s.%s\".\n", celltype, module->name.str(), name, module->name.str(), enable_name);
 		}
 	}
 }
@@ -67,7 +66,7 @@ static void add_wire(RTLIL::Design *design, RTLIL::Module *module, std::string n
 	TwineSearch search(&design->twines);
 	IdString name_ref = search.find(name);
 
-	if (name_ref != Twine::Null)
+	if (module->count_id(name_ref) != 0)
 	{
 		wire = module->wire(name_ref);
 
@@ -102,6 +101,7 @@ static void add_wire(RTLIL::Design *design, RTLIL::Module *module, std::string n
 		return;
 
 	IdString port_id = design->twines.add(name);
+
 	for (auto cell : module->cells())
 	{
 		RTLIL::Module *mod = design->module(cell->type);

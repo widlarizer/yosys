@@ -37,7 +37,7 @@ struct EquivPurgeWorker
 			Wire *wire = sig.as_wire();
 			if (wire->name.isPublic()) {
 				if (!wire->port_output) {
-					log("  Module output: %s (%s)\n", log_signal(wire), log_id(cellname));
+					log("  Module output: %s (%s)\n", log_signal(wire), log_id(module->design, cellname));
 					wire->port_output = true;
 				}
 				return wire;
@@ -54,7 +54,7 @@ struct EquivPurgeWorker
 			Wire *wire = module->addWire(name, GetSize(sig));
 			wire->port_output = true;
 			module->connect(wire, sig);
-			log("  Module output: %s (%s)\n", log_signal(wire), log_id(cellname));
+			log("  Module output: %s (%s)\n", log_signal(wire), log_id(module->design, cellname));
 			return wire;
 		}
 	}

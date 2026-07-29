@@ -61,6 +61,7 @@ struct AttrmvcpPass : public Pass {
 		bool driven_mode = false;
 		bool purge_mode = false;
 		pool<IdString> attrnames;
+		TwineSearch search(&design->twines);
 
 		size_t argidx;
 		for (argidx = 1; argidx < args.size(); argidx++)
@@ -79,7 +80,7 @@ struct AttrmvcpPass : public Pass {
 				continue;
 			}
 			if (arg == "-attr" && argidx+1 < args.size()) {
-				attrnames.insert(design->twines.add(RTLIL::escape_id(args[++argidx])));
+				attrnames.insert(search.find(RTLIL::escape_id(args[++argidx])));
 				continue;
 			}
 			break;
@@ -121,7 +122,7 @@ struct AttrmvcpPass : public Pass {
 					for (auto bit : sigmap(wire))
 						if (net2cells.count(bit))
 							for (auto cell : net2cells.at(bit)) {
-								log("Moving attribute %s=%s from %s.%s to %s.%s.\n", design->twines.unescaped_str(attr.first), log_const(attr.second),
+								log("Moving attribute %s=%s from %s.%s to %s.%s.\n", log_id(design, attr.first), log_const(attr.second),
 										module, wire, module, cell);
 								cell->attributes[attr.first] = attr.second;
 								did_something = true;

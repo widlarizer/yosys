@@ -1645,6 +1645,13 @@ struct RTLIL::Memory : public RTLIL::AttrObject
 	std::string to_rtlil_str() const;
 };
 
+template<typename N>
+inline constexpr bool is_name_string_v =
+	std::is_same_v<std::decay_t<N>, std::string> ||
+	std::is_same_v<std::decay_t<N>, const char *> || std::is_same_v<std::decay_t<N>, char *>;
+
+#define YS_NAME_STRING(N) std::enable_if_t<is_name_string_v<N>, int> = 0
+
 struct RTLIL::Cell : public RTLIL::AttrObject
 {
 private:
@@ -1692,6 +1699,8 @@ public:
 	bool hasPort(RTLIL::IdString portname) const;
 	void unsetPort(RTLIL::IdString portname);
 	void setPort(RTLIL::IdString portname, RTLIL::SigSpec signal);
+	template<typename N, YS_NAME_STRING(N)> void setPort(N portname, RTLIL::SigSpec signal)
+		{ setPort(intern_param_key(std::move(portname)), std::move(signal)); }
 	const RTLIL::SigSpec &getPort(RTLIL::IdString portname) const;
 	const dict<RTLIL::IdString, RTLIL::SigSpec> &connections() const;
 
@@ -1702,10 +1711,20 @@ public:
 	PortDir port_dir(RTLIL::IdString portname) const;
 
 	// access cell parameters
+	RTLIL::IdString intern_param_key(const std::string &paramname) const;
 	bool hasParam(RTLIL::IdString paramname) const;
 	void unsetParam(RTLIL::IdString paramname);
 	void setParam(RTLIL::IdString paramname, RTLIL::Const value);
 	const RTLIL::Const &getParam(RTLIL::IdString paramname) const;
+
+	template<typename N, YS_NAME_STRING(N)> bool hasParam(N name) const
+		{ return hasParam(intern_param_key(std::move(name))); }
+	template<typename N, YS_NAME_STRING(N)> void unsetParam(N name)
+		{ unsetParam(intern_param_key(std::move(name))); }
+	template<typename N, YS_NAME_STRING(N)> void setParam(N name, RTLIL::Const value)
+		{ setParam(intern_param_key(std::move(name)), std::move(value)); }
+	template<typename N, YS_NAME_STRING(N)> const RTLIL::Const &getParam(N name) const
+		{ return getParam(intern_param_key(std::move(name))); }
 
 	void sort();
 	void check();

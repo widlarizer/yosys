@@ -51,9 +51,9 @@ static void print_spice_net(std::ostream &f, RTLIL::SigBit s, std::string &neg, 
 		if (s.wire->port_id)
 			use_inames = true;
 		if (s.wire->width > 1)
-			f << stringf(" %s.%d", spice_id2str(s.wire->module->design, s.wire->name.ref(), use_inames, inums), s.offset);
+			f << stringf(" %s.%d", spice_id2str(s.wire->module->design, s.wire->name, use_inames, inums), s.offset);
 		else
-			f << stringf(" %s", spice_id2str(s.wire->module->design, s.wire->name.ref(), use_inames, inums));
+			f << stringf(" %s", spice_id2str(s.wire->module->design, s.wire->name, use_inames, inums));
 	} else {
 		if (s == RTLIL::State::S0)
 			f << stringf(" %s", neg);
@@ -101,13 +101,11 @@ static void print_spice_module(std::ostream &f, RTLIL::Module *module, RTLIL::De
 				ports.at(wire->port_id-1) = wire;
 			}
 
-			TwineSearch search(&design->twines);
 			for (RTLIL::Wire *wire : ports) {
 				log_assert(wire != NULL);
 				RTLIL::SigSpec sig(RTLIL::State::Sz, wire->width);
-				IdString wire_name_ref = search.find(wire->name.unescape());
-				if (cell->hasPort(wire_name_ref)) {
-					sig = sigmap(cell->getPort(wire_name_ref));
+				if (cell->hasPort(wire->name)) {
+					sig = sigmap(cell->getPort(wire->name));
 					sig.extend_u0(wire->width, false);
 				}
 				port_sigs.push_back(sig);
@@ -230,7 +228,7 @@ struct SpiceBackend : public Backend {
 			if (module->memories.size() != 0)
 				log_error("Found unmapped memories in module %s: unmapped memories are not supported in SPICE backend!\n", module);
 
-			if (module->name.str() == RTLIL::escape_id(top_module_name)) {
+			if (module->name == RTLIL::escape_id(top_module_name)) {
 				top_module = module;
 				continue;
 			}
@@ -249,9 +247,9 @@ struct SpiceBackend : public Backend {
 				log_assert(wire != NULL);
 				if (wire->width > 1) {
 					for (int i = 0; i < wire->width; i++)
-						*f << stringf(" %s.%d", spice_id2str(wire->name.unescape()), big_endian ? wire->width - 1 - i : i);
+						*f << stringf(" %s.%d", spice_id2str(wire->name.str()), big_endian ? wire->width - 1 - i : i);
 				} else
-					*f << stringf(" %s", spice_id2str(wire->name.unescape()));
+					*f << stringf(" %s", spice_id2str(wire->name.str()));
 			}
 			*f << stringf("\n");
 			print_spice_module(*f, module, design, neg, pos, buf, ncpf, big_endian, use_inames);

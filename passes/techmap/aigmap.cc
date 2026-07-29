@@ -157,14 +157,14 @@ struct AigmapPass : public Pass {
 				stat_replaced.sort();
 				log("  replaced %d cell types:\n", GetSize(stat_replaced));
 				for (auto &it : stat_replaced)
-					log("%8d %s\n", it.second, design->twines.unescaped_str(it.first));
+					log("%8d %s\n", it.second, log_id(module, it.first));
 			}
 
 			if (!stat_not_replaced.empty()) {
 				stat_not_replaced.sort();
 				log("  not replaced %d cell types:\n", GetSize(stat_not_replaced));
 				for (auto &it : stat_not_replaced)
-					log("%8d %s\n", it.second, design->twines.unescaped_str(it.first));
+					log("%8d %s\n", it.second, log_id(module, it.first));
 			}
 
 			for (auto cell : replaced_cells)

@@ -243,7 +243,7 @@ struct WreduceWorker
 	void run_reduce_inport(Cell *cell, char port, int max_port_size, bool &port_signed, bool &did_something)
 	{
 		auto &twines = cell->module->design->twines;
-		port_signed = cell->getParam(twines.add(stringf("\\%c_SIGNED", port))).as_bool();
+		port_signed = cell->getParam(stringf("\\%c_SIGNED", port)).as_bool();
 		SigSpec sig = mi.sigmap(cell->getPort(twines.add(std::string{stringf("\\%c", port)})));
 
 		if (port == 'B' && cell->type.in(ID($shl), ID($shr), ID($sshl), ID($sshr)))

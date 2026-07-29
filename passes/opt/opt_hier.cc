@@ -101,7 +101,7 @@ struct ModuleIndex {
 			if (!port || (!port->port_input && !port->port_output) || port->width != value.size()) {
 				log_error("Port %s connected on instance %s not found in module %s"
 						  " or width is not matching\n",
-						  module->design->twines.unescaped_str(port_name), instantiation, module);
+						  log_id(module, port_name), instantiation, module);
 			}
 
 			if (port->port_input && port->port_output) {
@@ -290,7 +290,7 @@ struct UsageData {
 			if (!port || (!port->port_input && !port->port_output) || port->width != value.size()) {
 				log_error("Port %s connected on instance %s not found in module %s"
 						  " or width is not matching\n",
-						module->design->twines.unescaped_str(port_name), instance, module);
+						  log_id(module, port_name), instance, module);
 			}
 
 			if (port->port_input && port->port_output) {
@@ -338,7 +338,7 @@ struct UsageData {
 
 		dict<SigBit, SigBit> replacement_map;
 		for (auto chunk : disconnect_outputs.chunks()) {
-			Wire *repl_wire = module->addWire(module->uniquify(std::string("$") + chunk.wire->name.unescape()), chunk.size());
+			Wire *repl_wire = module->addWire(module->uniquify(std::string("$") + chunk.wire->name.str()), chunk.size());
 			for (int i = 0; i < repl_wire->width; i++)
 				replacement_map[SigSpec(chunk)[i]] = SigBit(repl_wire, i);
 		}

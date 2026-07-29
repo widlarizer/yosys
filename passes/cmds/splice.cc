@@ -149,7 +149,7 @@ struct SpliceWorker
 
 	void run()
 	{
-		log("Splicing signals in module %s:\n", design->twines.unescaped_str(module->name));
+		log("Splicing signals in module %s:\n", module->name.unescape());
 
 		driven_bits.push_back(RTLIL::State::Sm);
 		driven_bits.push_back(RTLIL::State::Sm);
@@ -231,7 +231,7 @@ struct SpliceWorker
 
 		for (auto &it : rework_wires)
 		{
-			IdString orig_name = it.first->name.ref();
+			RTLIL::IdString orig_name = it.first->name;
 			module->rename(it.first, design->twines.add(NEW_ID));
 
 			RTLIL::Wire *new_port = module->addWire(orig_name, it.first);
@@ -295,6 +295,7 @@ struct SplicePass : public Pass {
 		bool no_outputs = false;
 		bool do_wires = false;
 		std::set<RTLIL::IdString> ports, no_ports;
+		TwineSearch search(&design->twines);
 
 		size_t argidx;
 		for (argidx = 1; argidx < args.size(); argidx++) {
@@ -319,12 +320,12 @@ struct SplicePass : public Pass {
 				continue;
 			}
 			if (args[argidx] == "-port" && argidx+1 < args.size()) {
-				ports.insert(design->twines.add(RTLIL::escape_id(args[++argidx])));
+				ports.insert(search.find(RTLIL::escape_id(args[++argidx])));
 				no_outputs = true;
 				continue;
 			}
 			if (args[argidx] == "-no_port" && argidx+1 < args.size()) {
-				no_ports.insert(design->twines.add(RTLIL::escape_id(args[++argidx])));
+				no_ports.insert(search.find(RTLIL::escape_id(args[++argidx])));
 				continue;
 			}
 			break;

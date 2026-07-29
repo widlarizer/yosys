@@ -970,9 +970,9 @@ grow_read_ports:;
 				if (pi.clocks && clock_domains.count(pi.clocks))
 					c->setPort(module->design->twines.add(stringf("\\CLK%d", (pi.clocks-1) % clocks_max + 1)), clock_domains.at(pi.clocks).first);
 				if (pi.clkpol > 1 && clock_polarities.count(pi.clkpol))
-					c->setParam(module->design->twines.add(stringf("\\CLKPOL%d", (pi.clkpol-1) % clkpol_max + 1)), clock_polarities.at(pi.clkpol));
+					c->setParam(stringf("\\CLKPOL%d", (pi.clkpol-1) % clkpol_max + 1), clock_polarities.at(pi.clkpol));
 				if (pi.transp > 1 && read_transp.count(pi.transp))
-					c->setParam(module->design->twines.add(stringf("\\TRANSP%d", (pi.transp-1) % transp_max + 1)), read_transp.at(pi.transp));
+					c->setParam(stringf("\\TRANSP%d", (pi.transp-1) % transp_max + 1), read_transp.at(pi.transp));
 
 				SigSpec addr_ok;
 				SigSpec sig_addr;

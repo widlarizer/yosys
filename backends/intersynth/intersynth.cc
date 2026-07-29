@@ -133,18 +133,18 @@ struct IntersynthBackend : public Backend {
 
 			if (selected && !design->selected_whole_module(module->name)) {
 				if (design->selected_module(module->name))
-					log_cmd_error("Can't handle partially selected module %s!\n", module->name.str().c_str());
+					log_cmd_error("Can't handle partially selected module %s!\n", module->name.unescape());
 				continue;
 			}
 
-			log("Generating netlist %s.\n", module->name.str().c_str());
+			log("Generating netlist %s.\n", module->name.unescape());
 
 			if (module->memories.size() != 0 || module->processes.size() != 0)
 				log_error("Can't generate a netlist for a module with unprocessed memories or processes!\n");
 
 			std::set<std::string> constcells_code;
-			netlists_code += stringf("# Netlist of module %s\n", module->name.str().c_str());
-			netlists_code += stringf("netlist %s\n", module->name.str().c_str());
+			netlists_code += stringf("# Netlist of module %s\n", module->name.unescape());
+			netlists_code += stringf("netlist %s\n", module->name.unescape());
 
 			// Module Ports: "std::set<string> celltypes_code" prevents duplicate top level ports
 			for (auto wire : module->wires()) {
@@ -171,19 +171,18 @@ struct IntersynthBackend : public Backend {
 					RTLIL::SigSpec sig = sigmap(port.second);
 					if (sig.size() != 0) {
 						conntypes_code.insert(stringf("conntype b%d %d 2 %d\n", sig.size(), sig.size(), sig.size()));
-						std::string port_name = design->twines.str(port.first);
-						celltype_code += stringf(" b%d %s%s", sig.size(), ct.cell_output(cell->type, port.first) ? "*" : "", port_name.c_str());
-						node_code += stringf(" %s %s", port_name.c_str(), netname(conntypes_code, celltypes_code, constcells_code, sig));
+						celltype_code += stringf(" b%d %s%s", sig.size(), ct.cell_output(cell->type, port.first) ? "*" : "", log_id(module, port.first));
+						node_code += stringf(" %s %s", log_id(module, port.first), netname(conntypes_code, celltypes_code, constcells_code, sig));
 					}
 				}
 				for (auto &param : cell->parameters) {
-					celltype_code += stringf(" cfg:%d %s", int(param.second.size()), module->design->twines.unescaped_str(param.first));
+					celltype_code += stringf(" cfg:%d %s", int(param.second.size()), log_id(module, param.first));
 					if (param.second.size() != 32) {
-						node_code += stringf(" %s '", module->design->twines.unescaped_str(param.first));
+						node_code += stringf(" %s '", log_id(module, param.first));
 						for (int i = param.second.size()-1; i >= 0; i--)
 							node_code += param.second[i] == State::S1 ? "1" : "0";
 					} else
-						node_code += stringf(" %s 0x%x", module->design->twines.unescaped_str(param.first), param.second.as_int());
+						node_code += stringf(" %s 0x%x", log_id(module, param.first), param.second.as_int());
 				}
 
 				celltypes_code.insert(celltype_code + "\n");

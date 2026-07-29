@@ -121,7 +121,7 @@ static void run_ice40_braminit(Module *module)
 			std::string val = "";
 			for (int j=15; j>=0; j--)
 				val += std::bitset<16>(mem[i*16+j]).to_string();
-			cell->setParam(cell->module->design->twines.add("\\INIT_" + std::string(1, hex[i])), RTLIL::Const::from_string(val));
+			cell->setParam("\\INIT_" + std::string(1, hex[i]), RTLIL::Const::from_string(val));
 		}
 	}
 }

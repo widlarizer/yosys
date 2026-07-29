@@ -1,5 +1,4 @@
 #include "kernel/yosys_config.h"
-#include "kernel/twine.h"
 #ifdef YOSYS_ENABLE_TCL
 
 #include "kernel/register.h"

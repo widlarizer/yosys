@@ -37,6 +37,8 @@ PRIVATE_NAMESPACE_BEGIN
 static RTLIL::Wire * add_wire(RTLIL::Module *module, std::string name, int width, bool flag_input, bool flag_output)
 {
 	RTLIL::Wire *wire = NULL;
+	name = RTLIL::escape_id(name);
+
 	IdString t = module->design->twines.add(name);
 
 	if (module->count_id(t) != 0)
@@ -47,7 +49,7 @@ static RTLIL::Wire * add_wire(RTLIL::Module *module, std::string name, int width
 	}
 	else
 	{
-		wire = module->addWire(t, width);
+		wire = module->addWire(name, width);
 		wire->port_input = flag_input;
 		wire->port_output = flag_output;
 
@@ -317,7 +319,7 @@ struct SetundefPass : public Pass {
 							wire = c.wire;
 							wire->port_input = true;
 						} else {
-							string name = c.wire->name.unescape() + "$[" + std::to_string(c.width + c.offset) + ":" + std::to_string(c.offset) + "]";
+							string name = c.wire->name.str() + "$[" + std::to_string(c.width + c.offset) + ":" + std::to_string(c.offset) + "]";
 							wire = add_wire(module, name, c.width, true, false);
 							module->connect(RTLIL::SigSig(c, wire));
 						}

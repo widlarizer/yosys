@@ -1710,7 +1710,7 @@ std::vector<SigSpec> generate_mux(Mem &mem, int rpidx, const Swizzle &swz) {
 void MemMapping::emit_port(const MemConfig &cfg, std::vector<Cell*> &cells, const PortVariant &pdef, const char *name, int wpidx, int rpidx, const std::vector<int> &hw_addr_swizzle) {
 	for (auto &it: pdef.options)
 		for (auto cell: cells)
-			cell->setParam(mem.module->design->twines.add(stringf("\\PORT_%s_OPTION_%s", name, it.first)), it.second);
+			cell->setParam(stringf("\\PORT_%s_OPTION_%s", name, it.first), it.second);
 	SigSpec addr = Const(State::Sx, cfg.def->abits);
 	int wide_log2 = 0, wr_wide_log2 = 0, rd_wide_log2 = 0;
 	SigSpec clk = State::S0;
@@ -1775,7 +1775,7 @@ void MemMapping::emit_port(const MemConfig &cfg, std::vector<Cell*> &cells, cons
 				break;
 			case ClkPolKind::Anyedge:
 				for (auto cell: cells)
-					cell->setParam(mem.module->design->twines.add(stringf("\\PORT_%s_CLK_POL", name)), clk_pol);
+					cell->setParam(stringf("\\PORT_%s_CLK_POL", name), clk_pol);
 		}
 		for (auto cell: cells) {
 			set_ram_port(cell, stringf("\\PORT_%s_CLK", name), clk);
@@ -1821,12 +1821,12 @@ void MemMapping::emit_port(const MemConfig &cfg, std::vector<Cell*> &cells, cons
 	if (cfg.def->width_mode == WidthMode::PerPort) {
 		for (auto cell: cells) {
 			if (pdef.width_tied) {
-				cell->setParam(mem.module->design->twines.add(stringf("\\PORT_%s_WIDTH", name)), cfg.def->dbits[hw_wr_wide_log2]);
+				cell->setParam(stringf("\\PORT_%s_WIDTH", name), cfg.def->dbits[hw_wr_wide_log2]);
 			} else {
 				if (pdef.kind != PortKind::Ar && pdef.kind != PortKind::Sr)
-					cell->setParam(mem.module->design->twines.add(stringf("\\PORT_%s_WR_WIDTH", name)), cfg.def->dbits[hw_wr_wide_log2]);
+					cell->setParam(stringf("\\PORT_%s_WR_WIDTH", name), cfg.def->dbits[hw_wr_wide_log2]);
 				if (pdef.kind != PortKind::Sw)
-					cell->setParam(mem.module->design->twines.add(stringf("\\PORT_%s_RD_WIDTH", name)), cfg.def->dbits[hw_rd_wide_log2]);
+					cell->setParam(stringf("\\PORT_%s_RD_WIDTH", name), cfg.def->dbits[hw_rd_wide_log2]);
 			}
 		}
 	}
@@ -1880,11 +1880,11 @@ void MemMapping::emit_port(const MemConfig &cfg, std::vector<Cell*> &cells, cons
 					set_ram_port(cell, stringf("\\PORT_%s_WR_EN", name), en);
 					set_ram_port(cell, stringf("\\PORT_%s_WR_BE", name), hw_wren);
 					if (cfg.def->width_mode != WidthMode::Single)
-						cell->setParam(mem.module->design->twines.add(stringf("\\PORT_%s_WR_BE_WIDTH", name)), GetSize(hw_wren));
+						cell->setParam(stringf("\\PORT_%s_WR_BE_WIDTH", name), GetSize(hw_wren));
 				} else {
 					set_ram_port(cell, stringf("\\PORT_%s_WR_EN", name), hw_wren);
 					if (cfg.def->byte != 0 && (cfg.def->width_mode != WidthMode::Single || opts.force_params))
-						cell->setParam(mem.module->design->twines.add(stringf("\\PORT_%s_WR_EN_WIDTH", name)), GetSize(hw_wren));
+						cell->setParam(stringf("\\PORT_%s_WR_EN_WIDTH", name), GetSize(hw_wren));
 				}
 			}
 		} else {
@@ -1895,11 +1895,11 @@ void MemMapping::emit_port(const MemConfig &cfg, std::vector<Cell*> &cells, cons
 					set_ram_port(cell, stringf("\\PORT_%s_WR_EN", name), State::S0);
 					set_ram_port(cell, stringf("\\PORT_%s_WR_BE", name), hw_wren);
 					if (cfg.def->width_mode != WidthMode::Single)
-						cell->setParam(mem.module->design->twines.add(stringf("\\PORT_%s_WR_BE_WIDTH", name)), GetSize(hw_wren));
+						cell->setParam(stringf("\\PORT_%s_WR_BE_WIDTH", name), GetSize(hw_wren));
 				} else {
 					set_ram_port(cell, stringf("\\PORT_%s_WR_EN", name), hw_wren);
 					if (cfg.def->byte != 0 && cfg.def->width_mode != WidthMode::Single)
-						cell->setParam(mem.module->design->twines.add(stringf("\\PORT_%s_WR_EN_WIDTH", name)), GetSize(hw_wren));
+						cell->setParam(stringf("\\PORT_%s_WR_EN_WIDTH", name), GetSize(hw_wren));
 				}
 			}
 		}
@@ -1942,7 +1942,7 @@ void MemMapping::emit_port(const MemConfig &cfg, std::vector<Cell*> &cells, cons
 						}
 						if (pdef.rdinitval == ResetValKind::NoUndef)
 							clean_undef(hw_val);
-						cell->setParam(mem.module->design->twines.add(stringf("\\PORT_%s_RD_INIT_VALUE", name)), hw_val);
+						cell->setParam(stringf("\\PORT_%s_RD_INIT_VALUE", name), hw_val);
 					}
 					if (pdef.rdarstval == ResetValKind::Any || pdef.rdarstval == ResetValKind::NoUndef) {
 						std::vector<State> hw_val;
@@ -1955,7 +1955,7 @@ void MemMapping::emit_port(const MemConfig &cfg, std::vector<Cell*> &cells, cons
 						}
 						if (pdef.rdarstval == ResetValKind::NoUndef)
 							clean_undef(hw_val);
-						cell->setParam(mem.module->design->twines.add(stringf("\\PORT_%s_RD_ARST_VALUE", name)), hw_val);
+						cell->setParam(stringf("\\PORT_%s_RD_ARST_VALUE", name), hw_val);
 					}
 					if (pdef.rdsrstval == ResetValKind::Any || pdef.rdsrstval == ResetValKind::NoUndef) {
 						std::vector<State> hw_val;
@@ -1968,7 +1968,7 @@ void MemMapping::emit_port(const MemConfig &cfg, std::vector<Cell*> &cells, cons
 						}
 						if (pdef.rdsrstval == ResetValKind::NoUndef)
 							clean_undef(hw_val);
-						cell->setParam(mem.module->design->twines.add(stringf("\\PORT_%s_RD_SRST_VALUE", name)), hw_val);
+						cell->setParam(stringf("\\PORT_%s_RD_SRST_VALUE", name), hw_val);
 					}
 				}
 				SigSpec hw_rdata = mem.module->addWire(NEW_ID, width);
@@ -1994,17 +1994,17 @@ void MemMapping::emit_port(const MemConfig &cfg, std::vector<Cell*> &cells, cons
 					if (pdef.rdsrstval != ResetValKind::None)
 						set_ram_port(cell, stringf("\\PORT_%s_RD_SRST", name), State::S0);
 					if (pdef.rdinitval == ResetValKind::Any)
-						cell->setParam(mem.module->design->twines.add(stringf("\\PORT_%s_RD_INIT_VALUE", name)), Const(State::Sx, width));
+						cell->setParam(stringf("\\PORT_%s_RD_INIT_VALUE", name), Const(State::Sx, width));
 					else if (pdef.rdinitval == ResetValKind::NoUndef)
-						cell->setParam(mem.module->design->twines.add(stringf("\\PORT_%s_RD_INIT_VALUE", name)), Const(State::S0, width));
+						cell->setParam(stringf("\\PORT_%s_RD_INIT_VALUE", name), Const(State::S0, width));
 					if (pdef.rdarstval == ResetValKind::Any)
-						cell->setParam(mem.module->design->twines.add(stringf("\\PORT_%s_RD_ARST_VALUE", name)), Const(State::Sx, width));
+						cell->setParam(stringf("\\PORT_%s_RD_ARST_VALUE", name), Const(State::Sx, width));
 					else if (pdef.rdarstval == ResetValKind::NoUndef)
-						cell->setParam(mem.module->design->twines.add(stringf("\\PORT_%s_RD_ARST_VALUE", name)), Const(State::S0, width));
+						cell->setParam(stringf("\\PORT_%s_RD_ARST_VALUE", name), Const(State::S0, width));
 					if (pdef.rdsrstval == ResetValKind::Any)
-						cell->setParam(mem.module->design->twines.add(stringf("\\PORT_%s_RD_SRST_VALUE", name)), Const(State::Sx, width));
+						cell->setParam(stringf("\\PORT_%s_RD_SRST_VALUE", name), Const(State::Sx, width));
 					else if (pdef.rdsrstval == ResetValKind::NoUndef)
-						cell->setParam(mem.module->design->twines.add(stringf("\\PORT_%s_RD_SRST_VALUE", name)), Const(State::S0, width));
+						cell->setParam(stringf("\\PORT_%s_RD_SRST_VALUE", name), Const(State::S0, width));
 				}
 				SigSpec hw_rdata = mem.module->addWire(NEW_ID, width);
 				set_ram_port(cell, stringf("\\PORT_%s_RD_DATA", name), hw_rdata, true);
@@ -2103,12 +2103,12 @@ void MemMapping::emit(const MemConfig &cfg) {
 				cell->setParam(ID::BITS_USED, val);
 			}
 			for (auto &it: cfg.def->options)
-				cell->setParam(mem.module->design->twines.add(stringf("\\OPTION_%s", it.first)), it.second);
+				cell->setParam(stringf("\\OPTION_%s", it.first), it.second);
 			for (int i = 0; i < GetSize(cfg.def->shared_clocks); i++) {
 				auto &cdef = cfg.def->shared_clocks[i];
 				auto &ccfg = cfg.shared_clocks[i];
 				if (cdef.anyedge) {
-					cell->setParam(mem.module->design->twines.add(stringf("\\CLK_%s_POL", cdef.name)), ccfg.used ? ccfg.polarity : true);
+					cell->setParam(stringf("\\CLK_%s_POL", cdef.name), ccfg.used ? ccfg.polarity : true);
 					set_ram_port(cell, stringf("\\CLK_%s", cdef.name), ccfg.used ? ccfg.clk : State::S0);
 				} else {
 					SigSpec sig = ccfg.used ? ccfg.clk : State::S0;
@@ -2162,11 +2162,11 @@ void MemMapping::emit(const MemConfig &cfg) {
 				}
 				if (pg.optional)
 					for (auto cell: cells)
-						cell->setParam(mem.module->design->twines.add(stringf("\\PORT_%s_USED", pg.names[pi])), used);
+						cell->setParam(stringf("\\PORT_%s_USED", pg.names[pi]), used);
 				if (pg.optional_rw)
 					for (auto cell: cells) {
-						cell->setParam(mem.module->design->twines.add(stringf("\\PORT_%s_RD_USED", pg.names[pi])), used_r);
-						cell->setParam(mem.module->design->twines.add(stringf("\\PORT_%s_WR_USED", pg.names[pi])), used_w);
+						cell->setParam(stringf("\\PORT_%s_RD_USED", pg.names[pi]), used_r);
+						cell->setParam(stringf("\\PORT_%s_WR_USED", pg.names[pi]), used_w);
 					}
 			}
 		}

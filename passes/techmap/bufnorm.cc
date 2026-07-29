@@ -392,7 +392,7 @@ struct BufnormPass : public Pass {
 
 					if (w->name.isPublic())
 						log("  directly driven by cell %s port %s: %s\n",
-								cell, design->twines.unescaped_str(conn.first), w);
+								cell, log_id(cell->module, conn.first), w);
 
 					for (auto bit : SigSpec(w))
 						mapped_bits[sigmap(bit)] = bit;
@@ -502,7 +502,7 @@ struct BufnormPass : public Pass {
 
 					if (conn.second != newsig) {
 						log("  fixing input signal on cell %s port %s: %s\n",
-								cell, design->twines.unescaped_str(conn.first), log_signal(newsig));
+								cell, log_id(cell->module, conn.first), log_signal(newsig));
 						cell->setPort(conn.first, newsig);
 						count_updated_cellports++;
 					}

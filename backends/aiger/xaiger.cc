@@ -245,16 +245,14 @@ struct XAigerWriter
 						continue;
 				}
 
-				IdString inst_name_id = inst_module->name;
-				if (!timing.count(inst_name_id))
+				if (!timing.count(inst_module->name))
 					timing.setup_module(inst_module);
 
-				for (auto &i : timing.at(inst_name_id).arrival) {
-					auto port_name_ref = i.first.name;
-					if (!cell->hasPort(port_name_ref))
+				for (auto &i : timing.at(inst_module->name).arrival) {
+					if (!cell->hasPort(i.first.name))
 						continue;
 
-					auto port_wire = inst_module->wire(port_name_ref);
+					auto port_wire = inst_module->wire(i.first.name);
 					log_assert(port_wire->port_output);
 
 					auto d = i.second.first;
@@ -262,15 +260,15 @@ struct XAigerWriter
 						continue;
 					auto offset = i.first.offset;
 
-					auto rhs = cell->getPort(port_name_ref);
+					auto rhs = cell->getPort(i.first.name);
 					if (offset >= rhs.size())
 						continue;
 
 #ifndef NDEBUG
 					if (ys_debug(1)) {
 						static pool<std::pair<IdString,TimingInfo::NameBit>> seen;
-						if (seen.emplace(inst_name_id, i.first).second) log("%s.%s[%d] abc9_arrival = %d\n",
-								cell->type.unescape(), design->twines.unescaped_str(i.first.name), offset, d);
+						if (seen.emplace(inst_module->name, i.first).second) log("%s.%s[%d] abc9_arrival = %d\n",
+								cell->type.unescape(), log_id(cell->module, i.first.name), offset, d);
 					}
 #endif
 					arrival_times[rhs[offset]] = d;
@@ -287,7 +285,7 @@ struct XAigerWriter
 				auto is_input = (port_wire && port_wire->port_input) || !cell_known || cell->input(c.first);
 				auto is_output = (port_wire && port_wire->port_output) || !cell_known || cell->output(c.first);
 				if (!is_input && !is_output)
-					log_error("Connection '%s' on cell '%s' (type '%s') not recognised!\n", module->design->twines.unescaped_str(c.first), cell, cell->type.unescape());
+					log_error("Connection '%s' on cell '%s' (type '%s') not recognised!\n", log_id(cell->module, c.first), cell, cell->type.unescape());
 
 				if (is_input)
 					for (auto b : c.second) {
@@ -320,18 +318,18 @@ struct XAigerWriter
 			if (r.second) {
 				// Make carry in the last PI, and carry out the last PO
 				//   since ABC requires it this way
-				IdString carry_in = Twine::Null, carry_out = Twine::Null;
+				IdString carry_in, carry_out;
 				for (const auto &port_name : box_module->ports) {
 					auto w = box_module->wire(port_name);
 					log_assert(w);
 					if (w->get_bool_attribute(ID::abc9_carry)) {
 						if (w->port_input) {
-							if (carry_in != Twine::Null)
+							if (carry_in != IdString())
 								log_error("Module '%s' contains more than one 'abc9_carry' input port.\n", box_module);
 							carry_in = port_name;
 						}
 						if (w->port_output) {
-							if (carry_out != Twine::Null)
+							if (carry_out != IdString())
 								log_error("Module '%s' contains more than one 'abc9_carry' output port.\n", box_module);
 							carry_out = port_name;
 						}
@@ -340,11 +338,11 @@ struct XAigerWriter
 						r.first->second.push_back(port_name);
 				}
 
-				if (carry_in != Twine::Null && carry_out == Twine::Null)
+				if (carry_in != IdString() && carry_out == IdString())
 					log_error("Module '%s' contains an 'abc9_carry' input port but no output port.\n", box_module);
-				if (carry_in == Twine::Null && carry_out != Twine::Null)
+				if (carry_in == IdString() && carry_out != IdString())
 					log_error("Module '%s' contains an 'abc9_carry' output port but no input port.\n", box_module);
-				if (carry_in != Twine::Null) {
+				if (carry_in != IdString()) {
 					r.first->second.push_back(carry_in);
 					r.first->second.push_back(carry_out);
 				}
@@ -645,8 +643,7 @@ struct XAigerWriter
 				holes_design = it->second;
 			else
 				holes_design = nullptr;
-			RTLIL::Module *holes_module = holes_design ?
-					holes_design->module(holes_design->twines.copy_from(design->twines, module->name)) : nullptr;
+			RTLIL::Module *holes_module = holes_design ? holes_design->module(module->name) : nullptr;
 			if (holes_module) {
 				std::stringstream a_buffer;
 				XAigerWriter writer(holes_module, false /* dff_mode */);

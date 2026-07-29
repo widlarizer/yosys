@@ -425,7 +425,7 @@ void AigerReader::parse_xaiger()
 				uint32_t rootNodeID = parse_xaiger_literal(f);
 				uint32_t cutLeavesM = parse_xaiger_literal(f);
 				log_debug2("rootNodeID=%d cutLeavesM=%d\n", rootNodeID, cutLeavesM);
-				RTLIL::Wire *output_sig = module->wire(design->twines.find(stringf("$aiger%d$%d", aiger_autoidx, rootNodeID)));
+				RTLIL::Wire *output_sig = aiger_wires.at(rootNodeID << 1);
 				log_assert(output_sig);
 				uint32_t nodeID;
 				RTLIL::SigSpec input_sig;
@@ -436,7 +436,7 @@ void AigerReader::parse_xaiger()
 						log_debug("\tLUT '$lut$aiger%d$%d' input %d is constant!\n", aiger_autoidx, rootNodeID, cutLeavesM);
 						continue;
 					}
-					RTLIL::Wire *wire = module->wire(design->twines.find(stringf("$aiger%d$%d", aiger_autoidx, nodeID)));
+					RTLIL::Wire *wire = aiger_wires.at(nodeID << 1);
 					log_assert(wire);
 					input_sig.append(wire);
 				}
@@ -502,7 +502,6 @@ void AigerReader::parse_xaiger()
 				mapping_cells.push_back(std::move(mapping_cell));
 			}
 
-			TwineSearch mcell_search(&design->twines);
 			for (unsigned i = 0; i < instanceNum; ++i) {
 				uint32_t cellID = parse_xaiger_literal(f);
 				uint32_t rootNodeID = parse_xaiger_literal(f);
@@ -522,7 +521,7 @@ void AigerReader::parse_xaiger()
 					} else { // inverted
 						output_cell_name = stringf("$not$aiger%d$%d", aiger_autoidx, rootNodeID >> 1);
 					}
-					RTLIL::Cell *output_cell = module->cell(mcell_search.find(output_cell_name));
+					RTLIL::Cell *output_cell = module->cell(design->twines.find(output_cell_name));
 					log_assert(output_cell);
 					module->remove(output_cell);
 				}

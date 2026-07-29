@@ -4980,23 +4980,40 @@ RTLIL::PortDir RTLIL::Cell::port_dir(RTLIL::IdString portname) const
 	return PortDir::PD_UNKNOWN;
 }
 
+static void assert_param_key_is_leaf(const RTLIL::Cell *cell, RTLIL::IdString paramname)
+{
+	if (paramname == Twine::Null || !cell->module || !cell->module->design)
+		return;
+	log_assert(cell->module->design->twines[paramname].is_leaf());
+}
+
+RTLIL::IdString RTLIL::Cell::intern_param_key(const std::string &paramname) const
+{
+	log_assert(module != nullptr && module->design != nullptr);
+	return module->design->twines.add(paramname);
+}
+
 bool RTLIL::Cell::hasParam(RTLIL::IdString paramname) const
 {
+	assert_param_key_is_leaf(this, paramname);
 	return parameters.count(paramname) != 0;
 }
 
 void RTLIL::Cell::unsetParam(RTLIL::IdString paramname)
 {
+	assert_param_key_is_leaf(this, paramname);
 	parameters.erase(paramname);
 }
 
 void RTLIL::Cell::setParam(RTLIL::IdString paramname, RTLIL::Const value)
 {
+	assert_param_key_is_leaf(this, paramname);
 	parameters[paramname] = std::move(value);
 }
 
 const RTLIL::Const &RTLIL::Cell::getParam(RTLIL::IdString paramname) const
 {
+	assert_param_key_is_leaf(this, paramname);
 	const auto &it = parameters.find(paramname);
 	if (it != parameters.end())
 		return it->second;

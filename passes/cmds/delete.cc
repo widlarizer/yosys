@@ -92,6 +92,7 @@ struct DeletePass : public Pass {
 			pool<RTLIL::Cell*> delete_cells;
 			pool<RTLIL::Process*> delete_procs;
 			pool<RTLIL::IdString> delete_mems;
+			TwineSearch search(&design->twines);
 
 			for (auto wire : module->selected_wires())
 				delete_wires.insert(wire);
@@ -100,7 +101,6 @@ struct DeletePass : public Pass {
 				if (design->selected(module, it.second))
 					delete_mems.insert(it.first);
 
-			TwineSearch search(&design->twines);
 			for (auto cell : module->cells()) {
 				if (design->selected(module, cell))
 					delete_cells.insert(cell);

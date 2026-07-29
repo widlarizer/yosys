@@ -49,6 +49,7 @@ struct BlifDumperConfig
 	std::string buf_type, buf_in, buf_out;
 	std::map<RTLIL::IdString, std::pair<RTLIL::IdString, RTLIL::IdString>> unbuf_types;
 	std::string true_type, true_out, false_type, false_out, undef_type, undef_out;
+	IdString buf_type_ref, true_type_ref, false_type_ref, undef_type_ref;
 
 	BlifDumperConfig() : icells_mode(false), conn_mode(false), impltf_mode(false), gates_mode(false),
 			cname_mode(false), iname_mode(false), param_mode(false), attr_mode(false), iattr_mode(false),
@@ -62,13 +63,12 @@ struct BlifDumper
 	RTLIL::Design *design;
 	BlifDumperConfig *config;
 	NewCellTypes ct;
-	TwineSearch search;
 
 	SigMap sigmap;
 	dict<SigBit, int> init_bits;
 
 	BlifDumper(std::ostream &f, RTLIL::Module *module, RTLIL::Design *design, BlifDumperConfig *config) :
-			f(f), module(module), design(design), config(config), ct(design), search(&design->twines), sigmap(module)
+			f(f), module(module), design(design), config(config), ct(design), sigmap(module)
 	{
 		for (Wire *wire : module->wires())
 			if (wire->attributes.count(ID::init)) {
@@ -90,7 +90,7 @@ struct BlifDumper
 
 	pool<SigBit> cstr_bits_seen;
 
-	const std::string str(RTLIL::IdString id)
+	const std::string str(IdString id)
 	{
 		std::string str = design->twines.unescaped_str(id);
 		for (size_t i = 0; i < str.size(); i++)
@@ -109,10 +109,7 @@ struct BlifDumper
 			return config->undef_type == "-" || config->undef_type == "+" ? config->undef_out.c_str() : "$undef";
 		}
 
-		std::string str = sig.wire->name.unescape();
-		for (size_t i = 0; i < str.size(); i++)
-			if (str[i] == '#' || str[i] == '=' || str[i] == '<' || str[i] == '>')
-				str[i] = '?';
+		std::string str = this->str(sig.wire->name);
 
 		if (sig.wire->width != 1)
 			str += stringf("[%d]", sig.wire->upto ? sig.wire->start_offset+sig.wire->width-sig.offset-1 : sig.wire->start_offset+sig.offset);
@@ -137,14 +134,13 @@ struct BlifDumper
 			return stringf("%d", init_bits.at(sig));
 	}
 
-	const char *subckt_or_gate(std::string cell_type)
+	const char *subckt_or_gate(IdString cell_type)
 	{
 		if (!config->gates_mode)
 			return "subckt";
-		IdString cell_type_ref = search.find(RTLIL::escape_id(cell_type));
-		if (design->module(cell_type_ref) == nullptr)
+		if (design->module(cell_type) == nullptr)
 			return "gate";
-		if (design->module(cell_type_ref)->get_blackbox_attribute())
+		if (design->module(cell_type)->get_blackbox_attribute())
 			return "gate";
 		return "subckt";
 	}
@@ -152,7 +148,7 @@ struct BlifDumper
 	void dump_params(const char *command, dict<IdString, Const> &params)
 	{
 		for (auto &param : params) {
-			f << stringf("%s %s ", command, design->twines.unescaped_str(param.first).c_str());
+			f << stringf("%s %s ", command, log_id(design, param.first));
 			if (param.second.flags & RTLIL::CONST_FLAG_STRING) {
 				std::string str = param.second.decode_string();
 				f << stringf("\"");
@@ -172,7 +168,7 @@ struct BlifDumper
 	void dump()
 	{
 		f << stringf("\n");
-		f << stringf(".model %s\n", module->name.unescape().c_str());
+		f << stringf(".model %s\n", str(module->name));
 
 		std::map<int, RTLIL::Wire*> inputs, outputs;
 
@@ -210,24 +206,24 @@ struct BlifDumper
 				if (config->false_type == "+")
 					f << stringf(".names %s\n", config->false_out);
 				else if (config->false_type != "-")
-					f << stringf(".%s %s %s=$false\n", subckt_or_gate(config->false_type),
-							config->false_type.c_str(), config->false_out.c_str());
+					f << stringf(".%s %s %s=$false\n", subckt_or_gate(config->false_type_ref),
+							config->false_type, config->false_out);
 			} else
 				f << stringf(".names $false\n");
 			if (!config->true_type.empty()) {
 				if (config->true_type == "+")
 					f << stringf(".names %s\n1\n", config->true_out);
 				else if (config->true_type != "-")
-					f << stringf(".%s %s %s=$true\n", subckt_or_gate(config->true_type),
-							config->true_type.c_str(), config->true_out.c_str());
+					f << stringf(".%s %s %s=$true\n", subckt_or_gate(config->true_type_ref),
+							config->true_type, config->true_out);
 			} else
 				f << stringf(".names $true\n1\n");
 			if (!config->undef_type.empty()) {
 				if (config->undef_type == "+")
 					f << stringf(".names %s\n", config->undef_out);
 				else if (config->undef_type != "-")
-					f << stringf(".%s %s %s=$undef\n", subckt_or_gate(config->undef_type),
-							config->undef_type.c_str(), config->undef_out.c_str());
+					f << stringf(".%s %s %s=$undef\n", subckt_or_gate(config->undef_type_ref),
+							config->undef_type, config->undef_out);
 			} else
 				f << stringf(".names $undef\n");
 		}
@@ -239,10 +235,8 @@ struct BlifDumper
 
 			if (config->unbuf_types.count(cell->type)) {
 				auto portnames = config->unbuf_types.at(cell->type);
-				IdString port_in = portnames.first;
-				IdString port_out = portnames.second;
 				f << stringf(".names %s %s\n1 1\n",
-						str(cell->getPort(port_in)).c_str(), str(cell->getPort(port_out)).c_str());
+						str(cell->getPort(portnames.first)).c_str(), str(cell->getPort(portnames.second)).c_str());
 				continue;
 			}
 
@@ -420,11 +414,11 @@ struct BlifDumper
 				goto internal_cell;
 			}
 
-			f << stringf(".%s %s", subckt_or_gate(cell->type.str()), str(cell->type));
+			f << stringf(".%s %s", subckt_or_gate(cell->type), str(cell->type));
 			for (auto &conn : cell->connections())
 			{
 				if (conn.second.size() == 1) {
-					f << stringf(" %s=%s", design->twines.unescaped_str(conn.first).c_str(), str(conn.second[0]));
+					f << stringf(" %s=%s", str(conn.first), str(conn.second[0]));
 					continue;
 				}
 
@@ -433,11 +427,11 @@ struct BlifDumper
 
 				if (w == nullptr) {
 					for (int i = 0; i < GetSize(conn.second); i++)
-						f << stringf(" %s[%d]=%s", design->twines.unescaped_str(conn.first).c_str(), i, str(conn.second[i]));
+						f << stringf(" %s[%d]=%s", str(conn.first), i, str(conn.second[i]));
 				} else {
 					for (int i = 0; i < std::min(GetSize(conn.second), GetSize(w)); i++) {
 						SigBit sig(w, i);
-						f << stringf(" %s[%d]=%s", design->twines.unescaped_str(conn.first).c_str(), sig.wire->upto ?
+						f << stringf(" %s[%d]=%s", str(conn.first), sig.wire->upto ?
 								sig.wire->start_offset+sig.wire->width-sig.offset-1 :
 								sig.wire->start_offset+sig.offset, str(conn.second[i]).c_str());
 					}
@@ -473,8 +467,8 @@ struct BlifDumper
 			if (config->conn_mode)
 				f << stringf(".conn %s %s\n", str(rhs_bit), str(lhs_bit));
 			else if (!config->buf_type.empty())
-				f << stringf(".%s %s %s=%s %s=%s\n", subckt_or_gate(config->buf_type), config->buf_type,
-						config->buf_in.c_str(), str(rhs_bit).c_str(), config->buf_out.c_str(), str(lhs_bit).c_str());
+				f << stringf(".%s %s %s=%s %s=%s\n", subckt_or_gate(config->buf_type_ref), config->buf_type,
+						config->buf_in, str(rhs_bit), config->buf_out, str(lhs_bit));
 			else
 				f << stringf(".names %s %s\n1 1\n", str(rhs_bit), str(lhs_bit));
 		}
@@ -579,6 +573,13 @@ struct BlifBackend : public Backend {
 
 		log_header(design, "Executing BLIF backend.\n");
 
+		std::optional<TwineSearch> search;
+		auto find_id = [&](const std::string &name) {
+			if (!search)
+				search.emplace(&design->twines);
+			return search->find(RTLIL::escape_id(name));
+		};
+
 		size_t argidx;
 		for (argidx = 1; argidx < args.size(); argidx++)
 		{
@@ -590,28 +591,32 @@ struct BlifBackend : public Backend {
 				config.buf_type = args[++argidx];
 				config.buf_in = args[++argidx];
 				config.buf_out = args[++argidx];
+				config.buf_type_ref = find_id(config.buf_type);
 				continue;
 			}
 			if (args[argidx] == "-unbuf" && argidx+3 < args.size()) {
-				IdString unbuf_type = design->twines.add(RTLIL::escape_id(args[++argidx]));
-				IdString unbuf_in = design->twines.add(RTLIL::escape_id(args[++argidx]));
-				IdString unbuf_out = design->twines.add(RTLIL::escape_id(args[++argidx]));
+				IdString unbuf_type = find_id(args[++argidx]);
+				IdString unbuf_in = find_id(args[++argidx]);
+				IdString unbuf_out = find_id(args[++argidx]);
 				config.unbuf_types[unbuf_type] = std::pair<RTLIL::IdString, RTLIL::IdString>(unbuf_in, unbuf_out);
 				continue;
 			}
 			if (args[argidx] == "-true" && argidx+2 < args.size()) {
 				config.true_type = args[++argidx];
 				config.true_out = args[++argidx];
+				config.true_type_ref = find_id(config.true_type);
 				continue;
 			}
 			if (args[argidx] == "-false" && argidx+2 < args.size()) {
 				config.false_type = args[++argidx];
 				config.false_out = args[++argidx];
+				config.false_type_ref = find_id(config.false_type);
 				continue;
 			}
 			if (args[argidx] == "-undef" && argidx+2 < args.size()) {
 				config.undef_type = args[++argidx];
 				config.undef_out = args[++argidx];
+				config.undef_type_ref = find_id(config.undef_type);
 				continue;
 			}
 			if (args[argidx] == "-icells") {
@@ -682,11 +687,11 @@ struct BlifBackend : public Backend {
 				continue;
 
 			if (module->processes.size() != 0)
-				log_error("Found unmapped processes in module %s: unmapped processes are not supported in BLIF backend!\n", module->name.str().c_str());
+				log_error("Found unmapped processes in module %s: unmapped processes are not supported in BLIF backend!\n", module->name.unescape());
 			if (module->memories.size() != 0)
-				log_error("Found unmapped memories in module %s: unmapped memories are not supported in BLIF backend!\n", module->name.str().c_str());
+				log_error("Found unmapped memories in module %s: unmapped memories are not supported in BLIF backend!\n", module->name.unescape());
 
-			if (module->name.str() == top_module_name) {
+			if (module->name == RTLIL::escape_id(top_module_name)) {
 				BlifDumper::dump(*f, module, design, config);
 				top_module_name.clear();
 				continue;

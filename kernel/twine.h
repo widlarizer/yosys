@@ -855,47 +855,6 @@ struct TwineSearch {
 	}
 };
 
-// struct TwinePoolExtender {
-// 	TwinePool& pool;
-// 	size_t offset;
-// private:
-// 	size_t resize_for_idx(size_t idx) {
-// 		auto real_idx = offset + idx;
-// 		pool.nodes_.resize(std::max(pool.nodes_.size(), real_idx + 1));
-// 		return real_idx;
-// 	}
-// 	void commit(Twine&& twine, size_t idx) {
-// 		pool.nodes_[idx] = std::move(twine);
-// 		pool.leaf_index_.insert(&pool.nodes_[idx]);
-// 	}
-// public:
-// 	// TwinePoolExtender(Design* design) : pool(design->twines), offset(design->twines.size()) {}
-// 	void extend_leaf(std::string leaf, size_t idx) {
-// 		auto real_idx = resize_for_idx(idx);
-// 		commit(Twine(leaf), real_idx);
-// 	}
-// 	void extend_concat(std::vector<size_t> children, size_t idx) {
-// 		auto real_idx = resize_for_idx(idx);
-// 		Twine* first = &pool.nodes_.front() + offset;
-// 		std::vector<Twine*> real_children;
-// 		real_children.reserve(children.size());
-// 		for (auto child : children)
-// 			real_children.push_back(first + child);
-// 		commit(Twine(std::move(real_children)), real_idx);
-// 	}
-// 	void extend_suffix(size_t prefix, std::string tail, size_t idx) {
-// 		auto real_idx = resize_for_idx(idx);
-// 		Twine* first = &pool.nodes_.front() + offset;
-// 		Twine* real_prefix = first + prefix;
-// 		commit(Twine(Twine::Suffix(real_prefix, std::move(tail))), real_idx);
-// 	}
-// 	void finish() {
-// 		for (size_t i = offset; i < pool.nodes_.size(); i++)
-// 			if (pool.nodes_[i].is_dead())
-// 				pool.free_list_.push_back(&pool.nodes_[i]);
-// 	}
-// };
-
 YOSYS_NAMESPACE_END
 
 #endif
