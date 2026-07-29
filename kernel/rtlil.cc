@@ -886,23 +886,6 @@ void RTLIL::Design::merge_src(RTLIL::AttrObject *target, const RTLIL::AttrObject
 	obj_set_src_id(target, merged);
 }
 
-void RTLIL::Design::merge_src(RTLIL::AttrObject *target, const pool<std::string> &leaves)
-{
-	std::vector<IdString> ids;
-	IdString tgt_id = obj_src_id(target);
-	if (tgt_id != Twine::Null)
-		ids.push_back(tgt_id);
-	for (const auto &leaf : leaves) {
-		if (leaf.empty())
-			continue;
-		ids.push_back(twines.add_verbatim(leaf));
-	}
-	if (ids.empty())
-		return;
-	IdString merged = twines.concat(std::span<const IdString>{ids});
-	obj_set_src_id(target, merged);
-}
-
 namespace {
 	// Walks every AttrObject in the design and invokes `visit(obj)`.
 	template<typename F>

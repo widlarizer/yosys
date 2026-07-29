@@ -188,9 +188,8 @@ struct BoothPassWorker {
 		cor_o = module->AndGate(NEW_ID_SUFFIX(name), pp1_nor_pp0, cori_i);
 	}
 
-	void BuildBitwiseFa(Module *mod, std::string name, const SigSpec &sig_a, const SigSpec &sig_b,
-			    const SigSpec &sig_c, const SigSpec &sig_x, const SigSpec &sig_y,
-			    const std::string &src = "")
+	void BuildBitwiseFa(Module *mod, IdString name, const SigSpec &sig_a, const SigSpec &sig_b,
+			    const SigSpec &sig_c, const SigSpec &sig_x, const SigSpec &sig_y)
 	{
 		// We can't emit a single wide full-adder cell here since
 		// there would typically be feedback loops involving the cells'
@@ -201,10 +200,9 @@ struct BoothPassWorker {
 		log_assert(sig_a.size() == sig_x.size());
 		log_assert(sig_a.size() == sig_y.size());
 
-		IdString src_ref = src.empty() ? Twine::Null : mod->design->twines.add_verbatim(src);
 		for (int i = 0; i < sig_a.size(); i++)
-			mod->addFa(stringf("%s[%d]", name, i), sig_a[i], sig_b[i],
-				   sig_c[i], sig_x[i], sig_y[i], src_ref);
+			mod->addFa(Twine{Twine::Suffix{name, stringf("[%d]", i)}}, sig_a[i], sig_b[i],
+				   sig_c[i], sig_x[i], sig_y[i]);
 	}
 
 	void run()
@@ -1079,7 +1077,7 @@ struct BoothPassWorker {
 		// 1st row exception: two localized inverters due to sign extension structure
 		SigBit d08_inv = module->NotGate(NEW_ID_SUFFIX("bfa_0_exc_inv1"), PPij[(0 * dec_count) + dec_count - 1]);
 		SigBit d18_inv = module->NotGate(NEW_ID_SUFFIX("bfa_0_exc_inv2"), PPij[(1 * dec_count) + dec_count - 1]);
-		BuildBitwiseFa(module, module->design->twines.str(module->design->twines.add(NEW_ID_SUFFIX("fa_row_0"))),
+		BuildBitwiseFa(module, module->design->twines.add(NEW_ID_SUFFIX("fa_row_0")),
 			/* A */ {State::S0, d08_inv, PPij[(0 * dec_count) + x_sz], PPij.extract((0 * dec_count) + 2, x_sz - 1)},
 			/* B */ {State::S1, d18_inv, PPij.extract((1 * dec_count), x_sz)},
 			/* C */ fa_carry[0].extract(1, x_sz + 2),
@@ -1095,7 +1093,7 @@ struct BoothPassWorker {
 			SigBit d_inv = module->NotGate(NEW_ID_SUFFIX(stringf("bfa_se_inv_%d_L", fa_row_ix)),
 						       PPij[((fa_row_ix + 1) * dec_count) + dec_count - 1]);
 
-			BuildBitwiseFa(module, module->design->twines.str(module->design->twines.add(NEW_ID_SUFFIX(stringf("fa_row_%d", fa_row_ix)))),
+			BuildBitwiseFa(module, module->design->twines.add(NEW_ID_SUFFIX(stringf("fa_row_%d", fa_row_ix))),
 				/* A */	{State::S0, fa_carry[fa_row_ix - 1][fa_count - 1], fa_sum[fa_row_ix - 1].extract(2, x_sz + 2)},
 				/* B */ {State::S1, d_inv, PPij.extract((fa_row_ix + 1) * dec_count, x_sz), State::S0, State::S0},
 

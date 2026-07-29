@@ -1364,9 +1364,6 @@ struct RTLIL::Design
 	// which round-trips through a flat string and corrupts "@N" refs.
 	void merge_src(RTLIL::AttrObject *target, const RTLIL::AttrObject *source);
 
-	// Same as merge_src but consumes a raw set of leaf strings (each of
-	// which may itself be either a "@N" ref or a literal path).
-	void merge_src(RTLIL::AttrObject *target, const pool<std::string> &leaves);
 
 	// Returns the resolved leaf-string set backing obj's src attribute.
 	// "@N" refs are expanded through the pool; legacy pipe-joined
