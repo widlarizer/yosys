@@ -3798,8 +3798,8 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 }
 
 	#define DEF_METHOD(_func, _y_size, _type) \
-		template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::add ## _func(Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed, IdString src) { \
-			RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), _type);           \
+		template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::add ## _func(IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool is_signed, IdString src) { \
+			RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, _type);           \
 			cell->parameters[ID::A_SIGNED] = is_signed;         \
 			cell->parameters[ID::A_WIDTH] = sig_a.size();       \
 			cell->parameters[ID::Y_WIDTH] = sig_y.size();       \
@@ -3808,9 +3808,9 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 			static_cast<Derived*>(this)->cell_set_src(cell, src);                       \
 			return cell;                                        \
 		} \
-		template<typename Derived> RTLIL::SigSpec CellAdderMixin<Derived>::_func(Twine &&name, const RTLIL::SigSpec &sig_a, bool is_signed, IdString src) { \
+		template<typename Derived> RTLIL::SigSpec CellAdderMixin<Derived>::_func(IdString name, const RTLIL::SigSpec &sig_a, bool is_signed, IdString src) { \
 			RTLIL::SigSpec sig_y = static_cast<Derived*>(this)->addWire(NEW_ID, _y_size);    \
-			add ## _func(std::move(name), sig_a, sig_y, is_signed, src);   \
+			add ## _func(name, sig_a, sig_y, is_signed, src);   \
 			return sig_y;                                       \
 		}
 	DEF_METHOD(Not,        sig_a.size(), ID($not))
@@ -3825,25 +3825,25 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 	#undef DEF_METHOD
 
 	#define DEF_METHOD(_func, _y_size, _type) \
-		template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::add ## _func(Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool /* is_signed */, IdString src) { \
-			RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), _type);           \
+		template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::add ## _func(IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, bool /* is_signed */, IdString src) { \
+			RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, _type);           \
 			cell->parameters[ID::WIDTH] = sig_a.size();         \
 			cell->setPort(ID::A, sig_a);                        \
 			cell->setPort(ID::Y, sig_y);                        \
 			static_cast<Derived*>(this)->cell_set_src(cell, src);                       \
 			return cell;                                        \
 		} \
-		template<typename Derived> RTLIL::SigSpec CellAdderMixin<Derived>::_func(Twine &&name, const RTLIL::SigSpec &sig_a, bool is_signed, IdString src) { \
+		template<typename Derived> RTLIL::SigSpec CellAdderMixin<Derived>::_func(IdString name, const RTLIL::SigSpec &sig_a, bool is_signed, IdString src) { \
 			RTLIL::SigSpec sig_y = static_cast<Derived*>(this)->addWire(NEW_ID, _y_size);    \
-			add ## _func(std::move(name), sig_a, sig_y, is_signed, src);   \
+			add ## _func(name, sig_a, sig_y, is_signed, src);   \
 			return sig_y;                                       \
 		}
 	DEF_METHOD(Buf, sig_a.size(), ID($buf))
 	#undef DEF_METHOD
 
 	#define DEF_METHOD(_func, _y_size, _type) \
-		template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::add ## _func(Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed, IdString src) { \
-			RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), _type);           \
+		template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::add ## _func(IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed, IdString src) { \
+			RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, _type);           \
 			cell->parameters[ID::A_SIGNED] = is_signed;         \
 			cell->parameters[ID::B_SIGNED] = is_signed;         \
 			cell->parameters[ID::A_WIDTH] = sig_a.size();       \
@@ -3855,9 +3855,9 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 			static_cast<Derived*>(this)->cell_set_src(cell, src);                       \
 			return cell;                                        \
 		} \
-		template<typename Derived> RTLIL::SigSpec CellAdderMixin<Derived>::_func(Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed, IdString src) { \
+		template<typename Derived> RTLIL::SigSpec CellAdderMixin<Derived>::_func(IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed, IdString src) { \
 			RTLIL::SigSpec sig_y = static_cast<Derived*>(this)->addWire(NEW_ID, _y_size);         \
-			add ## _func(std::move(name), sig_a, sig_b, sig_y, is_signed, src); \
+			add ## _func(name, sig_a, sig_b, sig_y, is_signed, src); \
 			return sig_y;                                            \
 		}
 	DEF_METHOD(And,      max(sig_a.size(), sig_b.size()), ID($and))
@@ -3885,8 +3885,8 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 	#undef DEF_METHOD
 
 	#define DEF_METHOD(_func, _y_size, _type) \
-		template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::add ## _func(Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed, IdString src) { \
-			RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), _type);           \
+		template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::add ## _func(IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed, IdString src) { \
+			RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, _type);           \
 			cell->parameters[ID::A_SIGNED] = is_signed;         \
 			cell->parameters[ID::B_SIGNED] = false;             \
 			cell->parameters[ID::A_WIDTH] = sig_a.size();       \
@@ -3898,9 +3898,9 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 			static_cast<Derived*>(this)->cell_set_src(cell, src);                       \
 			return cell;                                        \
 		} \
-		template<typename Derived> RTLIL::SigSpec CellAdderMixin<Derived>::_func(Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed, IdString src) { \
+		template<typename Derived> RTLIL::SigSpec CellAdderMixin<Derived>::_func(IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed, IdString src) { \
 			RTLIL::SigSpec sig_y = static_cast<Derived*>(this)->addWire(NEW_ID, _y_size);         \
-			add ## _func(std::move(name), sig_a, sig_b, sig_y, is_signed, src); \
+			add ## _func(name, sig_a, sig_b, sig_y, is_signed, src); \
 			return sig_y;                                            \
 		}
 	DEF_METHOD(Shl,      sig_a.size(), ID($shl))
@@ -3910,8 +3910,8 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 	#undef DEF_METHOD
 
 	#define DEF_METHOD(_func, _y_size, _type) \
-		template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::add ## _func(Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed, IdString src) { \
-			RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), _type);           \
+		template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::add ## _func(IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool is_signed, IdString src) { \
+			RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, _type);           \
 			cell->parameters[ID::A_SIGNED] = false;             \
 			cell->parameters[ID::B_SIGNED] = is_signed;         \
 			cell->parameters[ID::A_WIDTH] = sig_a.size();       \
@@ -3923,17 +3923,17 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 			static_cast<Derived*>(this)->cell_set_src(cell, src);                       \
 			return cell;                                        \
 		} \
-		template<typename Derived> RTLIL::SigSpec CellAdderMixin<Derived>::_func(Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed, IdString src) { \
+		template<typename Derived> RTLIL::SigSpec CellAdderMixin<Derived>::_func(IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, bool is_signed, IdString src) { \
 			RTLIL::SigSpec sig_y = static_cast<Derived*>(this)->addWire(NEW_ID, _y_size);         \
-			add ## _func(std::move(name), sig_a, sig_b, sig_y, is_signed, src); \
+			add ## _func(name, sig_a, sig_b, sig_y, is_signed, src); \
 			return sig_y;                                            \
 		}
 	DEF_METHOD(Shiftx,      sig_a.size(), ID($shiftx))
 	#undef DEF_METHOD
 
 	#define DEF_METHOD(_func, _type, _pmux) \
-		template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::add ## _func(Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_y, IdString src) { \
-			RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), _type);                 \
+		template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::add ## _func(IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_y, IdString src) { \
+			RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, _type);                 \
 			cell->parameters[ID::WIDTH] = sig_a.size();               \
 			if (_pmux) cell->parameters[ID::S_WIDTH] = sig_s.size();  \
 			cell->setPort(ID::A, sig_a);                              \
@@ -3943,9 +3943,9 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 			static_cast<Derived*>(this)->cell_set_src(cell, src);                             \
 			return cell;                                              \
 		} \
-		template<typename Derived> RTLIL::SigSpec CellAdderMixin<Derived>::_func(Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_s, IdString src) { \
+		template<typename Derived> RTLIL::SigSpec CellAdderMixin<Derived>::_func(IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_s, IdString src) { \
 			RTLIL::SigSpec sig_y = static_cast<Derived*>(this)->addWire(NEW_ID, sig_a.size());     \
-			add ## _func(std::move(name), sig_a, sig_b, sig_s, sig_y, src);      \
+			add ## _func(name, sig_a, sig_b, sig_s, sig_y, src);      \
 			return sig_y;                                             \
 		}
 	DEF_METHOD(Mux,      ID($mux),        0)
@@ -3953,20 +3953,9 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 	DEF_METHOD(Pmux,     ID($pmux),       1)
 	#undef DEF_METHOD
 
-	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addMux(IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_y, IdString src) {
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID($mux));
-		cell->parameters[ID::WIDTH] = sig_a.size();
-		cell->setPort(ID::A, sig_a);
-		cell->setPort(ID::B, sig_b);
-		cell->setPort(ID::S, sig_s);
-		cell->setPort(ID::Y, sig_y);
-		static_cast<Derived*>(this)->cell_set_src(cell, src);
-		return cell;
-	}
-
 	#define DEF_METHOD(_func, _type, _demux) \
-		template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::add ## _func(Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_y, IdString src) { \
-			RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), _type);                 \
+		template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::add ## _func(IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, const RTLIL::SigSpec &sig_y, IdString src) { \
+			RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, _type);                 \
 			cell->parameters[ID::WIDTH] = _demux ? sig_a.size() : sig_y.size(); \
 			cell->parameters[ID::S_WIDTH] = sig_s.size();             \
 			cell->setPort(ID::A, sig_a);                              \
@@ -3975,9 +3964,9 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 			static_cast<Derived*>(this)->cell_set_src(cell, src);                             \
 			return cell;                                              \
 		} \
-		template<typename Derived> RTLIL::SigSpec CellAdderMixin<Derived>::_func(Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, IdString src) { \
+		template<typename Derived> RTLIL::SigSpec CellAdderMixin<Derived>::_func(IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, IdString src) { \
 			RTLIL::SigSpec sig_y = static_cast<Derived*>(this)->addWire(NEW_ID, _demux ? sig_a.size() << sig_s.size() : sig_a.size() >> sig_s.size()); \
-			add ## _func(std::move(name), sig_a, sig_s, sig_y, src);             \
+			add ## _func(name, sig_a, sig_s, sig_y, src);             \
 			return sig_y;                                             \
 		}
 	DEF_METHOD(Bmux,     ID($bmux),       0)
@@ -3985,8 +3974,8 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 	#undef DEF_METHOD
 
 	#define DEF_METHOD(_func, _type) \
-		template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::add ## _func(Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, IdString src) { \
-			RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), _type);                 \
+		template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::add ## _func(IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, IdString src) { \
+			RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, _type);                 \
 			cell->parameters[ID::WIDTH] = sig_a.size();               \
 			cell->setPort(ID::A, sig_a);                              \
 			cell->setPort(ID::B, sig_b);                              \
@@ -3994,9 +3983,9 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 			static_cast<Derived*>(this)->cell_set_src(cell, src);                             \
 			return cell;                                              \
 		} \
-		template<typename Derived> RTLIL::SigSpec CellAdderMixin<Derived>::_func(Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, IdString src) { \
+		template<typename Derived> RTLIL::SigSpec CellAdderMixin<Derived>::_func(IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_s, IdString src) { \
 			RTLIL::SigSpec sig_y = static_cast<Derived*>(this)->addWire(NEW_ID, sig_a.size());     \
-			add ## _func(std::move(name), sig_a, sig_s, sig_y, src);             \
+			add ## _func(name, sig_a, sig_s, sig_y, src);             \
 			return sig_y;                                             \
 		}
 	DEF_METHOD(Bweqx,    ID($bweqx))
@@ -4010,9 +3999,9 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 			static_cast<Derived*>(this)->cell_set_src(cell, src);                     \
 			return cell;                                      \
 		} \
-		template<typename Derived> RTLIL::SigBit CellAdderMixin<Derived>::_func(Twine &&name, const RTLIL::SigBit &sig1, IdString src) { \
+		template<typename Derived> RTLIL::SigBit CellAdderMixin<Derived>::_func(IdString name, const RTLIL::SigBit &sig1, IdString src) { \
 			RTLIL::SigBit sig2 = static_cast<Derived*>(this)->addWire(NEW_ID);             \
-			add ## _func(std::move(name), sig1, sig2, src);              \
+			add ## _func(name, sig1, sig2, src);              \
 			return sig2;                                      \
 		}
 	#define DEF_METHOD_3(_func, _type, _P1, _P2, _P3) \
@@ -4024,9 +4013,9 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 			static_cast<Derived*>(this)->cell_set_src(cell, src);                     \
 			return cell;                                      \
 		} \
-		template<typename Derived> RTLIL::SigBit CellAdderMixin<Derived>::_func(Twine &&name, const RTLIL::SigBit &sig1, const RTLIL::SigBit &sig2, IdString src) { \
+		template<typename Derived> RTLIL::SigBit CellAdderMixin<Derived>::_func(IdString name, const RTLIL::SigBit &sig1, const RTLIL::SigBit &sig2, IdString src) { \
 			RTLIL::SigBit sig3 = static_cast<Derived*>(this)->addWire(NEW_ID);             \
-			add ## _func(std::move(name), sig1, sig2, sig3, src);        \
+			add ## _func(name, sig1, sig2, sig3, src);        \
 			return sig3;                                      \
 		}
 	#define DEF_METHOD_4(_func, _type, _P1, _P2, _P3, _P4) \
@@ -4039,9 +4028,9 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 			static_cast<Derived*>(this)->cell_set_src(cell, src);                     \
 			return cell;                                      \
 		} \
-		template<typename Derived> RTLIL::SigBit CellAdderMixin<Derived>::_func(Twine &&name, const RTLIL::SigBit &sig1, const RTLIL::SigBit &sig2, const RTLIL::SigBit &sig3, IdString src) { \
+		template<typename Derived> RTLIL::SigBit CellAdderMixin<Derived>::_func(IdString name, const RTLIL::SigBit &sig1, const RTLIL::SigBit &sig2, const RTLIL::SigBit &sig3, IdString src) { \
 			RTLIL::SigBit sig4 = static_cast<Derived*>(this)->addWire(NEW_ID);             \
-			add ## _func(std::move(name), sig1, sig2, sig3, sig4, src);  \
+			add ## _func(name, sig1, sig2, sig3, sig4, src);  \
 			return sig4;                                      \
 		}
 	#define DEF_METHOD_5(_func, _type, _P1, _P2, _P3, _P4, _P5) \
@@ -4055,9 +4044,9 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 			static_cast<Derived*>(this)->cell_set_src(cell, src);                     \
 			return cell;                                      \
 		} \
-		template<typename Derived> RTLIL::SigBit CellAdderMixin<Derived>::_func(Twine &&name, const RTLIL::SigBit &sig1, const RTLIL::SigBit &sig2, const RTLIL::SigBit &sig3, const RTLIL::SigBit &sig4, IdString src) { \
+		template<typename Derived> RTLIL::SigBit CellAdderMixin<Derived>::_func(IdString name, const RTLIL::SigBit &sig1, const RTLIL::SigBit &sig2, const RTLIL::SigBit &sig3, const RTLIL::SigBit &sig4, IdString src) { \
 			RTLIL::SigBit sig5 = static_cast<Derived*>(this)->addWire(NEW_ID);                  \
-			add ## _func(std::move(name), sig1, sig2, sig3, sig4, sig5, src); \
+			add ## _func(name, sig1, sig2, sig3, sig4, sig5, src); \
 			return sig5;                                           \
 		}
 	DEF_METHOD_2(BufGate,    ID($_BUF_),    A, Y)
@@ -4081,9 +4070,9 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 	#undef DEF_METHOD_4
 	#undef DEF_METHOD_5
 
-	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addPow(Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool a_signed, bool b_signed, IdString src)
+	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addPow(IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, bool a_signed, bool b_signed, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), ID($pow));
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID($pow));
 		cell->parameters[ID::A_SIGNED] = a_signed;
 		cell->parameters[ID::B_SIGNED] = b_signed;
 		cell->parameters[ID::A_WIDTH] = sig_a.size();
@@ -4109,9 +4098,9 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 		return cell;
 	}
 
-	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addSlice(Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, RTLIL::Const offset, IdString src)
+	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addSlice(IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_y, RTLIL::Const offset, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), ID($slice));
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID($slice));
 		cell->parameters[ID::A_WIDTH] = sig_a.size();
 		cell->parameters[ID::Y_WIDTH] = sig_y.size();
 		cell->parameters[ID::OFFSET] = offset;
@@ -4121,9 +4110,9 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 		return cell;
 	}
 
-	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addConcat(Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, IdString src)
+	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addConcat(IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), ID($concat));
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID($concat));
 		cell->parameters[ID::A_WIDTH] = sig_a.size();
 		cell->parameters[ID::B_WIDTH] = sig_b.size();
 		cell->setPort(ID::A, sig_a);
@@ -4144,9 +4133,9 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 		return cell;
 	}
 
-	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addTribuf(Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_y, IdString src)
+	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addTribuf(IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, const RTLIL::SigSpec &sig_y, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), ID($tribuf));
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID($tribuf));
 		cell->parameters[ID::WIDTH] = sig_a.size();
 		cell->setPort(ID::A, sig_a);
 		cell->setPort(ID::EN, sig_en);
@@ -4173,18 +4162,18 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 		return cell;
 	}
 
-	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addLive(Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, IdString src)
+	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addLive(IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), ID($live));
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID($live));
 		cell->setPort(ID::A, sig_a);
 		cell->setPort(ID::EN, sig_en);
 		static_cast<Derived*>(this)->cell_set_src(cell, src);
 		return cell;
 	}
 
-	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addFair(Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, IdString src)
+	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addFair(IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_en, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), ID($fair));
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID($fair));
 		cell->setPort(ID::A, sig_a);
 		cell->setPort(ID::EN, sig_en);
 		static_cast<Derived*>(this)->cell_set_src(cell, src);
@@ -4200,9 +4189,9 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name, const RTLIL::Process *o
 		return cell;
 	}
 
-	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addEquiv(Twine &&name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, IdString src)
+	template<typename Derived> RTLIL::Cell* CellAdderMixin<Derived>::addEquiv(IdString name, const RTLIL::SigSpec &sig_a, const RTLIL::SigSpec &sig_b, const RTLIL::SigSpec &sig_y, IdString src)
 	{
-		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(std::move(name), ID($equiv));
+		RTLIL::Cell *cell = static_cast<Derived*>(this)->addCell(name, ID($equiv));
 		cell->setPort(ID::A, sig_a);
 		cell->setPort(ID::B, sig_b);
 		cell->setPort(ID::Y, sig_y);

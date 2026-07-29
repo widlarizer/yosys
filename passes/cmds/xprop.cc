@@ -264,7 +264,7 @@ struct XpropWorker
 			auto not_0 = module->Not(NEW_ID, result.is_0);
 			auto not_1 = module->Not(NEW_ID, result.is_1);
 			auto not_x = module->Not(NEW_ID, result.is_x);
-			auto valid = module->ReduceAnd(NEW_ID, {
+			auto valid = module->ReduceAnd(NEW_ID, SigSpec{
 				module->Eq(NEW_ID, result.is_0, module->And(NEW_ID, not_1, not_x)),
 				module->Eq(NEW_ID, result.is_1, module->And(NEW_ID, not_0, not_x)),
 				module->Eq(NEW_ID, result.is_x, module->And(NEW_ID, not_0, not_1)),
@@ -274,7 +274,7 @@ struct XpropWorker
 			else
 				module->addAssume(NEW_ID_SUFFIX("xprop_enc"), valid, State::S1);
 			if (options.debug_asserts) {
-				auto bad_bits = module->Bweqx(NEW_ID, {result.is_0, result.is_1, result.is_x}, Const(State::Sx, GetSize(result) * 3));
+				auto bad_bits = module->Bweqx(NEW_ID, SigSpec{result.is_0, result.is_1, result.is_x}, Const(State::Sx, GetSize(result) * 3));
 				module->addAssert(NEW_ID_SUFFIX("xprop_debug"), module->LogicNot(NEW_ID, bad_bits), State::S1);
 			}
 		}
@@ -685,7 +685,7 @@ struct XpropWorker
 			auto delta_0 = module->Xnor(NEW_ID, enc_a.is_0, enc_b.is_0);
 			auto delta_1 = module->Xnor(NEW_ID, enc_a.is_1, enc_b.is_1);
 
-			auto eq = module->ReduceAnd(NEW_ID, {delta_0, delta_1});
+			auto eq = module->ReduceAnd(NEW_ID, SigSpec{delta_0, delta_1});
 
 			auto res = cell->type == ID($nex) ? module->Not(NEW_ID, eq) : eq;
 
@@ -749,7 +749,7 @@ struct XpropWorker
 
 			int width = GetSize(enc_y);
 
-			auto all_x = module->ReduceOr(NEW_ID, {
+			auto all_x = module->ReduceOr(NEW_ID, SigSpec{
 				enc_s.is_x,
 				module->And(NEW_ID, enc_s.is_1, module->Sub(NEW_ID, enc_s.is_1, Const(1, width)))
 			});

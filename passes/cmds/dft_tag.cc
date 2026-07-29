@@ -630,7 +630,7 @@ struct DftTagWorker {
 
 			auto prop = autoEq(NEW_ID, masked_a, masked_b);
 
-			auto tag_sig = autoAnd(NEW_ID, prop, autoReduceOr(NEW_ID, {tag_sig_a, tag_sig_b}));
+			auto tag_sig = autoAnd(NEW_ID, prop, autoReduceOr(NEW_ID, SigSpec{tag_sig_a, tag_sig_b}));
 			tag_sig.extend_u0(GetSize(sig_y), false);
 			emit_tag_signal(tag, sig_y, tag_sig);
 			return;
@@ -662,7 +662,7 @@ struct DftTagWorker {
 
 			auto prop = autoGe(NEW_ID, masked_a, masked_b);
 
-			auto tag_sig = autoAnd(NEW_ID, prop, autoReduceOr(NEW_ID, {tag_sig_a, tag_sig_b}));
+			auto tag_sig = autoAnd(NEW_ID, prop, autoReduceOr(NEW_ID, SigSpec{tag_sig_a, tag_sig_b}));
 			tag_sig.extend_u0(GetSize(sig_y), false);
 			emit_tag_signal(tag, sig_y, tag_sig);
 			return;

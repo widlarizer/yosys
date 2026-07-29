@@ -90,7 +90,7 @@ struct Clk2fflogicPass : public Pass {
 			module->addFfGate(NEW_ID, sig, sampled_sig);
 		else
 			module->addFf(NEW_ID, sig, sampled_sig);
-		return module->Eqx(NEW_ID, {sampled_sig, sig}, polarity ? SigSpec {State::S0, State::S1} : SigSpec {State::S1, State::S0});
+		return module->Eqx(NEW_ID, SigSpec{sampled_sig, sig}, polarity ? SigSpec {State::S0, State::S1} : SigSpec {State::S1, State::S0});
 	}
 	// Sampled and current value of a data signal.
 	SampledSig sample_data(Module *module, SigSpec sig, RTLIL::Const init, bool is_fine, bool set_attribute = false) {
@@ -201,7 +201,7 @@ struct Clk2fflogicPass : public Pass {
 						clock_edge_pattern.append(State::S0);
 					}
 
-					SigSpec clock_edge = module->Eqx(NEW_ID, {port.clk, SigSpec(past_clk)}, clock_edge_pattern);
+					SigSpec clock_edge = module->Eqx(NEW_ID, SigSpec{port.clk, SigSpec(past_clk)}, clock_edge_pattern);
 
 					SigSpec en_q = module->addWire(NEW_ID_SUFFIX(stringf("%s#%d#en_q", module->design->twines.unescaped_str(mem.memid), i)), GetSize(port.en));
 					module->addFf(NEW_ID, port.en, en_q);
