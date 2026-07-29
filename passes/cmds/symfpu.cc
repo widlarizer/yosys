@@ -48,11 +48,6 @@ struct rm {
 
 thread_local Module *symfpu_mod = nullptr;
 
-// symfpu.cc names wires/modules from IdString literals (ID::a, ID::o, ...);
-// under the twine migration the name-taking APIs want a IdString, so intern
-// the (public) string name into the design's twine pool.
-static inline IdString sym_name(IdString name) { return name; }
-
 struct rtlil_traits {
 	using bwt = uint64_t;
 	using rm = struct rm;
@@ -142,7 +137,7 @@ struct prop {
 
 	const prop &named(std::string_view s) const
 	{
-		symfpu_mod->connect(symfpu_mod->addWire(symfpu_mod->uniquify(symfpu_mod->design->twines.add(stringf("\\%s", s)))), bit);
+		symfpu_mod->connect(symfpu_mod->addWire(symfpu_mod->uniquify(stringf("\\%s", s))), bit);
 		return *this;
 	}
 };
@@ -152,7 +147,7 @@ template <bool is_signed> struct bv {
 
 	const bv &named(std::string_view s) const
 	{
-		symfpu_mod->connect(symfpu_mod->addWire(symfpu_mod->uniquify(symfpu_mod->design->twines.add(stringf("\\%s", s))), bits.size()), bits);
+		symfpu_mod->connect(symfpu_mod->addWire(symfpu_mod->uniquify(stringf("\\%s", s)), bits.size()), bits);
 		return *this;
 	}
 
@@ -383,28 +378,28 @@ void rtlil_traits::invariant(const prop &cond)
 
 ubv input_ubv(IdString name, int width)
 {
-	auto input = symfpu_mod->addWire(sym_name(name), width);
+	auto input = symfpu_mod->addWire(name, width);
 	input->port_input = true;
 	return ubv(SigSpec(input));
 }
 
 prop input_prop(IdString name)
 {
-	auto input = symfpu_mod->addWire(sym_name(name));
+	auto input = symfpu_mod->addWire(name);
 	input->port_input = true;
 	return prop(SigBit(input));
 }
 
 void output_ubv(IdString name, const ubv &value)
 {
-	auto output = symfpu_mod->addWire(sym_name(name), value.getWidth());
+	auto output = symfpu_mod->addWire(name, value.getWidth());
 	symfpu_mod->connect(output, value.bits);
 	output->port_output = true;
 }
 
 void output_prop(IdString name, const prop &value)
 {
-	auto output = symfpu_mod->addWire(sym_name(name));
+	auto output = symfpu_mod->addWire(name);
 	symfpu_mod->connect(output, value.bit);
 	output->port_output = true;
 }
@@ -563,7 +558,7 @@ struct SymFpuPass : public Pass {
 		rm rounding_mode = parse_rounding(rounding);
 		fpt format(eb, sb);
 
-		auto mod = design->addModule(design->twines.add(std::string("\\symfpu")));
+		auto mod = design->addModule(ID(symfpu));
 
 		symfpu_mod = mod;
 
@@ -594,7 +589,7 @@ struct SymFpuPass : public Pass {
 			uf b = symfpu::unpack<rtlil_traits>(format, b_bv);
 			uf c = symfpu::unpack<rtlil_traits>(format, c_bv);
 
-			auto rm_wire = symfpu_mod->addWire(sym_name(ID::rm), 5);
+			auto rm_wire = symfpu_mod->addWire(ID(rm), 5);
 			rm_wire->port_input = true;
 			SigSpec rm_sig(rm_wire);
 			prop rm_RNE(rm_sig[0]);
@@ -761,7 +756,7 @@ struct SymFpuConvertPass : public Pass {
 			log_cmd_error("rm must be set to a single rounding mode!\n");
 		rm rounding_mode = parse_rounding(rounding);
 
-		auto mod = design->addModule(design->twines.add(std::string("\\symfpu")));
+		auto mod = design->addModule(ID(symfpu));
 		symfpu_mod = mod;
 
 		fpt i_format(i_exp, i_size-i_exp);

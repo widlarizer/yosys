@@ -45,7 +45,7 @@ static void fix_carry_chain(Module *module)
 			if (bit_i0 == State::S0 && bit_i1== State::S0) {
 				SigBit bit_ci = get_bit_or_zero(cell->getPort(ID::CI));
 				SigBit bit_o = sigmap(cell->getPort(ID::O));
-				ci_bits.insert(bit_ci);				
+				ci_bits.insert(bit_ci);
 				mapping_bits[bit_ci] = bit_o;
 			}
 		}
@@ -75,7 +75,7 @@ static void fix_carry_chain(Module *module)
 		SigBit canonical_bit = sigmap(bit_ci);
 		auto bit = mapping_bits.at(canonical_bit);
 		log("Fixing %s cell named %s breaking carry chain.\n", cell->type.unescape(), cell);
-		Cell *c = module->addCell(NEW_ID, module->design->twines.add(std::string{"\\EFX_ADD"}));
+		Cell *c = module->addCell(NEW_ID, ID(EFX_ADD));
 		SigBit new_bit = module->addWire(NEW_ID);
 		c->setParam(ID(I0_POLARITY), State::S1);
 		c->setParam(ID(I1_POLARITY), State::S1);
@@ -83,7 +83,7 @@ static void fix_carry_chain(Module *module)
 		c->setPort(ID(I1), State::S1);
 		c->setPort(ID::CI, State::S0);
 		c->setPort(ID::CO, new_bit);
-		
+
 		cell->setPort(ID::CI, new_bit);
 	}
 }

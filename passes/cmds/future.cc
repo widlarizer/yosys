@@ -92,7 +92,7 @@ struct FutureWorker {
 
 		if (!ff.has_clk && !ff.has_gclk)
 			log_error("Driver for future_ff target signal %s has cell type %s, which is not clocked\n", log_signal(bit),
-				  driver.cell->type);
+				  driver.cell->type.unescape());
 
 		ff.unmap_ce_srst();
 

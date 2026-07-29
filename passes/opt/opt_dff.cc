@@ -23,7 +23,6 @@
 #include "kernel/rtlil.h"
 #include "kernel/qcsat.h"
 #include "kernel/modtools.h"
-#include "kernel/utils.h"
 #include "kernel/sigtools.h"
 #include "kernel/ffinit.h"
 #include "kernel/ff.h"
@@ -47,14 +46,14 @@ struct OptDffOptions
 // Bit-parallel random simulation used as a cheap pre-filter for equivalence
 struct BitSim {
 	Module *module;
-	const SigMapView &sigmap;
+	SigMap &sigmap;
 	ModWalker &modwalker;
 	dict<SigBit, uint64_t> sim_vals;
 	uint64_t rng_state;
 	int max_depth;
 	int evals_left;
 
-	BitSim(Module *m, const SigMapView &sm, ModWalker &mw)
+	BitSim(Module *m, SigMap &sm, ModWalker &mw)
 		: module(m), sigmap(sm), modwalker(mw), rng_state(1337)
 	{
 		max_depth = module->design->scratchpad_get_int("opt_dff.sim_depth", 10000);
@@ -137,7 +136,7 @@ struct OptDffWorker
 	// Cell to port bit index
 	typedef std::pair<RTLIL::Cell*, int> cell_int_t;
 
-	SigMap sigmap;
+	SigMap sigmap;                    // Signal aliasing
 	FfInitVals initvals;
 	dict<SigBit, int> bitusers;       // Signal sink count
 	dict<SigBit, cell_int_t> bit2mux; // Signal bit to driving MUX
@@ -174,17 +173,17 @@ struct OptDffWorker
 			return module->And(NEW_ID, a, b);
 	}
 
-	void create_mux_to_output(SigSpec a, SigSpec b, SigSpec sel, SigSpec y, bool pol, bool is_fine, SrcRef src = Src::Null) {
+	void create_mux_to_output(SigSpec a, SigSpec b, SigSpec sel, SigSpec y, bool pol, bool is_fine) {
 		if (is_fine) {
 			if (pol)
-				module->addMuxGate(NEW_ID, a, b, sel, y, src);
+				module->addMuxGate(NEW_ID, a, b, sel, y);
 			else
-				module->addMuxGate(NEW_ID, b, a, sel, y, src);
+				module->addMuxGate(NEW_ID, b, a, sel, y);
 		} else {
 			if (pol)
-				module->addMux(NEW_ID, a, b, sel, y, src);
+				module->addMux(NEW_ID, a, b, sel, y);
 			else
-				module->addMux(NEW_ID, b, a, sel, y, src);
+				module->addMux(NEW_ID, b, a, sel, y);
 		}
 	}
 
@@ -258,7 +257,7 @@ struct OptDffWorker
 			if (path.count(sig_s[i]) && path.at(sig_s[i])) {
 				ret = find_muxtree_feedback_patterns(sig_b[i*width + index], q, path);
 				if (sig_b[i*width + index] == q) {
-					RTLIL::SigSpec s = sigmap(mbit.first->getPort(ID::B));
+					RTLIL::SigSpec s = mbit.first->getPort(ID::B);
 					s[i*width + index] = RTLIL::Sx;
 					mbit.first->setPort(ID::B, s);
 				}
@@ -282,7 +281,7 @@ struct OptDffWorker
 				ret.insert(pat);
 
 			if (sig_b[i*width + index] == q) {
-				RTLIL::SigSpec s = sigmap(mbit.first->getPort(ID::B));
+				RTLIL::SigSpec s = mbit.first->getPort(ID::B);
 				s[i*width + index] = RTLIL::Sx;
 				mbit.first->setPort(ID::B, s);
 			}
@@ -293,7 +292,7 @@ struct OptDffWorker
 			ret.insert(pat);
 
 		if (sig_a[index] == q) {
-			RTLIL::SigSpec s = sigmap(mbit.first->getPort(ID::A));
+			RTLIL::SigSpec s = mbit.first->getPort(ID::A);
 			s[index] = RTLIL::Sx;
 			mbit.first->setPort(ID::A, s);
 		}
@@ -394,9 +393,9 @@ struct OptDffWorker
 				if (!ff.pol_clr)
 					module->connect(ff.sig_q[i], ff.sig_clr[i]);
 				else if (ff.is_fine)
-					module->addNotGate(NEW_ID, ff.sig_clr[i], ff.sig_q[i], cell->src_id());
+					module->addNotGate(NEW_ID, ff.sig_clr[i], ff.sig_q[i]);
 				else
-					module->addNot(NEW_ID, ff.sig_clr[i], ff.sig_q[i], false, cell->src_id());
+					module->addNot(NEW_ID, ff.sig_clr[i], ff.sig_q[i]);
 				log("Handling always-active SET at position %d on %s (%s) from module %s (changing to combinatorial circuit).\n",
 						i, cell, cell->type.unescape(), module);
 				sr_removed = true;
@@ -485,32 +484,31 @@ struct OptDffWorker
 			// ALOAD always active
 			log("Handling always-active async load on %s (%s) from module %s (changing to combinatorial circuit).\n",
 					cell, cell->type.unescape(), module);
-			SrcRef src = cell->src_id();
 			ff.remove();
 
 			if (ff.has_sr) {
 				SigSpec tmp;
 				if (ff.is_fine) {
 					tmp = ff.pol_set
-						? module->MuxGate(NEW_ID, ff.sig_ad, State::S1, ff.sig_set, src)
-						: module->MuxGate(NEW_ID, State::S1, ff.sig_ad, ff.sig_set, src);
+						? module->MuxGate(NEW_ID, ff.sig_ad, State::S1, ff.sig_set)
+						: module->MuxGate(NEW_ID, State::S1, ff.sig_ad, ff.sig_set);
 
 					if (ff.pol_clr)
-						module->addMuxGate(NEW_ID, tmp, State::S0, ff.sig_clr, ff.sig_q, src);
+						module->addMuxGate(NEW_ID, tmp, State::S0, ff.sig_clr, ff.sig_q);
 					else
-						module->addMuxGate(NEW_ID, State::S0, tmp, ff.sig_clr, ff.sig_q, src);
+						module->addMuxGate(NEW_ID, State::S0, tmp, ff.sig_clr, ff.sig_q);
 				} else {
 					tmp = ff.pol_set
-						? module->Or(NEW_ID, ff.sig_ad, ff.sig_set, false, src)
-						: module->Or(NEW_ID, ff.sig_ad, module->Not(NEW_ID, ff.sig_set, false, src), false, src);
+						? module->Or(NEW_ID, ff.sig_ad, ff.sig_set)
+						: module->Or(NEW_ID, ff.sig_ad, module->Not(NEW_ID, ff.sig_set));
 
 					if (ff.pol_clr)
-						module->addAnd(NEW_ID, tmp, module->Not(NEW_ID, ff.sig_clr, false, src), ff.sig_q, false, src);
+						module->addAnd(NEW_ID, tmp, module->Not(NEW_ID, ff.sig_clr), ff.sig_q);
 					else
-						module->addAnd(NEW_ID, tmp, ff.sig_clr, ff.sig_q, false, src);
+						module->addAnd(NEW_ID, tmp, ff.sig_clr, ff.sig_q);
 				}
 			} else if (ff.has_arst) {
-				create_mux_to_output(ff.sig_ad, ff.val_arst, ff.sig_arst, ff.sig_q, ff.pol_arst, ff.is_fine, src);
+				create_mux_to_output(ff.sig_ad, ff.val_arst, ff.sig_arst, ff.sig_q, ff.pol_arst, ff.is_fine);
 			} else {
 				module->connect(ff.sig_q, ff.sig_ad);
 			}
@@ -642,11 +640,13 @@ struct OptDffWorker
 		}
 	}
 
-	bool try_merge_srst(FfDataSigMapped &ff, Cell *cell, bool &changed)
+	bool try_merge_srst(FfData &ff, Cell *cell, bool &changed)
 	{
+		std::map<ctrls_t, std::vector<int>> groups;
+		std::vector<int> remaining_indices;
 		Const::Builder val_srst_builder(ff.width);
 
-		BitGrouper<ctrls_t> grouper(ff.width, [&](int i) -> std::optional<ctrls_t> {
+		for (int i = 0; i < ff.width; i++) {
 			ctrls_t resets;
 			State reset_val = ff.has_srst ? ff.val_srst[i] : State::Sx;
 
@@ -655,9 +655,9 @@ struct OptDffWorker
 				if (GetSize(mbit.first->getPort(ID::S)) != 1)
 					break;
 
-				SigBit s = sigmap(mbit.first->getPort(ID::S));
-				SigBit a = sigmap(mbit.first->getPort(ID::A)[mbit.second]);
-				SigBit b = sigmap(mbit.first->getPort(ID::B)[mbit.second]);
+				SigBit s = mbit.first->getPort(ID::S);
+				SigBit a = mbit.first->getPort(ID::A)[mbit.second];
+				SigBit b = mbit.first->getPort(ID::B)[mbit.second];
 
 				if ((a == State::S0 || a == State::S1) && (b == State::S0 || b == State::S1))
 					break;
@@ -678,26 +678,29 @@ struct OptDffWorker
 				}
 			}
 
-			val_srst_builder.push_back(reset_val);
+			if (!resets.empty()) {
+				if (ff.has_srst)
+					resets.insert(ctrl_t(ff.sig_srst, ff.pol_srst));
 
-			if (resets.empty())
-				return std::nullopt;
-			if (ff.has_srst)
-				resets.insert(ctrl_t(ff.sig_srst, ff.pol_srst));
-			return resets;
-		});
+				groups[resets].push_back(i);
+			} else {
+				remaining_indices.push_back(i);
+			}
+
+			val_srst_builder.push_back(reset_val);
+		}
 
 		Const val_srst = val_srst_builder.build();
 
-		for (auto &g : grouper.groups()) {
-			FfDataSigMapped new_ff = ff.slice(g.indices);
+		for (auto &it : groups) {
+			FfData new_ff = ff.slice(it.second);
 			Const::Builder new_val_srst_builder(new_ff.width);
 			for (int i = 0; i < new_ff.width; i++)
-				new_val_srst_builder.push_back(val_srst[g.indices[i]]);
+				new_val_srst_builder.push_back(val_srst[it.second[i]]);
 
 			new_ff.val_srst = new_val_srst_builder.build();
 
-			ctrl_t srst = combine_resets(g.key, ff.is_fine);
+			ctrl_t srst = combine_resets(it.first, ff.is_fine);
 			new_ff.has_srst = true;
 			new_ff.sig_srst = srst.first;
 			new_ff.pol_srst = srst.second;
@@ -713,13 +716,13 @@ struct OptDffWorker
 					log_signal(new_ff.sig_d), log_signal(new_ff.sig_q), log_signal(new_ff.val_srst));
 		}
 
-		if (grouper.fully_grouped()) {
+		if (remaining_indices.empty()) {
 			module->remove(cell);
 			return true;
 		}
 
-		if ((int)grouper.remaining().size() != ff.width) {
-			ff = ff.slice(grouper.remaining());
+		if (GetSize(remaining_indices) != ff.width) {
+			ff = ff.slice(remaining_indices);
 			ff.cell = cell;
 			changed = true;
 		}
@@ -727,10 +730,12 @@ struct OptDffWorker
 		return false;
 	}
 
-	bool try_merge_ce(FfDataSigMapped &ff, Cell *cell, bool &changed)
+	bool try_merge_ce(FfData &ff, Cell *cell, bool &changed)
 	{
-		using CeKey = std::pair<patterns_t, ctrls_t>;
-		BitGrouper<CeKey> grouper(ff.width, [&](int i) -> std::optional<CeKey> {
+		std::map<std::pair<patterns_t, ctrls_t>, std::vector<int>> groups;
+		std::vector<int> remaining_indices;
+
+		for (int i = 0; i < ff.width; i++) {
 			ctrls_t enables;
 
 			while (bit2mux.count(ff.sig_d[i]) && bitusers[ff.sig_d[i]] == 1) {
@@ -738,9 +743,9 @@ struct OptDffWorker
 				if (GetSize(mbit.first->getPort(ID::S)) != 1)
 					break;
 
-				SigBit s = sigmap(mbit.first->getPort(ID::S));
-				SigBit a = sigmap(mbit.first->getPort(ID::A)[mbit.second]);
-				SigBit b = sigmap(mbit.first->getPort(ID::B)[mbit.second]);
+				SigBit s = mbit.first->getPort(ID::S);
+				SigBit a = mbit.first->getPort(ID::A)[mbit.second];
+				SigBit b = mbit.first->getPort(ID::B)[mbit.second];
 
 				if (a == ff.sig_q[i]) {
 					enables.insert(ctrl_t(s, true));
@@ -757,17 +762,19 @@ struct OptDffWorker
 			if (!opt.simple_dffe)
 				patterns = find_muxtree_feedback_patterns(ff.sig_d[i], ff.sig_q[i], pattern_t());
 
-			if (patterns.empty() && enables.empty())
-				return std::nullopt;
-			if (ff.has_ce)
-				enables.insert(ctrl_t(ff.sig_ce, ff.pol_ce));
-			simplify_patterns(patterns);
-			return std::make_pair(patterns, enables);
-		});
+			if (!patterns.empty() || !enables.empty()) {
+				if (ff.has_ce)
+					enables.insert(ctrl_t(ff.sig_ce, ff.pol_ce));
+				simplify_patterns(patterns);
+				groups[std::make_pair(patterns, enables)].push_back(i);
+			} else {
+				remaining_indices.push_back(i);
+			}
+		}
 
-		for (auto &g : grouper.groups()) {
-			FfDataSigMapped new_ff = ff.slice(g.indices);
-			ctrl_t en = make_patterns_logic(g.key.first, g.key.second, ff.is_fine);
+		for (auto &it : groups) {
+			FfData new_ff = ff.slice(it.second);
+			ctrl_t en = make_patterns_logic(it.first.first, it.first.second, ff.is_fine);
 
 			new_ff.has_ce = true;
 			new_ff.sig_ce = en.first;
@@ -783,13 +790,13 @@ struct OptDffWorker
 					log_signal(new_ff.sig_d), log_signal(new_ff.sig_q));
 		}
 
-		if (grouper.fully_grouped()) {
+		if (remaining_indices.empty()) {
 			module->remove(cell);
 			return true;
 		}
 
-		if ((int)grouper.remaining().size() != ff.width) {
-			ff = ff.slice(grouper.remaining());
+		if (GetSize(remaining_indices) != ff.width) {
+			ff = ff.slice(remaining_indices);
 			ff.cell = cell;
 			changed = true;
 		}
@@ -804,8 +811,8 @@ struct OptDffWorker
 		while (!dff_cells.empty()) {
 			Cell *cell = dff_cells.back();
 			dff_cells.pop_back();
-			// Break down the FF into pieces.
-			FfDataSigMapped ff(sigmap, &initvals, cell);
+
+			FfData ff(&initvals, cell);
 			bool changed = false;
 
 			if (!ff.width) {
@@ -897,7 +904,7 @@ struct OptDffWorker
 			qcsat.ez->NOT(qcsat.ez->IFF(d_sat_pi, init_sat_pi)));
 	}
 
-	State check_constbit(FfDataSigMapped &ff, int i)
+	State check_constbit(FfData &ff, int i)
 	{
 		State val = ff.val_init[i];
 		if (ff.has_arst) val = combine_const(val, ff.val_arst[i]);
@@ -914,23 +921,19 @@ struct OptDffWorker
 
 	bool run_constbits()
 	{
-		std::optional<ModWalker> modwalker;
-		std::optional<QuickConeSat> qcsat;
-		if (opt.sat) {
-			modwalker.emplace(module->design, module);
-			qcsat.emplace(*modwalker);
-		}
+		// Find FFs that are provably constant
+		ModWalker modwalker(module->design, module);
+		QuickConeSat qcsat(modwalker);
 
 		std::vector<RTLIL::Cell*> cells_to_remove;
-		std::vector<FfDataSigMapped> ffs_to_emit;
-
+		std::vector<FfData> ffs_to_emit;
 		bool did_something = false;
 
 		for (auto cell : module->selected_cells()) {
 			if (!cell->is_builtin_ff())
 				continue;
 
-			FfDataSigMapped ff(sigmap, &initvals, cell);
+			FfData ff(&initvals, cell);
 			pool<int> removed_sigbits;
 
 			for (int i = 0; i < ff.width; i++) {
@@ -946,7 +949,7 @@ struct OptDffWorker
 						if (val == State::Sm) continue;
 					} else if (opt.sat) {
 						// Try SAT proof for non-constant D wires
-						if (!prove_const_with_sat(*qcsat, *modwalker, ff.sig_q[i], ff.sig_d[i], val))
+						if (!prove_const_with_sat(qcsat, modwalker, ff.sig_q[i], ff.sig_d[i], val))
 							continue;
 					} else {
 						continue;
@@ -959,7 +962,7 @@ struct OptDffWorker
 						val = combine_const(val, ff.sig_ad[i].data);
 						if (val == State::Sm) continue;
 					} else if (opt.sat) {
-						if (!prove_const_with_sat(*qcsat, *modwalker, ff.sig_q[i], ff.sig_ad[i], val))
+						if (!prove_const_with_sat(qcsat, modwalker, ff.sig_q[i], ff.sig_ad[i], val))
 							continue;
 					} else {
 						continue;

@@ -514,7 +514,7 @@ struct OptReduceWorker
 	OptReduceWorker(RTLIL::Design *design, RTLIL::Module *module, bool do_fine) :
 			design(design), module(module), assign_map(module)
 	{
-		log("  Optimizing cells in module %s.\n", module->name.str().c_str());
+		log("  Optimizing cells in module %s.\n", module->name);
 
 		total_count = 0;
 		did_something = true;

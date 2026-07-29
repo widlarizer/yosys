@@ -109,12 +109,12 @@ static void autotest(std::ostream &f, RTLIL::Design *design, int num_iter, int s
 			continue;
 
 		int count_ports = 0;
-		log("Generating test bench for module `%s'.\n", mod->name.str());
+		log("Generating test bench for module `%s'.\n", mod->name);
 		for (auto wire : mod->wires()) {
 			if (wire->port_output) {
 				count_ports++;
-				signal_out[idy("sig", mod->name.str(), wire->name.unescape())] = wire->width;
-				f << stringf("wire [%d:0] %s;\n", wire->width-1, idy("sig", mod->name.str(), wire->name.unescape()));
+				signal_out[idy("sig", mod->name.str(), wire->name.str())] = wire->width;
+				f << stringf("wire [%d:0] %s;\n", wire->width-1, idy("sig", mod->name.str(), wire->name.str()));
 			} else if (wire->port_input) {
 				count_ports++;
 				bool is_clksignal = wire->get_bool_attribute(ID::gentb_clock);
@@ -128,20 +128,20 @@ static void autotest(std::ostream &f, RTLIL::Design *design, int num_iter, int s
 							is_clksignal = true;
 				}
 				if (is_clksignal && wire->attributes.count(ID::gentb_constant) == 0) {
-					signal_clk[idy("sig", mod->name.str(), wire->name.unescape())] = wire->width;
+					signal_clk[idy("sig", mod->name.str(), wire->name.str())] = wire->width;
 				} else {
-					signal_in[idy("sig", mod->name.str(), wire->name.unescape())] = wire->width;
+					signal_in[idy("sig", mod->name.str(), wire->name.str())] = wire->width;
 					if (wire->attributes.count(ID::gentb_constant) != 0)
-						signal_const[idy("sig", mod->name.str(), wire->name.unescape())] = wire->attributes[ID::gentb_constant].as_string();
+						signal_const[idy("sig", mod->name.str(), wire->name.str())] = wire->attributes[ID::gentb_constant].as_string();
 				}
-				f << stringf("reg [%d:0] %s;\n", wire->width-1, idy("sig", mod->name.str(), wire->name.unescape()));
+				f << stringf("reg [%d:0] %s;\n", wire->width-1, idy("sig", mod->name.str(), wire->name.str()));
 			}
 		}
 		f << stringf("%s %s(\n", id(mod->name.str()), idy("uut", mod->name.str()));
 		for (auto wire : mod->wires()) {
 			if (wire->port_output || wire->port_input)
-				f << stringf("\t.%s(%s)%s\n", id(wire->name.unescape()),
-						idy("sig", mod->name.str(), wire->name.unescape()).c_str(), --count_ports ? "," : "");
+				f << stringf("\t.%s(%s)%s\n", id(wire->name.str()),
+						idy("sig", mod->name.str(), wire->name.str()).c_str(), --count_ports ? "," : "");
 		}
 		f << stringf(");\n\n");
 

@@ -328,13 +328,12 @@ struct ReplacedPort {
 struct HierarchyWorker
 {
 	Design *design;
-	TwineSearch search;
 	pool<Module *> pending;
 
 	dict<Module *, std::vector<ReplacedPort>> replaced_clk_inputs;
 
 	HierarchyWorker(Design *design) :
-		design(design), search(&design->twines)
+		design(design)
 	{
 		for (auto module : design->modules())
 			pending.insert(module);
@@ -403,7 +402,7 @@ struct PropagateWorker
 					sigmap.apply(bit);
 					if (replaced_clk_bits.count(bit))
 						log_error("derived signal %s driven by %s (%s) from module %s is used as clock, derived clocks are only supported with clk2fflogic.\n",
-								log_signal(bit), log_id(cell), log_id(cell->type), log_id(module));
+								log_signal(bit), cell->name.unescape(), cell->type.unescape(), module);
 				}
 			}
 		}
@@ -713,7 +712,7 @@ struct FormalFfPass : public Pass {
 
 					if (!is_gate) {
 						log_debug("unsupported gating logic %s.%s (%s) for clock %s %s.%s\n", module,
-							  driver.cell, log_id(driver.cell->type), pol_clk ? "posedge" : "negedge",
+							  driver.cell, driver.cell->type.unescape(), pol_clk ? "posedge" : "negedge",
 							  module, log_signal(SigSpec(clk)));
 
 						continue;
@@ -755,7 +754,7 @@ struct FormalFfPass : public Pass {
 							log_debug(
 							  "FF driver for gate enable %s.%s of gated clk bit %s.%s has incompatible type: %s\n",
 							  module, log_signal(SigSpec(gate_enable)), module, log_signal(SigSpec(clk)),
-							  log_id(gate_driver.cell->type));
+							  gate_driver.cell->type.unescape());
 							continue;
 						}
 
@@ -783,7 +782,7 @@ struct FormalFfPass : public Pass {
 
 						for (auto clocked_cell : clocked_cells) {
 							log_debug("rewriting cell %s.%s (%s)\n", module, clocked_cell,
-								  log_id(clocked_cell->type));
+								  clocked_cell->type.unescape());
 
 							if (clocked_cell->is_builtin_ff()) {
 

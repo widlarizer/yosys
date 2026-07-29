@@ -163,7 +163,7 @@ struct AssertpmuxWorker
 		SigSpec assert_en;
 
 		if (flag_noinit)
-			assert_en.append(module->LogicNot(NEW_ID, module->Initstate(module->design->twines.add(NEW_ID))));
+			assert_en.append(module->LogicNot(NEW_ID, module->Initstate(NEW_ID)));
 
 		if (!flag_always)
 			assert_en.append(get_activation(pmux->getPort(ID::Y)));
@@ -176,8 +176,8 @@ struct AssertpmuxWorker
 
 		Cell *assert_cell = module->addAssert(NEW_ID, assert_a, assert_en);
 
-		if (pmux->src_id() != Twine::Null && module->design)
-			assert_cell->set_src_id(pmux->src_id());
+		if (pmux->attributes.count(ID::src) != 0)
+			assert_cell->attributes[ID::src] = pmux->attributes.at(ID::src);
 	}
 };
 

@@ -39,7 +39,8 @@ struct OptLutInsPass : public Pass {
 		log("\n");
 		log("    -tech <technology>\n");
 		log("        Instead of generic $lut cells, operate on LUT cells specific\n");
-		log("        to the given technology.  Valid values are: xilinx, lattice, gowin.\n");
+		log("        to the given technology.  Valid values are: xilinx, lattice,\n");
+		log("        gowin, analogdevices.\n");
 		log("\n");
 	}
 	void execute(std::vector<std::string> args, RTLIL::Design *design) override
@@ -59,11 +60,11 @@ struct OptLutInsPass : public Pass {
 		extra_args(args, argidx, design);
 
 		if (techname != "" && techname != "xilinx" && techname != "lattice" && techname != "analogdevices" && techname != "gowin")
-			log_cmd_error("Unsupported technology: '%s'\n", techname.c_str());
+			log_cmd_error("Unsupported technology: '%s'\n", techname);
 
 		for (auto module : design->selected_modules())
 		{
-			log("Optimizing LUTs in %s.\n", log_id(module));
+			log("Optimizing LUTs in %s.\n", module);
 
 			std::vector<Cell *> remove_cells;
 			// Gather LUTs.
@@ -180,8 +181,8 @@ struct OptLutInsPass : public Pass {
 				}
 				if (!doit)
 					continue;
-				log("  Optimizing lut %s (%d -> %d)\n", log_id(cell), GetSize(inputs), GetSize(new_inputs));
-				if (techname == "lattice") {
+				log("  Optimizing lut %s (%d -> %d)\n", cell, GetSize(inputs), GetSize(new_inputs));
+				if (techname == "lattice" || techname == "ecp5") {
 					// Pad the LUT to 4 inputs, adding consts from the front.
 					int extra = 4 - GetSize(new_inputs);
 					log_assert(extra >= 0);
@@ -241,17 +242,17 @@ struct OptLutInsPass : public Pass {
 						else
 							log_assert(GetSize(new_inputs) <= 4);
 						if (GetSize(new_inputs) == 1)
-							cell->type = ID::LUT1;
+							cell->type = ID(LUT1);
 						else if (GetSize(new_inputs) == 2)
-							cell->type = ID::LUT2;
+							cell->type = ID(LUT2);
 						else if (GetSize(new_inputs) == 3)
-							cell->type = ID::LUT3;
+							cell->type = ID(LUT3);
 						else if (GetSize(new_inputs) == 4)
-							cell->type = ID::LUT4;
+							cell->type = ID(LUT4);
 						else if (GetSize(new_inputs) == 5)
-							cell->type = ID::LUT5;
+							cell->type = ID(LUT5);
 						else if (GetSize(new_inputs) == 6)
-							cell->type = ID::LUT6;
+							cell->type = ID(LUT6);
 						else
 							log_assert(0);
 						cell->unsetPort(ID(I0));
