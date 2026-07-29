@@ -1110,7 +1110,7 @@ static IdString build_hier_content(TwinePool &pool, std::string_view content)
 {
 	size_t dot = content.rfind('.');
 	if (dot == std::string_view::npos)
-		return pool.add(Twine{std::string{content}}).tag(true);
+		return pool.add(std::string{content}).tag(true);
 	IdString prefix = build_hier_content(pool, content.substr(0, dot));
 	return pool.add(Twine{Twine::Suffix{prefix, std::string{content.substr(dot)}}});
 }
@@ -1131,12 +1131,12 @@ void AST::set_src_attr(RTLIL::AttrObject *obj, const AstNode *ast)
 		// An explicit (* src *) attribute (e.g. when re-reading written output)
 		// takes precedence over the parse position
 		current_module->design->set_src_attribute(obj,
-				current_module->design->twines.add(Twine{it->second->asAttrConst().decode_string()}));
+				current_module->design->twines.add_verbatim(it->second->asAttrConst().decode_string()));
 		return;
 	}
 	const auto &loc = ast->location;
 	if (!loc.begin.filename || loc.begin.filename->empty()) {
-		current_module->design->set_src_attribute(obj, current_module->design->twines.add(Twine{ast->loc_string()}));
+		current_module->design->set_src_attribute(obj, current_module->design->twines.add_verbatim(ast->loc_string()));
 		return;
 	}
 	// Split filename and per-location tail so the filename interns once
@@ -1145,7 +1145,7 @@ void AST::set_src_attr(RTLIL::AttrObject *obj, const AstNode *ast)
 	// thousands of objects in one file this collapses N copies of a long
 	// path into 1 Leaf + N short Suffix tails.
 	TwinePool *pool = &current_module->design->twines;
-	IdString file_id = pool->add(Twine{*loc.begin.filename});
+	IdString file_id = pool->add_verbatim(*loc.begin.filename);
 	std::string tail = stringf(":%d.%d-%d.%d",
 			loc.begin.line, loc.begin.column,
 			loc.end.line, loc.end.column);

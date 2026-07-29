@@ -129,11 +129,16 @@ struct Twine {
 		auto operator<=>(const AutoSuffix&) const = default;
 	};
 
+	struct Leaf {
+		std::string s;
+		auto operator<=>(const Leaf&) const = default;
+	};
+
 	std::variant<
 				// Unused slot
 				std::monostate,
 				// "leaf", regular deduplicated string
-				std::string,
+				Leaf,
 				// "concat", for src only, requires concatenating character convention - '|' for src attributes, others for others in the future
 				std::vector<IdString>,
 				// "suffix", deduplicates shared prefixes
@@ -143,12 +148,12 @@ struct Twine {
 				AutoSuffix> data;
 
 	bool is_dead() const { return std::holds_alternative<std::monostate>(data); }
-	bool is_leaf() const { return std::holds_alternative<std::string>(data); }
+	bool is_leaf() const { return std::holds_alternative<Leaf>(data); }
 	bool is_concat() const { return std::holds_alternative<std::vector<IdString>>(data); }
 	bool is_suffix() const { return std::holds_alternative<Suffix>(data); }
 	bool is_auto_prefix() const { return std::holds_alternative<AutoSuffix>(data); }
 	bool is_flat() const { return is_leaf() || is_suffix(); }
-	const std::string &leaf() const { return std::get<std::string>(data); }
+	const std::string &leaf() const { return std::get<Leaf>(data).s; }
 	const std::vector<IdString> &children() const { return std::get<std::vector<IdString>>(data); }
 	const Suffix &suffix() const { return std::get<Suffix>(data); }
 };
@@ -202,8 +207,8 @@ struct TwinePool {
 			using T = std::decay_t<decltype(val)>;
 			if constexpr (std::is_same_v<T, std::monostate>) {
 				os << "Dead()";
-			} else if constexpr (std::is_same_v<T, std::string>) {
-				os << "Leaf(\"" << val << "\")";
+			} else if constexpr (std::is_same_v<T, Twine::Leaf>) {
+				os << "Leaf(\"" << val.s << "\")";
 			} else if constexpr (std::is_same_v<T, std::vector<IdString>>) {
 				os << "Concat[";
 				for (size_t i = 0; i < val.size(); ++i) {
@@ -229,8 +234,8 @@ struct TwinePool {
 		std::visit([&](const auto& val) {
 			using T = std::decay_t<decltype(val)>;
 			if constexpr (std::is_same_v<T, std::monostate>) {
-			} else if constexpr (std::is_same_v<T, std::string>) {
-				os << val;
+			} else if constexpr (std::is_same_v<T, Twine::Leaf>) {
+				os << val.s;
 			} else if constexpr (std::is_same_v<T, std::vector<IdString>>) {
 				for (size_t i = 0; i < val.size(); ++i) {
 					if (i > 0)
@@ -251,8 +256,8 @@ struct TwinePool {
 		std::visit([&](const auto& val) {
 			using T = std::decay_t<decltype(val)>;
 			if constexpr (std::is_same_v<T, std::monostate>) {
-			} else if constexpr (std::is_same_v<T, std::string>) {
-				out += val;
+			} else if constexpr (std::is_same_v<T, Twine::Leaf>) {
+				out += val.s;
 			} else if constexpr (std::is_same_v<T, std::vector<IdString>>) {
 				for (size_t i = 0; i < val.size(); ++i) {
 					if (i > 0)
@@ -334,7 +339,7 @@ struct TwinePool {
 	// structural index. Returns Twine::Null if absent.
 	IdString find(const std::string &name) const {
 		bool is_public = !name.empty() && name[0] == '\\';
-		return find(Twine{is_public ? name.substr(1) : name}).tag(is_public);
+		return find(Twine{Twine::Leaf{is_public ? name.substr(1) : name}}).tag(is_public);
 	}
 
 	IdString add_inner(Twine t) {
@@ -378,7 +383,7 @@ struct TwinePool {
 
 	IdString add(Twine t) {
 		if (auto *ap = std::get_if<Twine::AutoSuffix>(&t.data)) {
-			IdString pref = add_inner(Twine{*ap->prefix});
+			IdString pref = add_inner(Twine{Twine::Leaf{*ap->prefix}});
 			return add_inner(Twine{Twine::Suffix{pref, std::move(ap->tail)}});
 		}
 		bool is_public = false;
@@ -388,16 +393,20 @@ struct TwinePool {
 		return twine_tag(add_inner(std::move(t)), is_public);
 	}
 
-	IdString add(std::string&& s) {
+	IdString add_verbatim(std::string s) {
+		return add_inner(Twine{Twine::Leaf{std::move(s)}});
+	}
+
+	IdString add(std::string s) {
 		if (s.size() > 1) {
 			if (s[0] == '\\')
-				return twine_tag(add(Twine{s.substr(1)}), true);
+				return twine_tag(add(Twine{Twine::Leaf{s.substr(1)}}), true);
 			else if (s[0] == '$')
-				return twine_tag(add(Twine{std::move(s)}), false);
+				return twine_tag(add(Twine{Twine::Leaf{std::move(s)}}), false);
 			else
-				return twine_tag(add(Twine{std::move(s)}), true);
+				return twine_tag(add(Twine{Twine::Leaf{std::move(s)}}), true);
 		} else if (s.size() > 0) {
-			return twine_tag(add(Twine{std::move(s)}), true);
+			return twine_tag(add(Twine{Twine::Leaf{std::move(s)}}), true);
 		} else {
 		 	return Twine::Null;
 		}
@@ -422,7 +431,7 @@ struct TwinePool {
 			return ref;
 		const Twine& t = src[untagged];
 		if (t.is_leaf())
-			return twine_tag(add(Twine{t.leaf()}), is_public);
+			return twine_tag(add(Twine{Twine::Leaf{t.leaf()}}), is_public);
 		if (t.is_concat()) {
 			std::vector<IdString> children;
 			children.reserve(t.children().size());
@@ -496,8 +505,8 @@ inline size_t TwineHash::operator()(const Twine& t) const noexcept {
 		// 	h ^= v + 0x9e3779b9 + (h << 6) + (h >> 2);
 		// };
 
-		if constexpr (std::is_same_v<T, std::string>) {
-			h.eat(val);
+		if constexpr (std::is_same_v<T, Twine::Leaf>) {
+			h.eat(val.s);
 			// combine(std::hash<std::string>{}(val));
 		} else if constexpr (std::is_same_v<T, std::vector<IdString>>) {
 			for (auto ref : val) {
@@ -668,18 +677,18 @@ struct TwineChildPool {
 	// Local analog of TwinePool::add; see there for the convention.
 	IdString add(Twine t) {
 		if (auto *ap = std::get_if<Twine::AutoSuffix>(&t.data)) {
-			IdString pref = add_inner(Twine{*ap->prefix});
+			IdString pref = add_inner(Twine{Twine::Leaf{*ap->prefix}});
 			return add_inner(Twine{Twine::Suffix{pref, std::move(ap->tail)}});
 		}
 		bool is_public = false;
-		if (auto *leaf = std::get_if<std::string>(&t.data)) {
-			assert(!leaf->empty());
-			if ((*leaf)[0] == '\\') {
+		if (auto *leaf = std::get_if<Twine::Leaf>(&t.data)) {
+			assert(!leaf->s.empty());
+			if (leaf->s[0] == '\\') {
 				is_public = true;
-				leaf->erase(0, 1);
-				assert(!leaf->empty());
+				leaf->s.erase(0, 1);
+				assert(!leaf->s.empty());
 			} else {
-				assert((*leaf)[0] == '$');
+				assert(leaf->s[0] == '$');
 			}
 		} else if (auto *sfx = std::get_if<Twine::Suffix>(&t.data)) {
 			is_public = twine_is_public(sfx->prefix);
@@ -690,16 +699,20 @@ struct TwineChildPool {
 	}
 
 	// TODO duplicated code
-	IdString add(std::string&& s) {
+	IdString add_verbatim(std::string s) {
+		return add_inner(Twine{Twine::Leaf{std::move(s)}});
+	}
+
+	IdString add(std::string s) {
 		if (s.size() > 1) {
 			if (s[0] == '\\')
-				return twine_tag(add(Twine{s.substr(1)}), true);
+				return twine_tag(add(Twine{Twine::Leaf{s.substr(1)}}), true);
 			else if (s[0] == '$')
-				return twine_tag(add(Twine{std::move(s)}), false);
+				return twine_tag(add(Twine{Twine::Leaf{std::move(s)}}), false);
 			else
-				return twine_tag(add(Twine{std::move(s)}), true);
+				return twine_tag(add(Twine{Twine::Leaf{std::move(s)}}), true);
 		} else if (s.size() > 0) {
-			return twine_tag(add(Twine{std::move(s)}), true);
+			return twine_tag(add(Twine{Twine::Leaf{std::move(s)}}), true);
 		} else {
 		 	return Twine::Null;
 		}

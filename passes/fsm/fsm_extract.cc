@@ -389,7 +389,7 @@ static void extract_fsm(RTLIL::Wire *wire)
 	// rename original state wire
 
 	wire->attributes.erase(ID::fsm_encoding);
-	module->rename(wire, module->design->twines.add(Twine{stringf("$fsm$oldstate%s", wire->name.unescape().c_str())}));
+	module->rename(wire, module->design->twines.add(stringf("$fsm$oldstate%s", wire->name.unescape().c_str())));
 	if(wire->attributes.count(ID::hdlname)) {
 		auto hdlname = wire->get_hdlname_attribute();
 		hdlname.pop_back();

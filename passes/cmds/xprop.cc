@@ -488,7 +488,7 @@ struct XpropWorker
 
 				std::string name_str = module->design->twines.str(cell->name.ref());
 				module->remove(cell);
-				module->addXnor(Twine{name_str}, sig_a, sig_b, sig_y);
+				module->addXnor(name_str, sig_a, sig_b, sig_y);
 				return;
 			}
 
@@ -501,9 +501,9 @@ struct XpropWorker
 				IdString type = cell->type;
 				module->remove(cell);
 				if (type == ID($eqx))
-					module->addEq(Twine{name_str}, sig_a, sig_b, sig_y);
+					module->addEq(name_str, sig_a, sig_b, sig_y);
 				else
-					module->addNe(Twine{name_str}, sig_a, sig_b, sig_y);
+					module->addNe(name_str, sig_a, sig_b, sig_y);
 				return;
 			}
 

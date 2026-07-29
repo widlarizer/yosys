@@ -934,7 +934,7 @@ Cell *Mem::extract_rdff(int idx, FfInitVals *initvals) {
 
 		if (width)
 		{
-			SigSpec sig_q = module->addWire(Twine{stringf("$%s$rdreg[%d]$q", memid_str, idx)}, width);
+			SigSpec sig_q = module->addWire(stringf("$%s$rdreg[%d]$q", memid_str, idx), width);
 			SigSpec sig_d;
 
 			int pos = 0;
@@ -944,7 +944,7 @@ Cell *Mem::extract_rdff(int idx, FfInitVals *initvals) {
 					port.addr[i] = sig_q[pos++];
 				}
 
-			c = module->addDff(Twine{stringf("$%s$rdreg[%d]", memid_str, idx)}, port.clk, sig_d, sig_q, port.clk_polarity, mem_src);
+			c = module->addDff(stringf("$%s$rdreg[%d]", memid_str, idx), port.clk, sig_d, sig_q, port.clk_polarity, mem_src);
 		} else {
 			c = nullptr;
 		}
@@ -953,7 +953,7 @@ Cell *Mem::extract_rdff(int idx, FfInitVals *initvals) {
 	{
 		log_assert(port.arst == State::S0 || port.srst == State::S0);
 
-		SigSpec async_d = module->addWire(Twine{stringf("$%s$rdreg[%d]$d", memid_str, idx)}, GetSize(port.data));
+		SigSpec async_d = module->addWire(stringf("$%s$rdreg[%d]$d", memid_str, idx), GetSize(port.data));
 		SigSpec sig_d = async_d;
 
 		for (int i = 0; i < GetSize(wr_ports); i++) {
@@ -976,7 +976,7 @@ Cell *Mem::extract_rdff(int idx, FfInitVals *initvals) {
 						raddr = port.sub_addr(sub);
 					SigSpec addr_eq;
 					if (raddr != waddr)
-						addr_eq = module->Eq(Twine{stringf("$%s$rdtransen[%d][%d][%d]$d", memid_str, idx, i, sub)}, raddr, waddr, false, mem_src);
+						addr_eq = module->Eq(stringf("$%s$rdtransen[%d][%d][%d]$d", memid_str, idx, i, sub), raddr, waddr, false, mem_src);
 					int pos = 0;
 					int ewidth = width << min_wide_log2;
 					int wsub = wide_write ? sub : 0;
@@ -989,10 +989,10 @@ Cell *Mem::extract_rdff(int idx, FfInitVals *initvals) {
 						SigSpec other = port.transparency_mask[i] ? wport.data.extract(pos + wsub * width, epos-pos) : Const(State::Sx, epos-pos);
 						SigSpec cond;
 						if (raddr != waddr)
-							cond = module->And(Twine{stringf("$%s$rdtransgate[%d][%d][%d][%d]$d", memid_str, idx, i, sub, pos)}, wport.en[pos + wsub * width], addr_eq, false, mem_src);
+							cond = module->And(stringf("$%s$rdtransgate[%d][%d][%d][%d]$d", memid_str, idx, i, sub, pos), wport.en[pos + wsub * width], addr_eq, false, mem_src);
 						else
 							cond = wport.en[pos + wsub * width];
-						SigSpec merged = module->Mux(Twine{stringf("$%s$rdtransmux[%d][%d][%d][%d]$d", memid_str, idx, i, sub, pos)}, cur, other, cond, mem_src);
+						SigSpec merged = module->Mux(stringf("$%s$rdtransmux[%d][%d][%d][%d]$d", memid_str, idx, i, sub, pos), cur, other, cond, mem_src);
 						sig_d.replace(pos + rsub * width, merged);
 						pos = epos;
 					}

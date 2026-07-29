@@ -1587,7 +1587,7 @@ void AbcModuleState::extract(AbcSigMap &assign_map, RTLIL::Design *design, RTLIL
 				continue;
 			}
 			if (c->type.in(ID(AND), ID(OR), ID(XOR), ID(NAND), ID(NOR), ID(XNOR), ID(ANDNOT), ID(ORNOT))) {
-				RTLIL::Cell *cell = module->addCell(rn(c->name), Twine{stringf("$_%s_", c->type.unescape().c_str())});
+				RTLIL::Cell *cell = module->addCell(rn(c->name), stringf("$_%s_", c->type.unescape().c_str()));
 				if (markgroups) cell->attributes[ID::abcgroup] = map_autoidx;
 				for (auto name : {ID::A, ID::B, ID::Y}) {
 					IdString remapped_name = rn(c->getPort(name).as_wire()->name);
@@ -1597,7 +1597,7 @@ void AbcModuleState::extract(AbcSigMap &assign_map, RTLIL::Design *design, RTLIL
 				continue;
 			}
 			if (c->type.in(ID(MUX), ID(NMUX))) {
-				RTLIL::Cell *cell = module->addCell(rn(c->name), Twine{stringf("$_%s_", c->type.unescape().c_str())});
+				RTLIL::Cell *cell = module->addCell(rn(c->name), stringf("$_%s_", c->type.unescape().c_str()));
 				if (markgroups) cell->attributes[ID::abcgroup] = map_autoidx;
 				for (auto name : {ID::A, ID::B, ID::S, ID::Y}) {
 					IdString remapped_name = rn(c->getPort(name).as_wire()->name);
@@ -1638,7 +1638,7 @@ void AbcModuleState::extract(AbcSigMap &assign_map, RTLIL::Design *design, RTLIL
 				continue;
 			}
 			if (c->type.in(ID(AOI3), ID(OAI3))) {
-				RTLIL::Cell *cell = module->addCell(rn(c->name), Twine{stringf("$_%s_", c->type.unescape().c_str())});
+				RTLIL::Cell *cell = module->addCell(rn(c->name), stringf("$_%s_", c->type.unescape().c_str()));
 				if (markgroups) cell->attributes[ID::abcgroup] = map_autoidx;
 				for (auto name : {ID::A, ID::B, ID::C, ID::Y}) {
 					IdString remapped_name = rn(c->getPort(name).as_wire()->name);
@@ -1648,7 +1648,7 @@ void AbcModuleState::extract(AbcSigMap &assign_map, RTLIL::Design *design, RTLIL
 				continue;
 			}
 			if (c->type.in(ID(AOI4), ID(OAI4))) {
-				RTLIL::Cell *cell = module->addCell(rn(c->name), Twine{stringf("$_%s_", c->type.unescape().c_str())});
+				RTLIL::Cell *cell = module->addCell(rn(c->name), stringf("$_%s_", c->type.unescape().c_str()));
 				if (markgroups) cell->attributes[ID::abcgroup] = map_autoidx;
 				for (auto name : {ID::A, ID::B, ID::C, ID::D, ID::Y}) {
 					IdString remapped_name = rn(c->getPort(name).as_wire()->name);

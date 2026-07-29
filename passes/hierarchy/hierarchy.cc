@@ -378,7 +378,7 @@ RTLIL::Module *get_module(RTLIL::Design                  &design,
                           const std::vector<std::string> &libdirs)
 {
 	std::string cell_type = design.twines.str(cell.type);
-	RTLIL::Module *abs_mod = design.module(design.twines.find(Twine{"$abstract" + cell_type}));
+	RTLIL::Module *abs_mod = design.module(design.twines.find("$abstract" + cell_type));
 	if (abs_mod) {
 		cell.type_impl = design.twines.add(std::string{design.twines.str(abs_mod->derive(&design, cell.parameters))});
 		cell.parameters.clear();

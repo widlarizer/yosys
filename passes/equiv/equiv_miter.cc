@@ -141,11 +141,11 @@ struct EquivMiterWorker
 		// copy wires and cells
 
 		for (auto w :  miter_wires)
-			miter_module->addWire(Twine{w->name.str()}, w->width);
+			miter_module->addWire(w->name.str(), w->width);
 		for (auto c :  miter_cells) {
 			if (c->type.in(ID($input_port), ID($output_port), ID($public)))
 				continue;
-			auto mc = miter_module->addCell(Twine{c->name.str()}, c);
+			auto mc = miter_module->addCell(c->name.str(), c);
 			for (auto &conn : mc->connections())
 				mc->setPort(conn.first, sigmap(conn.second));
 		}
@@ -246,7 +246,7 @@ struct EquivMiterWorker
 		}
 
 		if (mode_trigger) {
-			auto w = miter_module->addWire(Twine{"trigger"});
+			auto w = miter_module->addWire("trigger");
 			w->port_output = true;
 			miter_module->addReduceOr(NEW_ID, trigger_signals, w);
 		}

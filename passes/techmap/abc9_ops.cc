@@ -429,7 +429,7 @@ void prep_bypass(RTLIL::Design *design)
 					auto n = "$abc9byp$" + design->twines.str(conn.first);
 					auto w = map_module->addWire(n, GetSize(conn.second));
 					replace_cell->setPort(to_map(conn.first), w);
-					bypass_cell->setPort(map_design->twines.add(Twine{n}), w);
+					bypass_cell->setPort(map_design->twines.add(n), w);
 				}
 			}
 
@@ -550,7 +550,7 @@ void prep_dff_unmap(RTLIL::Design *design)
 		box_module->fixup_ports();
 
 		auto unmap_module = unmap_design->addModule(to_unmap(box_module->name.ref()));
-		replace_cell = unmap_module->addCell(ID::_TECHMAP_REPLACE_, Twine{module->name.str()});
+		replace_cell = unmap_module->addCell(ID::_TECHMAP_REPLACE_, module->name.str());
 		for (auto port_name : box_module->ports) {
 			auto w = unmap_module->addWire(to_unmap(port_name), box_module->wire(port_name));
 			if (module->wire(port_name))
@@ -927,7 +927,7 @@ void prep_xaiger(RTLIL::Module *module, bool dff)
 						}
 					}
 					else if (w->port_output)
-						conn = holes_module->addWire(Twine{stringf("%s.%s", cell->type, design->twines.unescaped_str(port_name))}, GetSize(w));
+						conn = holes_module->addWire(stringf("%s.%s", cell->type, design->twines.unescaped_str(port_name)), GetSize(w));
 				}
 			}
 			else // box_module is a blackbox

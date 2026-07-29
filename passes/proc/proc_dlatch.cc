@@ -545,7 +545,7 @@ void proc_dlatch(proc_dlatch_db_t &db, RTLIL::Process *proc, LatchPolicy policy)
 				cell = db.module->addAdlatch(NEW_ID, en, db.make_hold(nset, src), rhs, lhs, RTLIL::Const(State::S1, width));
 			else
 				cell = db.module->addDlatch(NEW_ID, en, rhs, lhs);
-			cell->set_src_attribute(db.module->design->twines.add(Twine{src}));
+			cell->set_src_attribute(db.module->design->twines.add_verbatim(src));
 			db.generated_dlatches.insert(cell);
 
 			if (proc->get_bool_attribute(ID::always_comb))

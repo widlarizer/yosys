@@ -526,7 +526,7 @@ static void dfflibmap(RTLIL::Design *design, RTLIL::Module *module)
 		cell_mapping &cm = cell_mappings[cell_type];
 		RTLIL::Cell *new_cell = module->addCell(cell_name, twines.add(std::string(cm.cell_name)));
 
-		new_cell->set_src_attribute(twines.add(Twine{src}));
+		new_cell->set_src_attribute(twines.add_verbatim(src));
 
 		bool has_q = false, has_qn = false;
 		for (auto &port : cm.ports) {

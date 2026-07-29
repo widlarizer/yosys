@@ -2532,7 +2532,7 @@ public:
 
 	// NEW_ID analog for twine names; see NEW_ID in yosys_common.h.
 	IdString new_name(const std::string *prefix) {
-		IdString pref = design->twines.add(Twine{*prefix});
+		IdString pref = design->twines.add(Twine{Twine::Leaf{*prefix}});
 		return design->twines.add(Twine{Twine::Suffix{pref, std::to_string(autoidx++)}});
 	}
 

@@ -170,8 +170,8 @@ struct Ice40WrapCarryPass : public Pass {
 					}
 					if (carry_src.empty()) carry_src = fallback_src;
 					if (lut_src.empty()) lut_src = fallback_src;
-					if (!carry_src.empty()) carry->set_src_attribute(module->design->twines.add(Twine{carry_src}));
-					if (!lut_src.empty()) lut->set_src_attribute(module->design->twines.add(Twine{lut_src}));
+					if (!carry_src.empty()) carry->set_src_attribute(module->design->twines.add_verbatim(carry_src));
+					if (!lut_src.empty()) lut->set_src_attribute(module->design->twines.add_verbatim(lut_src));
 
 					module->remove(cell);
 				}

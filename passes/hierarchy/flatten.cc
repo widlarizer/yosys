@@ -183,7 +183,7 @@ struct FlattenWorker
 		dict<IdString, IdString> positional_ports;
 		for (auto tpl_wire : tpl->wires()) {
 			if (tpl_wire->port_id > 0)
-				positional_ports.emplace(design->twines.add(Twine{stringf("$%d", tpl_wire->port_id)}), tpl_wire->name);
+				positional_ports.emplace(design->twines.add(stringf("$%d", tpl_wire->port_id)), tpl_wire->name);
 
 			RTLIL::Wire *new_wire = nullptr;
 			if (tpl_wire->name[0] == '\\') {

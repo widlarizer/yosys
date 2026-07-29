@@ -277,21 +277,21 @@ static void create_ff(RTLIL::Module *module, const LibertyAst *node)
 		cell->setPort(ID::C, clk_sig);
 
 		if (clear_sig.size() == 0 && preset_sig.size() == 0) {
-			cell->type = module->design->twines.add(Twine{stringf("$_DFF_%c_", clk_polarity ? 'P' : 'N')});
+			cell->type = module->design->twines.add(stringf("$_DFF_%c_", clk_polarity ? 'P' : 'N'));
 		}
 
 		if (clear_sig.size() == 1 && preset_sig.size() == 0) {
-			cell->type = module->design->twines.add(Twine{stringf("$_DFF_%c%c0_", clk_polarity ? 'P' : 'N', clear_polarity ? 'P' : 'N')});
+			cell->type = module->design->twines.add(stringf("$_DFF_%c%c0_", clk_polarity ? 'P' : 'N', clear_polarity ? 'P' : 'N'));
 			cell->setPort(ID::R, clear_sig);
 		}
 
 		if (clear_sig.size() == 0 && preset_sig.size() == 1) {
-			cell->type = module->design->twines.add(Twine{stringf("$_DFF_%c%c1_", clk_polarity ? 'P' : 'N', preset_polarity ? 'P' : 'N')});
+			cell->type = module->design->twines.add(stringf("$_DFF_%c%c1_", clk_polarity ? 'P' : 'N', preset_polarity ? 'P' : 'N'));
 			cell->setPort(ID::R, preset_sig);
 		}
 
 		if (clear_sig.size() == 1 && preset_sig.size() == 1) {
-			cell->type = module->design->twines.add(Twine{stringf("$_DFFSR_%c%c%c_", clk_polarity ? 'P' : 'N', preset_polarity ? 'P' : 'N', clear_polarity ? 'P' : 'N')});
+			cell->type = module->design->twines.add(stringf("$_DFFSR_%c%c%c_", clk_polarity ? 'P' : 'N', preset_polarity ? 'P' : 'N', clear_polarity ? 'P' : 'N'));
 
 			SigBit s_sig = preset_sig;
 			SigBit r_sig = clear_sig;
@@ -433,7 +433,7 @@ static bool create_latch(RTLIL::Module *module, const LibertyAst *node, bool fla
 		enable_gate->setPort(ID::Y, enable_sig = module->addWire(NEW_ID));
 	}
 
-	IdString _t = module->design->twines.add(Twine{stringf("$_DLATCH_%c_", enable_polarity ? 'P' : 'N')});
+	IdString _t = module->design->twines.add(stringf("$_DLATCH_%c_", enable_polarity ? 'P' : 'N'));
 	cell = module->addCell(NEW_ID, _t);
 	cell->setPort(ID::D, data_sig);
 	cell->setPort(ID::Q, iq_sig);

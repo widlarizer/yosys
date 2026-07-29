@@ -715,7 +715,7 @@ void AigerReader::parse_aiger_ascii()
 		RTLIL::Wire *o_wire = createWireIfNotExists(module, l1);
 		RTLIL::Wire *i1_wire = createWireIfNotExists(module, l2);
 		RTLIL::Wire *i2_wire = createWireIfNotExists(module, l3);
-		module->addAndGate(Twine{stringf("$and%s", o_wire->name.unescape().c_str())}, i1_wire, i2_wire, o_wire);
+		module->addAndGate(stringf("$and%s", o_wire->name.unescape().c_str()), i1_wire, i2_wire, o_wire);
 	}
 }
 
@@ -840,7 +840,7 @@ void AigerReader::parse_aiger_binary()
 		RTLIL::Wire *o_wire = createWireIfNotExists(module, l1);
 		RTLIL::Wire *i1_wire = createWireIfNotExists(module, l2);
 		RTLIL::Wire *i2_wire = createWireIfNotExists(module, l3);
-		module->addAndGate(Twine{stringf("$and%s", o_wire->name.unescape().c_str())}, i1_wire, i2_wire, o_wire);
+		module->addAndGate(stringf("$and%s", o_wire->name.unescape().c_str()), i1_wire, i2_wire, o_wire);
 	}
 }
 

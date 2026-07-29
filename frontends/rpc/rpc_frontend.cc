@@ -208,7 +208,7 @@ struct RpcModule : RTLIL::Module {
 			for (auto module : derived_design->modules())
 				for (auto cell : module->cells())
 					if (name_mangling.count(cell->type.str()))
-						cell->type = cell->module->design->twines.add(Twine{name_mangling[cell->type.str()]});
+						cell->type = cell->module->design->twines.add(name_mangling[cell->type.str()]);
 
 			for (auto module : derived_design->modules_) {
 				std::string mangled_name = name_mangling[derived_design->twines.str(module.first)];
@@ -216,7 +216,7 @@ struct RpcModule : RTLIL::Module {
 				log("Importing `%s' as `%s'.\n", derived_design->twines.str(module.first), mangled_name);
 
 				IdString original_name = module.first;
-				RTLIL::Module *t = module.second->clone(design, design->twines.add(Twine{mangled_name}));
+				RTLIL::Module *t = module.second->clone(design, design->twines.add(mangled_name));
 				t->attributes.erase(ID::top);
 				if (!t->has_attribute(ID::hdlname))
 					t->set_string_attribute(ID::hdlname, design->twines.str(original_name));
@@ -225,7 +225,7 @@ struct RpcModule : RTLIL::Module {
 			delete derived_design;
 		}
 
-		return design->twines.add(Twine{derived_name});
+		return design->twines.add(derived_name);
 	}
 
 	RTLIL::Module *clone() const override {
@@ -588,7 +588,7 @@ cleanup_path:
 			log("Linking module `%s'.\n", module_name);
 			RpcModule *module = new RpcModule;
 			module->design = design;
-			module->name = design->twines.add(Twine{"$abstract\\" + module_name});
+			module->name = design->twines.add("$abstract\\" + module_name);
 			module->server = server;
 			design->add(module);
 		}

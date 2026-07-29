@@ -338,7 +338,7 @@ struct UsageData {
 
 		dict<SigBit, SigBit> replacement_map;
 		for (auto chunk : disconnect_outputs.chunks()) {
-			Wire *repl_wire = module->addWire(module->uniquify(Twine{std::string("$") + chunk.wire->name.unescape()}), chunk.size());
+			Wire *repl_wire = module->addWire(module->uniquify(std::string("$") + chunk.wire->name.unescape()), chunk.size());
 			for (int i = 0; i < repl_wire->width; i++)
 				replacement_map[SigSpec(chunk)[i]] = SigBit(repl_wire, i);
 		}

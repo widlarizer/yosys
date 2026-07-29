@@ -166,7 +166,7 @@ static void map_fsm(RTLIL::Cell *fsm_cell, RTLIL::Module *module)
 
 	// create state register
 
-	RTLIL::Wire *state_wire = module->addWire(module->uniquify(module->design->twines.add(Twine{fsm_cell->parameters[ID::NAME].decode_string()})), fsm_data.state_bits);
+	RTLIL::Wire *state_wire = module->addWire(module->uniquify(module->design->twines.add(fsm_cell->parameters[ID::NAME].decode_string())), fsm_data.state_bits);
 	RTLIL::Wire *next_state_wire = module->addWire(NEW_ID, fsm_data.state_bits);
 
 	RTLIL::Cell *state_dff = module->addCell(NEW_ID, IdString{});

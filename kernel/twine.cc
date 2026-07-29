@@ -10,7 +10,7 @@ IdString twine_populate(std::string name) {
 	// in TWINE_PUBLIC_BIT on the ID:: handle, not in the stored string.
 	log_assert(name[0] == '\\');
 	name = name.substr(1);
-	TwinePool::globals_.push_back(Twine{std::move(name)});
+	TwinePool::globals_.push_back(Twine{Twine::Leaf{std::move(name)}});
 	return TwinePool::globals_.size() - 1;
 }
 void twine_prepopulate() {

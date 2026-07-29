@@ -192,7 +192,7 @@ void assume_miter_outputs(RTLIL::Module *module, bool assume_neg) {
 
 	if (assume_neg) {
 		for (unsigned int i = 0; i < wires_to_assume.size(); ++i) {
-			RTLIL::SigSpec n_wire = module->LogicNot(Twine{wires_to_assume[i]->name.str() + "__n__qbfsat"}, wires_to_assume[i], false, wires_to_assume[i]->src_ref());
+			RTLIL::SigSpec n_wire = module->LogicNot(wires_to_assume[i]->name.str() + "__n__qbfsat", wires_to_assume[i], false, wires_to_assume[i]->src_ref());
 			wires_to_assume[i] = n_wire.as_wire();
 		}
 	}
@@ -202,7 +202,7 @@ void assume_miter_outputs(RTLIL::Module *module, bool assume_neg) {
 		for (auto j = 0; j + 1 < GetSize(wires_to_assume); j += 2) {
 			std::stringstream strstr; strstr << i << "_" << j;
 			RTLIL::Wire *and_wire = module->addWire("\\_qbfsat_and_" + strstr.str(), 1);
-			module->addLogicAnd(Twine{"$_qbfsat_and_" + strstr.str()}, wires_to_assume[j], wires_to_assume[j+1], and_wire, false, wires_to_assume[j]->src_ref());
+			module->addLogicAnd("$_qbfsat_and_" + strstr.str(), wires_to_assume[j], wires_to_assume[j+1], and_wire, false, wires_to_assume[j]->src_ref());
 			buf.push_back(and_wire);
 		}
 		if (wires_to_assume.size() % 2 == 1)
@@ -317,7 +317,7 @@ QbfSolutionType qbf_solve(RTLIL::Module *mod, const QbfSolveOptions &opt) {
 				RTLIL::SigSpec comparator = maximize? module->Ge(NEW_ID, module->wire(wire_to_optimize_name), RTLIL::Const(cur_thresh), false)
 				                                    : module->Le(NEW_ID, module->wire(wire_to_optimize_name), RTLIL::Const(cur_thresh), false);
 
-				module->addAssume(Twine{design->twines.str(wire_to_optimize_name) + "__threshold"}, comparator, RTLIL::Const(1, 1));
+				module->addAssume(design->twines.str(wire_to_optimize_name) + "__threshold", comparator, RTLIL::Const(1, 1));
 				log("Trying to solve with %s %s %d.\n", design->twines.str(wire_to_optimize_name), (maximize? ">=" : "<="), cur_thresh);
 			}
 

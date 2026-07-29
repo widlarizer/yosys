@@ -15,7 +15,7 @@ TEST(ModIndexSwapTest, has)
     Wire* i = m->addWire(d->twines.add(std::string{"$i"}), 2);
     i->port_input = true;
     m->fixup_ports();
-    m->addNot(Twine{std::string{"$not"}}, i, o);
+    m->addNot(std::string{"$not"}, i, o);
     auto mi = ModIndex(m);
     mi.reload_module();
     for (auto [sb, info] : mi.database) {
@@ -36,7 +36,7 @@ TEST(ModIndexDeleteTest, has)
     Wire* o = m->addWire(d->twines.add(std::string{"$o"}));
     o->port_output = true;
     m->fixup_ports();
-    Cell* not_ = m->addNotGate(Twine{std::string{"$not"}}, w, o);
+    Cell* not_ = m->addNotGate(std::string{"$not"}, w, o);
     auto mi = ModIndex(m);
     mi.reload_module();
     mi.dump_db();

@@ -171,8 +171,8 @@ struct EquivMakeWorker
 			{
 				log("Creating encoder/decoder for signal %s.\n", log_id(id));
 
-				Wire *dec_wire = equiv_mod->addWire(Twine{equiv_mod->design->twines.str(id) + "_decoded"}, gold_wire->width);
-				Wire *enc_wire = equiv_mod->addWire(Twine{equiv_mod->design->twines.str(id) + "_encoded"}, gate_wire->width);
+				Wire *dec_wire = equiv_mod->addWire(equiv_mod->design->twines.str(id) + "_decoded", gold_wire->width);
+				Wire *enc_wire = equiv_mod->addWire(equiv_mod->design->twines.str(id) + "_encoded", gate_wire->width);
 
 				SigSpec dec_a, dec_b, dec_s;
 				SigSpec enc_a, enc_b, enc_s;

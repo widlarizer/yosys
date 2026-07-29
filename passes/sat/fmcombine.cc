@@ -61,7 +61,7 @@ struct FmcombineWorker
 
 	Cell *import_prim_cell(Cell *cell, const string &suffix)
 	{
-		Cell *c = module->addCell(Twine{cell->name.unescape() + suffix}, cell->type);
+		Cell *c = module->addCell(cell->name.unescape() + suffix, cell->type);
 		c->parameters = cell->parameters;
 		c->attributes = cell->attributes;
 
@@ -82,7 +82,7 @@ struct FmcombineWorker
 		FmcombineWorker sub_worker(design, cell->type, opts);
 		sub_worker.generate();
 
-		Cell *c = module->addCell(Twine{cell->name.unescape() + "_combined"}, sub_worker.combined_type);
+		Cell *c = module->addCell(cell->name.unescape() + "_combined", sub_worker.combined_type);
 		// c->parameters = cell->parameters;
 		c->attributes = cell->attributes;
 
@@ -103,8 +103,8 @@ struct FmcombineWorker
 		module = design->addModule(combined_type);
 
 		for (auto wire : original->wires()) {
-			module->addWire(Twine{wire->name.unescape() + "_gold"}, wire);
-			module->addWire(Twine{wire->name.unescape() + "_gate"}, wire);
+			module->addWire(wire->name.unescape() + "_gold", wire);
+			module->addWire(wire->name.unescape() + "_gate", wire);
 		}
 		module->fixup_ports();
 

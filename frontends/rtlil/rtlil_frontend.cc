@@ -376,7 +376,7 @@ struct RTLILFrontendWorker {
 			if (id.has_value()) {
 				const std::string &s = *id;
 				bool pub = !s.empty() && s[0] == '\\';
-				IdString ref = twine_tag(design->twines.find(Twine{pub ? s.substr(1) : s}), pub);
+				IdString ref = twine_tag(design->twines.find(pub ? s.substr(1) : s), pub);
 				RTLIL::Wire *wire = current_module->wire(ref);
 				if (wire == nullptr) {
 					if (flag_legalize)
@@ -588,7 +588,7 @@ struct RTLILFrontendWorker {
 		IdString ref;
 		switch (desc.kind) {
 		case TwineDesc::Leaf:
-			ref = design->twines.add(Twine{desc.text});
+			ref = design->twines.add(desc.text);
 			break;
 		case TwineDesc::Suffix:
 			ref = design->twines.add(Twine{Twine::Suffix{
