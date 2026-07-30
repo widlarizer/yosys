@@ -198,13 +198,17 @@ inline IdString add_escaped(Pool &pool, std::string s) {
 
 template<typename Derived, typename Node, typename Ref>
 struct HashConsPool {
+	// Deliberately not noexcept: libstdc++ only caches hash codes in its bucket
+	// nodes when __cache_default is true, which requires the hasher to be either
+	// slow or potentially-throwing. Without caching every rehash recomputes
+	// hash_node for the whole pool.
 	struct NodeHash {
 		using is_transparent = void;
 
 		const Derived* pool = nullptr;
 
-		size_t operator()(const Node& n) const noexcept { return Derived::hash_node(n); }
-		size_t operator()(Ref ref) const noexcept { return Derived::hash_node((*pool)[ref]); }
+		size_t operator()(const Node& n) const { return Derived::hash_node(n); }
+		size_t operator()(Ref ref) const { return Derived::hash_node((*pool)[ref]); }
 	};
 
 	struct NodeEq {
@@ -672,42 +676,56 @@ struct DeepTwineHash {
 
 	const TwinePool* pool = nullptr;
 
-	// FNV-1a constants for 64-bit
-	static constexpr size_t FNV_OFFSET_BASIS = 14695981039346656037ull;
-	static constexpr size_t FNV_PRIME = 1099511628211ull;
+	// Hashes a twine by content rather than by structure, so a name spelled as
+	// one Leaf and the same name spelled as a Suffix chain agree. Bytes are
+	// buffered across fragment boundaries so the result depends only on the
+	// concatenation, never on where the fragments happen to split.
+	struct Stream {
+		Hasher h;
+		uint64_t buf = 0;
+		int fill = 0;
 
-	static void combine(size_t& hash, std::string_view sv) noexcept {
-		for (char c : sv) {
-			hash ^= static_cast<size_t>(c);
-			hash *= FNV_PRIME;
+		void push(std::string_view sv) {
+			for (char c : sv) {
+				buf |= uint64_t(static_cast<unsigned char>(c)) << (8 * fill);
+				if (++fill == 8) {
+					h.hash64(buf);
+					buf = 0;
+					fill = 0;
+				}
+			}
 		}
-	}
 
-	// Recursively hash the fragments of a Twine
-	void combine(size_t& hash, IdString t) const noexcept {
+		size_t finish() {
+			h.hash64(buf);
+			return h.yield();
+		}
+	};
+
+	void combine(Stream& s, IdString t) const {
 		if (t == Twine::Null)
 			return;
 		const Twine& n = (*pool)[t];
 		if (n.is_dead()) return;
 
 		if (n.is_leaf()) {
-			combine(hash, std::string_view(n.leaf()));
+			s.push(n.leaf());
 		} else if (n.is_suffix()) {
-			combine(hash, n.suffix().prefix);
-			combine(hash, std::string_view(n.suffix().tail));
+			combine(s, n.suffix().prefix);
+			s.push(n.suffix().tail);
 		}
 	}
 
-	size_t operator()(std::string_view sv) const noexcept {
-		size_t h = FNV_OFFSET_BASIS;
-		combine(h, sv);
-		return h;
+	size_t operator()(std::string_view sv) const {
+		Stream s;
+		s.push(sv);
+		return s.finish();
 	}
 
-	size_t operator()(IdString t) const noexcept {
-		size_t h = FNV_OFFSET_BASIS;
-		combine(h, t);
-		return h;
+	size_t operator()(IdString t) const {
+		Stream s;
+		combine(s, t);
+		return s.finish();
 	}
 };
 
