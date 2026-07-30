@@ -386,7 +386,6 @@ struct RenamePass : public Pass {
 			break;
 		}
 
-		TwineSearch search(&design->twines);
 		if (flag_src)
 		{
 			extra_args(args, argidx, design);
@@ -454,27 +453,27 @@ struct RenamePass : public Pass {
 				dict<RTLIL::Wire *, IdString> new_wire_names;
 				dict<RTLIL::Cell *, IdString> new_cell_names;
 
+				pool<std::string> taken_wire_names, taken_cell_names;
+				for (auto wire : module->wires())
+					taken_wire_names.insert(wire->name.str());
+				for (auto cell : module->cells())
+					taken_cell_names.insert(cell->name.str());
+
+				auto next_free_name = [&](const pool<std::string> &taken) {
+					std::string buf;
+					do {
+						buf = stringf("\\%s%d%s", pattern_prefix, counter++, pattern_suffix);
+					} while (taken.count(buf));
+					return buf;
+				};
+
 				for (auto wire : module->selected_wires())
-					if (wire->name[0] == '$') {
-						std::string buf;
-						IdString buf_ref;
-						do {
-							buf = stringf("\\%s%d%s", pattern_prefix, counter++, pattern_suffix);
-							buf_ref = search.find(buf);
-						} while (buf_ref != Twine::Null && module->wire(buf_ref) != nullptr);
-						new_wire_names[wire] = module->design->twines.add(std::move(buf));
-					}
+					if (wire->name[0] == '$')
+						new_wire_names[wire] = module->design->twines.add(next_free_name(taken_wire_names));
 
 				for (auto cell : module->selected_cells())
-					if (cell->name[0] == '$') {
-						std::string buf;
-						IdString buf_ref;
-						do {
-							buf = stringf("\\%s%d%s", pattern_prefix, counter++, pattern_suffix);
-							buf_ref = search.find(buf);
-						} while (buf_ref != Twine::Null && module->cell(buf_ref) != nullptr);
-						new_cell_names[cell] = module->design->twines.add(std::move(buf));
-					}
+					if (cell->name[0] == '$')
+						new_cell_names[cell] = module->design->twines.add(next_free_name(taken_cell_names));
 
 				for (auto &it : new_wire_names)
 					module->rename(it.first, it.second);
