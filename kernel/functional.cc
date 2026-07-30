@@ -120,8 +120,8 @@ struct PrintVisitor : DefaultVisitor<std::string> {
 	std::string zero_extend(Node, Node a, int out_width) override { return "zero_extend(" + np(a) + ", " + std::to_string(out_width) + ")"; }
 	std::string sign_extend(Node, Node a, int out_width) override { return "sign_extend(" + np(a) + ", " + std::to_string(out_width) + ")"; }
 	std::string constant(Node, RTLIL::Const const& value) override { return "constant(" + value.as_string() + ")"; }
-	std::string input(Node self, IdString name, IdString kind) override { return "input(" + self.design->twines.unescaped_str(name) + ", " + self.design->twines.unescaped_str(kind) + ")"; }
-	std::string state(Node self, IdString name, IdString kind) override { return "state(" + self.design->twines.unescaped_str(name) + ", " + self.design->twines.unescaped_str(kind) + ")"; }
+	std::string input(Node self, IdString name, IdString kind) override { return "input(" + self.design->twines.str(name) + ", " + self.design->twines.str(kind) + ")"; }
+	std::string state(Node self, IdString name, IdString kind) override { return "state(" + self.design->twines.str(name) + ", " + self.design->twines.str(kind) + ")"; }
 	std::string default_handler(Node self) override {
 		std::string ret = fn_to_string(self.fn());
 		ret += "(";

@@ -114,7 +114,7 @@ struct BoxDerivePass : Pass {
 							log_error("Derived module %s cannot be renamed to private name %s.\n",
 									  derived, RTLIL::unescape_id(new_name));
 						derived->attributes.erase(naming_attr_ref);
-						d->rename(derived, d->twines.add(std::move(new_name)));
+						d->rename(derived, std::move(new_name));
 					}
 
 					done[index] = derived;

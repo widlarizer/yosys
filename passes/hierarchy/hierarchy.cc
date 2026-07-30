@@ -124,7 +124,7 @@ void generate(RTLIL::Design *design, const std::vector<std::string> &celltypes, 
 		mod->attributes[ID::blackbox] = RTLIL::Const(1);
 
 		for (auto &decl : ports) {
-			RTLIL::Wire *wire = mod->addWire(design->twines.add(std::string{decl.portname}), portwidths.at(decl.portname));
+			RTLIL::Wire *wire = mod->addWire(decl.portname, portwidths.at(decl.portname));
 			wire->port_id = decl.index;
 			wire->port_input = decl.input;
 			wire->port_output = decl.output;
@@ -235,7 +235,7 @@ struct IFExpander
 	                  const RTLIL::SigSpec &conn_signals)
 	{
 		// Check if the connected wire is a potential interface in the parent module
-		std::string interface_name_str = conn_signals[0].wire->name.unescape();
+		std::string interface_name_str = conn_signals[0].wire->name.str();
 		// Strip the prefix '$dummywireforinterface' from the dummy wire to get the name
 		interface_name_str.replace(0,23,"");
 		interface_name_str = "\\" + interface_name_str;
@@ -270,14 +270,14 @@ struct IFExpander
 		// Go over all wires in interface, and add replacements to lists.
 		std::string conn_name_str(design.twines.str(conn_name));
 		for (auto mod_wire : mod_replace_ports->wires()) {
-			std::string member = design.twines.unescaped_str(mod_wire->name.ref());
+			std::string member = mod_wire->name.unescape();
 			std::string signal_name1 = conn_name_str + "." + member;
 			std::string signal_name2 = interface_name_str + "." + member;
 			connections_to_add.push_back(AST::intern_hier_name(&design, signal_name1));
 			IdString signal_name2_ref = AST::intern_hier_name(&design, signal_name2);
 			if(module.wire(signal_name2_ref) == nullptr) {
 				log_error("Could not find signal '%s' in '%s'\n",
-					  signal_name2.c_str(), module.name.str().data());
+					  signal_name2.c_str(), module.name.unescape());
 			}
 			else {
 				RTLIL::Wire *wire_in_parent = module.wire(signal_name2_ref);
@@ -307,7 +307,7 @@ struct IFExpander
 			conn_signals.size() != 1 ||
 			conn_signals[0].wire == nullptr ||
 			conn_signals[0].wire->get_bool_attribute(ID::is_interface) == false ||
-			conn_signals[0].wire->name.unescape().find("$dummywireforinterface") != 0
+			conn_signals[0].wire->name.str().find("$dummywireforinterface") != 0
 		)
 			return;
 
@@ -326,9 +326,9 @@ struct IFExpander
 			 * parent and child).
 			 */
 			log_error("Unable to connect `%s' to submodule `%s' with positional interface argument `%s'!\n",
-				module.name.str().data(),
-				submodule.name.str().data(),
-				conn_signals[0].wire->name.unescape().substr(23)
+				module.name.unescape(),
+				submodule.name.unescape(),
+				conn_signals[0].wire->name.str().substr(23)
 			);
 		} else {
 			// Lookup connection by name
@@ -446,7 +446,7 @@ void check_cell_connections(const RTLIL::Module &module, RTLIL::Cell &cell, RTLI
 			log_error("Module `%s' referenced in module `%s' in cell `%s' "
 			          "does not have a port named '%s'.\n",
 			          cell.type.unescape(), &module, &cell,
-			          module.design->twines.str(conn.first).data());
+			          module.design->twines.unescaped_str(conn.first).data());
 		}
 	}
 	for (auto &param : cell.parameters) {
@@ -629,12 +629,12 @@ bool expand_module(RTLIL::Design *design, RTLIL::Module *module, bool flag_check
 					}
 			}
 			if (mod->wire(portname) == nullptr)
-				log_error("Array cell `%s.%s' connects to unknown port `%s'.\n", module, cell, module->design->twines.str(conn.first).data());
+				log_error("Array cell `%s.%s' connects to unknown port `%s'.\n", module, cell, module->design->twines.unescaped_str(conn.first).data());
 			int port_size = mod->wire(portname)->width;
 			if (conn_size == port_size || conn_size == 0)
 				continue;
 			if (conn_size != port_size*num)
-				log_error("Array cell `%s.%s' has invalid port vs. signal size for port `%s'.\n", module, cell, module->design->twines.str(conn.first).data());
+				log_error("Array cell `%s.%s' has invalid port vs. signal size for port `%s'.\n", module, cell, module->design->twines.unescaped_str(conn.first).data());
 			conn.second = conn.second.extract(port_size*idx, port_size);
 		}
 	}
@@ -1545,7 +1545,7 @@ struct HierarchyPass : public Pass {
 					bool resize_widths = !keep_portwidths && GetSize(w) != GetSize(conn.second);
 					if (resize_widths && verific_mod && boxed_params)
 						log_debug("Ignoring width mismatch on %s.%s.%s from verific, is port width parametrizable?\n",
-								module, cell, design->twines.str(conn.first).data()
+								module, cell, design->twines.unescaped_str(conn.first).data()
 						);
 					else if (resize_widths) {
 						if (GetSize(w) < GetSize(conn.second))

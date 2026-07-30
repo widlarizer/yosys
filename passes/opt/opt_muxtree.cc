@@ -229,7 +229,7 @@ struct OptMuxtreeWorker
 	OptMuxtreeWorker(RTLIL::Design *design, RTLIL::Module *module) :
 			design(design), module(module), assign_map(module), removed_count(0)
 	{
-		log("Running muxtree optimizer on module %s..\n", module->name.str().c_str());
+		log("Running muxtree optimizer on module %s..\n", module->name);
 
 		log("  Creating internal representation of mux trees.\n");
 
@@ -522,7 +522,7 @@ struct OptMuxtreeWorker
 		}
 
 		if (did_something) {
-			log("      Replacing known input bits on port %s of cell %s: %s -> %s\n", design->twines.str(portname).c_str(),
+			log("      Replacing known input bits on port %s of cell %s: %s -> %s\n", design->twines.unescaped_str(portname).c_str(),
 					muxinfo.cell, log_signal(muxinfo.cell->getPort(portname)), log_signal(sig));
 			muxinfo.cell->setPort(portname, sig);
 		}

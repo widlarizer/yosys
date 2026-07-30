@@ -119,7 +119,7 @@ public:
 	std::string compare_memories(const RTLIL::Memory *a, const RTLIL::Memory *b)
 	{
 		if (a->name != b->name)
-			return "name mismatch: " + a->name.str() + " != " + b->name.str();
+			return "name mismatch: " + a->name.unescape() + " != " + b->name.unescape();
 		if (a->width != b->width)
 			return "width mismatch: " + std::to_string(a->width) + " != " + std::to_string(b->width);
 		if (a->start_offset != b->start_offset)
@@ -152,13 +152,13 @@ public:
 
 		for (const auto &it : a->connections()) {
 			if (b->connections().count(it.first) == 0)
-				return "connection mismatch: missing connection " + a->module->design->twines.str(it.first) + " in second design";
+				return "connection mismatch: missing connection " + a->module->design->twines.unescaped_str(it.first) + " in second design";
 			if (!compare_sigspec(it.second, b->connections().at(it.first)))
-				return "connection " + a->module->design->twines.str(it.first) + " mismatch: " + log_signal(it.second) + " != " + log_signal(b->connections().at(it.first));
+				return "connection " + a->module->design->twines.unescaped_str(it.first) + " mismatch: " + log_signal(it.second) + " != " + log_signal(b->connections().at(it.first));
 		}
 		for (const auto &it : b->connections())
 			if (a->connections().count(it.first) == 0)
-				return "connection mismatch: missing connection " + a->module->design->twines.str(it.first) + " in first design";
+				return "connection mismatch: missing connection " + a->module->design->twines.unescaped_str(it.first) + " in first design";
 
 		return "";
 	}
@@ -272,7 +272,7 @@ public:
 
 	std::string compare_processes(const RTLIL::Process *a, const RTLIL::Process *b)
 	{
-		if (a->name != b->name) return "name mismatch: " + a->name.str() + " != " + b->name.str();
+		if (a->name != b->name) return "name mismatch: " + a->name.unescape() + " != " + b->name.unescape();
 		if (std::string mismatch = compare_attributes(a, b); !mismatch.empty())
 			return mismatch;
 		if (std::string mismatch = compare_case_rules(&a->root_case, &b->root_case); !mismatch.empty())

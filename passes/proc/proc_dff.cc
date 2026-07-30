@@ -108,7 +108,7 @@ void gen_aldff(RTLIL::Module *mod, RTLIL::SigSpec sig_in, RTLIL::SigSpec sig_set
 	std::stringstream sstr;
 	sstr << "$procdff$" << (autoidx++);
 
-	RTLIL::Cell *cell = mod->addCell(mod->design->twines.add(std::string{sstr.str()}), ID($aldff));
+	RTLIL::Cell *cell = mod->addCell(sstr.str(), ID($aldff));
 	cell->attributes = proc->attributes;
 	transfer_wire_sources(sig_out, cell);
 	cell->module->design->merge_src(cell, proc);
@@ -132,7 +132,7 @@ void gen_dff(RTLIL::Module *mod, RTLIL::SigSpec sig_in, RTLIL::Const val_rst, RT
 	std::stringstream sstr;
 	sstr << "$procdff$" << (autoidx++);
 
-	RTLIL::Cell *cell = mod->addCell(mod->design->twines.add(std::string{sstr.str()}), clk.empty() ? ID($ff) : arst ? ID($adff) : ID($dff));
+	RTLIL::Cell *cell = mod->addCell(sstr.str(), clk.empty() ? ID($ff) : arst ? ID($adff) : ID($dff));
 	cell->attributes = proc->attributes;
 	transfer_wire_sources(sig_out, cell);
 	cell->module->design->merge_src(cell, proc);

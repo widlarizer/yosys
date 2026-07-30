@@ -373,17 +373,17 @@ struct ClockgatePass : public Pass {
 
 				auto& twines = module->design->twines;
 				Cell* icg = module->addCell(NEW_ID, twines.add(std::string{matching_icg_desc->name}));
-				icg->setPort(twines.add(std::string{matching_icg_desc->ce_pin}), clk.ce_bit);
-				icg->setPort(twines.add(std::string{matching_icg_desc->clk_in_pin}), clk.clk_bit);
+				icg->setPort(matching_icg_desc->ce_pin, clk.ce_bit);
+				icg->setPort(matching_icg_desc->clk_in_pin, clk.clk_bit);
 				gclk.new_net = module->addWire(NEW_ID);
-				icg->setPort(twines.add(std::string{matching_icg_desc->clk_out_pin}), gclk.new_net);
+				icg->setPort(matching_icg_desc->clk_out_pin, gclk.new_net);
 				// Tie low DFT ports like scan chain enable
 				for (auto port : matching_icg_desc->tie_lo_pins)
-					icg->setPort(twines.add(std::string{port}), Const(0, 1));
+					icg->setPort(port, Const(0, 1));
 				// Fix CE polarity if needed
 				if (!clk.pol_ce) {
 					SigBit ce_fixed_pol = module->NotGate(NEW_ID, clk.ce_bit);
-					icg->setPort(twines.add(std::string{matching_icg_desc->ce_pin}), ce_fixed_pol);
+					icg->setPort(matching_icg_desc->ce_pin, ce_fixed_pol);
 				}
 			}
 

@@ -214,7 +214,7 @@ AigerReader::AigerReader(RTLIL::Design *design, std::istream &f, IdString module
 	module->design = design;
 	module->name = module_name;
 	if (design->module(module->name))
-		log_error("Duplicate definition of module %s!\n", module->name.str().c_str());
+		log_error("Duplicate definition of module %s!\n", module->name.unescape().c_str());
 }
 
 void AigerReader::parse_aiger()
@@ -714,7 +714,7 @@ void AigerReader::parse_aiger_ascii()
 		RTLIL::Wire *o_wire = createWireIfNotExists(module, l1);
 		RTLIL::Wire *i1_wire = createWireIfNotExists(module, l2);
 		RTLIL::Wire *i2_wire = createWireIfNotExists(module, l3);
-		module->addAndGate(stringf("$and%s", o_wire->name.unescape().c_str()), i1_wire, i2_wire, o_wire);
+		module->addAndGate("$and" + o_wire->name.str(), i1_wire, i2_wire, o_wire);
 	}
 }
 
@@ -839,7 +839,7 @@ void AigerReader::parse_aiger_binary()
 		RTLIL::Wire *o_wire = createWireIfNotExists(module, l1);
 		RTLIL::Wire *i1_wire = createWireIfNotExists(module, l2);
 		RTLIL::Wire *i2_wire = createWireIfNotExists(module, l3);
-		module->addAndGate(stringf("$and%s", o_wire->name.unescape().c_str()), i1_wire, i2_wire, o_wire);
+		module->addAndGate("$and" + o_wire->name.str(), i1_wire, i2_wire, o_wire);
 	}
 }
 

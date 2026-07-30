@@ -226,7 +226,7 @@ struct CheckPass : public Pass {
 						for (auto bit : sigmap(action.lhs))
 							wire_drivers[bit].push_back(
 								stringf("action %s <= %s (case rule) in process %s",
-										log_signal(action.lhs), log_signal(action.rhs), module->design->twines.str(proc_it.first).c_str()));
+										log_signal(action.lhs), log_signal(action.rhs), module->design->twines.unescaped_str(proc_it.first).c_str()));
 
 						for (auto bit : sigmap(action.rhs))
 							if (bit.wire) used_wires.insert(bit);
@@ -247,7 +247,7 @@ struct CheckPass : public Pass {
 						for (auto bit : sigmap(action.lhs))
 							wire_drivers[bit].push_back(
 								stringf("action %s <= %s (sync rule) in process %s",
-										log_signal(action.lhs), log_signal(action.rhs), module->design->twines.str(proc_it.first).c_str()));
+										log_signal(action.lhs), log_signal(action.rhs), module->design->twines.unescaped_str(proc_it.first).c_str()));
 						for (auto bit : sigmap(action.rhs))
 							if (bit.wire) used_wires.insert(bit);
 					}
@@ -403,7 +403,7 @@ struct CheckPass : public Pass {
 						if (output && !input && bit.wire)
 						wire_drivers_count[bit]++;
 						if (output && (bit.wire || !input))
-							wire_drivers[bit].push_back(stringf("port %s[%d] of cell %s (%s)", cell->module->design->twines.str(conn.first).c_str(), i,
+							wire_drivers[bit].push_back(stringf("port %s[%d] of cell %s (%s)", cell->module->design->twines.unescaped_str(conn.first).c_str(), i,
 																cell, cell->type.unescape()));
 						if (output)
 							driver_cells[bit] = cell;
@@ -509,8 +509,8 @@ struct CheckPass : public Pass {
 							SigBit edge_to = sigmap(cell->getPort(to_port))[to_bit];
 
 							if (edge_from == from && edge_to == to && nhits++ < HITS_LIMIT)
-								message += stringf("      %s[%d] --> %s[%d]\n", cell->module->design->twines.str(from_port).c_str(), from_bit,
-												   cell->module->design->twines.str(to_port).c_str(), to_bit);
+								message += stringf("      %s[%d] --> %s[%d]\n", cell->module->design->twines.unescaped_str(from_port).c_str(), from_bit,
+												   cell->module->design->twines.unescaped_str(to_port).c_str(), to_bit);
 							if (nhits == HITS_LIMIT)
 								message += "      ...\n";
 						}
@@ -528,7 +528,7 @@ struct CheckPass : public Pass {
 						driver_src = stringf(" source: %s", src_attr);
 					}
 
-					message += stringf("    cell %s (%s)%s\n", driver, design->twines.unescaped_str(driver->type), driver_src);
+					message += stringf("    cell %s (%s)%s\n", driver, driver->type.unescape(), driver_src);
 
 					if (!coarsened_cells.count(driver)) {
 						MatchingEdgePrinter printer(message, sigmap, prev, bit);

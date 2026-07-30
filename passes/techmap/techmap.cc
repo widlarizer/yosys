@@ -222,10 +222,10 @@ struct TechmapWorker
 		// successive merges share substructure.
 		const RTLIL::Cell *src_cell = cell;
 
-		orig_cell_name = cell->name.unescape();
+		orig_cell_name = cell->name.str();
 		for (auto tpl_cell : tpl->cells())
 			if (tpl_cell->name.ends_with("_TECHMAP_REPLACE_")) {
-				module->rename(cell, module->design->twines.add(stringf("$techmap%d", autoidx++) + cell->name.unescape()));
+				module->rename(cell, stringf("$techmap%d", autoidx++) + cell->name.str());
 				break;
 			}
 
@@ -256,7 +256,7 @@ struct TechmapWorker
 				IdString posportref = module->design->twines.add(std::string{stringf("$%d", tpl_w->port_id)});
 				positional_ports.emplace(posportref, tpl_w->name.ref());
 
-				IdString tpl_portname = module->design->twines.find(tpl->design->twines.str(tpl_w->name.ref()));
+				IdString tpl_portname = module->design->twines.find(tpl_w->name.str());
 				if (tpl_w->get_bool_attribute(ID::techmap_autopurge) &&
 						(!cell->hasPort(tpl_portname) || !GetSize(cell->getPort(tpl_portname))) &&
 						(!cell->hasPort(posportref) || !GetSize(cell->getPort(posportref))))
@@ -273,7 +273,7 @@ struct TechmapWorker
 			RTLIL::Wire *w = module->wire(w_ref);
 			if (w != nullptr) {
 				temp_renamed_wires[w] = w->name.ref();
-				module->rename(w, module->design->twines.add(NEW_ID));
+				module->rename(w, NEW_ID);
 				w = nullptr;
 			}
 			if (w == nullptr) {
@@ -290,7 +290,7 @@ struct TechmapWorker
 			design->select(module, w);
 
 			if (const char *p = strstr(tpl_w->name.str().c_str(), "_TECHMAP_REPLACE_.")) {
-				Wire *replace_w = module->addWire(module->design->twines.add(std::string{std::string(orig_cell_name) + (p + strlen("_TECHMAP_REPLACE_"))}), tpl_w);
+				Wire *replace_w = module->addWire(std::string(orig_cell_name) + (p + strlen("_TECHMAP_REPLACE_")), tpl_w);
 				module->connect(replace_w, w);
 			}
 		}
@@ -584,7 +584,7 @@ struct TechmapWorker
 
 						if (extmapper_module == nullptr)
 						{
-							extmapper_module = extmapper_design->addModule(extmapper_design->twines.add(std::string{m_name}));
+							extmapper_module = extmapper_design->addModule(m_name);
 							RTLIL::Cell *extmapper_cell = extmapper_module->addCell(cell->type, cell);
 							// addCell(name, cell) already migrated src across
 							// explicit set_src_attribute round-trip here.
@@ -799,7 +799,7 @@ struct TechmapWorker
 								RTLIL::SigSpec value = elem.value;
 								if (value.is_fully_const() && value.as_bool()) {
 									log("Not using module `%s' from techmap as it contains a %s marker wire with non-zero value %s.\n",
-											map->twines.unescaped_str(derived_name).data(), map->twines.unescaped_str(elem.wire->name.ref()).data(), log_signal(value));
+											map->twines.unescaped_str(derived_name).data(), elem.wire->name.unescape().data(), log_signal(value));
 									techmap_do_cache[tpl] = false;
 								}
 							}
@@ -816,7 +816,7 @@ struct TechmapWorker
 							auto &data = it.second.front();
 
 							if (!data.value.is_fully_const())
-								log_error("Techmap yielded config wire %s with non-const value %s.\n", design->twines.unescaped_str(data.wire->name.ref()).data(), log_signal(data.value));
+								log_error("Techmap yielded config wire %s with non-const value %s.\n", data.wire->name.unescape().data(), log_signal(data.value));
 
 							techmap_wire_names.erase(it.first);
 
@@ -853,7 +853,7 @@ struct TechmapWorker
 										continue;
 
 									IdString port_name = wire->name;
-									tpl->rename(wire, tpl->design->twines.add(NEW_ID));
+									tpl->rename(wire, NEW_ID);
 
 									RTLIL::Wire *new_wire = tpl->addWire(port_name, wire);
 									wire->port_input = false;
@@ -932,7 +932,7 @@ struct TechmapWorker
 												+ final_id.substr(split_idx + 12);
 							while (tpl->wire(tpl->design->twines.add(std::string{new_name})) != nullptr)
 								new_name += "_";
-							tpl->rename(data.wire->name.ref(), tpl->design->twines.add(std::string{new_name}));
+							tpl->rename(data.wire->name.ref(), new_name);
 
 							keep_running = true;
 							break;
@@ -996,7 +996,7 @@ struct TechmapWorker
 
 					if (!design->module(design->twines.add(std::string{m_name})))
 					{
-						RTLIL::Module *m = design->addModule(design->twines.add(std::string{m_name}));
+						RTLIL::Module *m = design->addModule(m_name);
 						tpl->cloneInto(m);
 
 						module_queue.insert(m);

@@ -95,7 +95,7 @@ struct RecoverModuleWorker {
     {
         // Create a derivative of the module with whiteboxes flattened so we can
         // run eval and sat on it
-        flat = design->addModule(design->twines.add(NEW_ID));
+        flat = design->addModule(NEW_ID);
         mod->cloneInto(flat);
         Pass::call_on_module(design, flat, "flatten -wb");
         ce = new ConstEval(flat);

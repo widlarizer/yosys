@@ -79,7 +79,7 @@ struct EquivStructWorker
 						inputs_a.append(bits_a[i]);
 						inputs_b.append(bits_b[i]);
 						input_names.push_back(GetSize(bits_a) == 1 ? module->design->twines.str(port_a.first) :
-								stringf("%s[%d]", module->design->twines.str(port_a.first).c_str(), i));
+								stringf("%s[%d]", module->design->twines.unescaped_str(port_a.first).c_str(), i));
 					}
 		}
 

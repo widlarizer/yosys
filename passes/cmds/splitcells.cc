@@ -95,10 +95,10 @@ struct SplitcellsWorker
 				int slice_msb = slices[i]-1;
 				int slice_lsb = slices[i-1];
 
-				std::string s = cell->name.unescape() + (slice_msb == slice_lsb ?
+				std::string s = cell->name.str() + (slice_msb == slice_lsb ?
 						stringf("%c%d%c", format[0], slice_lsb, format[1]) :
 						stringf("%c%d%c%d%c", format[0], slice_msb, format[2], slice_lsb, format[1]));
-				IdString slice_name = module->uniquify(module->design->twines.add(std::move(s)));
+				IdString slice_name = module->uniquify(std::move(s));
 
 				Cell *slice = module->addCell(slice_name, cell);
 
@@ -163,10 +163,10 @@ struct SplitcellsWorker
 				int slice_lsb = slices[i-1];
 
 				TwinePool &twines = module->design->twines;
-				std::string s = cell->name.unescape() + (slice_msb == slice_lsb ?
+				std::string s = cell->name.str() + (slice_msb == slice_lsb ?
 						stringf("%c%d%c", format[0], slice_lsb, format[1]) :
 						stringf("%c%d%c%d%c", format[0], slice_msb, format[2], slice_lsb, format[1]));
-				IdString slice_name = module->uniquify(twines.add(std::move(s)));
+				IdString slice_name = module->uniquify(std::move(s));
 
 				Cell *slice = module->addCell(slice_name, cell);
 
@@ -188,7 +188,7 @@ struct SplitcellsWorker
 
 				slice->setParam(ID::WIDTH, GetSize(slice->getPort(ID::Q)));
 
-				log("  slice %d: %s => %s\n", i, twines.str(slice_name), log_signal(slice->getPort(ID::Q)));
+				log("  slice %d: %s => %s\n", i, twines.unescaped_str(slice_name), log_signal(slice->getPort(ID::Q)));
 			}
 
 			module->remove(cell);

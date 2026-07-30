@@ -1542,7 +1542,7 @@ struct Smt2Worker
 				hiername.push_back("\\" + token);
 		}
 		if (hiername.empty())
-			hiername.push_back(wire->name.unescape());
+			hiername.push_back(wire->name.str());
 
 		std::string line = "; yosys-smt2-witness ";
 		(json11::Json { json11::Json::object {
@@ -1887,7 +1887,7 @@ struct Smt2Backend : public Backend {
 			not_ready_yet:;
 			}
 			if (sorted_modules_idx == sorted_modules.size())
-				log_error("Cyclic dependency between modules found! Cycle includes module %s.\n", module_deps.begin()->first->design->twines.str(module_deps.begin()->first->name).c_str());
+				log_error("Cyclic dependency between modules found! Cycle includes module %s.\n", module_deps.begin()->first->design->twines.unescaped_str(module_deps.begin()->first->name).c_str());
 			while (sorted_modules_idx < sorted_modules.size())
 				module_deps.erase(sorted_modules.at(sorted_modules_idx++));
 		}

@@ -251,7 +251,7 @@ struct MemoryMapWorker
 				c->set_src_attribute(mem_src);
 				c->parameters[ID::WIDTH] = mem.width;
 
-				RTLIL::Wire *w_in = module->addWire(design->twines.add(genid(mem.memid, "", addr, "$d")), mem.width);
+				RTLIL::Wire *w_in = module->addWire(genid(mem.memid, "", addr, "$d"), mem.width);
 				data_reg_in[idx] = w_in;
 				c->setPort(ID::D, w_in);
 
@@ -259,7 +259,7 @@ struct MemoryMapWorker
 				if (module->wire(wire_search.find(w_out_name)) != nullptr)
 					w_out_name = genid(mem.memid, "", addr, "$q");
 
-				RTLIL::Wire *w_out = module->addWire(design->twines.add(std::string{w_out_name}), mem.width);
+				RTLIL::Wire *w_out = module->addWire(w_out_name, mem.width);
 
 				if (formal && mem.packed && mem.cell->name.isPublic()) {
 					auto hdlname = mem.cell->get_hdlname_attribute();
@@ -362,7 +362,7 @@ struct MemoryMapWorker
 
 						if (wr_bit != State::S1)
 						{
-							RTLIL::Cell *c = module->addCell(design->twines.add(genid(mem.memid, "$wren", addr, "", j, "", wr_offset)), ID($and));
+							RTLIL::Cell *c = module->addCell(genid(mem.memid, "$wren", addr, "", j, "", wr_offset), ID($and));
 							c->set_src_attribute(mem_src);
 							c->parameters[ID::A_SIGNED] = RTLIL::Const(0);
 							c->parameters[ID::B_SIGNED] = RTLIL::Const(0);
@@ -372,18 +372,18 @@ struct MemoryMapWorker
 							c->setPort(ID::A, w);
 							c->setPort(ID::B, wr_bit);
 
-							w = module->addWire(design->twines.add(genid(mem.memid, "$wren", addr, "", j, "", wr_offset, "$y")));
+							w = module->addWire(genid(mem.memid, "$wren", addr, "", j, "", wr_offset, "$y"));
 							c->setPort(ID::Y, RTLIL::SigSpec(w));
 						}
 
-						RTLIL::Cell *c = module->addCell(design->twines.add(genid(mem.memid, "$wrmux", addr, "", j, "", wr_offset)), ID($mux));
+						RTLIL::Cell *c = module->addCell(genid(mem.memid, "$wrmux", addr, "", j, "", wr_offset), ID($mux));
 						c->set_src_attribute(mem_src);
 						c->parameters[ID::WIDTH] = wr_width;
 						c->setPort(ID::A, sig.extract(wr_offset, wr_width));
 						c->setPort(ID::B, port.data.extract(wr_offset + sub * mem.width, wr_width));
 						c->setPort(ID::S, RTLIL::SigSpec(w));
 
-						w = module->addWire(design->twines.add(genid(mem.memid, "$wrmux", addr, "", j, "", wr_offset, "$y")), wr_width);
+						w = module->addWire(genid(mem.memid, "$wrmux", addr, "", j, "", wr_offset, "$y"), wr_width);
 						c->setPort(ID::Y, w);
 
 						sig.replace(wr_offset, w);

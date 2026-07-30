@@ -253,7 +253,7 @@ struct SimInstance
 
 		if (module->get_blackbox_attribute(true))
 			log_error("Cannot simulate blackbox module %s (instantiated at %s).\n",
-					  module->design->twines.unescaped_str(module->name.ref()), hiername().c_str());
+					  module->name.unescape(), hiername().c_str());
 
 		if (module->has_processes())
 			log_error("Found processes in simulation hierarchy (in module %s at %s). Run 'proc' first.\n",
@@ -278,9 +278,9 @@ struct SimInstance
 			}
 
 			if ((shared->fst) && !(shared->hide_internal && wire->name[0] == '$')) {
-				fstHandle id = shared->fst->getHandle(scope + "." + module->design->twines.unescaped_str(wire->name.ref()));
+				fstHandle id = shared->fst->getHandle(scope + "." + wire->name.unescape());
 				if (id==0 && wire->name.isPublic())
-					log_warning("Unable to find wire %s in input file.\n", (scope + "." + module->design->twines.unescaped_str(wire->name.ref())));
+					log_warning("Unable to find wire %s in input file.\n", (scope + "." + wire->name.unescape()));
 				fst_handles[wire] = id;
 			}
 
@@ -421,9 +421,9 @@ struct SimInstance
 	std::string hiername() const
 	{
 		if (instance != nullptr)
-			return parent->hiername() + "." + module->design->twines.unescaped_str(instance->name.ref());
+			return parent->hiername() + "." + instance->name.unescape();
 
-		return module->name.str();
+		return module->name.unescape();
 	}
 
 	vector<std::string> witness_full_path() const
@@ -1579,9 +1579,9 @@ struct SimWorker : SimShared
 
 		for (auto wire : topmod->wires()) {
 			if (wire->port_input) {
-				fstHandle id = fst->getHandle(scope + "." + topmod->design->twines.unescaped_str(wire->name.ref()));
+				fstHandle id = fst->getHandle(scope + "." + wire->name.unescape());
 				if (id==0)
-					log_error("Unable to find required '%s' signal in file\n",(scope + "." + topmod->design->twines.unescaped_str(wire->name.ref())));
+					log_error("Unable to find required '%s' signal in file\n",(scope + "." + wire->name.unescape()));
 				top->fst_inputs[wire] = id;
 			}
 		}
@@ -2152,13 +2152,13 @@ struct SimWorker : SimShared
 		json.entry("version", "Yosys sim summary");
 		json.entry("generator", yosys_maybe_version());
 		json.entry("steps", step);
-		json.entry("top", top->module->design->twines.unescaped_str(top->module->name.ref()));
+		json.entry("top", top->module->name.unescape());
 		json.name("assertions");
 		json.begin_array();
 		for (auto &assertion : triggered_assertions) {
 			json.begin_object();
 			json.entry("step", assertion.step);
-			json.entry("type", assertion.cell->module->design->twines.unescaped_str(assertion.cell->type));
+			json.entry("type", assertion.cell->type.unescape());
 			json.entry("path", assertion.instance->witness_full_path(assertion.cell));
 			auto src = assertion.cell->get_src_attribute();
 			if (!src.empty()) {
@@ -2253,9 +2253,9 @@ struct SimWorker : SimShared
 		std::map<Wire*,fstHandle> outputs;
 
 		for (auto wire : topmod->wires()) {
-			fstHandle id = fst->getHandle(scope + "." + topmod->design->twines.unescaped_str(wire->name.ref()));
+			fstHandle id = fst->getHandle(scope + "." + wire->name.unescape());
 			if (id==0 && (wire->port_input || wire->port_output))
-				log_error("Unable to find required '%s' signal in file\n",(scope + "." + topmod->design->twines.unescaped_str(wire->name.ref())));
+				log_error("Unable to find required '%s' signal in file\n",(scope + "." + wire->name.unescape()));
 			if (wire->port_input)
 				if (clocks.find(wire)==clocks.end())
 					inputs[wire] = id;

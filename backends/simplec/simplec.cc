@@ -720,7 +720,7 @@ struct SimplecWorker
 	{
 		create_module_struct(mod);
 
-		HierDirtyFlags work(mod, IdString(), nullptr, "state->", mod->name.str());
+		HierDirtyFlags work(mod, IdString(), nullptr, "state->", mod->name.unescape());
 
 		make_init_func(&work);
 		make_eval_func(&work);

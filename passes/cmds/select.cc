@@ -553,7 +553,7 @@ static int select_op_expand(RTLIL::Design *design, RTLIL::Selection &lhs, std::v
 				goto exclude_match;
 			for (auto &rule : rules) {
 				last_mode = rule.mode;
-				if (rule.cell_types.size() > 0 && rule.cell_types.count(twines.str(cell->type)) == 0)
+				if (rule.cell_types.size() > 0 && rule.cell_types.count(cell->type.str()) == 0)
 					continue;
 				if (rule.port_names.size() > 0 && rule.port_names.count(twines.str(conn.first)) == 0)
 					continue;
@@ -1565,7 +1565,7 @@ struct SelectPass : public Pass {
 					log("%s\n", mod);
 				if (!list_mod_mode)
 					for (auto it : mod->selected_members())
-						LOG_OBJECT("%s/%s\n", design->twines.unescaped_str(mod->name).c_str(), mod->design->twines.unescaped_str(it->meta_->name).c_str())
+						LOG_OBJECT("%s/%s\n", mod->name.unescape().c_str(), mod->design->twines.unescaped_str(it->meta_->name).c_str())
 			}
 			if (count_mode)
 			{
@@ -1803,7 +1803,7 @@ struct CdPass : public Pass {
 			return;
 		}
 
-		log_cmd_error("No such module `%s' found!\n", design->twines.str(modname));
+		log_cmd_error("No such module `%s' found!\n", design->twines.unescaped_str(modname));
 	}
 } CdPass;
 

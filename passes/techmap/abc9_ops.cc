@@ -334,7 +334,7 @@ void prep_bypass(RTLIL::Design *design)
 			// Create the bypass module in the user design, which has the same
 			//   interface as the derived module but with additional input
 			//   ports driven by the outputs of the replaced cell
-			auto bypass_module = design->addModule(design->twines.add(cell->type.str() + "_$abc9_byp"));
+			auto bypass_module = design->addModule(cell->type.str() + "_$abc9_byp");
 			for (auto port_name : inst_module->ports) {
 				auto port = inst_module->wire(port_name);
 				if (!port->port_output)
@@ -429,7 +429,7 @@ void prep_bypass(RTLIL::Design *design)
 					auto n = "$abc9byp$" + design->twines.str(conn.first);
 					auto w = map_module->addWire(n, GetSize(conn.second));
 					replace_cell->setPort(to_map(conn.first), w);
-					bypass_cell->setPort(map_design->twines.add(n), w);
+					bypass_cell->setPort(n, w);
 				}
 			}
 
@@ -437,7 +437,7 @@ void prep_bypass(RTLIL::Design *design)
 			// Lastly, create a new module in the unmap_design that shorts
 			//   out the bypass cell back to leave the replace cell behind
 			//   driving the outputs
-			auto unmap_module = unmap_design->addModule(unmap_design->twines.add(cell->type.str() + "_$abc9_byp"));
+			auto unmap_module = unmap_design->addModule(cell->type.str() + "_$abc9_byp");
 			for (auto port_name : inst_module->ports) {
 				auto w = unmap_module->addWire(to_unmap(port_name), inst_module->wire(port_name));
 				if (w->port_output) {
@@ -918,7 +918,7 @@ void prep_xaiger(RTLIL::Module *module, bool dff)
 							box_inputs++;
 							RTLIL::Wire *holes_wire = holes_module->wire(holes_design->twines.add(stringf("\\i%d", box_inputs)));
 							if (!holes_wire) {
-								holes_wire = holes_module->addWire(holes_design->twines.add(stringf("\\i%d", box_inputs)));
+								holes_wire = holes_module->addWire(stringf("\\i%d", box_inputs));
 								holes_wire->port_input = true;
 								holes_wire->port_id = port_id++;
 								holes_module->ports.push_back(holes_wire->name);
@@ -1056,7 +1056,7 @@ void prep_box(RTLIL::Design *design)
 			}
 			log_assert(num_outputs == 1);
 
-			ss << design->twines.unescaped_str(module->name) << " " << r.first->second.as_int();
+			ss << module->name.unescape() << " " << r.first->second.as_int();
 			log_assert(module->get_bool_attribute(ID::whitebox));
 			ss << " " << "1";
 			ss << " " << num_inputs << " " << num_outputs << std::endl;
@@ -1071,7 +1071,7 @@ void prep_box(RTLIL::Design *design)
 					first = false;
 				else
 					ss << " ";
-				ss << design->twines.unescaped_str(wire->name.ref());
+				ss << wire->name.unescape();
 			}
 			ss << std::endl;
 
@@ -1145,7 +1145,7 @@ void prep_box(RTLIL::Design *design)
 						outputs.emplace_back(wire, i);
 			}
 
-			ss << design->twines.unescaped_str(module->name) << " " << module->attributes.at(ID::abc9_box_id).as_int();
+			ss << module->name.unescape() << " " << module->attributes.at(ID::abc9_box_id).as_int();
 			bool has_model = module->get_bool_attribute(ID::whitebox) || !module->get_bool_attribute(ID::blackbox);
 			ss << " " << (has_model ? "1" : "0");
 			ss << " " << GetSize(inputs) << " " << GetSize(outputs) << std::endl;
@@ -1158,9 +1158,9 @@ void prep_box(RTLIL::Design *design)
 				else
 					ss << " ";
 				if (GetSize(i.wire) == 1)
-					ss << design->twines.unescaped_str(i.wire->name.ref());
+					ss << i.wire->name.unescape();
 				else
-					ss << design->twines.unescaped_str(i.wire->name.ref()) << "[" << i.offset << "]";
+					ss << i.wire->name.unescape() << "[" << i.offset << "]";
 			}
 			ss << std::endl;
 
@@ -1184,9 +1184,9 @@ void prep_box(RTLIL::Design *design)
 				}
 				ss << " # ";
 				if (GetSize(o.wire) == 1)
-					ss << design->twines.unescaped_str(o.wire->name.ref());
+					ss << o.wire->name.unescape();
 				else
-					ss << design->twines.unescaped_str(o.wire->name.ref()) << "[" << o.offset << "]";
+					ss << o.wire->name.unescape() << "[" << o.offset << "]";
 				ss << std::endl;
 			}
 			ss << std::endl;

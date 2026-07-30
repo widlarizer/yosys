@@ -2,7 +2,6 @@
 #define YOSYS_TWINE_H
 
 #include "kernel/yosys_common.h"
-#include "kernel/hashlib.h"
 
 #include <cassert>
 

@@ -775,7 +775,7 @@ struct DftTagWorker {
 
 					int index = 0;
 					std::string tag_str = module->design->twines.unescaped_str(tag);
-					auto name = module->uniquify(module->design->twines.add(stringf("%s:%s", wire->name, tag_str)), index);
+					auto name = module->uniquify(stringf("%s:%s", wire->name, tag_str), index);
 					auto hdlname = wire->get_hdlname_attribute();
 
 					if (!hdlname.empty())

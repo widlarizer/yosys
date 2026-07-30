@@ -892,7 +892,7 @@ struct ExtractCounterPass : public Pass {
 			for(auto cpair : cells_to_rename)
 			{
 				//log("Renaming cell %s to %s\n", cpair.first, cpair.second);
-				module->rename(cpair.first, module->design->twines.add(std::string{cpair.second}));
+				module->rename(cpair.first, cpair.second);
 			}
 		}
 

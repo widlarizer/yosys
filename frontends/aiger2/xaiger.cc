@@ -280,7 +280,7 @@ struct Xaiger2Frontend : public Frontend {
 						cell.ins.push_back(design->twines.add(std::string{read_idstring(*f)}));
 					log_debug("M: Cell %s (out %s, ins", design->twines.str(cell.type).c_str(), design->twines.unescaped_str(cell.out));
 					for (auto in : cell.ins)
-						log_debug(" %s", design->twines.str(in).c_str());
+						log_debug(" %s", design->twines.unescaped_str(in).c_str());
 					log_debug(")\n");
 				}
 

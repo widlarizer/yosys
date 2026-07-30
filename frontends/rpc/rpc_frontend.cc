@@ -213,7 +213,7 @@ struct RpcModule : RTLIL::Module {
 			for (auto module : derived_design->modules_) {
 				std::string mangled_name = name_mangling[derived_design->twines.str(module.first)];
 
-				log("Importing `%s' as `%s'.\n", derived_design->twines.str(module.first), mangled_name);
+				log("Importing `%s' as `%s'.\n", derived_design->twines.unescaped_str(module.first), mangled_name);
 
 				IdString original_name = module.first;
 				RTLIL::Module *t = module.second->clone(design, design->twines.add(mangled_name));

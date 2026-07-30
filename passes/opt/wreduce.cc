@@ -269,7 +269,7 @@ struct WreduceWorker
 			log("Removed top %d bits (of %d) from port %c of cell %s.%s (%s).\n",
 					bits_removed, GetSize(sig) + bits_removed, port, module, cell, cell->type.unescape());
 			// SigSpec sig = mi.sigmap(cell->getPort(twines.add(std::string{stringf("\\%c", port)})));
-			cell->setPort(twines.add(std::string{stringf("\\%c", port)}), sig);
+			cell->setPort(stringf("\\%c", port), sig);
 			did_something = true;
 		}
 	}

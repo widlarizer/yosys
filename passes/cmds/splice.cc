@@ -232,7 +232,7 @@ struct SpliceWorker
 		for (auto &it : rework_wires)
 		{
 			RTLIL::IdString orig_name = it.first->name;
-			module->rename(it.first, design->twines.add(NEW_ID));
+			module->rename(it.first, NEW_ID);
 
 			RTLIL::Wire *new_port = module->addWire(orig_name, it.first);
 			it.first->port_id = 0;

@@ -2091,7 +2091,7 @@ void MemMapping::emit(const MemConfig &cfg) {
 	for (int rp = 0; rp < cfg.repl_port; rp++) {
 		std::vector<Cell *> cells;
 		for (int rd = 0; rd < cfg.repl_d; rd++) {
-			Cell *cell = mem.module->addCell(mem.module->design->twines.add(stringf("%s.%d.%d", mem.module->design->twines.str(mem.memid), rp, rd)), mem.module->design->twines.add(std::string(cfg.def->id)));
+			Cell *cell = mem.module->addCell(stringf("%s.%d.%d", mem.module->design->twines.str(mem.memid), rp, rd), mem.module->design->twines.add(std::string(cfg.def->id)));
 			if (cfg.def->width_mode == WidthMode::Global || opts.force_params)
 				cell->setParam(ID::WIDTH, cfg.def->dbits[cfg.base_width_log2]);
 			if (opts.force_params)

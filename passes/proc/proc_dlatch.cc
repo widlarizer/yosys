@@ -437,7 +437,7 @@ void proc_dlatch(proc_dlatch_db_t &db, RTLIL::Process *proc, LatchPolicy policy)
 
 		if (proc->get_bool_attribute(ID::always_ff))
 			log_error("Found non edge/level sensitive event in always_ff process `%s.%s'.\n",
-					db.module->design->twines.str(db.module->name).c_str(), proc->name.str().c_str());
+					db.module->name, proc->name);
 
 		for (auto ss : sr->actions)
 		{
@@ -497,14 +497,14 @@ void proc_dlatch(proc_dlatch_db_t &db, RTLIL::Process *proc, LatchPolicy policy)
 
 		if (proc->get_bool_attribute(ID::always_latch) && !is_nosync)
 			log_error("No latch inferred for signal `%s.%s' from always_latch process `%s.%s'.\n",
-					db.module->design->twines.str(db.module->name).c_str(), log_signal(lhs), db.module->design->twines.str(db.module->name).c_str(), proc->name.str().c_str());
+					db.module->name, log_signal(lhs), db.module->name, proc->name);
 		else if (!is_nosync)
 			log("No latch inferred for signal `%s.%s' from process `%s.%s'.\n",
-					db.module->design->twines.str(db.module->name).c_str(), log_signal(lhs), db.module->design->twines.str(db.module->name).c_str(), proc->name.str().c_str());
+					db.module->name, log_signal(lhs), db.module->name, proc->name);
 		for (auto &bit : lhs) {
 			State val = db.initvals(bit);
 			if (db.initvals(bit) != State::Sx) {
-				log("Removing init bit %s for non-memory siginal `%s.%s` in process `%s.%s`.\n", log_signal(val), db.module->design->twines.str(db.module->name), log_signal(bit), db.module->design->twines.str(db.module->name), proc->name.str());
+				log("Removing init bit %s for non-memory siginal `%s.%s` in process `%s.%s`.\n", log_signal(val), db.module->name, log_signal(bit), db.module->name, proc->name);
 			}
 			db.initvals.remove_init(bit);
 		}
@@ -550,16 +550,16 @@ void proc_dlatch(proc_dlatch_db_t &db, RTLIL::Process *proc, LatchPolicy policy)
 
 			if (proc->get_bool_attribute(ID::always_comb))
 				log_error("Latch inferred for signal `%s.%s' from always_comb process `%s.%s'.\n",
-						db.module->design->twines.str(db.module->name).c_str(), log_signal(lhs), db.module->design->twines.str(db.module->name).c_str(), proc->name.str().c_str());
+						db.module->name, log_signal(lhs), db.module->name, proc->name);
 			else if (policy == POLICY_ERROR)
 				log_error("Latch inferred for signal `%s.%s' from process `%s.%s': %s\n",
-						db.module->design->twines.str(db.module->name).c_str(), log_signal(lhs), db.module->design->twines.str(db.module->name).c_str(), proc->name.str().c_str(), cell);
+						db.module->name, log_signal(lhs), db.module->name, proc->name, cell);
 			else if (policy == POLICY_WARN)
 				log_warning("Latch inferred for signal `%s.%s' from process `%s.%s': %s\n",
-						db.module->design->twines.str(db.module->name).c_str(), log_signal(lhs), db.module->design->twines.str(db.module->name).c_str(), proc->name.str().c_str(), cell);
+						db.module->name, log_signal(lhs), db.module->name, proc->name, cell);
 			else
 				log("Latch inferred for signal `%s.%s' from process `%s.%s': %s\n",
-						db.module->design->twines.str(db.module->name).c_str(), log_signal(lhs), db.module->design->twines.str(db.module->name).c_str(), proc->name.str().c_str(), cell);
+						db.module->name, log_signal(lhs), db.module->name, proc->name, cell);
 		}
 
 		offset += width;

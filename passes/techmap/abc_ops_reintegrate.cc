@@ -210,7 +210,7 @@ void reintegrate(RTLIL::Module *module, bool dff_mode, std::string map_filename)
 
 		RTLIL::Wire *wire = mapped_mod->wire(name);
 		if (wire)
-			mapped_mod->rename(wire, design->twines.add(RTLIL::escape_id(stringf("%s[%d]", design->twines.str(name).c_str(), 0))));
+			mapped_mod->rename(wire, RTLIL::escape_id(stringf("%s[%d]", design->twines.str(name).c_str(), 0)));
 
 		// Do not make ports with a mix of input/output into
 		// wide ports
@@ -254,10 +254,10 @@ void reintegrate(RTLIL::Module *module, bool dff_mode, std::string map_filename)
 
 	dict<std::string, RTLIL::Wire*> module_wire_by_name;
 	for (auto w : module->wires())
-		module_wire_by_name[design->twines.str(w->name.ref())] = w;
+		module_wire_by_name[w->name.str()] = w;
 	dict<std::string, RTLIL::Cell*> module_cell_by_name;
 	for (auto c : module->cells())
-		module_cell_by_name[design->twines.str(c->name.ref())] = c;
+		module_cell_by_name[c->name.str()] = c;
 
 	for (auto w : mapped_mod->wires()) {
 		auto nw = module->addWire(rn(design, w->name), GetSize(w));

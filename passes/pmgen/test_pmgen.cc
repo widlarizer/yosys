@@ -37,7 +37,7 @@ void reduce_chain(test_pmgen_pm &pm)
 	if (ud.longest_chain.empty())
 		return;
 
-	log("Found chain of length %d (%s):\n", GetSize(ud.longest_chain), pm.module->design->twines.unescaped_str(st.first->type));
+	log("Found chain of length %d (%s):\n", GetSize(ud.longest_chain), st.first->type.unescape());
 
 	SigSpec A;
 	SigSpec Y = ud.longest_chain.front().first->getPort(ID::Y);
@@ -66,7 +66,7 @@ void reduce_chain(test_pmgen_pm &pm)
 	else
 		log_abort();
 
-	log("    -> %s (%s)\n", c, pm.module->design->twines.unescaped_str(c->type));
+	log("    -> %s (%s)\n", c, c->type.unescape());
 }
 
 void reduce_tree(test_pmgen_pm &pm)
@@ -81,7 +81,7 @@ void reduce_tree(test_pmgen_pm &pm)
 	SigSpec Y = st.first->getPort(ID::Y);
 	pm.autoremove(st.first);
 
-	log("Found %s tree with %d leaves for %s (%s).\n", pm.module->design->twines.unescaped_str(st.first->type),
+	log("Found %s tree with %d leaves for %s (%s).\n", st.first->type.unescape(),
 			GetSize(A), log_signal(Y), st.first);
 
 	Cell *c;
@@ -95,7 +95,7 @@ void reduce_tree(test_pmgen_pm &pm)
 	else
 		log_abort();
 
-	log("    -> %s (%s)\n", c, pm.module->design->twines.unescaped_str(c->type));
+	log("    -> %s (%s)\n", c, c->type.unescape());
 }
 
 void opt_eqpmux(test_pmgen_pm &pm)
@@ -113,7 +113,7 @@ void opt_eqpmux(test_pmgen_pm &pm)
 
 	pm.autoremove(st.pmux);
 	Cell *c = pm.module->addMux(NEW_ID, NE, EQ, st.eq->getPort(ID::Y), Y);
-	log("    -> %s (%s)\n", c, pm.module->design->twines.unescaped_str(c->type));
+	log("    -> %s (%s)\n", c, c->type.unescape());
 }
 
 struct TestPmgenPass : public Pass {

@@ -115,7 +115,7 @@ struct SubmodWorker
 			}
 		}
 
-		RTLIL::Module *new_mod = design->addModule(design->twines.add(std::string{submod.full_name}));
+		RTLIL::Module *new_mod = design->addModule(submod.full_name);
 		int auto_name_counter = 1;
 
 		std::set<std::string> all_wire_names;
@@ -152,7 +152,7 @@ struct SubmodWorker
 			if (!flags.is_int_driven.is_fully_zero() && flags.is_ext_driven)
 				new_wire_port_input = true, new_wire_port_output = true;
 
-			std::string new_wire_name = wire->name.unescape();
+			std::string new_wire_name = wire->name.str();
 			if (new_wire_port_input || new_wire_port_output) {
 				if (new_wire_name[0] == '$')
 					while (1) {
@@ -167,7 +167,7 @@ struct SubmodWorker
 					new_wire_name = stringf("$submod%s", new_wire_name);
 			}
 
-			RTLIL::Wire *new_wire = new_mod->addWire(design->twines.add(std::string{new_wire_name}), wire->width);
+			RTLIL::Wire *new_wire = new_mod->addWire(new_wire_name, wire->width);
 			new_wire->port_input = new_wire_port_input;
 			new_wire->port_output = new_wire_port_output;
 			new_wire->start_offset = wire->start_offset;
@@ -220,7 +220,7 @@ struct SubmodWorker
 
 		if (!copy_mode) {
 			IdString submod_type = design->twines.add(std::string{submod.full_name});
-		RTLIL::Cell *new_cell = module->addCell(design->twines.add(std::string{submod.full_name}), submod_type);
+		RTLIL::Cell *new_cell = module->addCell(submod.full_name, submod_type);
 			for (auto &it : wire_flags)
 			{
 				RTLIL::SigSpec old_sig = sigmap(it.first);

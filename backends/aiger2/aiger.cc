@@ -561,7 +561,7 @@ struct Index {
 				if (!first)
 					ret += ".";
 				if (!cell)
-					ret += design->twines.str(minfo.module->name);
+					ret += design->twines.unescaped_str(minfo.module->name);
 				else
 					ret += cell->name.unescape();
 				first = false;
@@ -637,10 +637,10 @@ struct Index {
 					Wire *w = def->wire(portname);
 					if (!w)
 						log_error("Output port %s on instance %s of %s doesn't exist\n",
-								  design->twines.str(portname).c_str(), driver, def);
+								  design->twines.unescaped_str(portname).c_str(), driver, def);
 					if (bit.offset >= w->width)
 						log_error("Bit position %d of output port %s on instance %s of %s is out of range (port has width %d)\n",
-								  bit.offset, design->twines.str(portname).c_str(), driver, def, w->width);
+								  bit.offset, design->twines.unescaped_str(portname).c_str(), driver, def, w->width);
 					ret = visit(cursor, SigBit(w, bit.offset));
 				}
 				cursor.exit(*this);
@@ -656,7 +656,7 @@ struct Index {
 				IdString portname = bit.wire->name;
 				if (!instance->hasPort(portname))
 					log_error("Input port %s on instance %s of %s unconnected\n",
-							  design->twines.str(portname).c_str(), instance, instance->type);
+							  design->twines.unescaped_str(portname).c_str(), instance, instance->type);
 				auto &port = instance->getPort(portname);
 				if (bit.offset >= port.size())
 					log_error("Bit %d of input port %s on instance %s of %s unconnected\n",
@@ -1049,7 +1049,7 @@ struct XAigerWriter : AigerWriter {
 			} else if (!is_input && !inputs) {
 				for (auto &bit : conn.second) {
 					if (!bit.wire || (bit.wire->port_input && !bit.wire->port_output))
-						log_error("Bad connection %s/%s ~ %s\n", box, design->twines.str(conn.first).c_str(), log_signal(conn.second));
+						log_error("Bad connection %s/%s ~ %s\n", box, design->twines.unescaped_str(conn.first).c_str(), log_signal(conn.second));
 
 
 					ensure_pi(bit, cursor);

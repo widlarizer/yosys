@@ -91,7 +91,7 @@ void SynthPropWorker::run()
 		log_error("Module is not TOP module\n");
 
 	TrackingData tracing_data;
-	tracing(module, 0, tracing_data, design->twines.unescaped_str(module->name));
+	tracing(module, 0, tracing_data, module->name.unescape());
 
 	IdString port_ref = port_name;
 

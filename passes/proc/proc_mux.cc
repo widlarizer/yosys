@@ -216,7 +216,7 @@ struct MuxGenCtx {
 		std::stringstream sstr;
 		sstr << "$procmux$" << (autoidx++);
 
-		RTLIL::Wire *cmp_wire = mod->addWire(mod->design->twines.add(std::string{sstr.str() + "_CMP"}), 0);
+		RTLIL::Wire *cmp_wire = mod->addWire(sstr.str() + "_CMP", 0);
 		cmp_wire->transfer_src_attribute(sw);
 
 		for (auto comp : *compare)
@@ -240,7 +240,7 @@ struct MuxGenCtx {
 			else
 			{
 				// create compare cell
-				RTLIL::Cell *eq_cell = mod->addCell(mod->design->twines.add(std::string{stringf("%s_CMP%d", sstr.str(), cmp_wire->width)}), ifxmode ? ID($eqx) : ID($eq));
+				RTLIL::Cell *eq_cell = mod->addCell(stringf("%s_CMP%d", sstr.str(), cmp_wire->width), ifxmode ? ID($eqx) : ID($eq));
 				apply_attrs(eq_cell, sw, cs);
 				std::vector<SrcRef> eq_sources;
 				if (sw->signal_src != Twine::Null)
@@ -270,10 +270,10 @@ struct MuxGenCtx {
 		}
 		else
 		{
-			ctrl_wire = mod->addWire(mod->design->twines.add(std::string{sstr.str() + "_CTRL"}));
+			ctrl_wire = mod->addWire(sstr.str() + "_CTRL");
 
 			// reduce cmp vector to one logic signal
-			RTLIL::Cell *any_cell = mod->addCell(mod->design->twines.add(std::string{sstr.str() + "_ANY"}), ID($reduce_or));
+			RTLIL::Cell *any_cell = mod->addCell(sstr.str() + "_ANY", ID($reduce_or));
 			apply_attrs(any_cell, sw, cs);
 			if (cs->compare_src != Twine::Null)
 				any_cell->set_src_attribute(cs->compare_src);
@@ -306,10 +306,10 @@ struct MuxGenCtx {
 		log_assert(ctrl_sig.size() == 1);
 
 		// prepare multiplexer output signal
-		RTLIL::Wire *result_wire = mod->addWire(mod->design->twines.add(std::string{sstr.str() + "_Y"}), when_signal.size());
+		RTLIL::Wire *result_wire = mod->addWire(sstr.str() + "_Y", when_signal.size());
 
 		// create the multiplexer itself
-		RTLIL::Cell *mux_cell = mod->addCell(mod->design->twines.add(std::string{sstr.str()}), ID($mux));
+		RTLIL::Cell *mux_cell = mod->addCell(sstr.str(), ID($mux));
 
 		mux_cell->parameters[ID::WIDTH] = RTLIL::Const(when_signal.size());
 		mux_cell->setPort(ID::A, else_signal);

@@ -53,7 +53,7 @@ struct FmcombineWorker
 		SigSpec newsig;
 		for (auto chunk : sig.chunks()) {
 			if (chunk.wire != nullptr)
-				chunk.wire = module->wire(design->twines.add(std::string{chunk.wire->name.unescape() + suffix}));
+				chunk.wire = module->wire(design->twines.add(std::string{chunk.wire->name.str() + suffix}));
 			newsig.append(chunk);
 		}
 		return newsig;
@@ -61,7 +61,7 @@ struct FmcombineWorker
 
 	Cell *import_prim_cell(Cell *cell, const string &suffix)
 	{
-		Cell *c = module->addCell(cell->name.unescape() + suffix, cell->type);
+		Cell *c = module->addCell(cell->name.str() + suffix, cell->type);
 		c->parameters = cell->parameters;
 		c->attributes = cell->attributes;
 
@@ -82,13 +82,13 @@ struct FmcombineWorker
 		FmcombineWorker sub_worker(design, cell->type, opts);
 		sub_worker.generate();
 
-		Cell *c = module->addCell(cell->name.unescape() + "_combined", sub_worker.combined_type);
+		Cell *c = module->addCell(cell->name.str() + "_combined", sub_worker.combined_type);
 		// c->parameters = cell->parameters;
 		c->attributes = cell->attributes;
 
 		for (auto &conn : cell->connections()) {
-			c->setPort(design->twines.add(std::string{design->twines.str(conn.first) + "_gold"}), import_sig(conn.second, "_gold"));
-			c->setPort(design->twines.add(std::string{design->twines.str(conn.first) + "_gate"}), import_sig(conn.second, "_gate"));
+			c->setPort(design->twines.str(conn.first) + "_gold", import_sig(conn.second, "_gold"));
+			c->setPort(design->twines.str(conn.first) + "_gate", import_sig(conn.second, "_gate"));
 		}
 	}
 
@@ -103,8 +103,8 @@ struct FmcombineWorker
 		module = design->addModule(combined_type);
 
 		for (auto wire : original->wires()) {
-			module->addWire(wire->name.unescape() + "_gold", wire);
-			module->addWire(wire->name.unescape() + "_gate", wire);
+			module->addWire(wire->name.str() + "_gold", wire);
+			module->addWire(wire->name.str() + "_gate", wire);
 		}
 		module->fixup_ports();
 
@@ -372,11 +372,11 @@ struct FmcombinePass : public Pass {
 		log("Combining cells %s and %s in module %s into new cell %s.\n", gold_cell, gate_cell, module, cell);
 
 		for (auto &conn : gold_cell->connections())
-			cell->setPort(design->twines.add(std::string{design->twines.str(conn.first) + "_gold"}), conn.second);
+			cell->setPort(design->twines.str(conn.first) + "_gold", conn.second);
 		module->remove(gold_cell);
 
 		for (auto &conn : gate_cell->connections())
-			cell->setPort(design->twines.add(std::string{design->twines.str(conn.first) + "_gate"}), conn.second);
+			cell->setPort(design->twines.str(conn.first) + "_gate", conn.second);
 		module->remove(gate_cell);
 	}
 } FmcombinePass;

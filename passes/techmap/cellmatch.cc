@@ -274,7 +274,7 @@ struct CellmatchPass : Pass {
 							log("Module %s matches %s\n", m, target.module);
 							// Add target.module to map_design ("$cellmatch")
 							// as a techmap rule to match m and replace it with target.module
-							Module *map = map_design->addModule(map_design->twines.add(stringf("\\_60_%s_%s", m, target.module)));
+							Module *map = map_design->addModule(stringf("\\_60_%s_%s", m, target.module));
 							Cell *cell = map->addCell(ID::_TECHMAP_REPLACE_, map_design->twines.copy_from(target.module->design->twines, target.module->name));
 
 							map->attributes[ID(techmap_celltype)] = m->name.str();

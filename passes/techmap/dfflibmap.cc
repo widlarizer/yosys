@@ -562,7 +562,7 @@ static void dfflibmap(RTLIL::Design *design, RTLIL::Module *module)
 				sig = module->addWire(NEW_ID);
 			} else
 				log_abort();
-			new_cell->setPort(twines.add(std::string{"\\" + port.first}), sig);
+			new_cell->setPort("\\" + port.first, sig);
 		}
 
 		stats[stringf("%s cells to %s cells", ID::str(cell_type), new_cell->type.unescape())]++;

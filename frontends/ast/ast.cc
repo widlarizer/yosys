@@ -1730,7 +1730,7 @@ RTLIL::IdString AstModule::derive(RTLIL::Design *design, const dict<RTLIL::IdStr
 
 	bool has_interfaces = false;
 	for(auto &intf : interfaces) {
-		interf_info += design->twines.str(intf.second->name);
+		interf_info += design->twines.unescaped_str(intf.second->name);
 		has_interfaces = true;
 	}
 

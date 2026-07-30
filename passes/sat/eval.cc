@@ -270,14 +270,14 @@ struct VlogHammerReporter
 				}
 
 				if (module->wire(ID(y)) == nullptr)
-					log_error("No output wire (y) found in module %s!\n", design->twines.unescaped_str(module->name));
+					log_error("No output wire (y) found in module %s!\n", module->name.unescape());
 
 				RTLIL::SigSpec sig(module->wire(ID(y)));
 				RTLIL::SigSpec undef;
 
 				while (!ce.eval(sig, undef)) {
 					// log_error("Evaluation of y in module %s failed: sig=%s, undef=%s\n", module, log_signal(sig), log_signal(undef));
-					log_warning("Setting signal %s in module %s to undef.\n", log_signal(undef), design->twines.unescaped_str(module->name));
+					log_warning("Setting signal %s in module %s to undef.\n", log_signal(undef), module->name.unescape());
 					ce.set(undef, RTLIL::Const(RTLIL::State::Sx, undef.size()));
 				}
 
@@ -289,7 +289,7 @@ struct VlogHammerReporter
 					sat_check(module, recorded_set_vars, recorded_set_vals, sig, true);
 				} else if (rtl_sig.size() > 0) {
 					if (rtl_sig.size() != sig.size())
-						log_error("Output (y) has a different width in module %s compared to rtl!\n", design->twines.unescaped_str(module->name));
+						log_error("Output (y) has a different width in module %s compared to rtl!\n", module->name.unescape());
 					for (int i = 0; i < GetSize(sig); i++)
 						if (rtl_sig[i] == RTLIL::State::Sx)
 							sig[i] = RTLIL::State::Sx;
@@ -323,10 +323,10 @@ struct VlogHammerReporter
 			IdString esc_ref = esc_name;
 			for (auto mod : modules) {
 				if (mod->wire(esc_ref) == nullptr)
-					log_error("Can't find input %s in module %s!\n", name, design->twines.unescaped_str(mod->name));
+					log_error("Can't find input %s in module %s!\n", name, mod->name.unescape());
 				RTLIL::Wire *port = mod->wire(esc_ref);
 				if (!port->port_input || port->port_output)
-					log_error("Wire %s in module %s is not an input!\n", name, design->twines.unescaped_str(mod->name));
+					log_error("Wire %s in module %s is not an input!\n", name, mod->name.unescape());
 				if (width >= 0 && width != port->width)
 					log_error("Port %s has different sizes in the different modules!\n", name);
 				width = port->width;
@@ -450,7 +450,7 @@ struct EvalPass : public Pass {
 		for (auto mod : design->selected_modules()) {
 			if (module)
 				log_cmd_error("Only one module must be selected for the EVAL pass! (selected: %s and %s)\n",
-						module->name.unescape(), design->twines.unescaped_str(mod->name));
+						module->name.unescape(), mod->name.unescape());
 			module = mod;
 		}
 		if (module == NULL)

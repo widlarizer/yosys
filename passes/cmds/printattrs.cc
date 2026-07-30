@@ -87,7 +87,7 @@ struct PrintAttrsPass : public Pass {
 			}
 
 			for (auto wire : mod->selected_wires()) {
-				log("%s%s\n", get_indent_str(indent), design->twines.unescaped_str(wire->name.ref()));
+				log("%s%s\n", get_indent_str(indent), wire->name.unescape());
 				indent += 2;
 				log_src(design, wire, indent);
 				for (auto &it : wire->attributes)

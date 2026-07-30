@@ -877,8 +877,8 @@ std::string log_signal(DriveChunkWire const &chunk)
 
 std::string log_signal(DriveChunkPort const &chunk)
 {
-	std::string cell_id = chunk.cell->module->design->twines.str(chunk.cell->meta_->name);
-	std::string port_id = chunk.cell->module->design->twines.str(chunk.port);
+	std::string cell_id = chunk.cell->module->design->twines.unescaped_str(chunk.cell->meta_->name);
+	std::string port_id = chunk.cell->module->design->twines.unescaped_str(chunk.port);
 	if (chunk.is_whole())
 		return stringf("%s <%s>", cell_id, port_id);
 	if (chunk.width == 1)

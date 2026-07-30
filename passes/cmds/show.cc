@@ -442,7 +442,7 @@ struct ShowWorker
 				if (href && wire->has_attribute(ID::src) > 0)
 					src_href = stringf(", href=\"%s\" ", escape(wire->get_src_attribute()));
 				fprintf(f, "n%d [ shape=%s,%s label=\"%s\", %s%s];\n",
-						id2num(wire->name), shape.c_str(), is_borderless? " margin=0, width=0" : "",  findLabel(wire->name.unescape()),
+						id2num(wire->name), shape.c_str(), is_borderless? " margin=0, width=0" : "",  findLabel(wire->name.str()),
 						is_borderless
 						    ? "color=\"none\", fontcolor=\"black\""
 							: nextColor(RTLIL::SigSpec(wire), "color=\"black\", fontcolor=\"black\"").c_str(),
@@ -452,7 +452,7 @@ struct ShowWorker
 				else if (wire->port_output)
 					all_sinks.insert(stringf("n%d", id2num(wire->name)));
 			} else {
-				wires_on_demand[stringf("n%d", id2num(wire->name))] = wire->name.unescape();
+				wires_on_demand[stringf("n%d", id2num(wire->name))] = wire->name.str();
 			}
 		}
 
@@ -652,16 +652,16 @@ struct ShowWorker
 			module = mod;
 			if (design->selected_whole_module(module->name)) {
 				if (module->get_blackbox_attribute()) {
-						//log("Skipping blackbox module %s.\n", design->twines.unescaped_str(module->name));
+						//log("Skipping blackbox module %s.\n", module->name.unescape());
 					continue;
 				} else
 				if (module->cells().size() == 0 && module->connections().empty() && module->processes.empty()) {
-					log("Skipping empty module %s.\n", design->twines.unescaped_str(module->name));
+					log("Skipping empty module %s.\n", module->name.unescape());
 					continue;
 				} else
-					log("Dumping module %s to page %d.\n", design->twines.unescaped_str(module->name), ++page_counter);
+					log("Dumping module %s to page %d.\n", module->name.unescape(), ++page_counter);
 			} else
-				log("Dumping selected parts of module %s to page %d.\n", design->twines.unescaped_str(module->name), ++page_counter);
+				log("Dumping selected parts of module %s to page %d.\n", module->name.unescape(), ++page_counter);
 			handle_module();
 		}
 	}

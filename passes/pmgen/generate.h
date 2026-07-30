@@ -78,7 +78,7 @@ void generate_pattern(std::function<void(pm&,std::function<void()>)> run, const 
 	while (modcnt < maxmodcnt)
 	{
 		int submodcnt = 0, itercnt = 0, cellcnt = 0;
-		Module *mod = design->addModule(design->twines.add(NEW_ID));
+		Module *mod = design->addModule(NEW_ID);
 
 		while (modcnt < maxmodcnt && submodcnt < maxsubcnt && itercnt++ < 1000)
 		{
@@ -105,8 +105,8 @@ void generate_pattern(std::function<void(pm&,std::function<void()>)> run, const 
 				cellcnt = GetSize(mod->cells());
 
 				if (found_match) {
-					Module *m = design->addModule(design->twines.add(std::string{stringf("\\pmtest_%s_%s_%05d",
-							pmclass, pattern, modcnt++)}));
+					Module *m = design->addModule(stringf("\\pmtest_%s_%s_%05d",
+							pmclass, pattern, modcnt++));
 					log("Creating module %s with %d cells.\n", m, cellcnt);
 					mod->cloneInto(m);
 					pmtest_addports(m);
@@ -126,7 +126,7 @@ void generate_pattern(std::function<void(pm&,std::function<void()>)> run, const 
 		design->remove(mod);
 	}
 
-	Module *m = design->addModule(design->twines.add(std::string{stringf("\\pmtest_%s_%s", pmclass, pattern)}));
+	Module *m = design->addModule(stringf("\\pmtest_%s_%s", pmclass, pattern));
 	log("Creating module %s with %d cells.\n", m, GetSize(mods));
 	for (auto mod : mods) {
 		Cell *c = m->addCell(mod->name.ref(), mod->name.ref());

@@ -1014,7 +1014,7 @@ void AbcModuleState::prepare_module(RTLIL::Design *design, RTLIL::Module *module
 	run_abc.per_run_tempdir_name += proc_program_prefix() + "yosys-abc-XXXXXX";
 	run_abc.per_run_tempdir_name = make_temp_dir(run_abc.per_run_tempdir_name);
 	log_header(design, "Extracting gate netlist of module `%s' to `%s/input.blif'..\n",
-			module->name.str().c_str(), replace_tempdir(run_abc.per_run_tempdir_name, config.global_tempdir_name, run_abc.per_run_tempdir_name, config.show_tempdir).c_str());
+			module->name, replace_tempdir(run_abc.per_run_tempdir_name, config.global_tempdir_name, run_abc.per_run_tempdir_name, config.show_tempdir).c_str());
 
 	run_abc.abc_script = stringf("read_blif \"%s/input.blif\"; ", run_abc.per_run_tempdir_name);
 
@@ -1543,7 +1543,7 @@ void AbcModuleState::extract(AbcSigMap &assign_map, RTLIL::Design *design, RTLIL
 	bool markgroups = run_abc.config.markgroups;
 	for (auto w : mapped_mod->wires()) {
 		RTLIL::Wire *orig_wire = nullptr;
-		RTLIL::Wire *wire = module->addWire(module->design->twines.add(std::string{remap_name(w->name, &orig_wire)}));
+		RTLIL::Wire *wire = module->addWire(remap_name(w->name, &orig_wire));
 		if (orig_wire != nullptr && orig_wire->src_id() != Twine::Null && module->design)
 			wire->set_src_id(orig_wire->src_id());
 		if (markgroups) wire->attributes[ID::abcgroup] = map_autoidx;

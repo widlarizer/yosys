@@ -1301,6 +1301,31 @@ struct RTLIL::Monitor
 // Forward declaration; defined in preproc.h.
 struct define_map_t;
 
+template<typename N>
+inline constexpr bool is_unpooled_name_v =
+	std::is_same_v<std::decay_t<N>, Twine> || std::is_same_v<std::decay_t<N>, Twine::Leaf> ||
+	std::is_same_v<std::decay_t<N>, Twine::Suffix> || std::is_same_v<std::decay_t<N>, Twine::AutoSuffix> ||
+	std::is_same_v<std::decay_t<N>, std::string> ||
+	std::is_same_v<std::decay_t<N>, const char*> || std::is_same_v<std::decay_t<N>, char*>;
+
+#define YS_UNPOOLED_NAME(N) std::enable_if_t<is_unpooled_name_v<N>, int> = 0
+
+#define YS_NAME_FWD(_func) \
+	template<typename N, typename... Rest, YS_UNPOOLED_NAME(N)> \
+	decltype(auto) _func(N name, Rest&&... rest) \
+		{ return _func(static_cast<Derived*>(this)->intern(std::move(name)), \
+		               std::forward<Rest>(rest)...); }
+
+#define YS_NAME_FWD_SELF(_func) \
+	template<typename N, typename... Rest, YS_UNPOOLED_NAME(N)> \
+	decltype(auto) _func(N name, Rest&&... rest) \
+		{ return _func(intern(std::move(name)), std::forward<Rest>(rest)...); }
+
+#define YS_NAME_FWD_SELF_2ND(_func) \
+	template<typename T, typename N, YS_UNPOOLED_NAME(N)> \
+	decltype(auto) _func(T &&first, N name) \
+		{ return _func(std::forward<T>(first), intern(std::move(name))); }
+
 struct RTLIL::Design
 {
 	Hasher::hash_t hashidx_;
@@ -1398,9 +1423,14 @@ struct RTLIL::Design
 	void add(RTLIL::Module *module);
 	void add(RTLIL::Binding *binding);
 
+	IdString intern(Twine name) { return twines.add(std::move(name)); }
+	IdString intern(std::string name) { return twines.add(std::move(name)); }
+
 	RTLIL::Module *addModule(RTLIL::IdString name);
+	YS_NAME_FWD_SELF(addModule)
 	void remove(RTLIL::Module *module);
 	void rename(RTLIL::Module *module, RTLIL::IdString new_name);
+	YS_NAME_FWD_SELF_2ND(rename)
 
 	void scratchpad_unset(const std::string &varname);
 
@@ -1960,26 +1990,6 @@ inline RTLIL::SigBit::SigBit(const RTLIL::SigSpec &sig) {
 	*this = SigBit(*it);
 }
 
-template<typename N>
-inline constexpr bool is_unpooled_name_v =
-	std::is_same_v<std::decay_t<N>, Twine> || std::is_same_v<std::decay_t<N>, Twine::Leaf> ||
-	std::is_same_v<std::decay_t<N>, Twine::Suffix> || std::is_same_v<std::decay_t<N>, Twine::AutoSuffix> ||
-	std::is_same_v<std::decay_t<N>, std::string> ||
-	std::is_same_v<std::decay_t<N>, const char*> || std::is_same_v<std::decay_t<N>, char*>;
-
-#define YS_UNPOOLED_NAME(N) std::enable_if_t<is_unpooled_name_v<N>, int> = 0
-
-#define YS_NAME_FWD(_func) \
-	template<typename N, typename... Rest, YS_UNPOOLED_NAME(N)> \
-	decltype(auto) _func(N name, Rest&&... rest) \
-		{ return _func(static_cast<Derived*>(this)->intern(std::move(name)), \
-		               std::forward<Rest>(rest)...); }
-
-#define YS_NAME_FWD_SELF(_func) \
-	template<typename N, typename... Rest, YS_UNPOOLED_NAME(N)> \
-	decltype(auto) _func(N name, Rest&&... rest) \
-		{ return _func(intern(std::move(name)), std::forward<Rest>(rest)...); }
-
 template<typename Derived>
 class CellAdderMixin {
 public:
@@ -2514,6 +2524,7 @@ public:
 	void rename(RTLIL::Wire *wire, IdString new_name);
 	void rename(RTLIL::Cell *cell, IdString new_name);
 	void rename(IdString old_name, IdString new_name);
+	YS_NAME_FWD_SELF_2ND(rename)
 
 	void swap_names(RTLIL::Wire *w1, RTLIL::Wire *w2);
 	void swap_names(RTLIL::Cell *c1, RTLIL::Cell *c2);

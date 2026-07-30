@@ -486,7 +486,7 @@ struct XpropWorker
 				auto sig_a = cell->getPort(ID::A);
 				auto sig_b = cell->getPort(ID::B);
 
-				std::string name_str = module->design->twines.str(cell->name.ref());
+				std::string name_str = cell->name.str();
 				module->remove(cell);
 				module->addXnor(name_str, sig_a, sig_b, sig_y);
 				return;
@@ -497,7 +497,7 @@ struct XpropWorker
 				auto sig_a = cell->getPort(ID::A);
 				auto sig_b = cell->getPort(ID::B);
 
-				std::string name_str = module->design->twines.str(cell->name.ref());
+				std::string name_str = cell->name.str();
 				IdString type = cell->type;
 				module->remove(cell);
 				if (type == ID($eqx))
@@ -982,8 +982,8 @@ struct XpropWorker
 				if (wire->port_input == wire->port_output) {
 					log_warning("Port %s not an input or an output port which is not supported by xprop\n", wire);
 				} else if ((options.split_inputs && !options.assume_def_inputs && wire->port_input) || (options.split_outputs && wire->port_output)) {
-					auto port_d = module->uniquify(module->design->twines.add(std::string{module->design->twines.str(port) + "_d"}));
-					auto port_x = module->uniquify(module->design->twines.add(std::string{module->design->twines.str(port) + "_x"}));
+					auto port_d = module->uniquify(module->design->twines.str(port) + "_d");
+					auto port_x = module->uniquify(module->design->twines.str(port) + "_x");
 
 					auto wire_d = module->addWire(port_d, GetSize(wire));
 					auto wire_x = module->addWire(port_x, GetSize(wire));
@@ -1003,7 +1003,7 @@ struct XpropWorker
 
 						if (options.split_public) {
 							// Need to hide the original wire so split_public doesn't try to split it again
-							module->rename(wire, module->design->twines.add(NEW_ID_SUFFIX(module->design->twines.str(wire->name.ref()))));
+							module->rename(wire, NEW_ID_SUFFIX(wire->name.str()));
 						}
 					} else {
 						auto enc = encoded(wire, true);
@@ -1035,9 +1035,9 @@ struct XpropWorker
 				continue;
 			int index_d = 0;
 			int index_x = 0;
-			std::string wname = module->design->twines.str(wire->name.ref());
-			auto name_d = module->uniquify(module->design->twines.add(std::string{wname + "_d"}), index_d);
-			auto name_x = module->uniquify(module->design->twines.add(std::string{wname + "_x"}), index_x);
+			std::string wname = wire->name.str();
+			auto name_d = module->uniquify(wname + "_d", index_d);
+			auto name_x = module->uniquify(wname + "_x", index_x);
 
 			auto hdlname = wire->get_hdlname_attribute();
 
@@ -1057,7 +1057,7 @@ struct XpropWorker
 			module->connect(wire_d, enc.is_1);
 			module->connect(wire_x, enc.is_x);
 
-			module->rename(wire, module->design->twines.add(NEW_ID_SUFFIX(module->design->twines.str(wire->name.ref()))));
+			module->rename(wire, NEW_ID_SUFFIX(wire->name.str()));
 		}
 	}
 

@@ -1081,7 +1081,7 @@ struct CxxrtlWorker {
 		} else {
 			f << indent << "// cells";
 			for (auto cell : cells)
-				f << " " << cell->name.unescape();
+				f << " " << cell->name.str();
 			f << "\n";
 		}
 	}
@@ -1134,7 +1134,7 @@ struct CxxrtlWorker {
 	void dump_cell_sync(const RTLIL::Cell *cell, bool for_debug = false)
 	{
 		const char *access = is_cxxrtl_blackbox_cell(cell) ? "->" : ".";
-		f << indent << "// cell " << cell->name.unescape() << " syncs\n";
+		f << indent << "// cell " << cell->name.str() << " syncs\n";
 		for (auto conn : cell->connections())
 			if (cell->output(conn.first))
 				if (is_cxxrtl_sync_port(cell, conn.first) && !conn.second.empty()) {

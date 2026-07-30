@@ -1021,7 +1021,7 @@ std::string cellname(RTLIL::Cell *cell)
 		if (wire->name[0] != '\\')
 			goto no_special_reg_name;
 
-		std::string cell_name = wire->name.unescape();
+		std::string cell_name = wire->name.str();
 
 		size_t pos = cell_name.find('[');
 		if (pos != std::string::npos)
@@ -2744,7 +2744,7 @@ struct VerilogBackend : public Backend {
 				continue;
 			if (selected && !design->selected_whole_module(module->name)) {
 				if (design->selected_module(module->name))
-					log_cmd_error("Can't handle partially selected module %s!\n", module->name.str().c_str());
+					log_cmd_error("Can't handle partially selected module %s!\n", module->name.unescape().c_str());
 				continue;
 			}
 			log("Dumping module `%s'.\n", module->name.str().c_str());
