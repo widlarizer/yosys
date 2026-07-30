@@ -315,7 +315,7 @@ struct ProcArstPass : public Pass {
 							if (arst_sig.size()) {
 								log("Added global reset to process %s: %s <- %s\n",
 										log_id(proc), log_signal(arst_sig), log_signal(arst_val));
-								arst_actions.push_back({arst_sig, arst_val, act.src});
+								arst_actions.push_back({arst_sig, arst_val});
 							}
 						}
 				if (!arst_actions.empty()) {

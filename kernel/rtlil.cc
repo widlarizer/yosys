@@ -910,18 +910,12 @@ size_t RTLIL::Design::gc_twines()
 			while (!case_stack.empty()) {
 				RTLIL::CaseRule *cs = case_stack.back();
 				case_stack.pop_back();
-				src_root(cs->compare_src);
-				for (auto &act : cs->actions)
-					src_root(act.src);
 				for (auto *sw : cs->switches) {
-					src_root(sw->signal_src);
 					for (auto *case_ : sw->cases)
 						case_stack.push_back(case_);
 				}
 			}
 			for (auto *sync : process->syncs) {
-				for (auto &act : sync->actions)
-					src_root(act.src);
 				for (auto &mwa : sync->mem_write_actions)
 					root(mwa.memid);
 			}
@@ -3527,27 +3521,11 @@ RTLIL::Process *RTLIL::Module::addProcess(IdString name)
 }
 
 namespace {
-	SrcRef migrate_process_id(SrcRef id, const RTLIL::Design *src_design, RTLIL::Design *dst_design)
-	{
-		if (id == Src::Null || src_design == dst_design)
-			return id;
-		return dst_design->srcs.copy_from(src_design->srcs, id);
-	}
-
 	IdString migrate_process_id(IdString id, const RTLIL::Design *src_design, RTLIL::Design *dst_design)
 	{
 		if (id == Twine::Null || src_design == dst_design)
 			return id;
 		return dst_design->twines.copy_from(src_design->twines, id);
-	}
-
-	void migrate_process_actions(const std::vector<RTLIL::SyncAction> &s_acts,
-			std::vector<RTLIL::SyncAction> &d_acts,
-			const RTLIL::Design *src_design, RTLIL::Design *dst_design)
-	{
-		log_assert(s_acts.size() == d_acts.size());
-		for (size_t i = 0; i < s_acts.size(); i++)
-			d_acts[i].src = migrate_process_id(s_acts[i].src, src_design, dst_design);
 	}
 
 	void migrate_process_tree_src(const RTLIL::Process *src, const RTLIL::Design *src_design,
@@ -3563,14 +3541,11 @@ namespace {
 			auto [s_cs, d_cs] = case_stack.back();
 			case_stack.pop_back();
 			copy_src_into(s_cs, src_design, d_cs, dst_design);
-			d_cs->compare_src = migrate_process_id(s_cs->compare_src, src_design, dst_design);
-			migrate_process_actions(s_cs->actions, d_cs->actions, src_design, dst_design);
 			log_assert(s_cs->switches.size() == d_cs->switches.size());
 			for (size_t i = 0; i < s_cs->switches.size(); i++) {
 				const auto *s_sw = s_cs->switches[i];
 				auto *d_sw = d_cs->switches[i];
 				copy_src_into(s_sw, src_design, d_sw, dst_design);
-				d_sw->signal_src = migrate_process_id(s_sw->signal_src, src_design, dst_design);
 				log_assert(s_sw->cases.size() == d_sw->cases.size());
 				for (size_t j = 0; j < s_sw->cases.size(); j++)
 					case_stack.emplace_back(s_sw->cases[j], d_sw->cases[j]);
@@ -3580,7 +3555,6 @@ namespace {
 		for (size_t i = 0; i < src->syncs.size(); i++) {
 			const auto *s_sync = src->syncs[i];
 			auto *d_sync = dst->syncs[i];
-			migrate_process_actions(s_sync->actions, d_sync->actions, src_design, dst_design);
 			log_assert(s_sync->mem_write_actions.size() == d_sync->mem_write_actions.size());
 			for (size_t j = 0; j < s_sync->mem_write_actions.size(); j++) {
 				copy_src_into(&s_sync->mem_write_actions[j], src_design,

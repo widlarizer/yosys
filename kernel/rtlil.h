@@ -689,10 +689,6 @@ struct RTLIL::AttrObject
 	// void set_strpool_attribute(IdString id, const pool<string> &data);
 	// void add_strpool_attribute(IdString id, const pool<string> &data);
 	// pool<string> get_strpool_attribute(IdString id) const;
-	void transfer_attribute(const AttrObject* from, IdString attr) {
-		if (from->has_attribute(attr))
-			attributes[attr] = from->attributes.at(attr);
-	}
 
 	void set_hdlname_attribute(const vector<string> &hierarchy);
 	vector<string> get_hdlname_attribute() const;
@@ -1602,7 +1598,6 @@ public:
 	// Transfer src from `source` verbatim (same pool). Asserts attached
 	// to a design.
 	void adopt_src_from(const RTLIL::AttrObject *source);
-	void transfer_src_attribute(const RTLIL::AttrObject *source) { adopt_src_from(source); }
 	void absorb_attrs(dict<IdString, RTLIL::Const> &&buf);
 
 	bool known_driver() const { return driverCell_ != nullptr; }
@@ -1716,7 +1711,6 @@ public:
 	void set_src_attribute(SrcRef src);
 	std::string get_src_attribute() const;
 	void adopt_src_from(const RTLIL::AttrObject *source);
-	void transfer_src_attribute(const RTLIL::AttrObject *source) { adopt_src_from(source); }
 	void absorb_attrs(dict<IdString, RTLIL::Const> &&buf);
 
 	// access cell ports
@@ -1783,7 +1777,6 @@ struct RTLIL::CaseRule : public RTLIL::AttrObject
 	std::vector<RTLIL::SigSpec> compare;
 	std::vector<RTLIL::SyncAction> actions;
 	std::vector<RTLIL::SwitchRule*> switches;
-	SrcRef compare_src = Src::Null;
 
 	~CaseRule();
 
@@ -1814,7 +1807,6 @@ struct RTLIL::SwitchRule : public RTLIL::AttrObject
 	RTLIL::Module *module = nullptr;
 
 	RTLIL::SigSpec signal;
-	SrcRef signal_src = Src::Null;
 	std::vector<RTLIL::CaseRule*> cases;
 
 	~SwitchRule();
@@ -1862,6 +1854,9 @@ struct RTLIL::SyncAction
 {
 	RTLIL::SigSpec lhs;
 	RTLIL::SigSpec rhs;
+	// Retained only because frontends/slang (a submodule) names this field
+	// when it aggregate-initialises a SyncAction. Nothing in yosys writes a
+	// non-null value into it.
 	SrcRef src = Src::Null;
 };
 
