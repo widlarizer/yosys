@@ -124,7 +124,7 @@ TEST(TwinePublicityTest, WireNameMasquerade)
 	EXPECT_EQ(mod->wire(search.find("$sig")), priv);
 
 	// uniquify keeps publicity.
-	IdString uniq = mod->uniquify(pub->meta_->name);
+	IdString uniq = mod->uniquify(pub->name);
 	EXPECT_TRUE(twine_is_public(uniq));
 	EXPECT_EQ(design.twines.str(uniq), "\\sig_1");
 }
