@@ -14,6 +14,9 @@ IdString twine_populate(std::string name) {
 	return TwinePool::globals_.size() - 1;
 }
 void twine_prepopulate() {
+	if (TwinePool::globals_.size() == STATIC_TWINE_END)
+		return;
+	log_assert(TwinePool::globals_.empty());
 	TwinePool::globals_.reserve(STATIC_TWINE_END);
 #define X(_id) twine_populate("\\" #_id);
 #include "kernel/constids.inc"
