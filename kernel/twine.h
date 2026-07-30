@@ -709,23 +709,6 @@ struct DeepTwineEq {
 		return (*this)(a, std::string_view(fb));
 	}
 
-	// Helper to flatten a twine (used only during rare hash collisions)
-	std::string flatten(IdString t) const {
-		std::string result;
-		auto append = [&](auto& self, IdString ref) -> void {
-			if (ref == Twine::Null)
-				return;
-			const Twine& node = (*pool)[ref];
-			if (node.is_dead()) return;
-			if (node.is_leaf()) result += node.leaf();
-			else if (node.is_suffix()) {
-				self(self, node.suffix().prefix);
-				result += node.suffix().tail;
-			}
-		};
-		append(append, t);
-		return result;
-	}
 };
 
 struct TwineSearch {
