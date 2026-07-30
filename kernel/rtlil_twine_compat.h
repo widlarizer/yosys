@@ -78,7 +78,6 @@ struct RTLIL::ObjNameMasq : RTLIL::NameMasqBase<RTLIL::ObjNameMasq<Owner>> {
 	ObjNameMasq(ObjNameMasq &&) = delete;
 	// Tagged name handle (Twine::Null when unnamed).
 	IdString ref() const;
-	bool isPublic() const { return ref().isPublic(); }
 	// Escaped form ('\'-prefixed when public) / bare content.
 	std::string escaped() const;
 	std::string unescape() const;
@@ -98,48 +97,23 @@ private:
 };
 
 // Masquerade for Cell::type. Backed by Cell::type_impl.
-struct RTLIL::CellTypeMasq {
+struct RTLIL::CellTypeMasq : RTLIL::NameMasqBase<RTLIL::CellTypeMasq> {
 	// Copying/moving is forbidden, see ObjNameMasq.
 	CellTypeMasq() = default;
 	CellTypeMasq(const CellTypeMasq &) = delete;
 	CellTypeMasq(CellTypeMasq &&) = delete;
-	operator IdString() const { return ref(); }
-	operator std::string() const { return escaped(); }
 	IdString ref() const;
 	std::string escaped() const;
 	std::string unescape() const;
-	bool isPublic() const { return ref().isPublic(); }
-	bool empty() const { return ref() == Twine::Null; }
-	std::string str() const { return escaped(); } // TODO deprecate
-	bool begins_with(const char *s) const { return str().starts_with(s); }
-	bool ends_with(const char *s) const { return str().ends_with(s); }
-	template <typename... Ts> bool in(Ts &&...args) const {
-		return ref().in(std::forward<Ts>(args)...);
-	}
-	std::string substr(size_t pos = 0, size_t len = std::string::npos) const {
-		return escaped().substr(pos, len);
-	}
-	size_t size() const { return str().size(); }
-	bool contains(const char *p) const { return escaped().find(p) != std::string::npos; }
-	char operator[](int n) const { return str()[n]; }
-	bool operator==(IdString rhs) const { return ref() == rhs; }
-	bool operator!=(IdString rhs) const { return ref() != rhs; }
-	bool operator==(const std::string &rhs) const { return escaped() == rhs; }
-	bool operator!=(const std::string &rhs) const { return escaped() != rhs; }
-	bool operator==(const CellTypeMasq &rhs) const { return ref() == rhs.ref(); }
-	bool operator!=(const CellTypeMasq &rhs) const { return ref() != rhs.ref(); }
 	// Write path, equivalent to assigning cell->type_impl directly. `id` must
 	// be a static (ID::) ref or belong to the owning Design's pool.
 	CellTypeMasq &operator=(IdString id);
 	CellTypeMasq &operator=(const CellTypeMasq &other) { return *this = other.ref(); }
 	CellTypeMasq &operator=(CellTypeMasq &&other) { return *this = other.ref(); }
-	[[nodiscard]] Hasher hash_into(Hasher h) const { return ref().hash_into(h); }
 private:
 	const RTLIL::Cell *owner() const;
 	RTLIL::Cell *owner();
 };
-inline bool operator==(IdString lhs, const RTLIL::CellTypeMasq &rhs) { return lhs == rhs.ref(); }
-inline bool operator!=(IdString lhs, const RTLIL::CellTypeMasq &rhs) { return lhs != rhs.ref(); }
 
 // Zero-size masquerade for Module::name. Same contract as WireNameMasq:
 // the handle lives inline in NamedObject::name_, rendered through
@@ -152,7 +126,6 @@ struct RTLIL::ModuleNameMasq : RTLIL::NameMasqBase<RTLIL::ModuleNameMasq> {
 	ModuleNameMasq() = default;
 	ModuleNameMasq(const ModuleNameMasq&) = delete;
 	ModuleNameMasq(ModuleNameMasq&&) = delete;
-	operator IdString() const;
 	// Raw write of the backing name_; does not reindex design->modules_
 	// (use Design::rename() for a module already added).
 	ModuleNameMasq& operator=(IdString id);
@@ -169,7 +142,7 @@ private:
 	RTLIL::Module *owner();
 };
 
-#endif // RTLIL_TWINE_COMPAT_DECLS
+#endif // RTLIL_TWINE_COMPAT_H
 
 #if defined(RTLIL_TWINE_COMPAT_IMPL) && !defined(RTLIL_TWINE_COMPAT_IMPL_DONE)
 #define RTLIL_TWINE_COMPAT_IMPL_DONE
@@ -304,16 +277,11 @@ inline RTLIL::ModuleNameMasq &RTLIL::ModuleNameMasq::operator=(IdString id) {
 #pragma GCC diagnostic pop
 #endif // -Winvalid-offsetof for masq accessors
 
-inline RTLIL::ModuleNameMasq::operator IdString() const { return ref(); }
-
 // Prefer these over the pool-free log_id(IdString) (which can only render
 // static constids): a masquerade knows the Design its name lives in.
 template<typename Derived>
 inline const char *log_id(const RTLIL::NameMasqBase<Derived> &name) {
 	return log_id_str(static_cast<const Derived &>(name).unescape());
 }
-inline const char *log_id(const RTLIL::CellTypeMasq &type) {
-	return log_id_str(type.unescape());
-}
 
-#endif // RTLIL_TWINE_COMPAT_H
+#endif // RTLIL_TWINE_COMPAT_IMPL
