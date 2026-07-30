@@ -332,12 +332,12 @@ struct FlattenWorker
 			}
 			// src lives outside cell->attributes after the typed-src
 			// hand so `a:cell_src` selectors keep working.
-			if (cell->src_id() != Twine::Null)
+			if (cell->src_id() != Src::Null)
 				scopeinfo->attributes.emplace(design->twines.add(std::string("\\cell_src")), RTLIL::Const(cell->get_src_attribute()));
 
 			for (auto const &attr : tpl->attributes)
 				scopeinfo->attributes.emplace(design->twines.add(stringf("\\module_%s", design->twines.unescaped_str(attr.first))), attr.second);
-			if (tpl->src_id() != Twine::Null)
+			if (tpl->src_id() != Src::Null)
 				scopeinfo->attributes.emplace(design->twines.add(std::string("\\module_src")), RTLIL::Const(tpl->get_src_attribute()));
 
 			scopeinfo->attributes.emplace(ID::module, RTLIL::Const(tpl->name.unescape().substr(1)));

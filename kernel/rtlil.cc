@@ -641,7 +641,7 @@ RTLIL::Const RTLIL::Const::extract(int offset, int len, RTLIL::State padding) co
 bool RTLIL::AttrObject::has_attribute(RTLIL::IdString id) const
 {
 	if (id == ID::src)
-		return meta_ != nullptr && meta_->src != Twine::Null;
+		return meta_ != nullptr && meta_->src != Src::Null;
 	return attributes.count(id);
 }
 
@@ -657,7 +657,7 @@ void RTLIL::AttrObject::set_bool_attribute(RTLIL::IdString id, bool value)
 bool RTLIL::AttrObject::get_bool_attribute(RTLIL::IdString id) const
 {
 	if (id == ID::src)
-		return meta_ != nullptr && meta_->src != Twine::Null;
+		return meta_ != nullptr && meta_->src != Src::Null;
 	const auto it = attributes.find(id);
 	if (it == attributes.end())
 		return false;
@@ -689,19 +689,19 @@ string RTLIL::AttrObject::get_string_attribute(RTLIL::IdString id) const
 void RTLIL::Design::obj_set_src_id(RTLIL::AttrObject *obj, SrcRef id)
 {
 	if (obj->meta_ == nullptr) {
-		if (id == Twine::Null)
+		if (id == Src::Null)
 			return;
 		obj->meta_ = alloc_obj_meta();
 	}
 	ObjMeta &m = *obj->meta_;
 	if (m.src == id)
 		return;
-	// if (m.src != Twine::Null)
+	// if (m.src != Src::Null)
 	// 	twines.release(m.src);
 	m.src = id;
-	// if (m.src != Twine::Null)
+	// if (m.src != Src::Null)
 	// 	twines.retain(m.src);
-	if (m.src == Twine::Null) {
+	if (m.src == Src::Null) {
 		free_obj_meta(obj->meta_);
 		obj->meta_ = nullptr;
 	}
@@ -712,9 +712,9 @@ void RTLIL::Design::obj_release_src(RTLIL::AttrObject *obj)
 	if (obj->meta_ == nullptr)
 		return;
 	ObjMeta &m = *obj->meta_;
-	if (m.src != Twine::Null) {
+	if (m.src != Src::Null) {
 		// twines.release(m.src);
-		m.src = Twine::Null;
+		m.src = Src::Null;
 	}
 	free_obj_meta(obj->meta_);
 	obj->meta_ = nullptr;
@@ -740,7 +740,7 @@ void RTLIL::Design::adopt_src_from(RTLIL::AttrObject *obj,
 {
 	(void)src_pool;
 	if (!source || source->meta_ == nullptr) {
-		obj_set_src_id(obj, Twine::Null);
+		obj_set_src_id(obj, Src::Null);
 		return;
 	}
 	// Same-pool semantics: source's meta-vector entry is meaningful in
@@ -772,8 +772,8 @@ namespace {
 		if (!src || !src_design || !dst_design)
 			return;
 		SrcRef src_id = src_design->obj_src_id(src);
-		if (src_id == Twine::Null) {
-			dst_design->obj_set_src_id(dst, Twine::Null);
+		if (src_id == Src::Null) {
+			dst_design->obj_set_src_id(dst, Src::Null);
 			return;
 		}
 		if (src_design == dst_design) {
@@ -800,7 +800,7 @@ RTLIL::ObjMeta *RTLIL::Design::alloc_obj_meta()
 void RTLIL::Design::free_obj_meta(RTLIL::ObjMeta *m)
 {
 	log_assert(m != nullptr);
-	log_assert(m->src == Twine::Null);
+	log_assert(m->src == Src::Null);
 	obj_meta_free_.push_back(m);
 }
 
@@ -1578,7 +1578,7 @@ RTLIL::Module::~Module()
 SrcRef RTLIL::Module::src_id() const
 {
 	if (!design)
-		return Twine::Null;
+		return Src::Null;
 	return design->obj_src_id(this);
 }
 
@@ -1590,7 +1590,7 @@ void RTLIL::Module::set_src_id(SrcRef id)
 
 void RTLIL::Module::set_src_attribute(SrcRef src)
 {
-	if (src == Twine::Null && meta_ == nullptr)
+	if (src == Src::Null && meta_ == nullptr)
 		return;
 	log_assert(design && "Module::set_src_attribute requires the module to be attached to a design");
 	design->set_src_attribute(this, src);
@@ -2862,7 +2862,7 @@ void RTLIL::Module::cloneInto(RTLIL::Module *new_mod, bool src_id_verbatim) cons
 			if (!src_obj->meta_ || !new_mod->design)
 				return;
 			if (dst_obj->meta_) {
-				dst_obj->meta_->src = Twine::Null;
+				dst_obj->meta_->src = Src::Null;
 				new_mod->design->free_obj_meta(dst_obj->meta_);
 			}
 			dst_obj->meta_ = new_mod->design->alloc_obj_meta();
@@ -4622,7 +4622,7 @@ RTLIL::Wire::~Wire()
 SrcRef RTLIL::Wire::src_id() const
 {
 	if (!module || !module->design)
-		return Twine::Null;
+		return Src::Null;
 	return module->design->obj_src_id(this);
 }
 
@@ -4634,7 +4634,7 @@ void RTLIL::Wire::set_src_id(SrcRef id)
 
 void RTLIL::Wire::set_src_attribute(SrcRef src)
 {
-	if (src == Twine::Null && meta_ == nullptr)
+	if (src == Src::Null && meta_ == nullptr)
 		return;
 	log_assert(module && module->design && "Wire::set_src_attribute requires the wire to be attached to a module in a design");
 	module->design->set_src_attribute(this, src);
@@ -4736,7 +4736,7 @@ RTLIL::Cell::~Cell()
 SrcRef RTLIL::Cell::src_id() const
 {
 	if (!module || !module->design)
-		return Twine::Null;
+		return Src::Null;
 	return module->design->obj_src_id(this);
 }
 
@@ -6511,7 +6511,7 @@ RTLIL::Process::~Process()
 SrcRef RTLIL::Process::src_id() const
 {
 	if (!module || !module->design)
-		return Twine::Null;
+		return Src::Null;
 	return module->design->obj_src_id(this);
 }
 
@@ -6523,7 +6523,7 @@ void RTLIL::Process::set_src_id(SrcRef id)
 
 void RTLIL::Process::set_src_attribute(SrcRef src)
 {
-	if (src == Twine::Null && meta_ == nullptr)
+	if (src == Src::Null && meta_ == nullptr)
 		return;
 	log_assert(module && module->design && "Process::set_src_attribute requires the process to be attached to a module in a design");
 	module->design->set_src_attribute(this, src);
@@ -6579,7 +6579,7 @@ RTLIL::Memory::~Memory()
 SrcRef RTLIL::Memory::src_id() const
 {
 	if (!module || !module->design)
-		return Twine::Null;
+		return Src::Null;
 	return module->design->obj_src_id(this);
 }
 
@@ -6591,7 +6591,7 @@ void RTLIL::Memory::set_src_id(SrcRef id)
 
 void RTLIL::Memory::set_src_attribute(SrcRef src)
 {
-	if (src == Twine::Null && meta_ == nullptr)
+	if (src == Src::Null && meta_ == nullptr)
 		return;
 	log_assert(module && module->design && "Memory::set_src_attribute requires the memory to be attached to a module in a design");
 	module->design->set_src_attribute(this, src);
@@ -6620,7 +6620,7 @@ void RTLIL::Memory::absorb_attrs(dict<IdString, RTLIL::Const> &&buf)
 SrcRef RTLIL::CaseRule::src_id() const
 {
 	if (!module || !module->design)
-		return Twine::Null;
+		return Src::Null;
 	return module->design->obj_src_id(this);
 }
 void RTLIL::CaseRule::set_src_id(SrcRef id)
@@ -6630,7 +6630,7 @@ void RTLIL::CaseRule::set_src_id(SrcRef id)
 }
 void RTLIL::CaseRule::set_src_attribute(SrcRef src)
 {
-	if (src == Twine::Null && meta_ == nullptr)
+	if (src == Src::Null && meta_ == nullptr)
 		return;
 	log_assert(module && module->design && "CaseRule::set_src_attribute requires the case to belong to a module in a design");
 	module->design->set_src_attribute(this, src);
@@ -6655,7 +6655,7 @@ void RTLIL::CaseRule::absorb_attrs(dict<IdString, RTLIL::Const> &&buf)
 SrcRef RTLIL::SwitchRule::src_id() const
 {
 	if (!module || !module->design)
-		return Twine::Null;
+		return Src::Null;
 	return module->design->obj_src_id(this);
 }
 void RTLIL::SwitchRule::set_src_id(SrcRef id)
@@ -6665,7 +6665,7 @@ void RTLIL::SwitchRule::set_src_id(SrcRef id)
 }
 void RTLIL::SwitchRule::set_src_attribute(SrcRef src)
 {
-	if (src == Twine::Null && meta_ == nullptr)
+	if (src == Src::Null && meta_ == nullptr)
 		return;
 	log_assert(module && module->design && "SwitchRule::set_src_attribute requires the switch to belong to a module in a design");
 	module->design->set_src_attribute(this, src);
@@ -6690,7 +6690,7 @@ void RTLIL::SwitchRule::absorb_attrs(dict<IdString, RTLIL::Const> &&buf)
 SrcRef RTLIL::MemWriteAction::src_id() const
 {
 	if (!module || !module->design)
-		return Twine::Null;
+		return Src::Null;
 	return module->design->obj_src_id(this);
 }
 void RTLIL::MemWriteAction::set_src_id(SrcRef id)
@@ -6700,7 +6700,7 @@ void RTLIL::MemWriteAction::set_src_id(SrcRef id)
 }
 void RTLIL::MemWriteAction::set_src_attribute(SrcRef src)
 {
-	if (src == Twine::Null && meta_ == nullptr)
+	if (src == Src::Null && meta_ == nullptr)
 		return;
 	log_assert(module && module->design && "MemWriteAction::set_src_attribute requires the action to belong to a module in a design");
 	module->design->set_src_attribute(this, src);

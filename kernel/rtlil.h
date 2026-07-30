@@ -1352,7 +1352,7 @@ struct RTLIL::Design
 	void free_obj_meta(RTLIL::ObjMeta *m);
 
 	SrcRef obj_src_id(const RTLIL::AttrObject *obj) const {
-		return (obj->meta_ ? obj->meta_->src : Twine::Null);
+		return (obj->meta_ ? obj->meta_->src : Src::Null);
 	}
 	void obj_set_src_id(RTLIL::AttrObject *obj, SrcRef id);
 	void obj_release_src(RTLIL::AttrObject *obj);

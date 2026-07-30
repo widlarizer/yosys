@@ -184,7 +184,7 @@ struct RomWorker
 
 		mem.emit();
 
-		if (sw->src_id() != Twine::Null && module->design) {
+		if (sw->src_id() != Src::Null && module->design) {
 			mem.inits[0].cell->set_src_id(sw->src_id());
 			mem.rd_ports[0].cell->set_src_id(sw->src_id());
 		}

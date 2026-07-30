@@ -72,10 +72,13 @@ struct SrcRef {
 	Hasher hash_into(Hasher h) const { h.hash64(value); return h; }
 };
 
-struct NullRef {
+struct NullIdString {
 	constexpr operator IdString() const { return IdString(); }
-	constexpr operator SrcRef() const { return SrcRef(); }
 	constexpr bool operator==(IdString ref) const { return ref.value == IdString::kNull; }
+};
+
+struct NullSrcRef {
+	constexpr operator SrcRef() const { return SrcRef(); }
 	constexpr bool operator==(SrcRef ref) const { return ref.value == SrcRef::kNull; }
 };
 
@@ -128,7 +131,7 @@ struct ID {
 #define ID(id) (ID::id)
 
 struct Twine {
-	static constexpr NullRef Null{};
+	static constexpr NullIdString Null{};
 
 	struct Suffix {
 		IdString prefix;
@@ -516,7 +519,7 @@ inline size_t TwinePool::hash_node(const Twine& t) {
 }
 
 struct Src {
-	static constexpr NullRef Null{};
+	static constexpr NullSrcRef Null{};
 
 	std::vector<IdString> data;
 

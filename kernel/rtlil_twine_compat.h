@@ -40,10 +40,8 @@ struct NameMasqBase {
 	bool lt_by_name(const Derived &rhs) const { return self().escaped() < rhs.escaped(); }
 	bool operator==(IdString rhs) const { return self().ref() == rhs; }
 	bool operator!=(IdString rhs) const { return self().ref() != rhs; }
-	// Without these, `obj->name != Twine::Null` is ambiguous: NullRef converts
-	// to both IdString and SrcRef, and the masquerade converts to IdString.
-	bool operator==(NullRef) const { return self().ref() == Twine::Null; }
-	bool operator!=(NullRef) const { return !(self().ref() == Twine::Null); }
+	bool operator==(NullIdString) const { return self().ref() == Twine::Null; }
+	bool operator!=(NullIdString) const { return !(self().ref() == Twine::Null); }
 	bool operator==(const std::string &rhs) const { return self().escaped() == rhs; }
 	bool operator!=(const std::string &rhs) const { return self().escaped() != rhs; }
 	bool operator==(const Derived &rhs) const { return self().ref() == rhs.ref(); }

@@ -418,7 +418,7 @@ void dump_attributes(std::ostream &f, std::string indent, const RTLIL::AttrObjec
 		as_comment = true;
 	if (active_module && active_module->design) {
 		SrcRef src = active_module->design->obj_src_id(obj);
-		if (src != Twine::Null) {
+		if (src != Src::Null) {
 			f << stringf("%s" "%s %s", indent, as_comment ? "/*" : "(*", id(ID::str(ID::src)));
 			f << stringf(" = ");
 			dump_const(f, RTLIL::Const(active_module->design->srcs.str(src)), -1, 0, false, as_comment);

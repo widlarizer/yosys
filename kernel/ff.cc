@@ -50,7 +50,7 @@ void manufacture_info(InputType flop, OutputType& info, FfInitVals *initvals) {
 		info.sig_q = cell->getPort(ID::Q);
 		info.width = GetSize(info.sig_q);
 		info.attributes = cell->attributes;
-		if (cell->src_id() != Twine::Null && cell->module && cell->module->design)
+		if (cell->src_id() != Src::Null && cell->module && cell->module->design)
 			info.src_twine = cell->src_id();
 		if (initvals)
 			info.val_init = (*initvals)(info.sig_q);

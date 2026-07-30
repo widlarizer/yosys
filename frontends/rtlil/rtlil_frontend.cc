@@ -470,7 +470,7 @@ struct RTLILFrontendWorker {
 		current_module->name = module_name;
 		if (delete_current_module) {
 			attrbuf.erase(ID::src);
-			pending_src = Twine::Null;
+			pending_src = Src::Null;
 			current_module->attributes = std::move(attrbuf);
 		} else {
 			design->add(current_module);
