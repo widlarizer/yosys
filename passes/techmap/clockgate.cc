@@ -162,9 +162,9 @@ static std::pair<std::optional<ClockGateCell>, std::optional<ClockGateCell>>
 			winning = cost < goal;
 
 			if (winning)
-				log_debug("%s beats %s\n", icg_interface.name.c_str(), icg_to_beat->name.c_str());
+				log_debug("%s beats %s\n", icg_interface.name, icg_to_beat->name);
 		} else {
-			log_debug("%s is the first of its polarity\n", icg_interface.name.c_str());
+			log_debug("%s is the first of its polarity\n", icg_interface.name);
 			winning = true;
 		}
 		if (winning) {
@@ -176,11 +176,11 @@ static std::pair<std::optional<ClockGateCell>, std::optional<ClockGateCell>>
 	std::optional<ClockGateCell> pos;
 	std::optional<ClockGateCell> neg;
 	if (best_pos) {
-		log("Selected rising edge ICG %s from Liberty file\n", best_pos->name.c_str());
+		log("Selected rising edge ICG %s from Liberty file\n", best_pos->name);
 		pos.emplace(*best_pos);
 	}
 	if (best_neg) {
-		log("Selected falling edge ICG %s from Liberty file\n", best_neg->name.c_str());
+		log("Selected falling edge ICG %s from Liberty file\n", best_neg->name);
 		neg.emplace(*best_neg);
 	}
 	return std::make_pair(pos, neg);

@@ -681,7 +681,7 @@ struct ExtractPass : public Pass {
 					}
 					RTLIL::Cell *new_cell = replace(needle_map.at(result.needleGraphId), haystack_map.at(result.haystackGraphId), result);
 					design->select(haystack_map.at(result.haystackGraphId), new_cell);
-					log("  new cell: %s\n", new_cell->name.unescape().c_str());
+					log("  new cell: %s\n", new_cell->name.unescape());
 				}
 			}
 		}

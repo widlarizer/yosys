@@ -2744,7 +2744,7 @@ struct VerilogBackend : public Backend {
 				continue;
 			if (selected && !design->selected_whole_module(module->name)) {
 				if (design->selected_module(module->name))
-					log_cmd_error("Can't handle partially selected module %s!\n", module->name.unescape().c_str());
+					log_cmd_error("Can't handle partially selected module %s!\n", module->name.unescape());
 				continue;
 			}
 			log("Dumping module `%s'.\n", module->name.str().c_str());

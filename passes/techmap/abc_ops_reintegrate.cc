@@ -111,7 +111,7 @@ void reintegrate(RTLIL::Module *module, bool dff_mode, std::string map_filename)
 						wire->port_input = false;
 						mapped_mod->connect(wire, existing);
 					}
-					log_debug(" -> %s\n", escaped_s.c_str());
+					log_debug(" -> %s\n", escaped_s);
 				}
 				else {
 					std::string indexed_name = stringf("%s[%d]", escaped_s.c_str(), index);
@@ -123,7 +123,7 @@ void reintegrate(RTLIL::Module *module, bool dff_mode, std::string map_filename)
 						mapped_mod->connect(wire, existing);
 						wire->port_input = false;
 					}
-					log_debug(" -> %s\n", indexed_name.c_str());
+					log_debug(" -> %s\n", indexed_name);
 				}
 
 				if (!existing) {
@@ -161,7 +161,7 @@ void reintegrate(RTLIL::Module *module, bool dff_mode, std::string map_filename)
 						mapped_mod->connect(wire, existing);
 						wire = existing;
 					}
-					log_debug(" -> %s\n", escaped_s.c_str());
+					log_debug(" -> %s\n", escaped_s);
 				}
 				else {
 					std::string indexed_name = stringf("%s[%d]", escaped_s.c_str(), index);
@@ -174,7 +174,7 @@ void reintegrate(RTLIL::Module *module, bool dff_mode, std::string map_filename)
 						existing->port_output = true;
 						mapped_mod->connect(wire, existing);
 					}
-					log_debug(" -> %s\n", indexed_name.c_str());
+					log_debug(" -> %s\n", indexed_name);
 				}
 
 				if (!existing) {

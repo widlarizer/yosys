@@ -289,7 +289,8 @@ struct TechmapWorker
 			}
 			design->select(module, w);
 
-			if (const char *p = strstr(tpl_w->name.str().c_str(), "_TECHMAP_REPLACE_.")) {
+			std::string tpl_w_name = tpl_w->name.str();
+			if (const char *p = strstr(tpl_w_name.c_str(), "_TECHMAP_REPLACE_.")) {
 				Wire *replace_w = module->addWire(std::string(orig_cell_name) + (p + strlen("_TECHMAP_REPLACE_")), tpl_w);
 				module->connect(replace_w, w);
 			}
@@ -392,10 +393,11 @@ struct TechmapWorker
 		{
 			bool techmap_replace_cell = tpl_cell->name.ends_with("_TECHMAP_REPLACE_");
 
+			std::string tpl_cell_name = tpl_cell->name.str();
 			IdString c_ref;
 			if (techmap_replace_cell)
 				c_ref = module->design->twines.add(std::string{orig_cell_name});
-			else if (const char *p = strstr(tpl_cell->name.unescape().c_str(), "_TECHMAP_REPLACE_."))
+			else if (const char *p = strstr(tpl_cell_name.c_str(), "_TECHMAP_REPLACE_."))
 				c_ref = module->design->twines.add(stringf("%s%s", orig_cell_name, p + strlen("_TECHMAP_REPLACE_")));
 			else
 				c_ref = ap.name(tpl_cell->name);

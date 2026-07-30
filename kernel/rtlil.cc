@@ -1650,7 +1650,7 @@ void RTLIL::Module::makeblackbox()
 
 void RTLIL::Module::expand_interfaces(RTLIL::Design *, const dict<RTLIL::IdString, RTLIL::Module *> &)
 {
-	log_error("Class doesn't support expand_interfaces (module: `%s')!\n", name.unescape().c_str());
+	log_error("Class doesn't support expand_interfaces (module: `%s')!\n", name.unescape());
 }
 
 bool RTLIL::Module::reprocess_if_necessary(RTLIL::Design *)
@@ -1777,14 +1777,14 @@ namespace {
 					type_sv.starts_with("$verific$") || type_sv.starts_with("$array:") || type_sv.starts_with("$extern:"))
 				return;
 
-			if (cell->type_impl == ID($buf)) {
+			if (cell->type == ID($buf)) {
 				port(ID::A, param(ID::WIDTH));
 				port(ID::Y, param(ID::WIDTH));
 				check_expected();
 				return;
 			}
 
-			if (cell->type_impl.in(ID($not), ID($pos), ID($neg))) {
+			if (cell->type.in(ID($not), ID($pos), ID($neg))) {
 				param_bool(ID::A_SIGNED);
 				port(ID::A, param(ID::A_WIDTH));
 				port(ID::Y, param(ID::Y_WIDTH));
@@ -1792,7 +1792,7 @@ namespace {
 				return;
 			}
 
-			if (cell->type_impl.in(ID($and), ID($or), ID($xor), ID($xnor))) {
+			if (cell->type.in(ID($and), ID($or), ID($xor), ID($xnor))) {
 				param_bool(ID::A_SIGNED);
 				param_bool(ID::B_SIGNED);
 				port(ID::A, param(ID::A_WIDTH));
@@ -1802,7 +1802,7 @@ namespace {
 				return;
 			}
 
-			if (cell->type_impl.in(ID($reduce_and), ID($reduce_or), ID($reduce_xor), ID($reduce_xnor), ID($reduce_bool))) {
+			if (cell->type.in(ID($reduce_and), ID($reduce_or), ID($reduce_xor), ID($reduce_xnor), ID($reduce_bool))) {
 				param_bool(ID::A_SIGNED);
 				port(ID::A, param(ID::A_WIDTH));
 				port(ID::Y, param(ID::Y_WIDTH));
@@ -1810,7 +1810,7 @@ namespace {
 				return;
 			}
 
-			if (cell->type_impl.in(ID($shl), ID($shr), ID($sshl), ID($sshr))) {
+			if (cell->type.in(ID($shl), ID($shr), ID($sshl), ID($sshr))) {
 				param_bool(ID::A_SIGNED);
 				param_bool(ID::B_SIGNED, /*expected=*/false);
 				port(ID::A, param(ID::A_WIDTH));
@@ -1820,7 +1820,7 @@ namespace {
 				return;
 			}
 
-			if (cell->type_impl.in(ID($shift), ID($shiftx))) {
+			if (cell->type.in(ID($shift), ID($shiftx))) {
 				if (cell->type == ID($shiftx)) {
 					param_bool(ID::A_SIGNED, /*expected=*/false);
 				} else {
@@ -1834,7 +1834,7 @@ namespace {
 				return;
 			}
 
-			if (cell->type_impl.in(ID($lt), ID($le), ID($eq), ID($ne), ID($eqx), ID($nex), ID($ge), ID($gt))) {
+			if (cell->type.in(ID($lt), ID($le), ID($eq), ID($ne), ID($eqx), ID($nex), ID($ge), ID($gt))) {
 				param_bool(ID::A_SIGNED);
 				param_bool(ID::B_SIGNED);
 				port(ID::A, param(ID::A_WIDTH));
@@ -1844,7 +1844,7 @@ namespace {
 				return;
 			}
 
-			if (cell->type_impl.in(ID($add), ID($sub), ID($mul), ID($div), ID($mod), ID($divfloor), ID($modfloor), ID($pow))) {
+			if (cell->type.in(ID($add), ID($sub), ID($mul), ID($div), ID($mod), ID($divfloor), ID($modfloor), ID($pow))) {
 				param_bool(ID::A_SIGNED);
 				param_bool(ID::B_SIGNED);
 				port(ID::A, param(ID::A_WIDTH));
@@ -1940,7 +1940,7 @@ namespace {
 				return;
 			}
 
-			if (cell->type_impl.in(ID($logic_and), ID($logic_or))) {
+			if (cell->type.in(ID($logic_and), ID($logic_or))) {
 				param_bool(ID::A_SIGNED);
 				param_bool(ID::B_SIGNED);
 				port(ID::A, param(ID::A_WIDTH));
@@ -2108,7 +2108,7 @@ namespace {
 				return;
 			}
 
-			if (cell->type_impl.in(ID($sdffe), ID($sdffce))) {
+			if (cell->type.in(ID($sdffe), ID($sdffce))) {
 				param_bool(ID::CLK_POLARITY);
 				param_bool(ID::EN_POLARITY);
 				param_bool(ID::SRST_POLARITY);
@@ -2373,7 +2373,7 @@ namespace {
 				return;
 			}
 
-			if (cell->type_impl.in(ID($assert), ID($assume), ID($live), ID($fair), ID($cover))) {
+			if (cell->type.in(ID($assert), ID($assume), ID($live), ID($fair), ID($cover))) {
 				port(ID::A, 1);
 				port(ID::EN, 1);
 				check_expected();
@@ -2386,13 +2386,13 @@ namespace {
 				return;
 			}
 
-			if (cell->type_impl.in(ID($anyconst), ID($anyseq), ID($allconst), ID($allseq))) {
+			if (cell->type.in(ID($anyconst), ID($anyseq), ID($allconst), ID($allseq))) {
 				port(ID::Y, param(ID::WIDTH));
 				check_expected();
 				return;
 			}
 
-			if (cell->type_impl.in(ID($anyinit))) {
+			if (cell->type.in(ID($anyinit))) {
 				port(ID::D, param(ID::WIDTH));
 				port(ID::Q, param(ID::WIDTH));
 				check_expected();
@@ -2407,7 +2407,7 @@ namespace {
 				return;
 			}
 
-			if (cell->type_impl.in(ID($specify2), ID($specify3))) {
+			if (cell->type.in(ID($specify2), ID($specify3))) {
 				param_bool(ID::FULL);
 				param_bool(ID::SRC_DST_PEN);
 				param_bool(ID::SRC_DST_POL);
@@ -2511,56 +2511,56 @@ namespace {
 			if (cell->type == ID($_MUX8_))  { port(ID::A,1); port(ID::B,1); port(ID::C,1); port(ID::D,1); port(ID::E,1); port(ID::F,1); port(ID::G,1); port(ID::H,1); port(ID::S,1); port(ID::T,1); port(ID::U,1); port(ID::Y,1); check_expected(); return; }
 			if (cell->type == ID($_MUX16_)) { port(ID::A,1); port(ID::B,1); port(ID::C,1); port(ID::D,1); port(ID::E,1); port(ID::F,1); port(ID::G,1); port(ID::H,1); port(ID::I,1); port(ID::J,1); port(ID::K,1); port(ID::L,1); port(ID::M,1); port(ID::N,1); port(ID::O,1); port(ID::P,1); port(ID::S,1); port(ID::T,1); port(ID::U,1); port(ID::V,1); port(ID::Y,1); check_expected(); return; }
 
-			if (cell->type_impl.in(ID($_SR_NN_), ID($_SR_NP_), ID($_SR_PN_), ID($_SR_PP_)))
+			if (cell->type.in(ID($_SR_NN_), ID($_SR_NP_), ID($_SR_PN_), ID($_SR_PP_)))
 				{ port(ID::S,1); port(ID::R,1); port(ID::Q,1); check_expected(); return; }
 
 			if (cell->type == ID($_FF_)) { port(ID::D,1); port(ID::Q,1); check_expected();  return; }
 
-			if (cell->type_impl.in(ID($_DFF_N_), ID($_DFF_P_)))
+			if (cell->type.in(ID($_DFF_N_), ID($_DFF_P_)))
 				{ port(ID::D,1); port(ID::Q,1); port(ID::C,1); check_expected(); return; }
 
-			if (cell->type_impl.in(ID($_DFFE_NN_), ID($_DFFE_NP_), ID($_DFFE_PN_), ID($_DFFE_PP_)))
+			if (cell->type.in(ID($_DFFE_NN_), ID($_DFFE_NP_), ID($_DFFE_PN_), ID($_DFFE_PP_)))
 				{ port(ID::D,1); port(ID::Q,1); port(ID::C,1); port(ID::E,1); check_expected(); return; }
 
-			if (cell->type_impl.in(
+			if (cell->type.in(
 					ID($_DFF_NN0_), ID($_DFF_NN1_), ID($_DFF_NP0_), ID($_DFF_NP1_),
 					ID($_DFF_PN0_), ID($_DFF_PN1_), ID($_DFF_PP0_), ID($_DFF_PP1_)))
 				{ port(ID::D,1); port(ID::Q,1); port(ID::C,1); port(ID::R,1); check_expected(); return; }
 
-			if (cell->type_impl.in(
+			if (cell->type.in(
 					ID($_DFFE_NN0N_), ID($_DFFE_NN0P_), ID($_DFFE_NN1N_), ID($_DFFE_NN1P_),
 					ID($_DFFE_NP0N_), ID($_DFFE_NP0P_), ID($_DFFE_NP1N_), ID($_DFFE_NP1P_),
 					ID($_DFFE_PN0N_), ID($_DFFE_PN0P_), ID($_DFFE_PN1N_), ID($_DFFE_PN1P_),
 					ID($_DFFE_PP0N_), ID($_DFFE_PP0P_), ID($_DFFE_PP1N_), ID($_DFFE_PP1P_)))
 				{ port(ID::D,1); port(ID::Q,1); port(ID::C,1); port(ID::R,1); port(ID::E,1); check_expected(); return; }
 
-			if (cell->type_impl.in(
+			if (cell->type.in(
 					ID($_ALDFF_NN_), ID($_ALDFF_NP_), ID($_ALDFF_PN_), ID($_ALDFF_PP_)))
 				{ port(ID::D,1); port(ID::Q,1); port(ID::C,1); port(ID::L,1); port(ID::AD,1); check_expected(); return; }
 
-			if (cell->type_impl.in(
+			if (cell->type.in(
 					ID($_ALDFFE_NNN_), ID($_ALDFFE_NNP_), ID($_ALDFFE_NPN_), ID($_ALDFFE_NPP_),
 					ID($_ALDFFE_PNN_), ID($_ALDFFE_PNP_), ID($_ALDFFE_PPN_), ID($_ALDFFE_PPP_)))
 				{ port(ID::D,1); port(ID::Q,1); port(ID::C,1); port(ID::L,1); port(ID::AD,1); port(ID::E,1); check_expected(); return; }
 
-			if (cell->type_impl.in(
+			if (cell->type.in(
 					ID($_DFFSR_NNN_), ID($_DFFSR_NNP_), ID($_DFFSR_NPN_), ID($_DFFSR_NPP_),
 					ID($_DFFSR_PNN_), ID($_DFFSR_PNP_), ID($_DFFSR_PPN_), ID($_DFFSR_PPP_)))
 				{ port(ID::C,1); port(ID::S,1); port(ID::R,1); port(ID::D,1); port(ID::Q,1); check_expected(); return; }
 
-			if (cell->type_impl.in(
+			if (cell->type.in(
 					ID($_DFFSRE_NNNN_), ID($_DFFSRE_NNNP_), ID($_DFFSRE_NNPN_), ID($_DFFSRE_NNPP_),
 					ID($_DFFSRE_NPNN_), ID($_DFFSRE_NPNP_), ID($_DFFSRE_NPPN_), ID($_DFFSRE_NPPP_),
 					ID($_DFFSRE_PNNN_), ID($_DFFSRE_PNNP_), ID($_DFFSRE_PNPN_), ID($_DFFSRE_PNPP_),
 					ID($_DFFSRE_PPNN_), ID($_DFFSRE_PPNP_), ID($_DFFSRE_PPPN_), ID($_DFFSRE_PPPP_)))
 				{ port(ID::C,1); port(ID::S,1); port(ID::R,1); port(ID::D,1); port(ID::E,1); port(ID::Q,1); check_expected(); return; }
 
-			if (cell->type_impl.in(
+			if (cell->type.in(
 					ID($_SDFF_NN0_), ID($_SDFF_NN1_), ID($_SDFF_NP0_), ID($_SDFF_NP1_),
 					ID($_SDFF_PN0_), ID($_SDFF_PN1_), ID($_SDFF_PP0_), ID($_SDFF_PP1_)))
 				{ port(ID::D,1); port(ID::Q,1); port(ID::C,1); port(ID::R,1); check_expected(); return; }
 
-			if (cell->type_impl.in(
+			if (cell->type.in(
 					ID($_SDFFE_NN0N_), ID($_SDFFE_NN0P_), ID($_SDFFE_NN1N_), ID($_SDFFE_NN1P_),
 					ID($_SDFFE_NP0N_), ID($_SDFFE_NP0P_), ID($_SDFFE_NP1N_), ID($_SDFFE_NP1P_),
 					ID($_SDFFE_PN0N_), ID($_SDFFE_PN0P_), ID($_SDFFE_PN1N_), ID($_SDFFE_PN1P_),
@@ -2571,20 +2571,20 @@ namespace {
 					ID($_SDFFCE_PP0N_), ID($_SDFFCE_PP0P_), ID($_SDFFCE_PP1N_), ID($_SDFFCE_PP1P_)))
 				{ port(ID::D,1); port(ID::Q,1); port(ID::C,1); port(ID::R,1); port(ID::E,1); check_expected(); return; }
 
-			if (cell->type_impl.in(ID($_DLATCH_N_), ID($_DLATCH_P_)))
+			if (cell->type.in(ID($_DLATCH_N_), ID($_DLATCH_P_)))
 				{ port(ID::E,1); port(ID::D,1); port(ID::Q,1); check_expected(); return; }
 
-			if (cell->type_impl.in(
+			if (cell->type.in(
 					ID($_DLATCH_NN0_), ID($_DLATCH_NN1_), ID($_DLATCH_NP0_), ID($_DLATCH_NP1_),
 					ID($_DLATCH_PN0_), ID($_DLATCH_PN1_), ID($_DLATCH_PP0_), ID($_DLATCH_PP1_)))
 				{ port(ID::E,1); port(ID::R,1); port(ID::D,1); port(ID::Q,1); check_expected(); return; }
 
-			if (cell->type_impl.in(
+			if (cell->type.in(
 					ID($_DLATCHSR_NNN_), ID($_DLATCHSR_NNP_), ID($_DLATCHSR_NPN_), ID($_DLATCHSR_NPP_),
 					ID($_DLATCHSR_PNN_), ID($_DLATCHSR_PNP_), ID($_DLATCHSR_PPN_), ID($_DLATCHSR_PPP_)))
 				{ port(ID::E,1); port(ID::S,1); port(ID::R,1); port(ID::D,1); port(ID::Q,1); check_expected(); return; }
 
-			if (cell->type_impl.in(ID($set_tag))) {
+			if (cell->type.in(ID($set_tag))) {
 				param(ID::WIDTH);
 				param(ID::TAG);
 				port(ID::A, param(ID::WIDTH));
@@ -2594,7 +2594,7 @@ namespace {
 				check_expected();
 				return;
 			}
-			if (cell->type_impl.in(ID($get_tag),ID($original_tag))) {
+			if (cell->type.in(ID($get_tag),ID($original_tag))) {
 				param(ID::WIDTH);
 				param(ID::TAG);
 				port(ID::A, param(ID::WIDTH));
@@ -2602,7 +2602,7 @@ namespace {
 				check_expected();
 				return;
 			}
-			if (cell->type_impl.in(ID($overwrite_tag))) {
+			if (cell->type.in(ID($overwrite_tag))) {
 				param(ID::WIDTH);
 				param(ID::TAG);
 				port(ID::A, param(ID::WIDTH));
@@ -2611,20 +2611,20 @@ namespace {
 				check_expected();
 				return;
 			}
-			if (cell->type_impl.in(ID($future_ff))) {
+			if (cell->type.in(ID($future_ff))) {
 				param(ID::WIDTH);
 				port(ID::A, param(ID::WIDTH));
 				port(ID::Y, param(ID::WIDTH));
 				check_expected();
 				return;
 			}
-			if (cell->type_impl.in(ID($input_port))) {
+			if (cell->type.in(ID($input_port))) {
 				param(ID::WIDTH);
 				port(ID::Y, param(ID::WIDTH));
 				check_expected();
 				return;
 			}
-			if (cell->type_impl.in(ID($connect))) {
+			if (cell->type.in(ID($connect))) {
 				param(ID::WIDTH);
 				port(ID::A, param(ID::WIDTH));
 				port(ID::B, param(ID::WIDTH));
@@ -4805,9 +4805,9 @@ const dict<RTLIL::IdString, RTLIL::SigSpec> &RTLIL::Cell::connections() const
 
 bool RTLIL::Cell::known() const
 {
-	if (yosys_celltypes.cell_known(type_impl))
+	if (yosys_celltypes.cell_known(type))
 		return true;
-	if (module && module->design && module->design->module(type_impl))
+	if (module && module->design && module->design->module(type))
 		return true;
 	return false;
 }
@@ -4830,7 +4830,7 @@ static RTLIL::Wire *find_port(RTLIL::Module *m, IdString portname)
 
 bool RTLIL::Cell::input(IdString portname) const
 {
-	if (yosys_celltypes.cell_known(type_impl))
+	if (yosys_celltypes.cell_known(type))
 		return yosys_celltypes.cell_input(type_impl, portname);
 	if (module && module->design) {
 		RTLIL::Wire *w = find_port(module->design->module(type_impl), portname);
@@ -4841,8 +4841,8 @@ bool RTLIL::Cell::input(IdString portname) const
 
 bool RTLIL::Cell::output(RTLIL::IdString portname) const
 {
-	if (yosys_celltypes.cell_known(type_impl))
-		return yosys_celltypes.cell_output(type_impl, portname);
+	if (yosys_celltypes.cell_known(type))
+		return yosys_celltypes.cell_output(type, portname);
 	if (module && module->design) {
 		RTLIL::Wire *w = find_port(module->design->module(type_impl), portname);
 		return w && w->port_output;
@@ -4853,7 +4853,7 @@ bool RTLIL::Cell::output(RTLIL::IdString portname) const
 RTLIL::PortDir RTLIL::Cell::port_dir(RTLIL::IdString portname) const
 {
 	if (yosys_celltypes.cell_known(type_impl))
-		return yosys_celltypes.cell_port_dir(type_impl, portname);
+		return yosys_celltypes.cell_port_dir(type, portname);
 	if (module && module->design) {
 		RTLIL::Wire *w = find_port(module->design->module(type_impl), portname);
 		if (w == nullptr)
@@ -4901,7 +4901,7 @@ const RTLIL::Const &RTLIL::Cell::getParam(RTLIL::IdString paramname) const
 	if (it != parameters.end())
 		return it->second;
 	if (module && module->design) {
-		RTLIL::Module *m = module->design->module(type_impl);
+		RTLIL::Module *m = module->design->module(type);
 		if (m)
 			return m->parameter_default_values.at(paramname);
 	}
@@ -4933,7 +4933,7 @@ void RTLIL::Cell::fixup_parameters(bool set_a_signed, bool set_b_signed)
 
 	if (type == ID($buf) || type == ID($mux) || type == ID($pmux) || type == ID($bmux) || type == ID($bwmux) || type == ID($bweqx)) {
 		parameters[ID::WIDTH] = GetSize(connections_[ID::Y]);
-		if (type_impl.in(ID($pmux), ID($bmux)))
+		if (type.in(ID($pmux), ID($bmux)))
 			parameters[ID::S_WIDTH] = GetSize(connections_[ID::S]);
 		check();
 		return;
@@ -4966,7 +4966,7 @@ void RTLIL::Cell::fixup_parameters(bool set_a_signed, bool set_b_signed)
 		return;
 	}
 
-	bool signedness_ab = !type_impl.in(ID($slice), ID($concat), ID($macc));
+	bool signedness_ab = !type.in(ID($slice), ID($concat), ID($macc));
 
 	if (connections_.count(ID::A)) {
 		if (signedness_ab) {
@@ -5004,16 +5004,16 @@ bool RTLIL::Cell::has_keep_attr() const {
 
 bool RTLIL::Cell::has_memid() const
 {
-	return type_impl.in(ID($memwr), ID($memwr_v2), ID($memrd), ID($memrd_v2), ID($meminit), ID($meminit_v2));
+	return type.in(ID($memwr), ID($memwr_v2), ID($memrd), ID($memrd_v2), ID($meminit), ID($meminit_v2));
 }
 
 bool RTLIL::Cell::is_mem_cell() const
 {
-	return type_impl.in(ID($mem), ID($mem_v2)) || has_memid();
+	return type.in(ID($mem), ID($mem_v2)) || has_memid();
 }
 
 bool RTLIL::Cell::is_builtin_ff() const {
-	return StaticCellTypes::categories.is_ff(type_impl);
+	return StaticCellTypes::categories.is_ff(type);
 }
 
 RTLIL::SigChunk::SigChunk(const RTLIL::SigBit &bit)

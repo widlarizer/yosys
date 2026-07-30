@@ -107,7 +107,7 @@ void create_miter_equiv(struct Pass *that, std::vector<std::string> args, RTLIL:
 			goto match_gold_port_error;
 		continue;
 	match_gold_port_error:
-		log_cmd_error("No matching port in gate module was found for %s!\n", gold_wire->name.unescape().c_str());
+		log_cmd_error("No matching port in gate module was found for %s!\n", gold_wire->name);
 	}
 
 	for (auto gate_wire : gate_module->wires()) {
@@ -127,7 +127,7 @@ void create_miter_equiv(struct Pass *that, std::vector<std::string> args, RTLIL:
 			goto match_gate_port_error;
 		continue;
 	match_gate_port_error:
-		log_cmd_error("No matching port in gold module was found for %s!\n", gate_wire->name.unescape().c_str());
+		log_cmd_error("No matching port in gold module was found for %s!\n", gate_wire->name);
 	}
 
 	log("Creating miter cell \"%s\" with gold cell \"%s\" and gate cell \"%s\".\n", log_id(design, miter_name), log_id(design, gold_name), log_id(design, gate_name));
