@@ -533,8 +533,21 @@ struct SrcPool : HashConsPool<SrcPool, Src, SrcRef> {
 
 	SrcPool(const SrcPool &) = delete;
 	SrcPool(SrcPool &&) = delete;
-	SrcPool &operator=(const SrcPool &other) { HashConsPool::operator=(other); return *this; }
-	SrcPool &operator=(SrcPool &&other) { HashConsPool::operator=(std::move(other)); return *this; }
+	SrcPool &operator=(const SrcPool &) = delete;
+	SrcPool &operator=(SrcPool &&) = delete;
+
+	// Src nodes hold IdStrings into `other.twines`, so they are only meaningful
+	// here once this pool's twines are a verbatim copy of the source's.
+	void clone_from(const SrcPool &other) {
+		log_assert(twines->size() == other.twines->size());
+		HashConsPool::operator=(static_cast<const HashConsPool &>(other));
+	}
+
+	void clear() {
+		backing.clear();
+		free_list.clear();
+		index = fresh_index();
+	}
 
 	static SrcRef untag(SrcRef ref) { return ref; }
 	static void canonicalize(Src&) {}

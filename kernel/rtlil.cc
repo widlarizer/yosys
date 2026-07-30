@@ -1409,7 +1409,7 @@ void RTLIL::Design::clone_into(RTLIL::Design *dst) const
 {
 	log_assert(dst->modules_.empty());
 	dst->twines = twines;
-	dst->srcs = srcs;
+	dst->srcs.clone_from(srcs);
 	for (auto it = modules_.rbegin(); it != modules_.rend(); ++it)
 		it->second->clone(dst, /*src_id_verbatim=*/true);
 }

@@ -358,7 +358,7 @@ struct DesignPass : public Pass {
 
 			if (reset_mode && save_name.empty()) {
 				design->twines = TwinePool{};
-				design->srcs = SrcPool{&design->twines};
+				design->srcs.clear();
 			}
 
 			design->push_full_selection();
