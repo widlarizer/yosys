@@ -388,8 +388,11 @@ namespace RTLIL {
 	TEST_F(KernelRtlilTest, LookupAutoidxId) {
 		TwinePool twines;
 		IdString id = twines.add(NEW_ID);
-		IdString id2 = twines.find(twines.str(id));
-		EXPECT_EQ(id, id2);
+		TwineSearch search(&twines);
+		EXPECT_EQ(id, search.find(twines.str(id)));
+		// NEW_ID interns as a Suffix over a shared prefix leaf, and
+		// TwinePool::find only ever matches a whole Leaf.
+		EXPECT_EQ(twines.find(twines.str(id)), Twine::Null);
 	}
 
 	TEST_F(KernelRtlilTest, NewIdBeginsWith) {
