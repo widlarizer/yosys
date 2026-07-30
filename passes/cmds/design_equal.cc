@@ -22,13 +22,38 @@
 
 YOSYS_NAMESPACE_BEGIN
 
+// The two designs own separate twine pools, so a name handle minted in one is
+// meaningless in the other: comparing or looking up a raw ref across the pair
+// only agrees when both pools happen to have been filled in the same order.
+// Every name that crosses between the designs is resolved by content instead.
+class PoolBridge
+{
+	const TwinePool *pool_a;
+	const TwinePool *pool_b;
+	TwineSearch search_a;
+	TwineSearch search_b;
+
+public:
+	PoolBridge(RTLIL::Design *design_a, RTLIL::Design *design_b) :
+			pool_a(&design_a->twines), pool_b(&design_b->twines),
+			search_a(&design_a->twines), search_b(&design_b->twines) {}
+
+	// Null when the other design has no name of that spelling.
+	IdString a_to_b(IdString ref) const { return search_b.find(pool_a->str(ref)); }
+	IdString b_to_a(IdString ref) const { return search_a.find(pool_b->str(ref)); }
+
+	bool same(IdString a, IdString b) const { return pool_a->str(a) == pool_b->str(b); }
+};
+
 class ModuleComparator
 {
 	RTLIL::Module *mod_a;
 	RTLIL::Module *mod_b;
+	const PoolBridge &bridge;
 
 public:
-	ModuleComparator(RTLIL::Module *mod_a, RTLIL::Module *mod_b) : mod_a(mod_a), mod_b(mod_b) {}
+	ModuleComparator(RTLIL::Module *mod_a, RTLIL::Module *mod_b, const PoolBridge &bridge) :
+			mod_a(mod_a), mod_b(mod_b), bridge(bridge) {}
 
 	template <typename... Args>
 	[[noreturn]] void error(FmtString<TypeIdentity<Args>...> fmt, const Args &... args)
@@ -50,7 +75,7 @@ public:
 		if (a.wire == nullptr && b.wire == nullptr)
 			return a.data == b.data;
 		if (a.wire != nullptr && b.wire != nullptr)
-			return a.wire->name == b.wire->name && a.offset == b.offset;
+			return bridge.same(a.wire->name, b.wire->name) && a.offset == b.offset;
 		return false;
 	}
 
@@ -67,20 +92,21 @@ public:
 	std::string compare_attributes(const RTLIL::AttrObject *a, const RTLIL::AttrObject *b)
 	{
 		for (const auto &it : a->attributes) {
-			if (b->attributes.count(it.first) == 0)
+			IdString in_b = bridge.a_to_b(it.first);
+			if (b->attributes.count(in_b) == 0)
 				return "missing attribute " + std::string(mod_a->design->twines.unescaped_str(it.first)) + " in second design";
-			if (it.second != b->attributes.at(it.first))
-				return "attribute " + std::string(mod_a->design->twines.unescaped_str(it.first)) + " mismatch: " + log_const(it.second) + " != " + log_const(b->attributes.at(it.first));
+			if (it.second != b->attributes.at(in_b))
+				return "attribute " + std::string(mod_a->design->twines.unescaped_str(it.first)) + " mismatch: " + log_const(it.second) + " != " + log_const(b->attributes.at(in_b));
 		}
 		for (const auto &it : b->attributes)
-			if (a->attributes.count(it.first) == 0)
+			if (a->attributes.count(bridge.b_to_a(it.first)) == 0)
 				return "missing attribute " + std::string(mod_b->design->twines.unescaped_str(it.first)) + " in first design";
 		return "";
 	}
 
 	std::string compare_wires(const RTLIL::Wire *a, const RTLIL::Wire *b)
 	{
-		if (a->name != b->name)
+		if (!bridge.same(a->name, b->name))
 			return "name mismatch: " + std::string(a->name.unescape()) + " != " + b->name.unescape();
 		if (a->width != b->width)
 			return "width mismatch: " + std::to_string(a->width) + " != " + std::to_string(b->width);
@@ -104,21 +130,21 @@ public:
 	void check_wires()
 	{
 		for (const auto &it : mod_a->wires_) {
-			RTLIL::Wire *wb = mod_b->wire(it.first);
+			RTLIL::Wire *wb = mod_b->wire(bridge.a_to_b(it.first));
 			if (!wb)
 				error("Module %s missing wire %s in second design.\n", log_id(mod_a), log_id(it.second));
 			else if (std::string mismatch = compare_wires(it.second, wb); !mismatch.empty())
 				error("Module %s wire %s %s.\n", log_id(mod_a), log_id(it.second), mismatch);
 		}
 		for (const auto &it : mod_b->wires_) {
-			if (!mod_a->wire(it.first))
+			if (!mod_a->wire(bridge.b_to_a(it.first)))
 				error("Module %s missing wire %s in first design.\n", log_id(mod_b), log_id(it.second));
 		}
 	}
 
 	std::string compare_memories(const RTLIL::Memory *a, const RTLIL::Memory *b)
 	{
-		if (a->name != b->name)
+		if (!bridge.same(a->name, b->name))
 			return "name mismatch: " + std::string(a->name.unescape()) + " != " + b->name.unescape();
 		if (a->width != b->width)
 			return "width mismatch: " + std::to_string(a->width) + " != " + std::to_string(b->width);
@@ -133,31 +159,33 @@ public:
 
 	std::string compare_cells(const RTLIL::Cell *a, const RTLIL::Cell *b)
 	{
-		if (a->name != b->name)
+		if (!bridge.same(a->name, b->name))
 			return "name mismatch: " + std::string(a->name.unescape()) + " != " + b->name.unescape();
-		if (a->type != b->type)
+		if (!bridge.same(a->type, b->type))
 			return "type mismatch: " + std::string(a->type.unescape()) + " != " + b->type.unescape();
 		if (std::string mismatch = compare_attributes(a, b); !mismatch.empty())
 			return mismatch;
 
 		for (const auto &it : a->parameters) {
-			if (b->parameters.count(it.first) == 0)
+			IdString in_b = bridge.a_to_b(it.first);
+			if (b->parameters.count(in_b) == 0)
 				return "parameter mismatch: missing parameter " + std::string(mod_a->design->twines.unescaped_str(it.first)) + " in second design";
-			if (it.second != b->parameters.at(it.first))
-				return "parameter mismatch: " + std::string(mod_a->design->twines.unescaped_str(it.first)) + " mismatch: " + log_const(it.second) + " != " + log_const(b->parameters.at(it.first));
+			if (it.second != b->parameters.at(in_b))
+				return "parameter mismatch: " + std::string(mod_a->design->twines.unescaped_str(it.first)) + " mismatch: " + log_const(it.second) + " != " + log_const(b->parameters.at(in_b));
 		}
 		for (const auto &it : b->parameters)
-			if (a->parameters.count(it.first) == 0)
+			if (a->parameters.count(bridge.b_to_a(it.first)) == 0)
 				return "parameter mismatch: missing parameter " + std::string(mod_b->design->twines.unescaped_str(it.first)) + " in first design";
 
 		for (const auto &it : a->connections()) {
-			if (b->connections().count(it.first) == 0)
+			IdString in_b = bridge.a_to_b(it.first);
+			if (b->connections().count(in_b) == 0)
 				return "connection mismatch: missing connection " + a->module->design->twines.unescaped_str(it.first) + " in second design";
-			if (!compare_sigspec(it.second, b->connections().at(it.first)))
-				return "connection " + a->module->design->twines.unescaped_str(it.first) + " mismatch: " + log_signal(it.second) + " != " + log_signal(b->connections().at(it.first));
+			if (!compare_sigspec(it.second, b->connections().at(in_b)))
+				return "connection " + a->module->design->twines.unescaped_str(it.first) + " mismatch: " + log_signal(it.second) + " != " + log_signal(b->connections().at(in_b));
 		}
 		for (const auto &it : b->connections())
-			if (a->connections().count(it.first) == 0)
+			if (a->connections().count(bridge.b_to_a(it.first)) == 0)
 				return "connection mismatch: missing connection " + a->module->design->twines.unescaped_str(it.first) + " in first design";
 
 		return "";
@@ -166,14 +194,14 @@ public:
 	void check_cells()
 	{
 		for (const auto &it : mod_a->cells_) {
-			RTLIL::Cell *cb = mod_b->cell(it.first);
+			RTLIL::Cell *cb = mod_b->cell(bridge.a_to_b(it.first));
 			if (!cb)
 				error("Module %s missing cell %s in second design.\n", log_id(mod_a), log_id(it.second));
 			else if (std::string mismatch = compare_cells(it.second, cb); !mismatch.empty())
 				error("Module %s cell %s %s.\n", log_id(mod_a), log_id(it.second), mismatch);
 		}
 		for (const auto &it : mod_b->cells_) {
-			if (!mod_a->cell(it.first))
+			if (!mod_a->cell(bridge.b_to_a(it.first)))
 				error("Module %s missing cell %s in first design.\n", log_id(mod_b), log_id(it.second));
 		}
 	}
@@ -181,13 +209,14 @@ public:
 	void check_memories()
 	{
 		for (const auto &it : mod_a->memories) {
-			if (mod_b->memories.count(it.first) == 0)
+			IdString in_b = bridge.a_to_b(it.first);
+			if (mod_b->memories.count(in_b) == 0)
 				error("Module %s missing memory %s in second design.\n", log_id(mod_a), log_id(it.second));
-			if (std::string mismatch = compare_memories(it.second, mod_b->memories.at(it.first)); !mismatch.empty())
+			if (std::string mismatch = compare_memories(it.second, mod_b->memories.at(in_b)); !mismatch.empty())
 				error("Module %s memory %s %s.\n", log_id(mod_a), log_id(it.second), mismatch);
 		}
 		for (const auto &it : mod_b->memories)
-			if (mod_a->memories.count(it.first) == 0)
+			if (mod_a->memories.count(bridge.b_to_a(it.first)) == 0)
 				error("Module %s missing memory %s in first design.\n", log_id(mod_b), log_id(it.second));
 	}
 
@@ -254,7 +283,7 @@ public:
 		for (size_t i = 0; i < a->mem_write_actions.size(); i++) {
 			const auto &ma = a->mem_write_actions[i];
 			const auto &mb = b->mem_write_actions[i];
-			if (ma.memid != mb.memid)
+			if (!bridge.same(ma.memid, mb.memid))
 				return "mem_write_actions " + std::to_string(i) + " memid mismatch: " + mod_a->design->twines.unescaped_str(ma.memid) + " != " + mod_b->design->twines.unescaped_str(mb.memid);
 			if (!compare_sigspec(ma.address, mb.address))
 				return "mem_write_actions " + std::to_string(i) + " address mismatch: " + log_signal(ma.address) + " != " + log_signal(mb.address);
@@ -272,7 +301,7 @@ public:
 
 	std::string compare_processes(const RTLIL::Process *a, const RTLIL::Process *b)
 	{
-		if (a->name != b->name) return "name mismatch: " + std::string(a->name.unescape()) + " != " + b->name.unescape();
+		if (!bridge.same(a->name, b->name)) return "name mismatch: " + std::string(a->name.unescape()) + " != " + b->name.unescape();
 		if (std::string mismatch = compare_attributes(a, b); !mismatch.empty())
 			return mismatch;
 		if (std::string mismatch = compare_case_rules(&a->root_case, &b->root_case); !mismatch.empty())
@@ -288,13 +317,14 @@ public:
 	void check_processes()
 	{
 		for (auto &it : mod_a->processes) {
-			if (mod_b->processes.count(it.first) == 0)
+			IdString in_b = bridge.a_to_b(it.first);
+			if (mod_b->processes.count(in_b) == 0)
 				error("Module %s missing process %s in second design.\n", log_id(mod_a), log_id(it.second));
-			if (std::string mismatch = compare_processes(it.second, mod_b->processes.at(it.first)); !mismatch.empty())
+			if (std::string mismatch = compare_processes(it.second, mod_b->processes.at(in_b)); !mismatch.empty())
 				error("Module %s process %s %s.\n", log_id(mod_a), log_id(it.second), mismatch.c_str());
 		}
 		for (auto &it : mod_b->processes)
-			if (mod_a->processes.count(it.first) == 0)
+			if (mod_a->processes.count(bridge.b_to_a(it.first)) == 0)
 				error("Module %s missing process %s in first design.\n", log_id(mod_b), log_id(it.second));
 	}
 
@@ -316,7 +346,7 @@ public:
 
 	void check()
 	{
-		if (mod_a->name != mod_b->name)
+		if (!bridge.same(mod_a->name, mod_b->name))
 			error("Modules have different names: %s != %s\n", log_id(mod_a), log_id(mod_b));
 		if (std::string mismatch = compare_attributes(mod_a, mod_b); !mismatch.empty())
 			error("Module %s %s.\n", log_id(mod_a), mismatch);
@@ -350,17 +380,20 @@ struct DesignEqualPass : public Pass {
 
 		RTLIL::Design *other = saved_designs.at(check_name);
 
+		PoolBridge bridge(design, other);
+
 		for (auto &it : design->modules_) {
 			RTLIL::Module *mod = it.second;
-			if (!other->has(it.first))
+			RTLIL::Module *other_mod = other->module(bridge.a_to_b(it.first));
+			if (!other_mod)
 				log_error("Second design missing module %s.\n", log_id(mod));
 
-			ModuleComparator cmp(mod, other->module(it.first));
+			ModuleComparator cmp(mod, other_mod, bridge);
 			cmp.check();
 		}
 		for (auto &it : other->modules_) {
 			RTLIL::Module *mod = it.second;
-			if (!design->has(it.first))
+			if (!design->has(bridge.b_to_a(it.first)))
 				log_error("First design missing module %s.\n", log_id(mod));
 		}
 
