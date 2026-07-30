@@ -699,7 +699,7 @@ public:
 						} else {
 							DriveSpec driver = driver_map(DriveSpec(port_chunk));
 							auto& twines = port_chunk.cell->module->design->twines;
-							check_undriven(driver, twines.str(port_chunk.cell->meta_->name) + " port " + twines.str(port_chunk.port));
+							check_undriven(driver, twines.str(port_chunk.cell->name) + " port " + twines.str(port_chunk.port));
 							factory.update_pending(pending, enqueue(driver));
 						}
 					} else {

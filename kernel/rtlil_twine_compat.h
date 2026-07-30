@@ -40,6 +40,10 @@ struct NameMasqBase {
 	bool lt_by_name(const Derived &rhs) const { return self().escaped() < rhs.escaped(); }
 	bool operator==(IdString rhs) const { return self().ref() == rhs; }
 	bool operator!=(IdString rhs) const { return self().ref() != rhs; }
+	// Without these, `obj->name != Twine::Null` is ambiguous: NullRef converts
+	// to both IdString and SrcRef, and the masquerade converts to IdString.
+	bool operator==(NullRef) const { return self().ref() == Twine::Null; }
+	bool operator!=(NullRef) const { return !(self().ref() == Twine::Null); }
 	bool operator==(const std::string &rhs) const { return self().escaped() == rhs; }
 	bool operator!=(const std::string &rhs) const { return self().escaped() != rhs; }
 	bool operator==(const Derived &rhs) const { return self().ref() == rhs.ref(); }
@@ -60,10 +64,10 @@ inline bool operator!=(IdString lhs, const RTLIL::NameMasqBase<Derived> &rhs) {
 }
 
 // Masquerade for Wire::name/Cell::name/Memory::name/Process::name.
-// Reads materialise the IdString in the owning Design's twines pool (found
-// via Owner::module->design) into a temporary std::string; writes go through
-// Owner::meta_ directly. Defined before Wire/Cell/Memory/Process so it can be
-// used as a [[no_unique_address]] member of each.
+// The handle itself lives inline in NamedObject::name_; only str()/unescape()
+// need the owning Design's twines pool, reached via Owner::module->design.
+// Defined before Wire/Cell/Memory/Process so it can be used as a
+// [[no_unique_address]] member of each.
 template<typename Owner>
 struct RTLIL::ObjNameMasq : RTLIL::NameMasqBase<RTLIL::ObjNameMasq<Owner>> {
 	// Copying/moving is forbidden: an ObjNameMasq derives its identity from
@@ -78,11 +82,11 @@ struct RTLIL::ObjNameMasq : RTLIL::NameMasqBase<RTLIL::ObjNameMasq<Owner>> {
 	// Escaped form ('\'-prefixed when public) / bare content.
 	std::string escaped() const;
 	std::string unescape() const;
-	// Raw write of the backing meta_->name, for code that used to assign
-	// `obj->name` directly. Like writing meta_->name by hand, this does *not*
-	// reindex the owning Module's wires_/cells_ dicts: use Module::rename() to
-	// rename an object that is already indexed. `id` must belong to the pool
-	// of the Design owning this object.
+	// Raw write of the backing name_, for code that used to assign
+	// `obj->name` directly. This does *not* reindex the owning Module's
+	// wires_/cells_ dicts: use Module::rename() to rename an object that is
+	// already indexed. `id` must belong to the pool of the Design owning
+	// this object.
 	ObjNameMasq &operator=(IdString id);
 	// Without this, `wire->name = other->name` would invoke the implicitly
 	// deleted copy-assign instead of operator=(IdString).
@@ -137,10 +141,9 @@ private:
 inline bool operator==(IdString lhs, const RTLIL::CellTypeMasq &rhs) { return lhs == rhs.ref(); }
 inline bool operator!=(IdString lhs, const RTLIL::CellTypeMasq &rhs) { return lhs != rhs.ref(); }
 
-// Zero-size masquerade for Module::name. Same contract as WireNameMasq.
-// Shadows NamedObject::name at the Module-instance scope;
-// static_cast<NamedObject*>(module)->name still hits the (now-unused) inline
-// base field. Writing requires module->design to be set first.
+// Zero-size masquerade for Module::name. Same contract as WireNameMasq:
+// the handle lives inline in NamedObject::name_, rendered through
+// module->design->twines.
 struct RTLIL::ModuleNameMasq : RTLIL::NameMasqBase<RTLIL::ModuleNameMasq> {
 	// Copying/moving is forbidden: a ModuleNameMasq derives its identity from
 	// `this` via offsetof(Module, name), so any instance not embedded in a
@@ -150,8 +153,8 @@ struct RTLIL::ModuleNameMasq : RTLIL::NameMasqBase<RTLIL::ModuleNameMasq> {
 	ModuleNameMasq(const ModuleNameMasq&) = delete;
 	ModuleNameMasq(ModuleNameMasq&&) = delete;
 	operator IdString() const;
-	// Raw write of the backing meta_->name; does not reindex
-	// design->modules_ (use Design::rename() for a module already added).
+	// Raw write of the backing name_; does not reindex design->modules_
+	// (use Design::rename() for a module already added).
 	ModuleNameMasq& operator=(IdString id);
 	// Without this, `new_mod->name = src_mod->name` invokes the implicit
 	// copy-assign (no-op) instead of operator=(IdString), so the meta
@@ -181,7 +184,7 @@ private:
 #endif
 
 // Shared by Wire/Cell/Memory/Process (see ObjNameMasq's declaration above):
-// all four resolve their Design via ->module->design and read ->meta_->name.
+// all four resolve their Design via ->module->design to render name_.
 template<typename Owner>
 inline const Owner *RTLIL::ObjNameMasq<Owner>::owner() const {
 	return reinterpret_cast<const Owner *>(
@@ -196,10 +199,7 @@ inline Owner *RTLIL::ObjNameMasq<Owner>::owner() {
 
 template<typename Owner>
 inline IdString RTLIL::ObjNameMasq<Owner>::ref() const {
-	const Owner *o = owner();
-	if (!o->module || !o->module->design || !o->meta_)
-		return Twine::Null;
-	return o->meta_->name;
+	return owner()->name_;
 }
 
 template<typename Owner>
@@ -222,12 +222,7 @@ inline std::string RTLIL::ObjNameMasq<Owner>::unescape() const {
 
 template<typename Owner>
 inline RTLIL::ObjNameMasq<Owner> &RTLIL::ObjNameMasq<Owner>::operator=(IdString id) {
-	Owner *o = owner();
-	// A name lives in the owning Design's pool, so there has to be one.
-	log_assert(o->module != nullptr && o->module->design != nullptr);
-	if (!o->meta_)
-		o->meta_ = o->module->design->alloc_obj_meta();
-	o->meta_->name = id;
+	owner()->name_ = id;
 	return *this;
 }
 
@@ -284,10 +279,7 @@ inline RTLIL::Module *RTLIL::ModuleNameMasq::owner() {
 }
 
 inline IdString RTLIL::ModuleNameMasq::ref() const {
-	const RTLIL::Module *m = owner();
-	if (!m->design || !m->meta_)
-		return Twine::Null;
-	return m->meta_->name;
+	return owner()->name_;
 }
 
 inline std::string RTLIL::ModuleNameMasq::escaped() const {
@@ -307,12 +299,7 @@ inline std::string RTLIL::ModuleNameMasq::unescape() const {
 }
 
 inline RTLIL::ModuleNameMasq &RTLIL::ModuleNameMasq::operator=(IdString id) {
-	RTLIL::Module *m = owner();
-	// The name lives in the Design's pool, so the module must know its Design.
-	log_assert(m->design != nullptr);
-	if (!m->meta_)
-		m->meta_ = m->design->alloc_obj_meta();
-	m->meta_->name = id;
+	owner()->name_ = id;
 	return *this;
 }
 #ifdef __GNUC__

@@ -28,7 +28,7 @@ void Mem::remove() {
 		cell = nullptr;
 	}
 	if (mem) {
-		module->memories.erase(mem->meta_->name);
+		module->memories.erase(mem->name);
 		delete mem;
 		mem = nullptr;
 	}
@@ -116,7 +116,7 @@ void Mem::emit() {
 
 	if (packed) {
 		if (mem) {
-			module->memories.erase(mem->meta_->name);
+			module->memories.erase(mem->name);
 			delete mem;
 			mem = nullptr;
 		}
@@ -563,7 +563,7 @@ namespace {
 
 	Mem mem_from_memory(Module *module, RTLIL::Memory *mem, const MemIndex &index) {
 		std::string memid = mem->name.str();
-		Mem res(module, mem->meta_->name, mem->width, mem->start_offset, mem->size);
+		Mem res(module, mem->name, mem->width, mem->start_offset, mem->size);
 		res.packed = false;
 		res.mem = mem;
 		res.attributes = mem->attributes;

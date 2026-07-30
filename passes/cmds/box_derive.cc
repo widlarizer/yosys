@@ -97,7 +97,7 @@ struct BoxDerivePass : Pass {
 				if (base_override)
 					base = base_override;
 
-				auto index = std::make_pair(base->meta_->name, cell->parameters);
+				auto index = std::make_pair(base->name.ref(), cell->parameters);
 
 				if (cell->parameters.empty())
 					continue;
@@ -121,7 +121,7 @@ struct BoxDerivePass : Pass {
 				}
 
 				if (apply_mode)
-					cell->type = cell->module->design->twines.copy_from(done[index]->design->twines, done[index]->meta_->name);
+					cell->type = cell->module->design->twines.copy_from(done[index]->design->twines, done[index]->name);
 			}
 		}
 	}

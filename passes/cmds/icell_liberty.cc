@@ -50,7 +50,7 @@ struct LibertyStubber {
 		auto base_name = base->name.str().substr(1);
 		auto derived_name = derived->name.str().substr(1);
 
-		FfTypeData ffType(base->meta_->name);
+		FfTypeData ffType(base->name);
 		LibertyItemizer i(f);
 
 		if (ffType.has_gclk) {
@@ -194,7 +194,7 @@ struct IcellLiberty : Pass {
 				if (!inst_module || !inst_module->get_blackbox_attribute())
 					continue;
 				Module *base = inst_module;
-				auto base_name_id = base->meta_->name;
+				IdString base_name_id = base->name;
 				if (!done.count(base_name_id)) {
 					stubber.liberty_cell(base, base, *liberty_file);
 					done.insert(base_name_id);

@@ -141,7 +141,7 @@ struct TestSelectPass : public Pass {
 		// get sub selection and store the results
 		auto sub_sel = design->selected_modules(partials, (RTLIL::SelectBoxes)boxes);
 		pool<IdString> selected_modules;
-		dict<IdString, pool<RTLIL::AttrObject*>> selected_members;
+		dict<IdString, pool<RTLIL::NamedObject*>> selected_members;
 
 		for (auto *mod : sub_sel) {
 			if (mod->is_selected_whole()) {

@@ -33,7 +33,7 @@ struct TimingInfo
 		int offset;
 		NameBit() : offset(0) {}
 		NameBit(IdString name, int offset) : name(name), offset(offset) {}
-		explicit NameBit(const RTLIL::SigBit &b) : name(b.wire->meta_->name), offset(b.offset) {}
+		explicit NameBit(const RTLIL::SigBit &b) : name(b.wire->name), offset(b.offset) {}
 		bool operator==(const NameBit& nb) const { return nb.name == name && nb.offset == offset; }
 		bool operator!=(const NameBit& nb) const { return !operator==(nb); }
 		std::optional<SigBit> get_connection(RTLIL::Cell *cell) {
@@ -93,7 +93,7 @@ struct TimingInfo
 
 	const ModuleTiming& setup_module(RTLIL::Module *module)
 	{
-		auto r = data.insert(module->meta_->name);
+		auto r = data.insert(module->name);
 		log_assert(r.second);
 		auto &t = r.first->second;
 

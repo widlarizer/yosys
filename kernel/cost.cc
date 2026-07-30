@@ -5,8 +5,8 @@ USING_YOSYS_NAMESPACE
 
 unsigned int CellCosts::get(RTLIL::Module *mod)
 {
-	if (mod_cost_cache_.count(mod->meta_->name))
-		return mod_cost_cache_.at(mod->meta_->name);
+	if (mod_cost_cache_.count(mod->name))
+		return mod_cost_cache_.at(mod->name);
 
 	unsigned int module_cost = 1;
 	for (auto c : mod->cells()) {
@@ -14,7 +14,7 @@ unsigned int CellCosts::get(RTLIL::Module *mod)
 		module_cost = new_cost >= module_cost ? new_cost : INT_MAX;
 	}
 
-	mod_cost_cache_[mod->meta_->name] = module_cost;
+	mod_cost_cache_[mod->name] = module_cost;
 	return module_cost;
 }
 

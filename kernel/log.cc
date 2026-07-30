@@ -640,27 +640,27 @@ const char *log_id(const RTLIL::Module *module, IdString name)
 const char *log_id(const RTLIL::Module *obj, const char *nullstr)
 {
 	if (nullstr && obj == nullptr) return nullstr;
-	return log_id_twine(obj->design, obj->meta_->name);
+	return log_id_twine(obj->design, obj->name);
 }
 const char *log_id(const RTLIL::Cell *obj, const char *nullstr)
 {
 	if (nullstr && obj == nullptr) return nullstr;
-	return log_id_twine(obj->module->design, obj->meta_->name);
+	return log_id_twine(obj->module->design, obj->name);
 }
 const char *log_id(const RTLIL::Wire *obj, const char *nullstr)
 {
 	if (nullstr && obj == nullptr) return nullstr;
-	return log_id_twine(obj->module->design, obj->meta_->name);
+	return log_id_twine(obj->module->design, obj->name);
 }
 const char *log_id(const RTLIL::Memory *obj, const char *nullstr)
 {
 	if (nullstr && obj == nullptr) return nullstr;
-	return log_id_twine(obj->module->design, obj->meta_->name);
+	return log_id_twine(obj->module->design, obj->name);
 }
 const char *log_id(const RTLIL::Process *obj, const char *nullstr)
 {
 	if (nullstr && obj == nullptr) return nullstr;
-	return log_id_twine(obj->module->design, obj->meta_->name);
+	return log_id_twine(obj->module->design, obj->name);
 }
 
 void log_module(RTLIL::Module *module, std::string indent)

@@ -704,7 +704,7 @@ bool set_keep_print(std::map<RTLIL::Module*, bool> &cache, RTLIL::Module *mod)
 {
 	if (cache.count(mod) == 0)
 		for (auto c : mod->cells()) {
-			if (mod->meta_->name == c->type)
+			if (mod->name.ref() == c->type)
 				continue;
 			RTLIL::Module *m = mod->design->module(c->type);
 			if ((m != nullptr && set_keep_print(cache, m)) || c->type == ID($print))
@@ -717,7 +717,7 @@ bool set_keep_assert(std::map<RTLIL::Module*, bool> &cache, RTLIL::Module *mod)
 {
 	if (cache.count(mod) == 0)
 		for (auto c : mod->cells()) {
-			if (mod->meta_->name == c->type)
+			if (mod->name.ref() == c->type)
 				continue;
 			RTLIL::Module *m = mod->design->module(c->type);
 			if ((m != nullptr && set_keep_assert(cache, m)) || c->type.in(ID($check), ID($assert), ID($assume), ID($live), ID($fair), ID($cover)))
@@ -1028,9 +1028,9 @@ struct HierarchyPass : public Pass {
 				top_mod = design->module(top_mod->derive(design, top_parameters));
 
 			IdString top_name_ref = top_name;
-			if (top_mod != nullptr && top_mod->meta_->name != top_name_ref) {
+			if (top_mod != nullptr && top_mod->name != top_name_ref) {
 				Module *m = top_mod->clone();
-				m->meta_->name = top_name_ref;
+				m->name = top_name_ref;
 				Module *old_mod = design->module(top_name_ref);
 				if (old_mod)
 					design->remove(old_mod);
@@ -1080,7 +1080,7 @@ struct HierarchyPass : public Pass {
 			for (auto module : design->modules()) {
 				std::string mod_name = module->name.str();
 				if (!mod_name.empty() && mod_name[0] == '$' && mod_name.substr(0, 9) == "$abstract")
-					abstract_ids.push_back(module->meta_->name);
+					abstract_ids.push_back(module->name);
 			}
 			for (auto abstract_id : abstract_ids)
 				design->module(abstract_id)->derive(design, {});
@@ -1118,9 +1118,9 @@ struct HierarchyPass : public Pass {
 			top_mod = design->module(top_mod->derive(design, top_parameters));
 
 			IdString top_name_ref = top_name;
-			if (top_mod != nullptr && top_mod->meta_->name != top_name_ref) {
+			if (top_mod != nullptr && top_mod->name != top_name_ref) {
 				Module *m = top_mod->clone();
-				m->meta_->name = top_name_ref;
+				m->name = top_name_ref;
 				Module *old_mod = design->module(top_name_ref);
 				if (old_mod)
 					design->remove(old_mod);
@@ -1332,7 +1332,7 @@ struct HierarchyPass : public Pass {
 					IdString new_m_ref = m->derive(design, cell->parameters, true);
 					if (new_m_ref == IdString{})
 						continue;
-					if (new_m_ref != m->meta_->name) {
+					if (new_m_ref != m->name) {
 						m = design->module(new_m_ref);
 						blackbox_derivatives.insert(m);
 					}
@@ -1521,7 +1521,7 @@ struct HierarchyPass : public Pass {
 						IdString new_m_ref = m->derive(design, cell->parameters, true);
 						if (new_m_ref == IdString{})
 							continue;
-						if (new_m_ref != m->meta_->name) {
+						if (new_m_ref != m->name) {
 							m = design->module(new_m_ref);
 							blackbox_derivatives.insert(m);
 						}

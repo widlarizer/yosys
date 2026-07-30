@@ -661,16 +661,15 @@ public:
 struct RTLIL::ObjMeta
 {
 	SrcRef src = Src::Null;
-	IdString name = Twine::Null;  // used by Wire/Cell names (per-Design twines)
 };
 
 struct RTLIL::AttrObject
 {
 	dict<RTLIL::IdString, RTLIL::Const> attributes;
 
-	// Pointer to a per-object metadata record in some pool (typically
-	// the owning Design's). Nullable: cleared until first non-null write
-	// of any field (src or name) and reset to null when all fields empty.
+	// Pointer to a per-object metadata record in the owning Design's pool.
+	// Nullable: stays null until the first non-null src write and is reset
+	// to null when src is cleared again.
 	RTLIL::ObjMeta *meta_ = nullptr;
 
 	bool has_attribute(IdString id) const;
@@ -704,7 +703,9 @@ struct RTLIL::AttrObject
 
 struct RTLIL::NamedObject : public RTLIL::AttrObject
 {
-	IdString name = Twine::Null;
+	// Storage behind the name masquerade each derived class declares. Same
+	// arrangement as Cell::type_impl / Cell::type.
+	IdString name_ = Twine::Null;
 };
 
 #include "kernel/rtlil_twine_compat.h"
@@ -1242,8 +1243,8 @@ struct RTLIL::Selection
 
 	// add whole module to this selection
 	template<typename T1> void select(T1 *module) {
-		if (!selects_all() && selected_modules.count(module->meta_->name) == 0) {
-			IdString name = module->meta_->name;
+		if (!selects_all() && selected_modules.count(module->name) == 0) {
+			IdString name = module->name;
 			selected_modules.insert(name);
 			selected_members.erase(name);
 			if (module->get_blackbox_attribute())
@@ -1252,9 +1253,11 @@ struct RTLIL::Selection
 	}
 
 	// add member of module to this selection
+	// name_ rather than the masquerade: this is instantiated with NamedObject*
+	// as well as with the concrete Wire/Cell/... types.
 	template<typename T1, typename T2> void select(T1 *module, T2 *member) {
-		if (!selects_all() && selected_modules.count(module->meta_->name) == 0) {
-			selected_members[module->meta_->name].insert(member->meta_->name);
+		if (!selects_all() && selected_modules.count(module->name_) == 0) {
+			selected_members[module->name_].insert(member->name_);
 			if (module->get_blackbox_attribute())
 				selects_boxes = true;
 		}
@@ -1358,18 +1361,9 @@ struct RTLIL::Design
 	void obj_set_src_id(RTLIL::AttrObject *obj, SrcRef id);
 	void obj_release_src(RTLIL::AttrObject *obj);
 
-	std::string obj_name(const RTLIL::AttrObject *obj) const {
-		return (obj->meta_ ? twines.flat_string(obj->meta_->name) : std::string());
+	std::string obj_name(const RTLIL::NamedObject *obj) const {
+		return twines.flat_string(obj->name_);
 	}
-	// void obj_set_name(RTLIL::AttrObject *obj, IdString name);
-	// void obj_release_name(RTLIL::AttrObject *obj);
-
-	// Wire/Cell names: stored as IdString in twines.
-	// IdString obj_name(const RTLIL::AttrObject *obj) const {
-	// 	return (obj->meta_ ? obj->meta_->name : Twine::Null);
-	// }
-	// void obj_set_name(RTLIL::AttrObject *obj, IdString id);
-	// void obj_release_name(RTLIL::AttrObject *obj);
 
 	// Replacements for the methods that used to live on AttrObject and
 	// took an explicit pool. Same semantics; the pool resolves to
@@ -1507,7 +1501,7 @@ struct RTLIL::Design
 
 	// is the given member of the given module in the current selection
 	template<typename T1, typename T2> bool selected(T1 *module, T2 *member) const {
-		return selected_member(module->meta_->name, member->meta_->name);
+		return selected_member(module->name, member->name);
 	}
 
 	// add whole module to the current selection
@@ -1569,7 +1563,7 @@ namespace RTLIL_BACKEND {
 void dump_wire(std::ostream &f, std::string indent, const RTLIL::Wire *wire, const RTLIL::Design *design, bool resolve_src);
 }
 
-struct RTLIL::Wire : public RTLIL::AttrObject
+struct RTLIL::Wire : public RTLIL::NamedObject
 {
 private:
 	struct ConstructToken { explicit ConstructToken() = default; };
@@ -1640,7 +1634,7 @@ inline int GetSize(RTLIL::Wire *wire) {
 	return wire->width;
 }
 
-struct RTLIL::Memory : public RTLIL::AttrObject
+struct RTLIL::Memory : public RTLIL::NamedObject
 {
 	Hasher::hash_t hashidx_;
 	[[nodiscard]] Hasher hash_into(Hasher h) const { h.eat(hashidx_); return h; }
@@ -1663,7 +1657,7 @@ struct RTLIL::Memory : public RTLIL::AttrObject
 	void adopt_src_from(const RTLIL::AttrObject *source);
 	void absorb_attrs(dict<IdString, RTLIL::Const> &&buf);
 
-	// Shadows meta_->name via a read-only masquerade, same contract as
+	// Shadows NamedObject::name_ via a read-only masquerade, same contract as
 	// Wire::name/Cell::name (resolves the Design through Memory::module).
 	[[no_unique_address]] RTLIL::MemoryNameMasq name;
 
@@ -1682,7 +1676,7 @@ inline constexpr bool is_name_string_v =
 
 #define YS_NAME_STRING(N) std::enable_if_t<is_name_string_v<N>, int> = 0
 
-struct RTLIL::Cell : public RTLIL::AttrObject
+struct RTLIL::Cell : public RTLIL::NamedObject
 {
 private:
 	struct ConstructToken { explicit ConstructToken() = default; };
@@ -1883,7 +1877,7 @@ struct RTLIL::SyncRule
 	RTLIL::SyncRule *clone() const;
 };
 
-struct RTLIL::Process : public RTLIL::AttrObject
+struct RTLIL::Process : public RTLIL::NamedObject
 {
 	friend struct RTLIL::Cell;
 	friend struct RTLIL::Design;
@@ -1912,7 +1906,7 @@ public:
 	void adopt_src_from(const RTLIL::AttrObject *source);
 	void absorb_attrs(dict<IdString, RTLIL::Const> &&buf);
 
-	// Shadows meta_->name via a read-only masquerade, same contract as
+	// Shadows NamedObject::name_ via a read-only masquerade, same contract as
 	// Wire::name/Cell::name (resolves the Design through Process::module).
 	[[no_unique_address]] RTLIL::ProcessNameMasq name;
 
@@ -1961,7 +1955,7 @@ inline Hasher RTLIL::SigBit::hash_into(Hasher h) const {
 inline Hasher RTLIL::SigBit::hash_top() const {
 	Hasher h;
 	if (wire) {
-		IdString name = wire->meta_ ? wire->meta_->name : Twine::Null;
+		IdString name = wire->name.ref();
 		uint32_t n = (uint32_t)name.value ^ (uint32_t)(name.value >> 32);
 		// This hashing trick is optimized for dense integers
 		// where the second integer is usually only up to 32 large
@@ -2376,7 +2370,7 @@ public:
 	YS_NAME_FWD(Oai4Gate)
 };
 
-struct RTLIL::Module : public RTLIL::AttrObject, public CellAdderMixin<RTLIL::Module>
+struct RTLIL::Module : public RTLIL::NamedObject, public CellAdderMixin<RTLIL::Module>
 {
 	friend struct RTLIL::Cell;
 	friend struct RTLIL::Design;
@@ -2483,10 +2477,10 @@ public:
 	std::vector<RTLIL::Cell*> selected_cells() const;
 	std::vector<RTLIL::Memory*> selected_memories() const;
 	std::vector<RTLIL::Process*> selected_processes() const;
-	std::vector<RTLIL::AttrObject*> selected_members() const;
+	std::vector<RTLIL::NamedObject*> selected_members() const;
 
 	template<typename T> bool selected(T *member) const {
-		return design->selected_member(meta_->name, member->meta_->name);
+		return design->selected_member(name, member->name);
 	}
 
 	RTLIL::Wire* wire(IdString id) {

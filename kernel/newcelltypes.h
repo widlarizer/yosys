@@ -583,11 +583,11 @@ struct NewCellTypes {
 		for (auto wire_name : module->ports) {
 			RTLIL::Wire *wire = module->wire(wire_name);
 			if (wire->port_input)
-				inputs.insert(wire->meta_->name);
+				inputs.insert(wire->name);
 			if (wire->port_output)
-				outputs.insert(wire->meta_->name);
+				outputs.insert(wire->name);
 		}
-		setup_type(module->meta_->name, inputs, outputs);
+		setup_type(module->name.ref(), inputs, outputs);
 	}
 
 	void setup_type(RTLIL::IdString type, const pool<RTLIL::IdString> &inputs, const pool<RTLIL::IdString> &outputs, bool is_evaluable = false, bool is_combinatorial = false, bool is_synthesizable = false) {
