@@ -7,7 +7,7 @@ std::vector<Twine> TwinePool::globals_;
 
 IdString twine_populate(std::string name) {
 	// Globals store content only: drop the prepended '\'. Publicity lives
-	// in TWINE_PUBLIC_BIT on the ID:: handle, not in the stored string.
+	// in the publicity bit on the ID:: handle, not in the stored string.
 	log_assert(name[0] == '\\');
 	name = name.substr(1);
 	TwinePool::globals_.push_back(Twine::Leaf{std::move(name)});

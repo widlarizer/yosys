@@ -12,8 +12,8 @@ TEST(TwinePublicityTest, LeafEscapeParsing)
 	IdString pub = pool.add(std::string("\\foo"));
 	IdString priv = pool.add(std::string("$foo"));
 
-	EXPECT_TRUE(twine_is_public(pub));
-	EXPECT_FALSE(twine_is_public(priv));
+	EXPECT_TRUE(pub.isPublic());
+	EXPECT_FALSE(priv.isPublic());
 	EXPECT_EQ(pool.str(pub), "\\foo");
 	EXPECT_EQ(pool.unescaped_str(pub), "foo");
 	EXPECT_EQ(pool.str(priv), "$foo");
@@ -28,7 +28,7 @@ TEST(TwinePublicityTest, EscapedDollarStaysDistinct)
 	IdString pub = pool.add(std::string("\\$foo"));
 	IdString priv = pool.add(std::string("$foo"));
 
-	EXPECT_EQ(twine_untag(pub), twine_untag(priv)); // shared content node
+	EXPECT_EQ(pub.untag(), priv.untag()); // shared content node
 	EXPECT_NE(pub, priv);                           // distinct handles
 	EXPECT_EQ(pool.str(pub), "\\$foo");
 	EXPECT_EQ(pool.str(priv), "$foo");
@@ -51,8 +51,8 @@ TEST(TwinePublicityTest, SuffixInheritsPublicity)
 	IdString pub_sfx = pool.add(Twine{Twine::Suffix{pub, "_1"}});
 	IdString priv_sfx = pool.add(Twine{Twine::Suffix{priv, "_1"}});
 
-	EXPECT_TRUE(twine_is_public(pub_sfx));
-	EXPECT_FALSE(twine_is_public(priv_sfx));
+	EXPECT_TRUE(pub_sfx.isPublic());
+	EXPECT_FALSE(priv_sfx.isPublic());
 	EXPECT_EQ(pool.str(pub_sfx), "\\base_1");
 	EXPECT_EQ(pool.str(priv_sfx), "$base_1");
 }
@@ -60,10 +60,10 @@ TEST(TwinePublicityTest, SuffixInheritsPublicity)
 TEST(TwinePublicityTest, StaticHandlesAreTagged)
 {
 	TwinePool pool;
-	EXPECT_TRUE(twine_is_public(ID::A));
+	EXPECT_TRUE((ID::A).isPublic());
 	EXPECT_EQ(pool.str(ID::A), "\\A");
 	EXPECT_EQ(pool.unescaped_str(ID::A), "A");
-	EXPECT_FALSE(twine_is_public(ID($and)));
+	EXPECT_FALSE((ID($and)).isPublic());
 	EXPECT_EQ(pool.str(ID($and)), "$and");
 }
 
@@ -85,7 +85,7 @@ TEST(TwinePublicityTest, CopyFromPreservesTag)
 	TwinePool src, dst;
 	IdString pub = src.add(std::string("\\xfer"));
 	IdString copied = dst.copy_from(src, pub);
-	EXPECT_TRUE(twine_is_public(copied));
+	EXPECT_TRUE(copied.isPublic());
 	EXPECT_EQ(dst.str(copied), "\\xfer");
 	// Static handles pass through tag and all.
 	EXPECT_EQ(dst.copy_from(src, ID::A), ID::A);
@@ -125,7 +125,7 @@ TEST(TwinePublicityTest, WireNameMasquerade)
 
 	// uniquify keeps publicity.
 	IdString uniq = mod->uniquify(pub->name);
-	EXPECT_TRUE(twine_is_public(uniq));
+	EXPECT_TRUE(uniq.isPublic());
 	EXPECT_EQ(design.twines.str(uniq), "\\sig_1");
 }
 

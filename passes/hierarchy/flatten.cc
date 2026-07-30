@@ -79,7 +79,7 @@ IdString remap_flattened_name(RTLIL::Design *design, IdString obj_ref,
 	IdString result;
 	if (node.is_suffix()) {
 		const Twine::Suffix &sfx = node.suffix();
-		IdString prefix = remap_flattened_name(design, twine_tag(sfx.prefix, obj_ref.isPublic()),
+		IdString prefix = remap_flattened_name(design, sfx.prefix.tag(obj_ref.isPublic()),
 				pub_prefix_ref, priv_prefix_ref, separator, memo);
 		result = design->twines.add(Twine::Suffix{prefix, sfx.tail});
 	} else {

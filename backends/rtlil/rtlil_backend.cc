@@ -34,19 +34,19 @@ YOSYS_NAMESPACE_BEGIN
 
 static std::string twine_handle(IdString ref)
 {
-	return stringf("%s@%zu", twine_is_public(ref) ? "$pub" : "$priv", (size_t)twine_untag(ref));
+	return stringf("%s@%zu", ref.isPublic() ? "$pub" : "$priv", (size_t)ref.untag());
 }
 
 static std::string twine_ref(const RTLIL::Design *design, IdString ref, DumpMode mode)
 {
-	if (mode == DumpMode::Readable || twine_untag(ref) < STATIC_TWINE_END)
+	if (mode == DumpMode::Readable || ref.untag() < STATIC_TWINE_END)
 		return design->twines.str(ref);
 	return twine_handle(ref);
 }
 
 static std::string twine_cmt(const RTLIL::Design *design, IdString ref, DumpMode mode)
 {
-	if (mode != DumpMode::Replayable || twine_untag(ref) < STATIC_TWINE_END)
+	if (mode != DumpMode::Replayable || ref.untag() < STATIC_TWINE_END)
 		return "";
 	return stringf("  # %s", design->twines.str(ref).c_str());
 }
@@ -197,7 +197,7 @@ void RTLIL_BACKEND::dump_sigchunk(std::ostream &f, const RTLIL::SigChunk &chunk,
 		dump_const(f, chunk.data, chunk.width, chunk.offset, autoint);
 	} else {
 		IdString wref = chunk.wire->name.ref();
-		std::string name = (mode == DumpMode::Readable || twine_untag(wref) < STATIC_TWINE_END)
+		std::string name = (mode == DumpMode::Readable || wref.untag() < STATIC_TWINE_END)
 			? chunk.wire->name.str() : twine_handle(wref);
 		if (chunk.width == chunk.wire->width && chunk.offset == 0)
 			f << name;

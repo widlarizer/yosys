@@ -768,7 +768,7 @@ void IR::topological_sort() {
 }
 
 static IdString merge_name(IdString a, IdString b) {
-	if(!twine_is_public(a) && twine_is_public(b))
+	if(!a.isPublic() && b.isPublic())
 		return b;
 	else
 		return a;

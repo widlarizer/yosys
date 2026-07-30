@@ -248,7 +248,7 @@ inline std::string RTLIL::CellTypeMasq::escaped() const {
 	if (c->module && c->module->design)
 		return c->module->design->twines.str(id);
 	// Static (ID::) refs are pool-independent; assert non-local ref.
-	log_assert(twine_untag(id) < STATIC_TWINE_END);
+	log_assert(id.untag() < STATIC_TWINE_END);
 	return TwinePool{}.str(id);
 }
 
@@ -259,7 +259,7 @@ inline std::string RTLIL::CellTypeMasq::unescape() const {
 		return std::string();
 	if (c->module && c->module->design)
 		return c->module->design->twines.unescaped_str(id);
-	log_assert(twine_untag(id) < STATIC_TWINE_END);
+	log_assert(id.untag() < STATIC_TWINE_END);
 	return TwinePool{}.unescaped_str(id);
 }
 

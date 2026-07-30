@@ -88,7 +88,7 @@ struct PrefixApplier
 		IdString result;
 		if (node.is_suffix()) {
 			const Twine::Suffix &sfx = node.suffix();
-			IdString prefix = name(twine_tag(sfx.prefix, obj_ref.isPublic()));
+			IdString prefix = name(sfx.prefix.tag(obj_ref.isPublic()));
 			result = dst->twines.add(Twine::Suffix{prefix, sfx.tail});
 		} else {
 			IdString prefix = obj_ref.isPublic() ? pub_prefix : techmap_prefix();

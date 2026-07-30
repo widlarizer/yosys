@@ -379,7 +379,7 @@ struct RTLILFrontendWorker {
 			if (id.has_value()) {
 				const std::string &s = *id;
 				bool pub = !s.empty() && s[0] == '\\';
-				IdString ref = twine_tag(design->twines.find(pub ? s.substr(1) : s), pub);
+				IdString ref = (design->twines.find(pub ? s.substr(1) : s)).tag(pub);
 				RTLIL::Wire *wire = current_module->wire(ref);
 				if (wire == nullptr) {
 					if (flag_legalize)
@@ -570,7 +570,7 @@ struct RTLILFrontendWorker {
 			auto it = twine_remap.find(id);
 			base = (it == twine_remap.end()) ? materialize_file_twine(id) : it->second;
 		}
-		return twine_tag(base, is_public);
+		return base.tag(is_public);
 	}
 
 	// Tolerates nodes listed out of dependency order
