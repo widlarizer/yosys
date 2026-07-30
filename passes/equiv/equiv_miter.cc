@@ -143,8 +143,6 @@ struct EquivMiterWorker
 		for (auto w :  miter_wires)
 			miter_module->addWire(w->name.str(), w->width);
 		for (auto c :  miter_cells) {
-			if (c->type.in(ID($input_port), ID($output_port), ID($public)))
-				continue;
 			auto mc = miter_module->addCell(c->name.str(), c);
 			for (auto &conn : mc->connections())
 				mc->setPort(conn.first, sigmap(conn.second));

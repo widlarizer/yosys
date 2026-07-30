@@ -577,10 +577,6 @@ struct OptMergePass : public Pass {
 		ct.cell_types.erase(ID($anyconst));
 		ct.cell_types.erase(ID($allseq));
 		ct.cell_types.erase(ID($allconst));
-		// never be folded into one another, otherwise distinct ports collapse.
-		ct.cell_types.erase(ID($input_port));
-		ct.cell_types.erase(ID($output_port));
-		ct.cell_types.erase(ID($public));
 
 		int total_count = 0;
 		for (auto module : design->selected_modules()) {
