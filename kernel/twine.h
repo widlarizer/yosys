@@ -20,9 +20,7 @@ struct TwinePool;
 struct IdString {
 	size_t value;
 
-	static constexpr size_t kLocalBit  = 1ULL << 63;
 	static constexpr size_t kPublicBit = 1ULL << 62;
-	static constexpr size_t kTagMask   = kLocalBit | kPublicBit;
 	static constexpr size_t kNull      = ~size_t{0};
 
 	constexpr IdString() : value(kNull) {}
@@ -44,7 +42,6 @@ struct IdString {
 	constexpr bool empty() const { return value == kNull; }
 
 	constexpr bool isPublic() const { return value != kNull && (value & kPublicBit); }
-	constexpr bool is_local()  const { return value != kNull && (value & kLocalBit); }
 
 	constexpr IdString untag() const {
 		return value == kNull ? *this : IdString(value & ~kPublicBit);
@@ -79,13 +76,10 @@ struct NullRef {
 	constexpr bool operator==(SrcRef ref) const { return ref.value == SrcRef::kNull; }
 };
 
-// Tags TwineChildPool-local refs; never set on refs handed out by TwinePool.
-constexpr IdString TWINE_LOCAL_BIT = IdString(1LLU << 63);
 // Publicity tag carried on name handles. Pool nodes store name *content*
 // (no '\' escape); whether a name is public lives in this bit of the
 // handle, never inside the pool. TwinePool strips it on every entry path.
 constexpr IdString TWINE_PUBLIC_BIT = IdString(1LLU << 62);
-constexpr IdString TWINE_TAG_MASK = TWINE_LOCAL_BIT | TWINE_PUBLIC_BIT;
 
 enum : short {
 	// STATIC_TWINE_BEGIN = 0,
@@ -737,72 +731,6 @@ struct DeepTwineEq {
 		};
 		append(append, t);
 		return result;
-	}
-};
-
-// Parallel-safe staging while the parent stays read-only; nodes may reference parent refs and earlier local refs
-struct TwineChildPool {
-	const TwinePool* parent;
-	std::vector<Twine> local_;
-	std::vector<IdString> remap_;
-
-	TwineChildPool(const TwinePool* parent) : parent(parent) {}
-
-	static bool is_local(IdString ref) { return ref.is_local(); }
-
-	const Twine& operator[] (IdString ref) const {
-		if (is_local(ref))
-			return local_[ref & ~TWINE_TAG_MASK];
-		return (*parent)[ref];
-	}
-
-	IdString add_inner(Twine t) {
-		local_.push_back(std::move(t));
-		return (local_.size() - 1) | TWINE_LOCAL_BIT;
-	}
-
-	// Local analog of TwinePool::add; see there for the convention.
-	IdString add(Twine t) {
-		if (auto *ap = std::get_if<Twine::AutoSuffix>(&t.data)) {
-			IdString pref = add_inner(Twine::Leaf{*ap->prefix});
-			return add_inner(Twine::Suffix{pref, std::move(ap->tail)});
-		}
-		bool is_public = false;
-		if (auto *leaf = std::get_if<Twine::Leaf>(&t.data)) {
-			log_assert(!leaf->s.empty());
-			if (leaf->s[0] == '\\') {
-				is_public = true;
-				leaf->s.erase(0, 1);
-				log_assert(!leaf->s.empty());
-			} else {
-				log_assert(leaf->s[0] == '$');
-			}
-		} else if (auto *sfx = std::get_if<Twine::Suffix>(&t.data)) {
-			is_public = twine_is_public(sfx->prefix);
-		}
-		return twine_tag(add_inner(std::move(t)), is_public);
-	}
-
-	IdString add(std::string s) { return add_escaped(*this, std::move(s)); }
-
-	bool empty() const { return local_.empty(); }
-
-	// serial phase only; dest must be *parent; resolve() covers refs added since the previous commit
-	void commit_into(TwinePool& dest) {
-		remap_.clear();
-		remap_.reserve(local_.size());
-		for (Twine& t : local_) {
-			if (t.is_suffix())
-				std::get<Twine::Suffix>(t.data).prefix = resolve(std::get<Twine::Suffix>(t.data).prefix);
-			remap_.push_back(dest.add(std::move(t)));
-		}
-		local_.clear();
-	}
-
-	IdString resolve(IdString ref) const {
-		if (!is_local(ref))
-			return ref;
-		return twine_tag(remap_[ref & ~TWINE_TAG_MASK], twine_is_public(ref));
 	}
 };
 
