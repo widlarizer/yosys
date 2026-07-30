@@ -161,7 +161,6 @@ struct Twine {
 	bool is_dead() const { return std::holds_alternative<std::monostate>(data); }
 	bool is_leaf() const { return std::holds_alternative<Leaf>(data); }
 	bool is_suffix() const { return std::holds_alternative<Suffix>(data); }
-	bool is_auto_prefix() const { return std::holds_alternative<AutoSuffix>(data); }
 	const std::string &leaf() const { return std::get<Leaf>(data).s; }
 	const Suffix &suffix() const { return std::get<Suffix>(data); }
 };
