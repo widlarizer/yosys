@@ -3,8 +3,6 @@
 
 #include "kernel/yosys_common.h"
 
-#include <cassert>
-
 #include <algorithm>
 #include <deque>
 #include <span>
@@ -439,7 +437,8 @@ struct TwinePool : HashConsPool<TwinePool, Twine, IdString> {
 
 	using HashConsPool::find;
 
-	// Avoid. Parameter is expected to be escaped. For compatibility only
+	// Avoid. Only finds leaves. Parameter is expected to be escaped.
+	// For compatibility only
 	IdString find(const std::string &name) const {
 		bool is_public = !name.empty() && name[0] == '\\';
 		return find(Twine::Leaf{is_public ? name.substr(1) : name}).tag(is_public);
@@ -564,7 +563,7 @@ struct SrcPool : HashConsPool<SrcPool, Src, SrcRef> {
 
 	SrcRef adopt(std::span<const IdString> members) {
 		for (IdString member : members)
-			assert(!twine_is_public(member));
+			log_assert(!twine_is_public(member));
 		return intern(std::vector<IdString>(members.begin(), members.end()));
 	}
 
@@ -770,13 +769,13 @@ struct TwineChildPool {
 		}
 		bool is_public = false;
 		if (auto *leaf = std::get_if<Twine::Leaf>(&t.data)) {
-			assert(!leaf->s.empty());
+			log_assert(!leaf->s.empty());
 			if (leaf->s[0] == '\\') {
 				is_public = true;
 				leaf->s.erase(0, 1);
-				assert(!leaf->s.empty());
+				log_assert(!leaf->s.empty());
 			} else {
-				assert(leaf->s[0] == '$');
+				log_assert(leaf->s[0] == '$');
 			}
 		} else if (auto *sfx = std::get_if<Twine::Suffix>(&t.data)) {
 			is_public = twine_is_public(sfx->prefix);

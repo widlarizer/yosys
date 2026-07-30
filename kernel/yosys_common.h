@@ -263,6 +263,17 @@ inline void memhasher() { if (memhasher_active) memhasher_do(); }
 void yosys_banner();
 int ceil_log2(int x) YS_ATTRIBUTE(const);
 
+[[noreturn]]
+void log_assert_failure(const char *expr, const char *file, int line);
+#ifndef NDEBUG
+static inline void log_assert_worker(bool cond, const char *expr, const char *file, int line) {
+	if (!cond) log_assert_failure(expr, file, line);
+}
+#  define log_assert(_assert_expr_) YOSYS_NAMESPACE_PREFIX log_assert_worker(_assert_expr_, #_assert_expr_, __FILE__, __LINE__)
+#else
+#  define log_assert(_assert_expr_) do { if (0) { (void)(_assert_expr_); } } while(0)
+#endif
+
 template<typename T> int GetSize(const T &obj) { return obj.size(); }
 inline int GetSize(RTLIL::Wire *wire);
 
