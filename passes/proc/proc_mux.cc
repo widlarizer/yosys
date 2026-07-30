@@ -98,7 +98,7 @@ struct SigSnippets
 	void insert(const RTLIL::CaseRule *cs)
 	{
 		for (auto &action : cs->actions)
-			insert(action.lhs);
+			insert(action.first);
 
 		for (auto sw : cs->switches)
 		for (auto cs2 : sw->cases)
@@ -121,7 +121,7 @@ struct SnippetSwCache
 	void insert(const RTLIL::CaseRule *cs, vector<RTLIL::SwitchRule*> &sw_stack)
 	{
 		for (auto &action : cs->actions)
-		for (auto bit : action.lhs) {
+		for (auto bit : action.first) {
 			int sn = snippets->bit2snippet.at(bit, -1);
 			if (sn < 0)
 				continue;
@@ -290,7 +290,7 @@ const pool<SigBit> &get_full_case_bits(SnippetSwCache &swcache, RTLIL::SwitchRul
 				pool<SigBit> case_bits;
 
 				for (auto it : cs->actions) {
-					for (auto bit : it.lhs)
+					for (auto bit : it.first)
 						case_bits.insert(bit);
 				}
 
@@ -324,8 +324,8 @@ RTLIL::SigSpec signal_to_mux_tree(RTLIL::Module *mod, SnippetSwCache &swcache, d
 	RTLIL::SigSpec result = defval;
 
 	for (auto &action : cs->actions) {
-		sig.replace(action.lhs, action.rhs, &result);
-		action.lhs.remove2(sig, &action.rhs);
+		sig.replace(action.first, action.second, &result);
+		action.first.remove2(sig, &action.second);
 	}
 
 	for (auto sw : cs->switches)

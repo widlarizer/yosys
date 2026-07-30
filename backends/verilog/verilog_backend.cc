@@ -2166,12 +2166,12 @@ void dump_proc_switch(std::ostream &f, std::string indent, RTLIL::SwitchRule *sw
 void dump_case_actions(std::ostream &f, std::string indent, RTLIL::CaseRule *cs)
 {
 	for (auto it = cs->actions.begin(); it != cs->actions.end(); ++it) {
-		if (it->lhs.size() == 0)
+		if (it->first.size() == 0)
 			continue;
 		f << stringf("%s  ", indent);
-		dump_sigspec(f, it->lhs);
+		dump_sigspec(f, it->first);
 		f << stringf(" = ");
-		dump_sigspec(f, it->rhs);
+		dump_sigspec(f, it->second);
 		f << stringf(";\n");
 		// TODO
 	}
@@ -2307,7 +2307,7 @@ void case_body_find_regs(RTLIL::CaseRule *cs)
 		case_body_find_regs(*it2);
 
 	for (auto it = cs->actions.begin(); it != cs->actions.end(); ++it) {
-		for (auto &c : it->lhs.chunks())
+		for (auto &c : it->first.chunks())
 			if (c.wire != NULL)
 				reg_wires.insert(c.wire->name);
 	}
@@ -2319,7 +2319,7 @@ void dump_process(std::ostream &f, std::string indent, RTLIL::Process *proc, boo
 		case_body_find_regs(&proc->root_case);
 		for (auto it = proc->syncs.begin(); it != proc->syncs.end(); ++it)
 		for (auto it2 = (*it)->actions.begin(); it2 != (*it)->actions.end(); it2++) {
-			for (auto &c : it2->lhs.chunks())
+			for (auto &c : it2->first.chunks())
 				if (c.wire != NULL)
 					reg_wires.insert(c.wire->name);
 		}
@@ -2376,12 +2376,12 @@ void dump_process(std::ostream &f, std::string indent, RTLIL::Process *proc, boo
 		}
 
 		for (auto it = sync->actions.begin(); it != sync->actions.end(); ++it) {
-			if (it->lhs.size() == 0)
+			if (it->first.size() == 0)
 				continue;
 			f << stringf("%s  ", indent);
-			dump_sigspec(f, it->lhs);
+			dump_sigspec(f, it->first);
 			f << stringf(" <= ");
-			dump_sigspec(f, it->rhs);
+			dump_sigspec(f, it->second);
 			f << stringf(";\n");
 		}
 

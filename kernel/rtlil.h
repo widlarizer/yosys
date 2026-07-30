@@ -114,7 +114,6 @@ namespace RTLIL
 	struct CaseRule;
 	struct SwitchRule;
 	struct MemWriteAction;
-	struct SyncAction;
 	struct SyncRule;
 	struct Process;
 	struct Binding;
@@ -1788,7 +1787,7 @@ struct RTLIL::CaseRule : public RTLIL::AttrObject
 	RTLIL::Module *module = nullptr;
 
 	std::vector<RTLIL::SigSpec> compare;
-	std::vector<RTLIL::SyncAction> actions;
+	std::vector<RTLIL::SigSig> actions;
 	std::vector<RTLIL::SwitchRule*> switches;
 
 	~CaseRule();
@@ -1863,21 +1862,11 @@ struct RTLIL::MemWriteAction : RTLIL::AttrObject
 	void absorb_attrs(dict<IdString, RTLIL::Const> &&buf);
 };
 
-struct RTLIL::SyncAction
-{
-	RTLIL::SigSpec lhs;
-	RTLIL::SigSpec rhs;
-	// Retained only because frontends/slang (a submodule) names this field
-	// when it aggregate-initialises a SyncAction. Nothing in yosys writes a
-	// non-null value into it.
-	SrcRef src = Src::Null;
-};
-
 struct RTLIL::SyncRule
 {
 	RTLIL::SyncType type;
 	RTLIL::SigSpec signal;
-	std::vector<RTLIL::SyncAction> actions;
+	std::vector<RTLIL::SigSig> actions;
 	std::vector<RTLIL::MemWriteAction> mem_write_actions;
 
 	template<typename T> void rewrite_sigspecs(T &functor);
@@ -2646,8 +2635,8 @@ void RTLIL::CaseRule::rewrite_sigspecs(T &functor) {
 	for (auto &it : compare)
 		functor(it);
 	for (auto &it : actions) {
-		functor(it.lhs);
-		functor(it.rhs);
+		functor(it.first);
+		functor(it.second);
 	}
 	for (auto it : switches)
 		it->rewrite_sigspecs(functor);
@@ -2658,7 +2647,7 @@ void RTLIL::CaseRule::rewrite_sigspecs2(T &functor) {
 	for (auto &it : compare)
 		functor(it);
 	for (auto &it : actions) {
-		functor(it.lhs, it.rhs);
+		functor(it.first, it.second);
 	}
 	for (auto it : switches)
 		it->rewrite_sigspecs2(functor);
@@ -2685,8 +2674,8 @@ void RTLIL::SyncRule::rewrite_sigspecs(T &functor)
 {
 	functor(signal);
 	for (auto &it : actions) {
-		functor(it.lhs);
-		functor(it.rhs);
+		functor(it.first);
+		functor(it.second);
 	}
 	for (auto &it : mem_write_actions) {
 		functor(it.address);
@@ -2700,7 +2689,7 @@ void RTLIL::SyncRule::rewrite_sigspecs2(T &functor)
 {
 	functor(signal);
 	for (auto &it : actions) {
-		functor(it.lhs, it.rhs);
+		functor(it.first, it.second);
 	}
 	for (auto &it : mem_write_actions) {
 		functor(it.address);

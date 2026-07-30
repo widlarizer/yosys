@@ -425,8 +425,8 @@ struct AST_INTERNAL::ProcessGenerator
 				// an unnecessary register for a purely combinational temporary.
 				syncrule->actions.erase(
 					std::remove_if(syncrule->actions.begin(), syncrule->actions.end(),
-						[](const RTLIL::SyncAction &ss) {
-							for (auto &chunk : ss.lhs.chunks())
+						[](const RTLIL::SigSig &ss) {
+							for (auto &chunk : ss.first.chunks())
 								if (chunk.wire && chunk.wire->get_bool_attribute(ID::nosync))
 									return true;
 							return false;
@@ -585,7 +585,7 @@ struct AST_INTERNAL::ProcessGenerator
 
 		for (auto it = cs->actions.rbegin(); it != cs->actions.rend(); ++it) {
 			bool has_pattern = false;
-			for (auto &bit : it->lhs) {
+			for (auto &bit : it->first) {
 				if (bit.wire != NULL && remaining_bits.count(bit)) {
 					has_pattern = true;
 					remaining_bits.erase(bit);
@@ -593,7 +593,7 @@ struct AST_INTERNAL::ProcessGenerator
 			}
 
 			if (has_pattern) {
-				it->lhs.remove2(pattern_bits, &it->rhs);
+				it->first.remove2(pattern_bits, &it->second);
 			}
 
 			// Early exit if we've processed all bits in pattern
@@ -618,7 +618,7 @@ struct AST_INTERNAL::ProcessGenerator
 
 	// add an assignment (aka "action") but split it up in chunks. this way huge assignments
 	// are avoided and the generated $mux cells have a more "natural" size.
-	void addChunkActions(std::vector<RTLIL::SyncAction> &actions, RTLIL::SigSpec lvalue, RTLIL::SigSpec rvalue, AstNode* ast, bool inSyncRule = false)
+	void addChunkActions(std::vector<RTLIL::SigSig> &actions, RTLIL::SigSpec lvalue, RTLIL::SigSpec rvalue, AstNode* ast, bool inSyncRule = false)
 	{
 		if (inSyncRule && initSyncSignals.size() > 0) {
 			init_lvalue.append(lvalue.extract(initSyncSignals));
