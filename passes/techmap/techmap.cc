@@ -576,7 +576,7 @@ struct TechmapWorker
 						std::string m_name = stringf("$extern:%s:%s", extmapper_name, cell->type.unescape());
 
 						for (auto &c : cell->parameters)
-							m_name += stringf(":%s=%s", log_id(c.first), log_signal(c.second));
+							m_name += stringf(":%s=%s", log_id(cell->module, c.first), log_signal(c.second));
 
 						if (extmapper_name == "wrap")
 							m_name += ":" + sha1(tpl->attributes.at(ID::techmap_wrap).decode_string());

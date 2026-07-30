@@ -144,7 +144,7 @@ void reset_auto_counter(RTLIL::Module *module)
 	auto_name_counter = 0;
 	auto_name_offset = 0;
 
-	reset_auto_counter_id(module->design->twines.flat_string(module->name), false);
+	reset_auto_counter_id(module->name, false);
 
 	for (auto w : module->wires())
 		reset_auto_counter_id(w->name, true);
@@ -155,7 +155,7 @@ void reset_auto_counter(RTLIL::Module *module)
 	}
 
 	for (auto it = module->processes.begin(); it != module->processes.end(); ++it)
-		reset_auto_counter_id(module->design->twines.flat_string(it->first), false);
+		reset_auto_counter_id(it->second->name, false);
 
 	auto_name_digits = 1;
 	for (size_t i = 10; i < auto_name_offset + auto_name_map.size(); i = i*10)

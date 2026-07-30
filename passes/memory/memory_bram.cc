@@ -39,7 +39,7 @@ struct rules_t
 	};
 
 	struct bram_t {
-		IdString name;
+		PooledName name;
 		int variant;
 
 		int groups, abits, dbits, init;
@@ -180,7 +180,7 @@ struct rules_t
 	};
 
 	struct match_t {
-		IdString name;
+		PooledName name;
 		dict<string, int> min_limits, max_limits;
 		bool or_next_if_better, make_transp, make_outreg;
 		char shuffle_enable;
@@ -276,7 +276,7 @@ struct rules_t
 
 	void parse_bram()
 	{
-		IdString bram_name = design->twines.add(RTLIL::escape_id(tokens[1]));
+		PooledName bram_name(design, design->twines.add(RTLIL::escape_id(tokens[1])));
 
 		if (GetSize(tokens) != 2)
 			syntax_error();
@@ -361,7 +361,7 @@ struct rules_t
 			syntax_error();
 
 		match_t data;
-		data.name = design->twines.add(RTLIL::escape_id(tokens[1]));
+		data.name = PooledName(design, design->twines.add(RTLIL::escape_id(tokens[1])));
 		data.or_next_if_better = false;
 		data.make_transp = false;
 		data.make_outreg = false;
@@ -825,7 +825,7 @@ grow_read_ports:;
 				if (!exists)
 					ss << "!";
 				IdString key = std::get<1>(sums.front());
-				ss << log_id(key);
+				ss << log_id(mem.module, key);
 				const Const &value = rules.map_case(std::get<2>(sums.front()));
 				if (exists && value != Const(1))
 					ss << "=\"" << value.decode_string() << "\"";
@@ -1203,7 +1203,7 @@ void handle_memory(Mem &mem, const rules_t &rules, FfInitVals *initvals)
 					if (!exists)
 						ss << "!";
 					IdString key = std::get<1>(sums.front());
-					ss << log_id(key);
+					ss << log_id(mem.module, key);
 					const Const &value = rules.map_case(std::get<2>(sums.front()));
 					if (exists && value != Const(1))
 						ss << "=\"" << value.decode_string() << "\"";

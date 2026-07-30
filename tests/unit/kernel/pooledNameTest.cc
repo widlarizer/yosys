@@ -61,6 +61,19 @@ TEST(PooledNameTest, PoollessNameIsUsableAsALookupKey)
 	EXPECT_EQ(by_name.at(PooledName(&pool, ref)), 7);
 }
 
+TEST(PooledNameTest, ConvertsFromTheKernelMasqs)
+{
+	Design design;
+	Module *mod = design.addModule(std::string("\\zz_top"));
+	Wire *w = mod->addWire(std::string("\\zz_wire"), 1);
+	Cell *cell = mod->addCell(std::string("\\zz_cell"), ID($and));
+
+	EXPECT_EQ(PooledName(mod->name).str(), "\\zz_top");
+	EXPECT_EQ(PooledName(w->name).str(), "\\zz_wire");
+	EXPECT_EQ(PooledName(cell->name).unescape(), "zz_cell");
+	EXPECT_EQ(PooledName(cell->type).str(), "$and");
+}
+
 TEST(PooledNameTest, NullNameIsEmpty)
 {
 	PooledName none;

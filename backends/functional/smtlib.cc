@@ -105,7 +105,7 @@ public:
 		}
 	}
 	SExpr access(SExpr record, IdString name) {
-		size_t i = field_names.at(name);
+		size_t i = field_names.at(PooledName(name));
 		return list(fields[i].accessor, std::move(record));
 	}
 };

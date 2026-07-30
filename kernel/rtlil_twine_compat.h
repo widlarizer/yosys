@@ -83,6 +83,7 @@ struct RTLIL::ObjNameMasq : RTLIL::NameMasqBase<RTLIL::ObjNameMasq<Owner>> {
 	ObjNameMasq(ObjNameMasq &&) = delete;
 	// Tagged name handle (Twine::Null when unnamed).
 	IdString ref() const;
+	const TwinePool *pool() const;
 	// Escaped form ('\'-prefixed when public) / bare content.
 	std::string escaped() const;
 	std::string unescape() const;
@@ -108,6 +109,7 @@ struct RTLIL::CellTypeMasq : RTLIL::NameMasqBase<RTLIL::CellTypeMasq> {
 	CellTypeMasq(const CellTypeMasq &) = delete;
 	CellTypeMasq(CellTypeMasq &&) = delete;
 	IdString ref() const;
+	const TwinePool *pool() const;
 	std::string escaped() const;
 	std::string unescape() const;
 	// Write path, equivalent to assigning cell->type_impl directly. `id` must
@@ -140,6 +142,7 @@ struct RTLIL::ModuleNameMasq : RTLIL::NameMasqBase<RTLIL::ModuleNameMasq> {
 	ModuleNameMasq& operator=(const ModuleNameMasq& other) { return *this = other.ref(); }
 	ModuleNameMasq& operator=(ModuleNameMasq&& other) { return *this = other.ref(); }
 	IdString ref() const;
+	const TwinePool *pool() const;
 	std::string escaped() const;
 	std::string unescape() const;
 private:
@@ -149,14 +152,18 @@ private:
 
 struct RTLIL::PooledName : RTLIL::NameMasqBase<RTLIL::PooledName> {
 	PooledName() = default;
-	PooledName(IdString id) : id_(id) {}
+	explicit PooledName(IdString id) : id_(id) {}
 	PooledName(const TwinePool *pool, IdString id) : pool_(pool), id_(id) {}
 	PooledName(const RTLIL::Design *design, IdString id);
 	PooledName(const RTLIL::Module *module, IdString id);
+	template<typename D> PooledName(const RTLIL::NameMasqBase<D> &masq)
+		: pool_(static_cast<const D &>(masq).pool()),
+		  id_(static_cast<const D &>(masq).ref()) {}
 	IdString ref() const { return id_; }
 	std::string escaped() const;
 	std::string unescape() const;
 	const TwinePool *pool() const { return pool_; }
+	PooledName &operator=(IdString id) { id_ = id; return *this; }
 private:
 	const TwinePool *pool_ = nullptr;
 	IdString id_ = Twine::Null;
@@ -208,6 +215,12 @@ inline IdString RTLIL::ObjNameMasq<Owner>::ref() const {
 }
 
 template<typename Owner>
+inline const TwinePool *RTLIL::ObjNameMasq<Owner>::pool() const {
+	const Owner *o = owner();
+	return o->module && o->module->design ? &o->module->design->twines : nullptr;
+}
+
+template<typename Owner>
 inline std::string RTLIL::ObjNameMasq<Owner>::escaped() const {
 	const Owner *o = owner();
 	IdString id = ref();
@@ -243,6 +256,11 @@ inline RTLIL::Cell *RTLIL::CellTypeMasq::owner() {
 
 inline IdString RTLIL::CellTypeMasq::ref() const {
 	return owner()->type_impl;
+}
+
+inline const TwinePool *RTLIL::CellTypeMasq::pool() const {
+	const RTLIL::Cell *c = owner();
+	return c->module && c->module->design ? &c->module->design->twines : nullptr;
 }
 
 inline std::string RTLIL::CellTypeMasq::escaped() const {
@@ -283,6 +301,11 @@ inline RTLIL::Module *RTLIL::ModuleNameMasq::owner() {
 
 inline IdString RTLIL::ModuleNameMasq::ref() const {
 	return owner()->name_;
+}
+
+inline const TwinePool *RTLIL::ModuleNameMasq::pool() const {
+	const RTLIL::Module *m = owner();
+	return m->design ? &m->design->twines : nullptr;
 }
 
 inline std::string RTLIL::ModuleNameMasq::escaped() const {

@@ -27,10 +27,10 @@
 USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
-static string spice_id2str(const std::string &id)
+static string spice_id2str(PooledName id)
 {
 	static const char *escape_chars = "$\\[]()<>=";
-	string s = RTLIL::unescape_id(id);
+	string s = id.unescape();
 
 	for (auto &ch : s)
 		if (strchr(escape_chars, ch) != nullptr) ch = '_';
@@ -38,11 +38,11 @@ static string spice_id2str(const std::string &id)
 	return s;
 }
 
-static string spice_id2str(const RTLIL::Design *design, IdString id, bool use_inames, idict<IdString, 1> &inums)
+static string spice_id2str(PooledName id, bool use_inames, idict<IdString, 1> &inums)
 {
-	if (!use_inames && design->twines.str(id)[0] == '$')
+	if (!use_inames && id.str()[0] == '$')
 		return stringf("%d", inums(id));
-	return spice_id2str(design->twines.str(id));
+	return spice_id2str(id);
 }
 
 static void print_spice_net(std::ostream &f, RTLIL::SigBit s, std::string &neg, std::string &pos, std::string &ncpf, int &nc_counter, bool use_inames, idict<IdString, 1> &inums)
@@ -51,9 +51,9 @@ static void print_spice_net(std::ostream &f, RTLIL::SigBit s, std::string &neg, 
 		if (s.wire->port_id)
 			use_inames = true;
 		if (s.wire->width > 1)
-			f << stringf(" %s.%d", spice_id2str(s.wire->module->design, s.wire->name, use_inames, inums), s.offset);
+			f << stringf(" %s.%d", spice_id2str(s.wire->name, use_inames, inums), s.offset);
 		else
-			f << stringf(" %s", spice_id2str(s.wire->module->design, s.wire->name, use_inames, inums));
+			f << stringf(" %s", spice_id2str(s.wire->name, use_inames, inums));
 	} else {
 		if (s == RTLIL::State::S0)
 			f << stringf(" %s", neg);

@@ -343,7 +343,7 @@ private:
 				//recurse to GLIFT model the child module. However, we need to augment the ports list
 				//with taint signals and connect the new ports to the corresponding taint signals.
 				RTLIL::Module *cell_module_def = module->design->module(cell->type);
-				auto orig_ports = cell->connections();
+				dict<RTLIL::IdString, RTLIL::SigSpec> orig_ports = cell->connections();
 				log("Adding cell %s\n", cell_module_def->name);
 				for (auto &it : orig_ports) {
 					RTLIL::SigSpec port = it.second;
@@ -351,7 +351,7 @@ private:
 
 					log_assert(port_taint.is_wire());
 					log_assert(std::find(cell_module_def->ports.begin(), cell_module_def->ports.end(), port_taint.as_wire()->name) != cell_module_def->ports.end());
-					cell->setPort(module->design->twines.str(port_taint.as_wire()->name) + "_t", port_taint);
+					cell->setPort(port_taint.as_wire()->name, port_taint);
 				}
 			}
 			else log_cmd_error("This is a bug (4).\n");
@@ -379,7 +379,7 @@ private:
 			for (unsigned int i = 0; meta_mux_select_sums.size() > 1; ) {
 				meta_mux_select_sums_buf.clear();
 				for (i = 0; i + 1 < meta_mux_select_sums.size(); i += 2) {
-					meta_mux_select_sums_buf.push_back(module->Add(module->design->twines.str(meta_mux_select_sums[i].as_wire()->name) + "_add", meta_mux_select_sums[i], meta_mux_select_sums[i+1], false));
+					meta_mux_select_sums_buf.push_back(module->Add(meta_mux_select_sums[i].as_wire()->name.str() + "_add", meta_mux_select_sums[i], meta_mux_select_sums[i+1], false));
 				}
 				if (meta_mux_select_sums.size() % 2 == 1)
 					meta_mux_select_sums_buf.push_back(meta_mux_select_sums[meta_mux_select_sums.size()-1]);

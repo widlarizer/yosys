@@ -133,7 +133,7 @@ void generate(RTLIL::Design *design, const std::vector<std::string> &celltypes, 
 		mod->fixup_ports();
 
 		for (auto &para : parameters)
-			log("  ignoring parameter %s.\n", log_id(para));
+			log("  ignoring parameter %s.\n", log_id(design, para));
 
 		log("  module %s created.\n", mod);
 	}
@@ -226,7 +226,7 @@ struct IFExpander
 		// about it and don't set has_interfaces_not_found (to avoid a
 		// loop).
 		log_warning("Could not find interface instance for `%s' in `%s'\n",
-			    log_id(interface_name), &module);
+			    log_id(module.design, interface_name), &module);
 	}
 
 	// Handle an interface connection from the module

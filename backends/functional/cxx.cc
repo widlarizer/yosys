@@ -151,8 +151,8 @@ template<class NodePrinter> struct CxxPrintVisitor : public Functional::Abstract
 	void arithmetic_shift_right(Node, Node a, Node b) override { print("{}.arithmetic_shift_right({})", a, b); }
 	void mux(Node, Node a, Node b, Node s) override { print("{2}.any() ? {1} : {0}", a, b, s); }
 	void constant(Node, RTLIL::Const const & value) override { print("{}", cxx_const(value)); }
-	void input(Node, IdString name, IdString kind) override { log_assert(kind == ID($input)); print("input.{}", input_struct[name]); }
-	void state(Node, IdString name, IdString kind) override { log_assert(kind == ID($state)); print("current_state.{}", state_struct[name]); }
+	void input(Node self, IdString name, IdString kind) override { log_assert(kind == ID($input)); print("input.{}", input_struct[{self.design, name}]); }
+	void state(Node self, IdString name, IdString kind) override { log_assert(kind == ID($state)); print("current_state.{}", state_struct[{self.design, name}]); }
 	void memory_read(Node, Node mem, Node addr) override { print("{}.read({})", mem, addr); }
 	void memory_write(Node, Node mem, Node addr, Node data) override { print("{}.write({}, {})", mem, addr, data); }
 };

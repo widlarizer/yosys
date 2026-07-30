@@ -45,7 +45,7 @@ struct PrintAttrsPass : public Pass {
 		return stringf("%*s", indent, "");
 	}
 
-	static void log_const(RTLIL::IdString s, const RTLIL::Const &x, const unsigned int indent) {
+	static void log_const(PooledName s, const RTLIL::Const &x, const unsigned int indent) {
 		if (x.flags & RTLIL::CONST_FLAG_STRING)
 			log("%s(* %s=\"%s\" *)\n", get_indent_str(indent), log_id(s), x.decode_string());
 		else if (x.flags == RTLIL::CONST_FLAG_NONE || x.flags == RTLIL::CONST_FLAG_SIGNED)
@@ -74,7 +74,7 @@ struct PrintAttrsPass : public Pass {
 				indent += 2;
 				log_src(design, mod, indent);
 				for (auto &it : mod->attributes)
-					log_const(it.first, it.second, indent);
+					log_const(PooledName(design, it.first), it.second, indent);
 			}
 
 			for (auto cell : mod->selected_cells()) {
@@ -82,7 +82,7 @@ struct PrintAttrsPass : public Pass {
 				indent += 2;
 				log_src(design, cell, indent);
 				for (auto &it : cell->attributes)
-					log_const(it.first, it.second, indent);
+					log_const(PooledName(design, it.first), it.second, indent);
 				indent -= 2;
 			}
 
@@ -91,7 +91,7 @@ struct PrintAttrsPass : public Pass {
 				indent += 2;
 				log_src(design, wire, indent);
 				for (auto &it : wire->attributes)
-					log_const(it.first, it.second, indent);
+					log_const(PooledName(design, it.first), it.second, indent);
 				indent -= 2;
 			}
 

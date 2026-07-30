@@ -322,7 +322,7 @@ struct EquivMiterPass : public Pass {
 		extra_args(args, argidx, design);
 
 		if (design->module(worker.miter_name))
-			log_cmd_error("Miter module %s already exists.\n", log_id(worker.miter_name));
+			log_cmd_error("Miter module %s already exists.\n", log_id(design, worker.miter_name));
 
 		worker.source_module = nullptr;
 		for (auto m : design->selected_modules()) {
