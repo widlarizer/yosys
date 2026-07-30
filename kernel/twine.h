@@ -112,10 +112,16 @@ struct ID {
 
 	static std::string str(IdString ref) {
 		IdString idx = ref.untag();
-		if (idx.value >= STATIC_TWINE_END) return {};
+		log_assert(idx.value < STATIC_TWINE_END);
 		std::string result = ref.isPublic() ? "\\" : "";
 		result += static_names[idx.value];
 		return result;
+	}
+
+	static std::string unescaped_str(IdString ref) {
+		IdString idx = ref.untag();
+		log_assert(idx.value < STATIC_TWINE_END);
+		return static_names[idx.value];
 	}
 };
 

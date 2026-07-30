@@ -50,9 +50,8 @@ public:
 		return true;
 	}
 
-	RTLIL::Const unified_param(RTLIL::IdString cell_type, RTLIL::IdString param, RTLIL::Const value)
+	RTLIL::Const unified_param(const std::string &type_str, RTLIL::IdString param, RTLIL::Const value)
 	{
-		std::string type_str = ID::str(cell_type);
 		if (!type_str.starts_with("$") || type_str.starts_with("$_"))
 			return value;
 
@@ -106,12 +105,14 @@ public:
 
 		if (!ignore_parameters) {
 			std::map<RTLIL::IdString, RTLIL::Const> needle_param, haystack_param;
+			std::string needle_type = needleCell->type.str();
+			std::string haystack_type = haystackCell->type.str();
 			for (auto &it : needleCell->parameters)
 				if (!ignored_parameters.count(std::pair<RTLIL::IdString, RTLIL::IdString>(needleCell->type, it.first)))
-					needle_param[it.first] = unified_param(needleCell->type, it.first, it.second);
+					needle_param[it.first] = unified_param(needle_type, it.first, it.second);
 			for (auto &it : haystackCell->parameters)
 				if (!ignored_parameters.count(std::pair<RTLIL::IdString, RTLIL::IdString>(haystackCell->type, it.first)))
-					haystack_param[it.first] = unified_param(haystackCell->type, it.first, it.second);
+					haystack_param[it.first] = unified_param(haystack_type, it.first, it.second);
 			if (needle_param != haystack_param)
 				return false;
 		}
