@@ -612,7 +612,7 @@ std::string AbcModuleState::remap_name(const std::string &abc_name, RTLIL::Wire 
 				const auto &bit = signal_bits.at(sid);
 				if (bit.wire != nullptr)
 				{
-					std::string s = stringf("$abc$%d$%s", map_autoidx, bit.wire->name.unescape().c_str());
+					std::string s = stringf("$abc$%d$%s", map_autoidx, bit.wire->name.str().substr(1));
 					if (bit.wire->width != 1)
 						s += stringf("[%d]", bit.offset);
 					if (isnew)

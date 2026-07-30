@@ -209,7 +209,7 @@ struct Smt2Worker
 				log_error("Unsupported or unknown directionality on port %s of cell %s.%s (%s).\n",
 						log_id(module, conn.first), module, cell, cell->type.unescape());
 
-			if (cell->type.in(ID($dff), ID($_DFF_P_), ID($_DFF_N_)) && (conn.first == ID::CLK || conn.first == ID::C))
+			if (cell->type.in(ID($dff), ID($_DFF_P_), ID($_DFF_N_)) && conn.first.in(ID::CLK, ID::C))
 			{
 				bool posedge = (cell->type == ID($_DFF_N_)) || (cell->type == ID($dff) && cell->getParam(ID::CLK_POLARITY).as_bool());
 				for (auto bit : sigmap(conn.second)) {
@@ -220,22 +220,19 @@ struct Smt2Worker
 				}
 			}
 			else
+			if (mod_clk_cache.count(cell->type) && mod_clk_cache.at(cell->type).count(conn.first))
 			{
-				IdString port_name = conn.first;
-				if (mod_clk_cache.count(cell->type) && mod_clk_cache.at(cell->type).count(port_name))
-				{
-					for (auto bit : sigmap(conn.second)) {
-						if (mod_clk_cache.at(cell->type).at(port_name).first)
-							clock_posedge.insert(bit);
-						if (mod_clk_cache.at(cell->type).at(port_name).second)
-							clock_negedge.insert(bit);
-					}
+				for (auto bit : sigmap(conn.second)) {
+					if (mod_clk_cache.at(cell->type).at(conn.first).first)
+						clock_posedge.insert(bit);
+					if (mod_clk_cache.at(cell->type).at(conn.first).second)
+						clock_negedge.insert(bit);
 				}
-				else
-				{
-					for (auto bit : sigmap(conn.second))
-						noclock.insert(bit);
-				}
+			}
+			else
+			{
+				for (auto bit : sigmap(conn.second))
+					noclock.insert(bit);
 			}
 		}
 
@@ -260,11 +257,10 @@ struct Smt2Worker
 			if (!wire->port_input || GetSize(wire) != 1)
 				continue;
 			SigBit bit = sigmap(wire);
-			IdString module_name = module->name;
 			if (clock_posedge.count(bit))
-				mod_clk_cache[module_name][wire->name].first = true;
+				mod_clk_cache[module->name][wire->name].first = true;
 			if (clock_negedge.count(bit))
-				mod_clk_cache[module_name][wire->name].second = true;
+				mod_clk_cache[module->name][wire->name].second = true;
 		}
 	}
 
@@ -619,15 +615,10 @@ struct Smt2Worker
 			{
 				auto QY = cell->type == ID($anyinit) ? ID::Q : ID::Y;
 				registers.insert(cell);
-				string infostr;
-				if (cell->has_attribute(ID::src)) {
-					infostr = cell->get_src_attribute();
-				} else {
-					infostr = get_id(cell);
-				}
+				string infostr = cell->has_attribute(ID::src) ? cell->get_src_attribute() : std::string(get_id(cell));
 				if (cell->attributes.count(ID::reg))
 					infostr += " " + cell->attributes.at(ID::reg).decode_string();
-				decls.push_back(stringf("; yosys-smt2-%s %s#%d %d %s\n", cell->type.unescape(), get_id(module), idcounter, GetSize(cell->getPort(QY)), infostr));
+				decls.push_back(stringf("; yosys-smt2-%s %s#%d %d %s\n", cell->type.str().substr(1), get_id(module), idcounter, GetSize(cell->getPort(QY)), infostr));
 				if (cell->getPort(QY).is_wire() && cell->getPort(QY).as_wire()->get_bool_attribute(ID::maximize)){
 					decls.push_back(stringf("; yosys-smt2-maximize %s#%d\n", get_id(module), idcounter));
 					log("Wire %s is maximized\n", cell->getPort(QY).as_wire()->name.str());
@@ -1140,12 +1131,10 @@ struct Smt2Worker
 					}
 				}
 
-				if (private_name && cell->has_attribute(ID::src)) {
-					string raw_src = cell->get_src_attribute();
-					decls.push_back(stringf("; yosys-smt2-%s %d %s %s\n", cell->type.unescape(), id, get_id(cell), raw_src.c_str()));
-				}
+				if (private_name && cell->has_attribute(ID::src))
+					decls.push_back(stringf("; yosys-smt2-%s %d %s %s\n", cell->type.str().substr(1), id, get_id(cell), cell->get_src_attribute()));
 				else
-					decls.push_back(stringf("; yosys-smt2-%s %d %s\n", cell->type.unescape(), id, get_id(cell)));
+					decls.push_back(stringf("; yosys-smt2-%s %d %s\n", cell->type.str().substr(1), id, get_id(cell)));
 
 				if (cell->type == ID($cover))
 					decls.push_back(stringf("(define-fun |%s_%c %d| ((state |%s_s|)) Bool (and %s %s)) ; %s\n",
@@ -1481,8 +1470,7 @@ struct Smt2Worker
 
 		if (statebv) {
 			f << stringf("(define-sort |%s_s| () (_ BitVec %d))\n", get_id(module), statebv_width);
-			IdString module_name = module->name;
-			mod_stbv_width[module_name] = statebv_width;
+			mod_stbv_width[module->name] = statebv_width;
 		} else
 		if (statedt) {
 			f << stringf("(declare-datatype |%s_s| ((|%s_mk|\n", get_id(module), get_id(module));
@@ -1864,14 +1852,11 @@ struct Smt2Backend : public Backend {
 
 		// extract module dependencies
 		std::map<RTLIL::Module*, std::set<RTLIL::Module*>> module_deps;
-		TwineSearch search(&design->twines);
 		for (auto mod : design->modules()) {
 			module_deps[mod] = std::set<RTLIL::Module*>();
-			for (auto cell : mod->cells()) {
-				IdString cell_type_ref = search.find(cell->type.str());
-				if (cell_type_ref != Twine::Null && design->has(cell_type_ref))
-					module_deps[mod].insert(design->module(cell_type_ref));
-			}
+			for (auto cell : mod->cells())
+				if (design->has(cell->type))
+					module_deps[mod].insert(design->module(cell->type));
 		}
 
 		// simple good-enough topological sort
@@ -1887,7 +1872,7 @@ struct Smt2Backend : public Backend {
 			not_ready_yet:;
 			}
 			if (sorted_modules_idx == sorted_modules.size())
-				log_error("Cyclic dependency between modules found! Cycle includes module %s.\n", module_deps.begin()->first->design->twines.unescaped_str(module_deps.begin()->first->name).c_str());
+				log_error("Cyclic dependency between modules found! Cycle includes module %s.\n", module_deps.begin()->first->name.unescape());
 			while (sorted_modules_idx < sorted_modules.size())
 				module_deps.erase(sorted_modules.at(sorted_modules_idx++));
 		}

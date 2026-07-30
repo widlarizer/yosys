@@ -1816,7 +1816,7 @@ bool dump_cell_expr(std::ostream &f, std::string indent, RTLIL::Cell *cell)
 	{
 		f << stringf("%s" "always%s if (", indent, systemverilog ? "_comb" : " @*");
 		dump_sigspec(f, cell->getPort(ID::EN));
-		f << stringf(") %s(", cell->type.unescape());
+		f << stringf(") %s(", cell->type.str().substr(1));
 		dump_sigspec(f, cell->getPort(ID::A));
 		f << stringf(");\n");
 		return true;

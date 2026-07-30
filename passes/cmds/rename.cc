@@ -155,7 +155,7 @@ static bool rename_witness(RTLIL::Design *design, dict<RTLIL::Module *, int> &ca
 			bool witness_in_cell = rename_witness(design, cache, impl);
 			has_witness_signals |= witness_in_cell;
 			if (witness_in_cell && !cell->name.isPublic()) {
-				std::string name = cell->name.unescape();
+				std::string name = cell->name.str().substr(1);
 				for (auto &c : name)
 					if ((c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && (c < '0' || c > '9') && c != '_')
 						c = '_';
@@ -177,7 +177,7 @@ static bool rename_witness(RTLIL::Design *design, dict<RTLIL::Module *, int> &ca
 
 			for (auto chunk : sig_out.chunks()) {
 				if (chunk.is_wire() && !chunk.wire->name.isPublic()) {
-					std::string name = stringf("%s_%s", cell->type.unescape(), cell->name.unescape());
+					std::string name = stringf("%s_%s", cell->type.str().substr(1), cell->name.str().substr(1));
 					for (auto &c : name)
 						if ((c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && (c < '0' || c > '9') && c != '_')
 							c = '_';
@@ -199,7 +199,7 @@ static bool rename_witness(RTLIL::Design *design, dict<RTLIL::Module *, int> &ca
 			has_witness_signals = true;
 			if (cell->name.isPublic())
 				continue;
-			std::string name = stringf("%s_%s", cell->type.unescape(), cell->name.unescape());
+			std::string name = stringf("%s_%s", cell->type.str().substr(1), cell->name.str().substr(1));
 			for (auto &c : name)
 				if ((c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && (c < '0' || c > '9') && c != '_')
 					c = '_';
