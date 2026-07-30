@@ -159,7 +159,7 @@ struct Xaiger2Frontend : public Frontend {
 				}
 
 				if (!def)
-					log_error("Bad map file: no module found for box type '%s'\n", design->twines.unescaped_str(box->type));
+					log_error("Bad map file: no module found for box type '%s'\n", box->type.unescape());
 
 				if (box_seq >= (int) boxes.size()) {
 					boxes.resize(box_seq + 1);
@@ -264,9 +264,9 @@ struct Xaiger2Frontend : public Frontend {
 				log_debug("M: len=%u no_cells=%u no_instances=%u\n", len, no_cells, no_instances);
 
 				struct MappingCell {
-					IdString type;
-					IdString out;
-					std::vector<IdString> ins;
+					RTLIL::IdString type;
+					RTLIL::IdString out;
+					std::vector<RTLIL::IdString> ins;
 				};
 				std::vector<MappingCell> cells;
 				cells.resize(no_cells);

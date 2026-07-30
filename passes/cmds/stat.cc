@@ -248,7 +248,7 @@ struct statdata_t {
 					vector<double> widths;
 					if (cell_data.parameter_names.size() > 0) {
 						for (auto &it : cell_data.parameter_names) {
-							IdString port_name;
+							RTLIL::IdString port_name;
 							if (it == "A") {
 								port_name = ID::A;
 							} else if (it == "B") {

@@ -680,7 +680,7 @@ public:
 							factory.update_pending(pending, node);
 						} else {
 							DriveSpec driver = driver_map(DriveSpec(wire_chunk));
-							check_undriven(driver, design->twines.unescaped_str(wire_chunk.wire->name));
+							check_undriven(driver, wire_chunk.wire->name.unescape());
 							Node node = enqueue(driver);
 							factory.suggest_name(node, wire_chunk.wire->name);
 							factory.update_pending(pending, node);

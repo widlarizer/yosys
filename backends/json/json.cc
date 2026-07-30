@@ -251,7 +251,7 @@ struct JsonWriter
 					continue;
 				f << stringf("%s\n", first ? "" : ",");
 				f << stringf("        %s: {\n", get_name(it.second->name));
-				f << stringf("          \"hide_name\": %s,\n", design->twines.str(it.second->name)[0] == '$' ? "1" : "0");
+				f << stringf("          \"hide_name\": %s,\n", it.second->name.str()[0] == '$' ? "1" : "0");
 				f << stringf("          \"attributes\": {");
 				write_parameters(it.second->attributes, false, it.second);
 				f << stringf("\n          },\n");

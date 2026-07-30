@@ -217,7 +217,7 @@ struct CheckPass : public Pass {
 			dict<SigBit, Cell *> driver_cells;
 			dict<SigBit, int> wire_drivers_count;
 			pool<SigBit> used_wires;
-			TopoSort<std::pair<IdString, int>> topo;
+			TopoSort<std::pair<RTLIL::IdString, int>> topo;
 			for (auto &proc_it : module->processes)
 			{
 				std::vector<RTLIL::CaseRule*> all_cases = {&proc_it.second->root_case};
@@ -263,15 +263,15 @@ struct CheckPass : public Pass {
 			}
 
 			struct CircuitEdgesDatabase : AbstractCellEdgesDatabase {
-				TopoSort<std::pair<IdString, int>> &topo;
+				TopoSort<std::pair<RTLIL::IdString, int>> &topo;
 				SigMap sigmap;
 				bool force_detail;
 
-				CircuitEdgesDatabase(TopoSort<std::pair<IdString, int>> &topo, SigMap &sigmap, bool force_detail)
+				CircuitEdgesDatabase(TopoSort<std::pair<RTLIL::IdString, int>> &topo, SigMap &sigmap, bool force_detail)
 					: topo(topo), sigmap(sigmap), force_detail(force_detail) {}
 
-				void add_edge(RTLIL::Cell *cell, IdString from_port, int from_bit,
-							  IdString to_port, int to_bit, int) override {
+				void add_edge(RTLIL::Cell *cell, RTLIL::IdString from_port, int from_bit,
+							  RTLIL::IdString to_port, int to_bit, int) override {
 					SigSpec from_portsig = cell->getPort(from_port);
 					SigSpec to_portsig = cell->getPort(to_port);
 					log_assert(from_bit >= 0 && from_bit < from_portsig.size());
@@ -503,8 +503,8 @@ struct CheckPass : public Pass {
 						MatchingEdgePrinter(std::string &message, SigMap &sigmap, SigBit from, SigBit to)
 							: message(message), sigmap(sigmap), from(from), to(to), nhits(0) {}
 
-						void add_edge(RTLIL::Cell *cell, IdString from_port, int from_bit,
-									  IdString to_port, int to_bit, int) override {
+						void add_edge(RTLIL::Cell *cell, RTLIL::IdString from_port, int from_bit,
+									  RTLIL::IdString to_port, int to_bit, int) override {
 							SigBit edge_from = sigmap(cell->getPort(from_port))[from_bit];
 							SigBit edge_to = sigmap(cell->getPort(to_port))[to_bit];
 

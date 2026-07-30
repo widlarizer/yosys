@@ -183,7 +183,7 @@ struct IcellLiberty : Pass {
 			}
 		}
 
-		pool<IdString> done;
+		pool<RTLIL::IdString> done;
 		LibertyStubber stubber = {};
 
 		stubber.liberty_prefix(*liberty_file);

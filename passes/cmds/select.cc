@@ -456,7 +456,7 @@ static void select_op_intersect(RTLIL::Design *design, RTLIL::Selection &lhs, co
 
 	select_all(design, lhs);
 
-	std::vector<IdString> del_list;
+	std::vector<RTLIL::IdString> del_list;
 
 	for (auto mod_name : lhs.selected_modules) {
 		if (rhs.selected_whole_module(mod_name))
@@ -513,7 +513,7 @@ static int parse_comma_list(std::set<std::string> &tokens, const std::string &st
 	}
 }
 
-static int select_op_expand(RTLIL::Design *design, RTLIL::Selection &lhs, std::vector<expand_rule_t> &rules, std::set<IdString> &limits, int max_objects, char mode, NewCellTypes &ct, bool eval_only)
+static int select_op_expand(RTLIL::Design *design, RTLIL::Selection &lhs, std::vector<expand_rule_t> &rules, std::set<RTLIL::IdString> &limits, int max_objects, char mode, NewCellTypes &ct, bool eval_only)
 {
 	int sel_objects = 0;
 	bool is_input, is_output;

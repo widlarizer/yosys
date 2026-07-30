@@ -607,20 +607,20 @@ void json_import(Design *design, string &modname, JsonNode *node)
 			mem->module = module;
 
 			if (memory_node->type != 'D')
-				log_error("JSON memory node '%s' is not a dictionary.\n", design->twines.unescaped_str(mem->name));
+				log_error("JSON memory node '%s' is not a dictionary.\n", mem->name.unescape());
 
 			if (memory_node->data_dict.count("width") == 0)
-				log_error("JSON memory node '%s' has no width attribute.\n", design->twines.unescaped_str(mem->name));
+				log_error("JSON memory node '%s' has no width attribute.\n", mem->name.unescape());
 			JsonNode *width_node = memory_node->data_dict.at("width");
 			if (width_node->type != 'N')
-				log_error("JSON memory node '%s' has a non-number width.\n", design->twines.unescaped_str(mem->name));
+				log_error("JSON memory node '%s' has a non-number width.\n", mem->name.unescape());
 			mem->width = width_node->data_number;
 
 			if (memory_node->data_dict.count("size") == 0)
-				log_error("JSON memory node '%s' has no size attribute.\n", design->twines.unescaped_str(mem->name));
+				log_error("JSON memory node '%s' has no size attribute.\n", mem->name.unescape());
 			JsonNode *size_node = memory_node->data_dict.at("size");
 			if (size_node->type != 'N')
-				log_error("JSON memory node '%s' has a non-number size.\n", design->twines.unescaped_str(mem->name));
+				log_error("JSON memory node '%s' has a non-number size.\n", mem->name.unescape());
 			mem->size = size_node->data_number;
 
 			mem->start_offset = 0;

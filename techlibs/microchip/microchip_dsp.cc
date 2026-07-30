@@ -37,7 +37,7 @@ void microchip_dsp_pack(microchip_dsp_pm &pm)
 	// pack pre-adder
 	if (st.preAdderStatic) {
 		SigSpec &pasub = cell->connections_.at(ID(PASUB));
-		log("  static PASUB preadder %s (%s)\n", st.preAdderStatic, pm.module->design->twines.unescaped_str(st.preAdderStatic->type));
+		log("  static PASUB preadder %s (%s)\n", st.preAdderStatic, st.preAdderStatic->type.unescape());
 		bool D_SIGNED = st.preAdderStatic->getParam(ID::B_SIGNED).as_bool();
 		bool B_SIGNED = st.preAdderStatic->getParam(ID::A_SIGNED).as_bool();
 		st.sigB.extend_u0(18, B_SIGNED);
@@ -60,7 +60,7 @@ void microchip_dsp_pack(microchip_dsp_pm &pm)
 	}
 	// pack post-adder
 	if (st.postAdderStatic) {
-		log("  postadder %s (%s)\n", st.postAdderStatic, pm.module->design->twines.unescaped_str(st.postAdderStatic->type));
+		log("  postadder %s (%s)\n", st.postAdderStatic, st.postAdderStatic->type.unescape());
 		SigSpec &sub = cell->connections_.at(ID(SUB));
 		// Post-adder in MACC_PA also supports subtraction
 		//   Determines the sign of the output from the multiplier.
@@ -195,7 +195,7 @@ void microchip_dsp_packC(microchip_dsp_CREG_pm &pm)
 	auto &st = pm.st_microchip_dsp_packC;
 
 	log_debug("Analysing %s.%s for Microchip DSP packing (REG_C).\n", pm.module, st.dsp);
-	log_debug("ffC:        %s\n", st.ffC ? pm.module->design->twines.unescaped_str(st.ffC->name) : "--");
+	log_debug("ffC:        %s\n", st.ffC ? st.ffC->name.unescape() : "--");
 
 	Cell *cell = st.dsp;
 

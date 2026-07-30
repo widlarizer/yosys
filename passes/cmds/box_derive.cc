@@ -85,7 +85,7 @@ struct BoxDerivePass : Pass {
 				log_cmd_error("Base module %s not found.\n", RTLIL::unescape_id(base_name));
 		}
 
-		dict<std::pair<IdString, dict<IdString, RTLIL::Const>>, Module*> done;
+		dict<std::pair<RTLIL::IdString, dict<RTLIL::IdString, RTLIL::Const>>, Module*> done;
 
 		for (auto module : d->selected_modules()) {
 			for (auto cell : module->selected_cells()) {

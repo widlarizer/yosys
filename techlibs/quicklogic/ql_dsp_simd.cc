@@ -150,8 +150,8 @@ struct QlDspSimdPass : public Pass {
 					// Create the new cell
 					Cell *simd = module->addCell(NEW_ID, m_SimdDspType);
 
-					log(" SIMD: %s (%s) + %s (%s) => %s (%s)\n", dsp_a, module->design->twines.unescaped_str(dsp_a->type),
-						dsp_b, module->design->twines.unescaped_str(dsp_b->type), simd, module->design->twines.unescaped_str(simd->type));
+					log(" SIMD: %s (%s) + %s (%s) => %s (%s)\n", dsp_a, dsp_a->type.unescape(),
+						dsp_b, dsp_b->type.unescape(), simd, simd->type.unescape());
 
 					// Check if the target cell is known (important to know
 					// its port widths)

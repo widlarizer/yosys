@@ -193,7 +193,7 @@ std::string AST::type2str(AstNodeType type)
 }
 
 // check if attribute exists and has non-zero value
-bool AstNode::get_bool_attribute(IdString id)
+bool AstNode::get_bool_attribute(RTLIL::IdString id)
 {
 	if (attributes.count(id) == 0)
 		return false;
@@ -1731,7 +1731,7 @@ RTLIL::IdString AstModule::derive(RTLIL::Design *design, const dict<RTLIL::IdStr
 
 	bool has_interfaces = false;
 	for(auto &intf : interfaces) {
-		interf_info += design->twines.unescaped_str(intf.second->name);
+		interf_info += intf.second->name.unescape();
 		has_interfaces = true;
 	}
 
@@ -1856,7 +1856,7 @@ std::string AST::derived_module_name(std::string stripped_name, const std::vecto
 }
 
 // create a new parametric module (when needed) and return the name of the generated module
-std::string AstModule::derive_common(RTLIL::Design *design, const dict<IdString, RTLIL::Const> &parameters, std::unique_ptr<AstNode>* new_ast_out, bool quiet)
+std::string AstModule::derive_common(RTLIL::Design *design, const dict<RTLIL::IdString, RTLIL::Const> &parameters, std::unique_ptr<AstNode>* new_ast_out, bool quiet)
 {
 	std::string stripped_name = design->twines.str(name);
 	(*new_ast_out) = nullptr;

@@ -90,7 +90,7 @@ struct BlifDumper
 
 	pool<SigBit> cstr_bits_seen;
 
-	const std::string str(IdString id)
+	const std::string str(RTLIL::IdString id)
 	{
 		std::string str = design->twines.unescaped_str(id);
 		for (size_t i = 0; i < str.size(); i++)

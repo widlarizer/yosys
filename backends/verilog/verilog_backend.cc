@@ -99,7 +99,7 @@ bool verbose, norename, noattr, attr2comment, noexpr, nodec, nohex, nostr, extme
   noparallelcase, default_params;
 int auto_name_counter, auto_name_offset, auto_name_digits, extmem_counter;
 dict<std::string, int> auto_name_map;
-std::set<IdString> reg_wires;
+std::set<RTLIL::IdString> reg_wires;
 std::string auto_prefix, extmem_prefix;
 
 RTLIL::Module *active_module;
@@ -442,7 +442,7 @@ void dump_attributes(std::ostream &f, std::string indent, const RTLIL::AttrObjec
 	}
 }
 
-void dump_parameter(std::ostream &f, std::string indent, IdString id_string, RTLIL::Const parameter)
+void dump_parameter(std::ostream &f, std::string indent, RTLIL::IdString id_string, RTLIL::Const parameter)
 {
 	f << stringf("%sparameter %s = ", indent.c_str(), id(active_module->design->twines.str(id_string)).c_str());
 	dump_const(f, parameter);

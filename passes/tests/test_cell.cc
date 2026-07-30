@@ -39,7 +39,7 @@ static uint32_t xorshift32(uint32_t limit) {
 	return xorshift32_state % limit;
 }
 
-static RTLIL::Cell* create_gold_module(RTLIL::Design *design, IdString cell_type, std::string cell_type_flags, bool constmode, bool muxdiv)
+static RTLIL::Cell* create_gold_module(RTLIL::Design *design, RTLIL::IdString cell_type, std::string cell_type_flags, bool constmode, bool muxdiv)
 {
 	RTLIL::Module *module = design->addModule(ID(gold));
 	RTLIL::Cell *cell = module->addCell(ID(UUT), cell_type);

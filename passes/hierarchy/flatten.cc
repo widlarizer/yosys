@@ -315,7 +315,7 @@ struct FlattenWorker
 		}
 
 		RTLIL::Cell *scopeinfo = nullptr;
-		IdString cell_name = cell->name;
+		RTLIL::IdString cell_name = cell->name;
 
 		if (create_scopeinfo && cell_name.isPublic())
 		{

@@ -2681,7 +2681,7 @@ void check_module(RTLIL::Module *module, ParallelDispatchThreadPool &thread_pool
 		log_assert(it.second->size >= 0);
 		for (auto &it2 : it.second->attributes)
 			log_assert(!it2.first.empty());
-		memory_strings.insert(module->design->twines.str(it.second->name));
+		memory_strings.insert(it.second->name.str());
 	}
 
 	std::vector<MonotonicFlag> ports_declared(GetSize(module->ports));

@@ -167,7 +167,7 @@ bool check_all(const ShardedSigPool &sigs, const RTLIL::SigSpec &spec) {
 
 struct UpdateConnection {
 	RTLIL::Cell *cell;
-	IdString port;
+	RTLIL::IdString port;
 	RTLIL::SigSpec spec;
 };
 void fixup_cell_ports(ShardedVector<UpdateConnection> &update_connections)

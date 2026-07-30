@@ -340,14 +340,14 @@ struct RTLILFrontendWorker {
 		return val;
 	}
 
-	RTLIL::Wire *legalize_wire(IdString id)
+	RTLIL::Wire *legalize_wire(RTLIL::IdString id)
 	{
 		int wires_size = current_module->wires_size();
 		if (wires_size == 0)
 			error("No wires found for legalization");
-		int hash = hash_ops<IdString>::hash(id).yield();
+		int hash = hash_ops<RTLIL::IdString>::hash(id).yield();
 		RTLIL::Wire *wire = current_module->wire_at(abs(hash % wires_size));
-		log("Legalizing wire `%s' to `%s'.\n", log_id(id), design->twines.unescaped_str(wire->name));
+		log("Legalizing wire `%s' to `%s'.\n", log_id(id), wire->name.unescape());
 		return wire;
 	}
 
@@ -860,7 +860,7 @@ struct RTLILFrontendWorker {
 		expect_eol();
 	}
 
-	void legalize_width_parameter(RTLIL::Cell *cell, IdString port_name)
+	void legalize_width_parameter(RTLIL::Cell *cell, RTLIL::IdString port_name)
 	{
 		IdString width_param = design->twines.find(design->twines.str(port_name) + "_WIDTH");
 		if (width_param == Twine::Null || cell->parameters.count(width_param) == 0)

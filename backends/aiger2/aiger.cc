@@ -556,12 +556,11 @@ struct Index {
 		{
 			std::string ret;
 			bool first = true;
-			Design *design = levels[0].first.module ? levels[0].first.module->design : nullptr;
 			for (auto [minfo, cell] : levels) {
 				if (!first)
 					ret += ".";
 				if (!cell)
-					ret += design->twines.unescaped_str(minfo.module->name);
+					ret += minfo.module->name.unescape();
 				else
 					ret += cell->name.unescape();
 				first = false;
@@ -1000,7 +999,7 @@ struct XAigerWriter : AigerWriter {
 				log_assert(cursor.is_top()); // TODO
 				driven_by_opaque_box.insert(bit);
 				map_file << "pi " << pis.size() - 1 << " " << bit.offset
-						<< " " << design->twines.str(bit.wire->name).c_str() << "\n";
+						<< " " << bit.wire->name.str().c_str() << "\n";
 			}
 		} else {
 			log_assert(!box_port);

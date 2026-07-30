@@ -30,7 +30,7 @@ void run_fixed(xilinx_srl_pm &pm)
 {
 	auto &st = pm.st_fixed;
 	auto &ud = pm.ud_fixed;
-	log("Found fixed chain of length %d (%s):\n", GetSize(ud.longest_chain), pm.module->design->twines.unescaped_str(st.first->type));
+	log("Found fixed chain of length %d (%s):\n", GetSize(ud.longest_chain), st.first->type.unescape());
 
 	SigSpec initval;
 	for (auto cell : ud.longest_chain) {
@@ -100,7 +100,7 @@ void run_fixed(xilinx_srl_pm &pm)
 	else
 		log_abort();
 
-	log("    -> %s (%s)\n", c, pm.module->design->twines.unescaped_str(c->type));
+	log("    -> %s (%s)\n", c, c->type.unescape());
 }
 
 void run_variable(xilinx_srl_pm &pm)
@@ -108,7 +108,7 @@ void run_variable(xilinx_srl_pm &pm)
 	auto &st = pm.st_variable;
 	auto &ud = pm.ud_variable;
 
-	log("Found variable chain of length %d (%s):\n", GetSize(ud.chain), pm.module->design->twines.unescaped_str(st.first->type));
+	log("Found variable chain of length %d (%s):\n", GetSize(ud.chain), st.first->type.unescape());
 
 	SigSpec initval;
 	for (const auto &i : ud.chain) {
@@ -181,7 +181,7 @@ void run_variable(xilinx_srl_pm &pm)
 	else
 		log_abort();
 
-	log("    -> %s (%s)\n", c, pm.module->design->twines.unescaped_str(c->type));
+	log("    -> %s (%s)\n", c, c->type.unescape());
 }
 
 struct XilinxSrlPass : public Pass {

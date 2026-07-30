@@ -81,7 +81,7 @@ void reintegrate(RTLIL::Module *module, bool dff_mode, std::string map_filename)
 	int output_count = design->scratchpad_get_int("read_aiger.outputs", 0);
 	int co_count = design->scratchpad_get_int("read_aiger.co_count", 0);
 
-	dict<IdString, std::pair<int,int>> wideports_cache;
+	dict<RTLIL::IdString, std::pair<int,int>> wideports_cache;
 
 	if (!map_filename.empty()) {
 		std::ifstream mf(map_filename);

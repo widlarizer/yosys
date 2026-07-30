@@ -958,7 +958,7 @@ static bool is_autonamed_block(const std::string &str) {
 // nosync to local variables as necessary
 static void check_auto_nosync(AstNode *node)
 {
-	std::vector<IdString> attrs_to_drop;
+	std::vector<RTLIL::IdString> attrs_to_drop;
 	for (const auto& elem : node->attributes) {
 		std::string attr_str = attr_name_str(elem.first);
 		// skip attributes that don't begin with the prefix

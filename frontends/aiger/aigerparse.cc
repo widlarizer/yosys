@@ -207,7 +207,7 @@ eval_end:
 	}
 };
 
-AigerReader::AigerReader(RTLIL::Design *design, std::istream &f, IdString module_name, IdString clk_name, std::string map_filename)
+AigerReader::AigerReader(RTLIL::Design *design, std::istream &f, RTLIL::IdString module_name, RTLIL::IdString clk_name, std::string map_filename)
 	: design(design), f(f), clk_name(clk_name), map_filename(map_filename), aiger_autoidx(autoidx++)
 {
 	module = new RTLIL::Module;
@@ -463,9 +463,9 @@ void AigerReader::parse_xaiger()
 		}
 		else if (c == 'M') { // cell 'M'apping
 			struct MappingCell {
-				IdString type;
-				IdString out;
-				std::vector<IdString> ins;
+				RTLIL::IdString type;
+				RTLIL::IdString out;
+				std::vector<RTLIL::IdString> ins;
 			};
 			std::vector<MappingCell> mapping_cells;
 
@@ -909,9 +909,9 @@ void AigerReader::post_process()
 		if (cell->type != ID($lut)) continue;
 		auto y_port = cell->getPort(ID::Y).as_bit();
 		if (y_port.wire->width == 1)
-			module->rename(cell, design->twines.add(std::string{stringf("$lut%s", design->twines.str(y_port.wire->name).c_str())}));
+			module->rename(cell, design->twines.add(std::string{stringf("$lut%s", y_port.wire->name.str().c_str())}));
 		else
-			module->rename(cell, design->twines.add(std::string{stringf("$lut%s[%d]", design->twines.str(y_port.wire->name).c_str(), y_port.offset)}));
+			module->rename(cell, design->twines.add(std::string{stringf("$lut%s[%d]", y_port.wire->name.str().c_str(), y_port.offset)}));
 	}
 }
 

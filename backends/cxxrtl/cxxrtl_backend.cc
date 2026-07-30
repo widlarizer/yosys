@@ -769,7 +769,7 @@ struct CxxrtlWorker {
 	//  1b. Generated identifiers for internal names (beginning with `$`) start with `i_`.
 	//  2. An underscore is escaped with another underscore, i.e. `__`.
 	//  3. Any other non-alnum character is escaped with underscores around its lowercase hex code, e.g. `@` as `_40_`.
-	std::string mangle_name(IdString name)
+	std::string mangle_name(RTLIL::IdString name)
 	{
 		std::string mangled;
 		bool first = true;
@@ -799,7 +799,7 @@ struct CxxrtlWorker {
 		return mangled;
 	}
 
-	std::string mangle_module_name(IdString name, bool is_blackbox = false)
+	std::string mangle_module_name(RTLIL::IdString name, bool is_blackbox = false)
 	{
 		// Class namespace.
 		if (is_blackbox)
@@ -807,19 +807,19 @@ struct CxxrtlWorker {
 		return mangle_name(name);
 	}
 
-	std::string mangle_memory_name(IdString name)
+	std::string mangle_memory_name(RTLIL::IdString name)
 	{
 		// Class member namespace.
 		return "memory_" + mangle_name(name);
 	}
 
-	std::string mangle_cell_name(IdString name)
+	std::string mangle_cell_name(RTLIL::IdString name)
 	{
 		// Class member namespace.
 		return "cell_" + mangle_name(name);
 	}
 
-	std::string mangle_wire_name(IdString name)
+	std::string mangle_wire_name(RTLIL::IdString name)
 	{
 		// Class member namespace.
 		return mangle_name(name);
@@ -2296,7 +2296,7 @@ struct CxxrtlWorker {
 		dec_indent();
 	}
 
-	void dump_serialized_metadata(const dict<IdString, RTLIL::Const> &metadata_map) {
+	void dump_serialized_metadata(const dict<RTLIL::IdString, RTLIL::Const> &metadata_map) {
 		// Creating thousands metadata_map objects using initializer lists in a single function results in one of:
 		// 1. Megabytes of stack usage (with __attribute__((optnone))).
 		// 2. Minutes of compile time (without __attribute__((optnone))).
@@ -2339,7 +2339,7 @@ struct CxxrtlWorker {
 		f << escape_c_string(data);
 	}
 
-	void dump_metadata_map(const dict<IdString, RTLIL::Const> &metadata_map) {
+	void dump_metadata_map(const dict<RTLIL::IdString, RTLIL::Const> &metadata_map) {
 		if (metadata_map.empty()) {
 			f << "metadata_map()";
 		} else {
