@@ -62,6 +62,19 @@ static void rename_in_module(RTLIL::Module *module, std::string from_name, std::
 	log_cmd_error("Object `%s' not found!\n", RTLIL::unescape_id(from_name));
 }
 
+// Names are compared by rendered content, not by ref: the pool interns
+// structurally, so a Leaf and a Suffix chain can denote the same name and
+// module->wire(ref) would miss the collision.
+static std::string next_free_name(const pool<std::string> &taken, const std::string &prefix,
+		const std::string &suffix, int &counter)
+{
+	std::string buf;
+	do {
+		buf = stringf("\\%s%d%s", prefix, counter++, suffix);
+	} while (taken.count(buf));
+	return buf;
+}
+
 static std::string derive_name_from_src(const std::string &src, int counter)
 {
 	std::string src_base = src.substr(0, src.find('|'));
@@ -459,21 +472,15 @@ struct RenamePass : public Pass {
 				for (auto cell : module->cells())
 					taken_cell_names.insert(cell->name.str());
 
-				auto next_free_name = [&](const pool<std::string> &taken) {
-					std::string buf;
-					do {
-						buf = stringf("\\%s%d%s", pattern_prefix, counter++, pattern_suffix);
-					} while (taken.count(buf));
-					return buf;
-				};
-
 				for (auto wire : module->selected_wires())
 					if (wire->name[0] == '$')
-						new_wire_names[wire] = module->design->twines.add(next_free_name(taken_wire_names));
+						new_wire_names[wire] = design->twines.add(
+								next_free_name(taken_wire_names, pattern_prefix, pattern_suffix, counter));
 
 				for (auto cell : module->selected_cells())
 					if (cell->name[0] == '$')
-						new_cell_names[cell] = module->design->twines.add(next_free_name(taken_cell_names));
+						new_cell_names[cell] = design->twines.add(
+								next_free_name(taken_cell_names, pattern_prefix, pattern_suffix, counter));
 
 				for (auto &it : new_wire_names)
 					module->rename(it.first, it.second);
