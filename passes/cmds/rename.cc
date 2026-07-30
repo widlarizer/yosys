@@ -417,7 +417,6 @@ struct RenamePass : public Pass {
 		{
 			extra_args(args, argidx, design);
 
-			TwineSearch search(&design->twines);
 			for (auto module : design->selected_modules()) {
 				dict<RTLIL::Cell *, IdString> new_cell_names;
 				for (auto cell : module->selected_cells())

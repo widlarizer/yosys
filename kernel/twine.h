@@ -761,27 +761,20 @@ struct DeepTwineEq {
 };
 
 // A content-addressed view of a TwinePool. Building one is O(pool), so hoist it
-// out of loops. Names interned after construction are absorbed on the next
-// find(); a gc or a free-slot reuse underneath a live TwineSearch is not
-// handled and will resolve stale.
+// out of loops, but it is a snapshot: nothing interned after construction is
+// visible, and a gc underneath a live TwineSearch resolves stale.
 struct TwineSearch {
 	const TwinePool* pool;
-	mutable std::unordered_set<IdString, DeepTwineHash, DeepTwineEq> index;
-	mutable size_t indexed = 0;
+	std::unordered_set<IdString, DeepTwineHash, DeepTwineEq> index;
 
 	TwineSearch(const TwinePool* pool) : pool(pool), index(0, DeepTwineHash{pool}, DeepTwineEq{pool}) {
 		for (size_t idx = 0; idx < STATIC_TWINE_END; idx++)
 			index.insert(IdString(idx));
-		absorb();
-	}
-
-	void absorb() const {
-		for (size_t idx = indexed; idx < pool->backing.size(); ++idx) {
+		for (size_t idx = 0; idx < pool->backing.size(); ++idx) {
 			if (pool->backing[idx].is_dead())
 				continue;
 			index.insert(IdString(STATIC_TWINE_END + idx));
 		}
-		indexed = pool->backing.size();
 	}
 
 	void insert(IdString ref) {
@@ -790,8 +783,6 @@ struct TwineSearch {
 
 	// Escaped-name aware. Resolves both statics and locals by content.
 	IdString find(std::string_view sv) const {
-		if (indexed != pool->backing.size())
-			absorb();
 		bool is_public = !sv.empty() && sv[0] == '\\';
 		if (is_public)
 			sv.remove_prefix(1);
