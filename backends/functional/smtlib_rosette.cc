@@ -44,8 +44,7 @@ const char *reserved_keywords[] = {
 };
 
 struct SmtrScope : public Functional::Scope<int> {
-	SmtrScope(Design *design = nullptr) {
-		this->design = design;
+	SmtrScope() {
 		for(const char **p = reserved_keywords; *p != nullptr; p++)
 			reserve(*p);
 	}
@@ -74,15 +73,14 @@ class SmtrStruct {
 		std::string accessor;
 		std::string name;
 	};
-	idict<IdString> field_names;
+	idict<PooledName> field_names;
 	vector<Field> fields;
 	SmtrScope &global_scope;
 	SmtrScope local_scope;
-	Design *design;
 public:
 	std::string name;
-	SmtrStruct(std::string name, SmtrScope &scope, Design *design) : global_scope(scope), local_scope(design), design(design), name(name) {}
-	void insert(IdString field_name, SmtrSort sort) {
+	SmtrStruct(std::string name, SmtrScope &scope) : global_scope(scope), local_scope(), name(name) {}
+	void insert(PooledName field_name, SmtrSort sort) {
 		field_names(field_name);
 		auto base_name = local_scope.unique_name(field_name);
 		auto accessor = name + "-" + base_name;
@@ -108,7 +106,7 @@ public:
 		w.open(list(name));
 		for(auto field_name : field_names) {
 			w << fn(field_name);
-			w.comment(design->twines.unescaped_str(field_name), true);
+			w.comment(field_name.unescape(), true);
 		}
 		w.close();
 	}
@@ -188,7 +186,6 @@ struct SmtrPrintVisitor : public Functional::AbstractVisitor<SExpr> {
 
 struct SmtrModule {
 	Functional::IR ir;
-	Design *design;
 	SmtrScope scope;
 	std::string name;
 	bool use_assoc_list_helpers;
@@ -200,16 +197,16 @@ struct SmtrModule {
 	SmtrStruct state_struct;
 
 	SmtrModule(Module *module, bool assoc_list_helpers)
-	    : ir(Functional::IR::from_module(module)), design(module->design), scope(module->design), name(scope.unique_name(module->name)), use_assoc_list_helpers(assoc_list_helpers),
-	      input_struct(scope.unique_name(module->design->twines.add(module->name.str() + "_Inputs")), scope, module->design),
-	      output_struct(scope.unique_name(module->design->twines.add(module->name.str() + "_Outputs")), scope, module->design),
-	      state_struct(scope.unique_name(module->design->twines.add(module->name.str() + "_State")), scope, module->design)
+	    : ir(Functional::IR::from_module(module)), scope(), name(scope.unique_name(module->name)), use_assoc_list_helpers(assoc_list_helpers),
+	      input_struct(scope.unique_name(module->name.str() + "_Inputs"), scope),
+	      output_struct(scope.unique_name(module->name.str() + "_Outputs"), scope),
+	      state_struct(scope.unique_name(module->name.str() + "_State"), scope)
 	{
 		scope.reserve(name + "_initial");
 		if (assoc_list_helpers) {
-			input_helper_name = scope.unique_name(module->design->twines.add(module->name.str() + "_inputs_helper"));
+			input_helper_name = scope.unique_name(module->name.str() + "_inputs_helper");
 			scope.reserve(*input_helper_name);
-			output_helper_name = scope.unique_name(module->design->twines.add(module->name.str() + "_outputs_helper"));
+			output_helper_name = scope.unique_name(module->name.str() + "_outputs_helper");
 			scope.reserve(*output_helper_name);
 		}
 		for (auto input : ir.inputs())
@@ -284,7 +281,7 @@ struct SmtrModule {
 			w.push();
 			w.open(list());
 			w.open(list("assoc-result"));
-			w << list("assoc", "\"" + design->twines.unescaped_str(input->name) + "\"", inputs_name);
+			w << list("assoc", "\"" + input->name.unescape() + "\"", inputs_name);
 			w.pop();
 			w.open(list("if", "assoc-result"));
 			w << list("cdr", "assoc-result");
@@ -301,7 +298,7 @@ struct SmtrModule {
 		w << list(*output_helper_name, outputs_name);
 		w.open(list("list"));
 		for (auto output : ir.outputs()) {
-			w << list("cons", "\"" + design->twines.unescaped_str(output->name) + "\"", output_struct.access("outputs", output->name));
+			w << list("cons", "\"" + output->name.unescape() + "\"", output_struct.access("outputs", output->name));
 		}
 		w.pop();
 	}
@@ -366,7 +363,7 @@ struct FunctionalSmtrBackend : public Backend {
 		}
 
 		for (auto module : design->selected_modules()) {
-			log("Processing module `%s`.\n", module->name.str().c_str());
+			log("Processing module `%s`.\n", module->name);
 			SmtrModule smtr(module, assoc_list_helpers);
 			smtr.write(*f);
 		}

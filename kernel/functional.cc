@@ -136,7 +136,7 @@ struct PrintVisitor : DefaultVisitor<std::string> {
 
 std::string Node::to_string()
 {
-	return to_string([](Node n) { return n.design->twines.unescaped_str(n.name()); });
+	return to_string([](Node n) { return n.name().unescape(); });
 }
 
 std::string Node::to_string(std::function<std::string(Node)> np)
@@ -470,7 +470,6 @@ class FunctionalIRConstruction {
 	dict<DriveSpec, Node> graph_nodes;
 	dict<std::pair<Cell *, IdString>, Node> cell_outputs;
 	DriverMap driver_map;
-	Design *design;
 	Factory& factory;
 	CellSimplifier simplifier;
 	vector<Mem> memories_vector;
@@ -498,7 +497,7 @@ class FunctionalIRConstruction {
 			for(auto const &[name, sigspec] : cell->connections())
 				if(driver_map.celltypes.cell_output(cell->type, name)) {
 					auto node = factory.create_pending(sigspec.size());
-					factory.suggest_name(node, design->twines.add(cell->name.unescape() + "$" + design->twines.str(name)));
+					factory.suggest_name(node, cell->name.str() + "$" + PooledName(cell->module, name).str());
 					cell_outputs.emplace({cell, name}, node);
 					if(name == port_name)
 						rv = node;
@@ -509,8 +508,7 @@ class FunctionalIRConstruction {
 	}
 public:
 	FunctionalIRConstruction(Module *module, Factory &f)
-		: design(module->design)
-		, factory(f)
+		: factory(f)
 		, simplifier(f)
 		, sig_map(module)
 		, ff_initvals(&sig_map, module)
@@ -612,10 +610,9 @@ private:
 			if (!ff.has_gclk)
 				log_error("The design contains a %s flip-flop at %s. This is not supported by the functional backend. "
 					"Call async2sync or clk2fflogic to avoid this error.\n", cell->type.unescape(), cell);
-			IdString ff_name = ff.name;
-			auto &state = factory.add_state(ff_name, ID($state), Sort(ff.width));
+			auto &state = factory.add_state(ff.name, ID($state), Sort(ff.width));
 			Node q_value = factory.value(state);
-			factory.suggest_name(q_value, ff_name);
+			factory.suggest_name(q_value, ff.name);
 			factory.update_pending(cell_outputs.at({cell, ID(Q)}), q_value);
 			state.set_next_value(enqueue(ff.sig_d));
 			state.set_initial_value(ff.val_init);
@@ -698,8 +695,7 @@ public:
 							factory.update_pending(pending, node);
 						} else {
 							DriveSpec driver = driver_map(DriveSpec(port_chunk));
-							auto& twines = port_chunk.cell->module->design->twines;
-							check_undriven(driver, twines.str(port_chunk.cell->name) + " port " + twines.str(port_chunk.port));
+							check_undriven(driver, port_chunk.cell->name.unescape() + " port " + PooledName(port_chunk.cell->module, port_chunk.port).unescape());
 							factory.update_pending(pending, enqueue(driver));
 						}
 					} else {
@@ -709,7 +705,7 @@ public:
 					}
 				} else if (chunk.is_constant()) {
 					Node node = factory.constant(chunk.constant());
-					factory.suggest_name(node, design->twines.add("$const" + std::to_string(chunk.size()) + "b" + chunk.constant().as_string()));
+					factory.suggest_name(node, "$const" + std::to_string(chunk.size()) + "b" + chunk.constant().as_string());
 					factory.update_pending(pending, node);
 				} else if (chunk.is_multiple()) {
 					log_error("Signal %s has multiple drivers. This is not supported by the functional backend. "
@@ -749,7 +745,7 @@ void IR::topological_sort() {
             log_warning("Combinational loop:\n");
             for (int *i = begin; i != end; ++i) {
 				Node node(_graph[*i], design);
-                log("- %s = %s\n", design->twines.unescaped_str(node.name()).c_str(), node.to_string().c_str());
+                log("- %s = %s\n", node.name().unescape(), node.to_string());
 			}
             log("\n");
             scc = true;

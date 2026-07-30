@@ -33,7 +33,7 @@ YOSYS_NAMESPACE_BEGIN
 namespace Functional {
 	// each function is documented with a short pseudocode declaration or definition
 	// standard C/Verilog operators are used to describe the result
-	// 
+	//
 	// the sorts used in this are:
 	// - bit[N]: a bitvector of N bits
 	//   bit[N] can be indicated as signed or unsigned. this is not tracked by the functional backend
@@ -159,23 +159,21 @@ namespace Functional {
 	class IRInput {
 		friend class Factory;
 	public:
-		IdString name;
-		IdString kind;
+		PooledName name;
+		PooledName kind;
 		Sort sort;
 	private:
-		IRInput(IR &, IdString name, IdString kind, Sort sort)
-		: name(name), kind(kind), sort(std::move(sort)) {}
+		IRInput(IR &ir, IdString name, IdString kind, Sort sort);
 	};
 	class IROutput {
 		friend class Factory;
 		IR &_ir;
 	public:
-		IdString name;
-		IdString kind;
+		PooledName name;
+		PooledName kind;
 		Sort sort;
 	private:
-		IROutput(IR &ir, IdString name, IdString kind, Sort sort)
-		: _ir(ir), name(name), kind(kind), sort(std::move(sort)) {}
+		IROutput(IR &ir, IdString name, IdString kind, Sort sort);
 	public:
 		Node value() const;
 		bool has_value() const;
@@ -185,13 +183,12 @@ namespace Functional {
 		friend class Factory;
 		IR &_ir;
 	public:
-		IdString name;
-		IdString kind;
+		PooledName name;
+		PooledName kind;
 		Sort sort;
 	private:
 		std::variant<RTLIL::Const, MemContents> _initial;
-		IRState(IR &ir, IdString name, IdString kind, Sort sort)
-		: _ir(ir), name(name), kind(kind), sort(std::move(sort)) {}
+		IRState(IR &ir, IdString name, IdString kind, Sort sort);
 	public:
 		Node next_value() const;
 		bool has_next_value() const;
@@ -309,11 +306,11 @@ namespace Functional {
 		// the node's index. may change if nodes are added or removed
 		int id() const { return _ref.index(); }
 		// a name suggestion for the node, which need not be unique
-		IdString name() const {
+		PooledName name() const {
 			if(_ref.has_sparse_attr())
-				return _ref.sparse_attr();
+				return {design, _ref.sparse_attr()};
 			else
-				return design->twines.add(std::string("\\n") + std::to_string(id()));
+				return {design, design->twines.add(std::string("\\n") + std::to_string(id()))};
 		}
 		Fn fn() const { return _ref.function().fn(); }
 		Sort sort() const { return _ref.attr().sort; }
@@ -347,9 +344,9 @@ namespace Functional {
 			case Fn::reduce_xor: return v.reduce_xor(*this, arg(0)); break;
 			case Fn::equal: return v.equal(*this, arg(0), arg(1)); break;
 			case Fn::not_equal: return v.not_equal(*this, arg(0), arg(1)); break;
-			case Fn::signed_greater_than: return v.signed_greater_than(*this, arg(0), arg(1)); break; 
+			case Fn::signed_greater_than: return v.signed_greater_than(*this, arg(0), arg(1)); break;
 			case Fn::signed_greater_equal: return v.signed_greater_equal(*this, arg(0), arg(1)); break;
-			case Fn::unsigned_greater_than: return v.unsigned_greater_than(*this, arg(0), arg(1)); break; 
+			case Fn::unsigned_greater_than: return v.unsigned_greater_than(*this, arg(0), arg(1)); break;
 			case Fn::unsigned_greater_equal: return v.unsigned_greater_equal(*this, arg(0), arg(1)); break;
 			case Fn::logical_shift_left: return v.logical_shift_left(*this, arg(0), arg(1)); break;
 			case Fn::logical_shift_right: return v.logical_shift_right(*this, arg(0), arg(1)); break;
@@ -366,6 +363,12 @@ namespace Functional {
 		std::string to_string();
 		std::string to_string(std::function<std::string(Node)>);
 	};
+	inline IRInput::IRInput(IR &ir, IdString name, IdString kind, Sort sort)
+		: name(ir.design, name), kind(ir.design, kind), sort(std::move(sort)) {}
+	inline IROutput::IROutput(IR &ir, IdString name, IdString kind, Sort sort)
+		: _ir(ir), name(ir.design, name), kind(ir.design, kind), sort(std::move(sort)) {}
+	inline IRState::IRState(IR &ir, IdString name, IdString kind, Sort sort)
+		: _ir(ir), name(ir.design, name), kind(ir.design, kind), sort(std::move(sort)) {}
 	inline IR::Graph::Ref IR::mutate(Node n) { return _graph[n._ref.index()]; }
 	inline Node IR::operator[](int i) { return Node(_graph[i], design); }
 	inline Node IROutput::value() const { return Node(_ir._graph({name, kind, false}), _ir.design); }
@@ -512,7 +515,7 @@ namespace Functional {
 				return a;
 			return add(Fn::reduce_or, Sort(1), {a});
 		}
-		Node reduce_xor(Node a) { 
+		Node reduce_xor(Node a) {
 			check_unary(a);
 			if(a.width() == 1)
 				return a;
@@ -573,15 +576,16 @@ namespace Functional {
 		Node value(IRState const& state) {
 			return add(IR::NodeData(Fn::state, std::pair(state.name, state.kind)), state.sort, {});
 		}
+		template<typename N> IdString intern(N &&name) { return _ir.design->twines.add(std::forward<N>(name)); }
 		void suggest_name(Node node, IdString name) {
 			_ir.mutate(node).sparse_attr() = name;
 		}
+		YS_NAME_FWD_SELF_2ND(suggest_name)
 	};
 	inline Factory IR::factory() { return Factory(*this); }
 	template<class Id> class Scope {
 	protected:
 		char substitution_character = '_';
-		Design *design = nullptr;
 		virtual bool is_character_legal(char, int) = 0;
 	private:
 		pool<std::string> _used_names;
@@ -590,8 +594,8 @@ namespace Functional {
 		void reserve(std::string name) {
 			_used_names.insert(std::move(name));
 		}
-		std::string unique_name(IdString suggestion) {
-			std::string str = design->twines.unescaped_str(suggestion);
+		template<typename N> std::string unique_name(const N &suggestion) {
+			std::string str = RTLIL::unescape_id(suggestion);
 			for(size_t i = 0; i < str.size(); i++)
 				if(!is_character_legal(str[i], i))
 					str[i] = substitution_character;
@@ -607,7 +611,7 @@ namespace Functional {
 				}
 			}
 		}
-		std::string operator()(Id id, IdString suggestion) {
+		template<typename N> std::string operator()(Id id, const N &suggestion) {
 			auto it = _by_id.find(id);
 			if(it != _by_id.end())
 				return it->second;

@@ -10,6 +10,7 @@ namespace RTLIL {
 	using MemoryNameMasq = ObjNameMasq<Memory>;
 	using ProcessNameMasq = ObjNameMasq<Process>;
 	struct CellTypeMasq;
+	struct PooledName;
 }
 
 // CRTP base shared by WireNameMasq, CellNameMasq, and ModuleNameMasq.
@@ -144,6 +145,21 @@ struct RTLIL::ModuleNameMasq : RTLIL::NameMasqBase<RTLIL::ModuleNameMasq> {
 private:
 	const RTLIL::Module *owner() const;
 	RTLIL::Module *owner();
+};
+
+struct RTLIL::PooledName : RTLIL::NameMasqBase<RTLIL::PooledName> {
+	PooledName() = default;
+	PooledName(IdString id) : id_(id) {}
+	PooledName(const TwinePool *pool, IdString id) : pool_(pool), id_(id) {}
+	PooledName(const RTLIL::Design *design, IdString id);
+	PooledName(const RTLIL::Module *module, IdString id);
+	IdString ref() const { return id_; }
+	std::string escaped() const;
+	std::string unescape() const;
+	const TwinePool *pool() const { return pool_; }
+private:
+	const TwinePool *pool_ = nullptr;
+	IdString id_ = Twine::Null;
 };
 
 namespace RTLIL {
@@ -288,6 +304,24 @@ inline std::string RTLIL::ModuleNameMasq::unescape() const {
 inline RTLIL::ModuleNameMasq &RTLIL::ModuleNameMasq::operator=(IdString id) {
 	owner()->name_ = id;
 	return *this;
+}
+
+inline RTLIL::PooledName::PooledName(const RTLIL::Design *design, IdString id)
+	: pool_(design ? &design->twines : nullptr), id_(id) { }
+
+inline RTLIL::PooledName::PooledName(const RTLIL::Module *module, IdString id)
+	: PooledName(module ? module->design : nullptr, id) { }
+
+inline std::string RTLIL::PooledName::escaped() const {
+	if (id_ == Twine::Null)
+		return std::string();
+	return pool_ ? pool_->str(id_) : ID::str(id_);
+}
+
+inline std::string RTLIL::PooledName::unescape() const {
+	if (id_ == Twine::Null)
+		return std::string();
+	return pool_ ? pool_->unescaped_str(id_) : ID::unescaped_str(id_);
 }
 #ifdef __GNUC__
 #pragma GCC diagnostic pop

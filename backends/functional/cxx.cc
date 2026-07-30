@@ -44,8 +44,7 @@ const char *reserved_keywords[] = {
 };
 
 template<typename Id> struct CxxScope : public Functional::Scope<Id> {
-	CxxScope(Design *design = nullptr) {
-		this->design = design;
+	CxxScope() {
 		for(const char **p = reserved_keywords; *p != nullptr; p++)
 			this->reserve(*p);
 	}
@@ -72,15 +71,14 @@ using CxxWriter = Functional::Writer;
 
 struct CxxStruct {
 	std::string name;
-	dict<IdString, CxxType> types;
+	dict<PooledName, CxxType> types;
 	CxxScope<IdString> scope;
-	Design *design;
-	CxxStruct(std::string name, Design *design) : name(name), scope(design), design(design)
+	CxxStruct(std::string name) : name(name)
 	{
 		scope.reserve("fn");
 		scope.reserve("visit");
 	}
-	void insert(IdString name, CxxType type) {
+	void insert(PooledName name, CxxType type) {
 		scope(name, name);
 		types.insert({name, type});
 	}
@@ -91,12 +89,12 @@ struct CxxStruct {
 		}
 		f.print("\n\t\ttemplate <typename T> void visit(T &&fn) {{\n");
 		for (auto p : types) {
-			f.print("\t\t\tfn(\"{}\", {});\n", design->twines.unescaped_str(p.first), scope(p.first, p.first));
+			f.print("\t\t\tfn(\"{}\", {});\n", p.first.unescape(), scope(p.first, p.first));
 		}
 		f.print("\t\t}}\n");
 		f.print("\t}};\n\n");
 	};
-	std::string operator[](IdString field) {
+	std::string operator[](PooledName field) {
 		return scope(field, field);
 	}
 };
@@ -169,16 +167,14 @@ bool equal_def(RTLIL::Const const &a, RTLIL::Const const &b) {
 
 struct CxxModule {
 	Functional::IR ir;
-	Design *design;
 	CxxStruct input_struct, output_struct, state_struct;
 	std::string module_name;
 
 	explicit CxxModule(Module *module) :
 		ir(Functional::IR::from_module(module)),
-		design(module->design),
-		input_struct("Inputs", module->design),
-		output_struct("Outputs", module->design),
-		state_struct("State", module->design)
+		input_struct("Inputs"),
+		output_struct("Outputs"),
+		state_struct("State")
 	{
 		for (auto input : ir.inputs())
 			input_struct.insert(input->name, input->sort);
@@ -186,7 +182,7 @@ struct CxxModule {
 			output_struct.insert(output->name, output->sort);
 		for (auto state : ir.states())
 			state_struct.insert(state->name, state->sort);
-		module_name = CxxScope<int>(module->design).unique_name(module->name);
+		module_name = CxxScope<int>().unique_name(module->name);
 	}
 	void write_header(CxxWriter &f) {
 		f.print("#include \"sim.h\"\n\n");
@@ -222,7 +218,7 @@ struct CxxModule {
 	}
 	void write_eval_def(CxxWriter &f) {
 		f.print("void {0}::eval({0}::Inputs const &input, {0}::Outputs &output, {0}::State const &current_state, {0}::State &next_state)\n{{\n", module_name);
-		CxxScope<int> locals(design);
+		CxxScope<int> locals;
 		locals.reserve("input");
 		locals.reserve("output");
 		locals.reserve("current_state");

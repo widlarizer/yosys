@@ -212,6 +212,7 @@ namespace RTLIL {
 	struct Monitor;
 	struct Selection;
 	struct SigChunk;
+	struct PooledName;
 	enum State : unsigned char;
 
 	typedef std::pair<SigSpec, SigSpec> SigSig;
@@ -232,6 +233,7 @@ using RTLIL::Design;
 using RTLIL::State;
 using RTLIL::SigChunk;
 using RTLIL::SigSig;
+using RTLIL::PooledName;
 
 namespace hashlib {
 	template<> struct hash_ops<RTLIL::Wire*> : hash_obj_ops {};

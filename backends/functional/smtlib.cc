@@ -44,8 +44,7 @@ const char *reserved_keywords[] = {
 };
 
 struct SmtScope : public Functional::Scope<int> {
-	SmtScope(Design *design = nullptr) {
-		this->design = design;
+	SmtScope() {
 		for(const char **p = reserved_keywords; *p != nullptr; p++)
 			reserve(*p);
 	}
@@ -73,16 +72,15 @@ class SmtStruct {
 		SmtSort sort;
 		std::string accessor;
 	};
-	idict<IdString> field_names;
+	idict<PooledName> field_names;
 	vector<Field> fields;
 	SmtScope &scope;
-	Design *design;
 public:
 	std::string name;
-	SmtStruct(std::string name, SmtScope &scope, Design *design) : scope(scope), design(design), name(name) {}
-	void insert(IdString field_name, SmtSort sort) {
+	SmtStruct(std::string name, SmtScope &scope) : scope(scope), name(name) {}
+	void insert(PooledName field_name, SmtSort sort) {
 		field_names(field_name);
-		auto accessor = scope.unique_name(design->twines.add("\\" + name + "_" + design->twines.unescaped_str(field_name)));
+		auto accessor = scope.unique_name("\\" + name + "_" + field_name.unescape());
 		fields.emplace_back(Field{sort, accessor});
 	}
 	void write_definition(SExprWriter &w) {
@@ -101,7 +99,7 @@ public:
 			w.open(list(name));
 			for(auto field_name : field_names) {
 				w << fn(field_name);
-				w.comment(design->twines.unescaped_str(field_name), true);
+				w.comment(field_name.unescape(), true);
 			}
 			w.close();
 		}
@@ -196,11 +194,11 @@ struct SmtModule {
 
 	SmtModule(Module *module)
 		: ir(Functional::IR::from_module(module))
-		, scope(module->design)
+		, scope()
 		, name(scope.unique_name(module->name))
-		, input_struct(scope.unique_name(module->design->twines.add(module->name.str() + "_Inputs")), scope, module->design)
-		, output_struct(scope.unique_name(module->design->twines.add(module->name.str() + "_Outputs")), scope, module->design)
-		, state_struct(scope.unique_name(module->design->twines.add(module->name.str() + "_State")), scope, module->design)
+		, input_struct(scope.unique_name(module->name.str() + "_Inputs"), scope)
+		, output_struct(scope.unique_name(module->name.str() + "_Outputs"), scope)
+		, state_struct(scope.unique_name(module->name.str() + "_State"), scope)
 	{
 		scope.reserve(name + "-initial");
 		for (auto input : ir.inputs())
