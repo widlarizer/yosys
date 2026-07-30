@@ -119,7 +119,7 @@ static void print_spice_module(std::ostream &f, RTLIL::Module *module, RTLIL::De
 			}
 		}
 
-		f << stringf(" %s\n", spice_id2str(cell->type.str()));
+		f << stringf(" %s\n", spice_id2str(cell->type));
 	}
 
 	for (auto &conn : module->connections())
@@ -242,18 +242,18 @@ struct SpiceBackend : public Backend {
 				ports.at(wire->port_id-1) = wire;
 			}
 
-			*f << stringf(".SUBCKT %s", spice_id2str(module->name.str()));
+			*f << stringf(".SUBCKT %s", spice_id2str(module->name));
 			for (RTLIL::Wire *wire : ports) {
 				log_assert(wire != NULL);
 				if (wire->width > 1) {
 					for (int i = 0; i < wire->width; i++)
-						*f << stringf(" %s.%d", spice_id2str(wire->name.str()), big_endian ? wire->width - 1 - i : i);
+						*f << stringf(" %s.%d", spice_id2str(wire->name), big_endian ? wire->width - 1 - i : i);
 				} else
-					*f << stringf(" %s", spice_id2str(wire->name.str()));
+					*f << stringf(" %s", spice_id2str(wire->name));
 			}
 			*f << stringf("\n");
 			print_spice_module(*f, module, design, neg, pos, buf, ncpf, big_endian, use_inames);
-			*f << stringf(".ENDS %s\n\n", spice_id2str(module->name.str()));
+			*f << stringf(".ENDS %s\n\n", spice_id2str(module->name));
 		}
 
 		if (!top_module_name.empty()) {

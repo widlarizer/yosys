@@ -207,7 +207,7 @@ struct BlifDumper
 					f << stringf(".names %s\n", config->false_out);
 				else if (config->false_type != "-")
 					f << stringf(".%s %s %s=$false\n", subckt_or_gate(config->false_type_ref),
-							config->false_type, config->false_out);
+							config->false_type.c_str(), config->false_out.c_str());
 			} else
 				f << stringf(".names $false\n");
 			if (!config->true_type.empty()) {
@@ -215,7 +215,7 @@ struct BlifDumper
 					f << stringf(".names %s\n1\n", config->true_out);
 				else if (config->true_type != "-")
 					f << stringf(".%s %s %s=$true\n", subckt_or_gate(config->true_type_ref),
-							config->true_type, config->true_out);
+							config->true_type.c_str(), config->true_out.c_str());
 			} else
 				f << stringf(".names $true\n1\n");
 			if (!config->undef_type.empty()) {
@@ -223,7 +223,7 @@ struct BlifDumper
 					f << stringf(".names %s\n", config->undef_out);
 				else if (config->undef_type != "-")
 					f << stringf(".%s %s %s=$undef\n", subckt_or_gate(config->undef_type_ref),
-							config->undef_type, config->undef_out);
+							config->undef_type.c_str(), config->undef_out.c_str());
 			} else
 				f << stringf(".names $undef\n");
 		}
@@ -468,7 +468,7 @@ struct BlifDumper
 				f << stringf(".conn %s %s\n", str(rhs_bit), str(lhs_bit));
 			else if (!config->buf_type.empty())
 				f << stringf(".%s %s %s=%s %s=%s\n", subckt_or_gate(config->buf_type_ref), config->buf_type,
-						config->buf_in, str(rhs_bit), config->buf_out, str(lhs_bit));
+						config->buf_in.c_str(), str(rhs_bit).c_str(), config->buf_out.c_str(), str(lhs_bit).c_str());
 			else
 				f << stringf(".names %s %s\n1 1\n", str(rhs_bit), str(lhs_bit));
 		}

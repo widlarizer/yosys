@@ -633,7 +633,7 @@ struct ExposePass : public Pass {
 							if (!p->port_input && !p->port_output)
 								continue;
 
-							RTLIL::Wire *w = add_new_wire(module, cell->name.unescape() + sep + p->name.unescape(), p->width);
+							RTLIL::Wire *w = add_new_wire(module, cell->name.str() + sep + p->name.unescape(), p->width);
 							if (p->port_input)
 								w->port_output = true;
 							if (p->port_output)

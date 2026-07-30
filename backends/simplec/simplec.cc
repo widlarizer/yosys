@@ -340,7 +340,7 @@ struct SimplecWorker
 		for (int i = 0; i < GetSize(topo.sorted); i++)
 			topoidx[mod->cell(topo.sorted[i])] = i;
 
-		string ifdef_name = stringf("yosys_simplec_%s_state_t", cid(mod->name.str()));
+		string ifdef_name = stringf("yosys_simplec_%s_state_t", cid(mod->name));
 
 		for (int i = 0; i < GetSize(ifdef_name); i++)
 			if ('a' <= ifdef_name[i] && ifdef_name[i] <= 'z')
@@ -349,7 +349,7 @@ struct SimplecWorker
 		struct_declarations.push_back("");
 		struct_declarations.push_back(stringf("#ifndef %s", ifdef_name));
 		struct_declarations.push_back(stringf("#define %s", ifdef_name));
-		struct_declarations.push_back(stringf("struct %s_state_t", cid(mod->name.str())));
+		struct_declarations.push_back(stringf("struct %s_state_t", cid(mod->name)));
 		struct_declarations.push_back("{");
 
 		struct_declarations.push_back("  // Input Ports");
@@ -640,7 +640,7 @@ struct SimplecWorker
 		reactivated_cells.clear();
 
 		funct_declarations.push_back("");
-		funct_declarations.push_back(stringf("static void %s(struct %s_state_t *state)", func_name, cid(work->module->name.str())));
+		funct_declarations.push_back(stringf("static void %s(struct %s_state_t *state)", func_name, cid(work->module->name)));
 		funct_declarations.push_back("{");
 		for (auto &line : preamble)
 			funct_declarations.push_back(line);
@@ -694,7 +694,7 @@ struct SimplecWorker
 	{
 		vector<string> preamble;
 		eval_init(work, preamble);
-		make_func(work, cid(work->module->name.str()) + "_init", preamble);
+		make_func(work, cid(work->module->name) + "_init", preamble);
 	}
 
 	void make_eval_func(HierDirtyFlags *work)
@@ -708,7 +708,7 @@ struct SimplecWorker
 					work->set_dirty(bit);
 		}
 
-		make_func(work, cid(work->module->name.str()) + "_eval", preamble);
+		make_func(work, cid(work->module->name) + "_eval", preamble);
 	}
 
 	void make_tick_func(HierDirtyFlags* /* work */)

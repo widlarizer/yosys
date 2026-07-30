@@ -87,7 +87,7 @@ struct SubmodWorker
 
 	void handle_submodule(SubModule &submod)
 	{
-		log("Creating submodule %s (%s) of module %s.\n", submod.name, submod.full_name, module->name.str().data());
+		log("Creating submodule %s (%s) of module %s.\n", submod.name, submod.full_name, module->name);
 
 		wire_flags.clear();
 		for (RTLIL::Cell *cell : submod.cells) {
@@ -249,12 +249,12 @@ struct SubmodWorker
 			return;
 
 		if (module->processes.size() > 0) {
-			log("Skipping module %s as it contains processes (run 'proc' pass first).\n", module->name.str().data());
+			log("Skipping module %s as it contains processes (run 'proc' pass first).\n", module->name);
 			return;
 		}
 
 		if (module->memories.size() > 0) {
-			log("Skipping module %s as it contains memories (run 'memory' pass first).\n", module->name.str().data());
+			log("Skipping module %s as it contains memories (run 'memory' pass first).\n", module->name);
 			return;
 		}
 
@@ -410,7 +410,7 @@ struct SubmodPass : public Pass {
 			RTLIL::Module *module = nullptr;
 			for (auto mod : design->selected_modules()) {
 				if (module != nullptr)
-					log_cmd_error("More than one module selected: %s %s\n", module->name.str().data(), mod->name.str().data());
+					log_cmd_error("More than one module selected: %s %s\n", module->name, mod->name);
 				module = mod;
 			}
 			if (module == nullptr)

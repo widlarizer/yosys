@@ -42,7 +42,7 @@ PRIVATE_NAMESPACE_BEGIN
 void apply_prefix(const std::string &prefix, std::string &id)
 {
 	if (id[0] == '\\')
-		id = stringf("%s.%s", prefix, id.c_str() + 1);
+		id = stringf("%s.%s", prefix, id.c_str()+1);
 	else
 		id = stringf("$techmap%s.%s", prefix, id);
 }
@@ -185,7 +185,7 @@ struct TechmapWorker
 				TechmapWireData record;
 				record.wire = w;
 				record.value = w;
-				result[w->name.str()].push_back(record);
+				result[w->name].push_back(record);
 				w->set_bool_attribute(ID::keep);
 				w->set_bool_attribute(ID::_techmap_special_);
 			}
@@ -444,7 +444,7 @@ struct TechmapWorker
 			} else if (c->is_mem_cell()) {
 				std::string memid = c->getParam(ID::MEMID).decode_string();
 				apply_prefix(cell->name, memid);
-				c->setParam(ID::MEMID, Const(memid));
+				c->setParam(ID::MEMID, Const(memid.c_str()));
 			}
 
 			if (c->has_attribute(ID::src))
@@ -818,7 +818,7 @@ struct TechmapWorker
 							auto &data = it.second.front();
 
 							if (!data.value.is_fully_const())
-								log_error("Techmap yielded config wire %s with non-const value %s.\n", data.wire->name.unescape().data(), log_signal(data.value));
+								log_error("Techmap yielded config wire %s with non-const value %s.\n", data.wire->name.unescape(), log_signal(data.value));
 
 							techmap_wire_names.erase(it.first);
 

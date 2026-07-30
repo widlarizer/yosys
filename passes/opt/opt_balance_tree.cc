@@ -78,7 +78,7 @@ struct OptBalanceTreeWorker {
 		if (sources.size() == 2) {
 			// Create a new cell of the same type
 			Cell* new_cell = module->addCell(NEW_ID, cell_type);
-			
+
 			// Copy attributes and src from reference cell
 			new_cell->attributes = cell->attributes;
 			new_cell->adopt_src_from(cell);
@@ -90,7 +90,7 @@ struct OptBalanceTreeWorker {
 			else if (cell_type == ID($mul))
 				out_width = sources[0].size() + sources[1].size();
 			Wire* out_wire = module->addWire(NEW_ID, out_width);
-			
+
 			// Connect ports and fix up parameters
 			new_cell->setPort(ID::A, sources[0]);
 			new_cell->setPort(ID::B, sources[1]);
@@ -114,7 +114,7 @@ struct OptBalanceTreeWorker {
 
 		// Create a cell to combine the two subtrees
 		Cell* new_cell = module->addCell(NEW_ID, cell_type);
-		
+
 		// Copy attributes from reference cell
 		new_cell->attributes = cell->attributes;
 
@@ -125,7 +125,7 @@ struct OptBalanceTreeWorker {
 		else if (cell_type == ID($mul))
 			out_width = left_tree.size() + right_tree.size();
 		Wire* out_wire = module->addWire(NEW_ID, out_width);
-		
+
 		// Connect ports and fix up parameters
 		new_cell->setPort(ID::A, left_tree);
 		new_cell->setPort(ID::B, right_tree);

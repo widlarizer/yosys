@@ -176,7 +176,7 @@ Fmt AstNode::processFormat(int stage, bool sformat_like, int default_base, size_
 	}
 
 	Fmt fmt;
-	fmt.parse_verilog(args, sformat_like, default_base, /*task_name=*/str, current_module->name.str());
+	fmt.parse_verilog(args, sformat_like, default_base, /*task_name=*/str, current_module->name);
 	return fmt;
 }
 

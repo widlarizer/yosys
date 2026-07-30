@@ -222,7 +222,7 @@ struct IopadmapPass : public Pass {
 			for (auto cell : module->cells())
 			for (auto port : cell->connections())
 			for (int i = 0; i < port.second.size(); i++)
-				if (buf_ports.count(make_pair(cell->type.ref(), make_pair(port.first, i))))
+				if (buf_ports.count(make_pair(cell->type, make_pair(port.first, i))))
 					buf_bits.insert(sigmap(port.second[i]));
 
 			// Now fill buf_ports.

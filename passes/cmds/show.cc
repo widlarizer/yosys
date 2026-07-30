@@ -502,7 +502,7 @@ struct ShowWorker
 			std::string out_label = join_label_pieces(out_label_pieces);
 
 			std::string label_string = stringf("{{%s}|%s\\n%s|{%s}}", in_label,
-											   findLabel(cell->name.unescape()), escape(cell->type.str()),
+											   findLabel(cell->name.str()), escape(cell->type.str()),
 											   out_label.c_str());
 
 			std::string code;

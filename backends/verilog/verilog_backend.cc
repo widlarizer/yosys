@@ -2457,7 +2457,7 @@ void dump_module(std::ostream &f, std::string indent, RTLIL::Module *module)
 	}
 
 	dump_attributes(f, indent, module, "\n", /*modattr=*/true);
-	f << stringf("%s" "module %s(", indent, id(module->name.str(), false));
+	f << stringf("%s" "module %s(", indent, id(module->name, false));
 	int cnt = 0;
 	for (auto port : module->ports) {
 		Wire *wire = module->wire(port);
@@ -2747,7 +2747,7 @@ struct VerilogBackend : public Backend {
 					log_cmd_error("Can't handle partially selected module %s!\n", module->name.unescape());
 				continue;
 			}
-			log("Dumping module `%s'.\n", module->name.str().c_str());
+			log("Dumping module `%s'.\n", module->name);
 			module->sort();
 			dump_module(*f, "", module);
 		}

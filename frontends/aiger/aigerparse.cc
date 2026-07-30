@@ -342,7 +342,7 @@ RTLIL::Wire* AigerReader::createWireIfNotExists(RTLIL::Module *module, unsigned 
 	if (auto it = aiger_wires.find(literal); it != aiger_wires.end())
 		return it->second;
 	std::string wire_name = stringf("$aiger%d$%d%s", aiger_autoidx, variable, invert ? "b" : "");
-	log_debug2("Creating %s\n", wire_name);
+	log_debug2("Creating %s\n", wire_name.c_str());
 	RTLIL::Wire *wire = module->addWire(wire_name);
 	wire->port_input = wire->port_output = false;
 	aiger_wires[literal] = wire;
@@ -909,9 +909,9 @@ void AigerReader::post_process()
 		if (cell->type != ID($lut)) continue;
 		auto y_port = cell->getPort(ID::Y).as_bit();
 		if (y_port.wire->width == 1)
-			module->rename(cell, stringf("$lut%s", y_port.wire->name.str().c_str()));
+			module->rename(cell, stringf("$lut%s", y_port.wire->name));
 		else
-			module->rename(cell, stringf("$lut%s[%d]", y_port.wire->name.str().c_str(), y_port.offset));
+			module->rename(cell, stringf("$lut%s[%d]", y_port.wire->name, y_port.offset));
 	}
 }
 
@@ -976,7 +976,7 @@ struct AigerFrontend : public Frontend {
 			char fname[_MAX_FNAME];
 			_splitpath(filename.c_str(), NULL /* drive */, NULL /* dir */, fname, NULL /* ext */);
 			char* bn = strdup(fname);
-			module_name = design->twines.add(RTLIL::escape_id(bn));
+			module_name = RTLIL::escape_id(bn);
 			free(bn);
 #else
 			char* bn = strdup(filename.c_str());

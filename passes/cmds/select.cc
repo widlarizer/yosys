@@ -553,7 +553,7 @@ static int select_op_expand(RTLIL::Design *design, RTLIL::Selection &lhs, std::v
 				goto exclude_match;
 			for (auto &rule : rules) {
 				last_mode = rule.mode;
-				if (rule.cell_types.size() > 0 && rule.cell_types.count(cell->type.str()) == 0)
+				if (rule.cell_types.size() > 0 && rule.cell_types.count(cell->type) == 0)
 					continue;
 				if (rule.port_names.size() > 0 && rule.port_names.count(twines.str(conn.first)) == 0)
 					continue;

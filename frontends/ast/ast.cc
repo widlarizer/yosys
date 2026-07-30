@@ -1858,7 +1858,7 @@ std::string AST::derived_module_name(std::string stripped_name, const std::vecto
 // create a new parametric module (when needed) and return the name of the generated module
 std::string AstModule::derive_common(RTLIL::Design *design, const dict<RTLIL::IdString, RTLIL::Const> &parameters, std::unique_ptr<AstNode>* new_ast_out, bool quiet)
 {
-	std::string stripped_name = design->twines.str(name);
+	std::string stripped_name = name.str();
 	(*new_ast_out) = nullptr;
 
 	if (stripped_name.compare(0, 9, "$abstract") == 0)

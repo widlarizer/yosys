@@ -192,11 +192,11 @@ struct IFExpander
 	dict<RTLIL::IdString, RTLIL::Module*>   interfaces_in_module;
 
 	bool                                    has_interfaces_not_found;
-	std::vector<IdString>                   connections_to_remove;
+	std::vector<RTLIL::IdString>            connections_to_remove;
 	std::vector<IdString>                   connections_to_add;
 	std::vector<RTLIL::SigSpec>             connections_to_add_signal;
-	dict<IdString, RTLIL::Module*>          interfaces_to_add_to_submodule;
-	dict<IdString, IdString>         modports_used_in_submodule;
+	dict<RTLIL::IdString, RTLIL::Module*>   interfaces_to_add_to_submodule;
+	dict<RTLIL::IdString, RTLIL::IdString>  modports_used_in_submodule;
 
 	// Reset the per-cell state
 	void start_cell()
@@ -231,7 +231,7 @@ struct IFExpander
 
 	// Handle an interface connection from the module
 	void on_interface(RTLIL::Module        &submodule,
-	                  IdString              conn_name,
+	                  RTLIL::IdString       conn_name,
 	                  const RTLIL::SigSpec &conn_signals)
 	{
 		// Check if the connected wire is a potential interface in the parent module
@@ -299,7 +299,7 @@ struct IFExpander
 	// Handle a single connection from the module, making a note to expand
 	// it if it's an interface connection.
 	void on_connection(RTLIL::Module        &submodule,
-	                   IdString              conn_name,
+	                   RTLIL::IdString       conn_name,
 	                   const RTLIL::SigSpec &conn_signals)
 	{
 		// Does the connection look like an interface
@@ -326,8 +326,8 @@ struct IFExpander
 			 * parent and child).
 			 */
 			log_error("Unable to connect `%s' to submodule `%s' with positional interface argument `%s'!\n",
-				module.name.unescape(),
-				submodule.name.unescape(),
+				module.name,
+				submodule.name,
 				conn_signals[0].wire->name.str().substr(23)
 			);
 		} else {
@@ -648,9 +648,9 @@ void hierarchy_worker(RTLIL::Design *design, std::set<RTLIL::Module*> &used, RTL
 		return;
 
 	if (indent == 0)
-		log("Top module:  %s\n", mod->name.str().data());
+		log("Top module:  %s\n", mod->name);
 	else if (!mod->get_blackbox_attribute())
-		log("Used module: %*s%s\n", indent, "", mod->name.str().data());
+		log("Used module: %*s%s\n", indent, "", mod->name);
 	used.insert(mod);
 
 	for (auto cell : mod->cells()) {
@@ -692,7 +692,7 @@ void hierarchy_clean(RTLIL::Design *design, RTLIL::Module *top, bool purge_lib)
 	for (auto mod : del_modules) {
 		if (!purge_lib && mod->get_blackbox_attribute())
 			continue;
-		log("Removing unused module `%s'.\n", mod->name.str().data());
+		log("Removing unused module `%s'.\n", mod->name);
 		design->remove(mod);
 		del_counter++;
 	}
@@ -1234,7 +1234,7 @@ struct HierarchyPass : public Pass {
 						src += ": ";
 
 					log_error("%sProperty `%s' in module `%s' uses unsupported SVA constructs. See frontend warnings for details, run `chformal -remove a:unsupported_sva' to ignore.\n",
-						src, cell->name.unescape(), mod->name.str().data());
+						src, cell->name.unescape(), mod->name.unescape());
 				}
 			}
 		}

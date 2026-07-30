@@ -221,8 +221,8 @@ struct statdata_t {
 
 			if (!cell_area.empty()) {
 				// check if cell_area provides a area calculator
-				if (cell_area.count(cell->type.str())) {
-					cell_area_t cell_data = cell_area.at(cell->type.str());
+				if (cell_area.count(cell->type)) {
+					cell_area_t cell_data = cell_area.at(cell->type);
 					if (cell_data.single_parameter_area.size() > 0) {
 						// assume that we just take the max of the A,B,Y ports
 
@@ -763,14 +763,14 @@ statdata_t hierarchy_builder(RTLIL::Design *design, const RTLIL::Module *top_mod
 		top_mod = design->top_module();
 	statdata_t mod_data(design, top_mod, width_mode, cell_area, techname);
 	for (auto cell : top_mod->selected_cells()) {
-		if (cell_area.count(cell->type.str()) == 0) {
+		if (cell_area.count(cell->type) == 0) {
 			if (design->has(cell->type)) {
 				if (!(design->module(cell->type)->attributes.count(ID::blackbox))) {
 					// deal with modules
 					mod_data.add(
 					  hierarchy_builder(design, design->module(cell->type), mod_stat, width_mode, cell_area, techname));
-					mod_data.num_submodules_by_type[cell->type.str()]++;
-					mod_data.submodules_area_by_type[cell->type.str()] += mod_stat.at(cell->type).area;
+					mod_data.num_submodules_by_type[cell->type]++;
+					mod_data.submodules_area_by_type[cell->type] += mod_stat.at(cell->type).area;
 					mod_data.submodule_area += mod_stat.at(cell->type).area;
 					mod_data.num_submodules++;
 					mod_data.unknown_cell_area.erase(cell->type);
@@ -786,9 +786,9 @@ statdata_t hierarchy_builder(RTLIL::Design *design, const RTLIL::Module *top_mod
 					// deal with blackbox cells
 					if (design->module(cell->type)->attributes.count(ID::area) &&
 					    design->module(cell->type)->attributes.at(ID::area).size() == 0) {
-						mod_data.num_submodules_by_type[cell->type.str()]++;
+						mod_data.num_submodules_by_type[cell->type]++;
 						mod_data.num_submodules++;
-						mod_data.submodules_area_by_type[cell->type.str()] +=
+						mod_data.submodules_area_by_type[cell->type] +=
 						  double(design->module(cell->type)->attributes.at(ID::area).as_int());
 						mod_data.area += double(design->module(cell->type)->attributes.at(ID::area).as_int());
 						mod_data.unknown_cell_area.erase(cell->type);
@@ -1026,7 +1026,7 @@ struct StatPass : public Pass {
 				log("\n");
 				log("=== %s%s ===\n", mod->name.unescape(), mod->is_selected_whole() ? "" : " (partially selected)");
 				log("\n");
-				data.log_data(mod->name.str(), false, has_area, hierarchy_mode);
+				data.log_data(mod->name, false, has_area, hierarchy_mode);
 			}
 		}
 
@@ -1052,7 +1052,7 @@ struct StatPass : public Pass {
 				data.log_data_json("design", true, hierarchy_mode, true);
 			else if (GetSize(mod_stat) > 1) {
 				log("\n");
-				data.log_data(top_mod->name.str(), true, has_area, hierarchy_mode, true);
+				data.log_data(top_mod->name, true, has_area, hierarchy_mode, true);
 			}
 
 			design->scratchpad_set_int("stat.num_wires", data.num_wires);

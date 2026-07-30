@@ -572,7 +572,7 @@ struct BoothPassWorker {
 			}
 			for (auto c : carry_bits_to_add_to_next_column) {
 #ifdef DEBUG_CSA
-				printf("\t Propagating column bit %s to column %d from column %d\n", c->name.str().c_str(), column_ix, column_ix - 1);
+				printf("\t Propagating column bit %s to column %d from column %d\n", c->name.c_str(), column_ix, column_ix - 1);
 #endif
 				column_bits.append(c);
 			}
@@ -582,7 +582,7 @@ struct BoothPassWorker {
 #ifdef DEBUG_CSA
 			printf("Column %d Reducing %d bits\n", column_ix, column_bits.size());
 			for (auto b : column_bits) {
-				printf("\t %s\n", b->name.str().c_str());
+				printf("\t %s\n", b->name.c_str());
 			}
 			printf("\n");
 #endif
@@ -698,7 +698,7 @@ struct BoothPassWorker {
 				module->addBufGate(NEW_ID_SUFFIX(stringf("base_buf_%d_%d", cpa_id, n)), s_vec[0], result[0]);
 
 #ifdef DEBUG_CPA
-				printf("CPA bit [%d] Cell %s IP 0 %s \n", n, buf->name.str().c_str(), s_vec[0]->name.str().c_str());
+				printf("CPA bit [%d] Cell %s IP 0 %s \n", n, buf->name.c_str(), s_vec[0]->name.c_str());
 #endif
 			}
 
@@ -713,8 +713,8 @@ struct BoothPassWorker {
 				module->connect(result[n], ha_op);
 
 #ifdef DEBUG_CPA
-				printf("CPA bit [%d] Cell %s IPs [%s] [%s] \n", n, ha_cell->name.unescape().c_str(), s_vec[n]->name.str().c_str(),
-				       c_vec[n - 1]->name.str().c_str());
+				printf("CPA bit [%d] Cell %s IPs [%s] [%s] \n", n, ha_cell->name.c_str(), s_vec[n]->name.c_str(),
+				       c_vec[n - 1]->name.c_str());
 #endif
 
 			}
@@ -732,8 +732,8 @@ struct BoothPassWorker {
 				carry = carry_out;
 
 #ifdef DEBUG_CPA
-				printf("CPA bit [%d] Cell %s IPs [%s] [%s] [%s]\n", n, fa_cell->name.unescape().c_str(), s_vec[n]->name.str().c_str(),
-				       c_vec[n - 1]->name.str().c_str(), carry->name.str().c_str());
+				printf("CPA bit [%d] Cell %s IPs [%s] [%s] [%s]\n", n, fa_cell->name.c_str(), s_vec[n]->name.c_str(),
+				       c_vec[n - 1]->name.c_str(), carry->name.c_str());
 #endif
 				if (n + 1 < GetSize(result)) {
 					// Now make a half adder: c_vec[n] = carry
@@ -759,8 +759,8 @@ struct BoothPassWorker {
 				);
 				carry = carry_out;
 #ifdef DEBUG_CPA
-				printf("CPA bit [%d] Cell %s IPs [%s] [%s] [%s]\n", n, fa_cell->name.unescape().c_str(), s_vec[n]->name.str().c_str(),
-				       c_vec[n - 1]->name.str().c_str(), carry->name.str().c_str());
+				printf("CPA bit [%d] Cell %s IPs [%s] [%s] [%s]\n", n, fa_cell->name.c_str(), s_vec[n]->name.c_str(),
+				       c_vec[n - 1]->name.c_str(), carry->name.c_str());
 #endif
 			}
 		}

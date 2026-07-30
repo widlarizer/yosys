@@ -119,7 +119,7 @@ public:
 	std::string compare_memories(const RTLIL::Memory *a, const RTLIL::Memory *b)
 	{
 		if (a->name != b->name)
-			return "name mismatch: " + a->name.unescape() + " != " + b->name.unescape();
+			return "name mismatch: " + std::string(a->name.unescape()) + " != " + b->name.unescape();
 		if (a->width != b->width)
 			return "width mismatch: " + std::to_string(a->width) + " != " + std::to_string(b->width);
 		if (a->start_offset != b->start_offset)
@@ -272,7 +272,7 @@ public:
 
 	std::string compare_processes(const RTLIL::Process *a, const RTLIL::Process *b)
 	{
-		if (a->name != b->name) return "name mismatch: " + a->name.unescape() + " != " + b->name.unescape();
+		if (a->name != b->name) return "name mismatch: " + std::string(a->name.unescape()) + " != " + b->name.unescape();
 		if (std::string mismatch = compare_attributes(a, b); !mismatch.empty())
 			return mismatch;
 		if (std::string mismatch = compare_case_rules(&a->root_case, &b->root_case); !mismatch.empty())

@@ -46,7 +46,7 @@ static void add_formal(RTLIL::Module *module, const std::string &celltype, const
 		formal_cell->setPort(ID::A, wire);
 		if(enable_name == "") {
 			formal_cell->setPort(ID::EN, State::S1);
-			log("Added $%s cell for wire \"%s.%s\"\n", celltype, module->name, name);
+			log("Added $%s cell for wire \"%s.%s\"\n", celltype, module->name.str(), name);
 		}
 		else {
 			RTLIL::Wire *enable_wire = module->wire(search.find(escaped_enable_name));
@@ -54,7 +54,7 @@ static void add_formal(RTLIL::Module *module, const std::string &celltype, const
 				log_error("Could not find enable wire with name \"%s\".\n", enable_name);
 
 			formal_cell->setPort(ID::EN, enable_wire);
-			log("Added $%s cell for wire \"%s.%s\" enabled by wire \"%s.%s\".\n", celltype, module->name, name, module->name, enable_name);
+			log("Added $%s cell for wire \"%s.%s\" enabled by wire \"%s.%s\".\n", celltype, module->name.str(), name, module->name.str(), enable_name);
 		}
 	}
 }

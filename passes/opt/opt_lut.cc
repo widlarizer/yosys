@@ -136,7 +136,7 @@ struct OptLutWorker
 						{
 							if (dlogic[j].cell_type == port.cell->type)
 							{
-								if (port.port == dlogic[j].lut_input_port.at(i, IdString{}))
+								if (port.port == dlogic[j].lut_input_port.at(i, IdString()))
 								{
 									lut_all_dlogics.insert({j, port.cell});
 								}

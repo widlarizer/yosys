@@ -141,7 +141,7 @@ struct EquivMiterWorker
 		// copy wires and cells
 
 		for (auto w :  miter_wires)
-			miter_module->addWire(w->name.str(), w->width);
+			miter_module->addWire(w->name, w->width);
 		for (auto c :  miter_cells) {
 			auto mc = miter_module->addCell(c->name.str(), c);
 			for (auto &conn : mc->connections())

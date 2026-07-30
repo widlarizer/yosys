@@ -902,7 +902,7 @@ struct AST_INTERNAL::ProcessGenerator
 				}
 
 				Fmt fmt;
-				fmt.parse_verilog(args, /*sformat_like=*/false, default_base, /*task_name=*/ast->str, current_module->name.str());
+				fmt.parse_verilog(args, /*sformat_like=*/false, default_base, /*task_name=*/ast->str, current_module->name);
 				if (ast->str.substr(0, 8) == "$display")
 					fmt.append_literal("\n");
 				fmt.emit_rtlil(cell);
