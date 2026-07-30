@@ -731,11 +731,15 @@ int find_top_mod_score(Design *design, Module *module, dict<Module*, int> &db)
 	if (db.count(module) == 0) {
 		int score = 0;
 		db[module] = 0;
+		std::optional<TwineSearch> search;
 		for (auto cell : module->cells()) {
 			// Is this cell a module instance?
 			RTLIL::Module *instModule;
-			if (cell->type.begins_with("$array:"))
-				instModule = design->module(TwineSearch(&design->twines).find(basic_cell_type(cell->type.str())));
+			if (cell->type.begins_with("$array:")) {
+				if (!search)
+					search.emplace(&design->twines);
+				instModule = design->module(search->find(basic_cell_type(cell->type.str())));
+			}
 			else
 				instModule = design->module(cell->type);
 			// If there is no instance for this, issue a warning.

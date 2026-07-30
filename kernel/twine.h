@@ -223,6 +223,10 @@ struct HashConsPool {
 	Index index;
 	// Indices of monostate, kept sorted
 	std::vector<size_t> free_list;
+	// Bumped whenever an existing slot changes meaning, i.e. on gc and on
+	// free-slot reuse. Plain appends do not bump it: they only ever add refs
+	// past the end, which no cached view of the pool can already hold.
+	size_t revision = 0;
 
 	Derived* self() { return static_cast<Derived*>(this); }
 	const Derived* self() const { return static_cast<const Derived*>(this); }
@@ -241,6 +245,7 @@ struct HashConsPool {
 			backing = other.backing;
 			index = fresh_index();
 			rebuild_index();
+			revision++;
 		}
 		return *this;
 	}
@@ -249,6 +254,7 @@ struct HashConsPool {
 			backing = std::move(other.backing);
 			index = fresh_index();
 			rebuild_index();
+			revision++;
 		}
 		return *this;
 	}
@@ -311,6 +317,7 @@ struct HashConsPool {
 			free_list.pop_back();
 			backing[idx] = std::move(t);
 			ref = Ref(Derived::kStaticCount + idx);
+			revision++;
 		} else {
 			ref = Ref(Derived::kStaticCount + backing.size());
 			backing.push_back(std::move(t));
@@ -345,6 +352,7 @@ struct HashConsPool {
 		}
 		// TODO something like YOSYS_SORT_ID_FREE_LIST to make it optional?
 		std::sort(free_list.begin(), free_list.end(), std::greater<size_t>());
+		revision++;
 		return erased;
 	}
 
@@ -554,6 +562,7 @@ struct SrcPool : HashConsPool<SrcPool, Src, SrcRef> {
 		backing.clear();
 		free_list.clear();
 		index = fresh_index();
+		revision++;
 	}
 
 	static SrcRef untag(SrcRef ref) { return ref; }
@@ -767,25 +776,52 @@ struct DeepTwineEq {
 
 };
 
+// A content-addressed view of a TwinePool. Building one is O(pool), so hoist it
+// out of loops; it keeps itself current against the pool it was built from, so
+// a hoisted instance stays correct even when the design gains names underneath
+// it. Appends are absorbed incrementally; a gc or a free-slot reuse forces a
+// rebuild, because those change what an already-indexed ref means.
 struct TwineSearch {
 	const TwinePool* pool;
-	std::unordered_set<IdString, DeepTwineHash, DeepTwineEq> index;
+	mutable std::unordered_set<IdString, DeepTwineHash, DeepTwineEq> index;
+	mutable size_t indexed = 0;
+	mutable size_t revision = 0;
+
 	TwineSearch(const TwinePool* pool) : pool(pool), index(0, DeepTwineHash{pool}, DeepTwineEq{pool}) {
+		rebuild();
+	}
+
+	void rebuild() const {
+		index.clear();
 		for (size_t idx = 0; idx < STATIC_TWINE_END; idx++)
 			index.insert(IdString(idx));
-		for (size_t idx = 0; idx < pool->backing.size(); ++idx) {
+		absorb(0);
+		revision = pool->revision;
+	}
+
+	void absorb(size_t from) const {
+		for (size_t idx = from; idx < pool->backing.size(); ++idx) {
 			if (pool->backing[idx].is_dead())
 				continue;
 			index.insert(IdString(STATIC_TWINE_END + idx));
 		}
+		indexed = pool->backing.size();
 	}
-	// Keep a hoisted search current after adding a ref to the pool, so the
-	// search need not be rebuilt (O(pool)) between finds in a loop.
+
+	void sync() const {
+		if (revision != pool->revision)
+			rebuild();
+		else if (indexed != pool->backing.size())
+			absorb(indexed);
+	}
+
 	void insert(IdString ref) {
 		index.insert(ref.untag());
 	}
+
 	// Escaped-name aware. Resolves both statics and locals by content.
 	IdString find(std::string_view sv) const {
+		sync();
 		bool is_public = !sv.empty() && sv[0] == '\\';
 		if (is_public)
 			sv.remove_prefix(1);

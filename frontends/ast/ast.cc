@@ -1668,6 +1668,7 @@ void AstModule::expand_interfaces(RTLIL::Design *design, const dict<RTLIL::IdStr
 	// Explode all interface ports. Note this will only have an effect on 'top
 	// level' modules. Other sub-modules will have their interface ports
 	// exploded via the derive(..) function
+	TwineSearch interface_search(&design->twines);
 	for (size_t i =0; i<new_ast->children.size(); i++)
 	{
 		const auto& ch2 = new_ast->children[i];
@@ -1680,7 +1681,7 @@ void AstModule::expand_interfaces(RTLIL::Design *design, const dict<RTLIL::IdStr
 						std::pair<std::string,std::string> res = split_modport_from_type(ch->str);
 						std::string interface_type = res.first;
 						std::string interface_modport = res.second; // Is "", if no modport
-						IdString interface_type_ref = TwineSearch(&design->twines).find(interface_type);
+						IdString interface_type_ref = interface_search.find(interface_type);
 						if (design->module(interface_type_ref) != nullptr) {
 							// Add a cell to the module corresponding to the interface port such that
 							// it can further propagated down if needed:

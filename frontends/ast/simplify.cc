@@ -694,17 +694,24 @@ static std::string prefix_id(const std::string &prefix, const std::string &str)
 
 // direct access to this global should be limited to the following two functions
 static const RTLIL::Design *simplify_design_context = nullptr;
+// Building a TwineSearch is O(pool); lookup_module runs per elaborated cell, so
+// the search is kept for the lifetime of the context. It refreshes itself
+// against the pool, so names interned during elaboration are still found.
+static std::optional<TwineSearch> simplify_design_search;
 
 void AST::set_simplify_design_context(const RTLIL::Design *design)
 {
 	log_assert(!simplify_design_context || !design);
 	simplify_design_context = design;
+	simplify_design_search.reset();
+	if (design)
+		simplify_design_search.emplace(&design->twines);
 }
 
 // lookup the module with the given name in the current design context
 static const RTLIL::Module* lookup_module(const std::string &name)
 {
-	return simplify_design_context->module(TwineSearch(&simplify_design_context->twines).find(name));
+	return simplify_design_context->module(simplify_design_search->find(name));
 }
 
 const RTLIL::Module* AstNode::lookup_cell_module()
