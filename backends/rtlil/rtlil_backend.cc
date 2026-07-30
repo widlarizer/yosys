@@ -196,7 +196,7 @@ void RTLIL_BACKEND::dump_sigchunk(std::ostream &f, const RTLIL::SigChunk &chunk,
 	if (chunk.wire == NULL) {
 		dump_const(f, chunk.data, chunk.width, chunk.offset, autoint);
 	} else {
-		IdString wref = chunk.wire->name.ref();
+		IdString wref = chunk.wire->name;
 		std::string name = (mode == DumpMode::Readable || ID::is_static(wref))
 			? chunk.wire->name.str() : twine_handle(wref);
 		if (chunk.width == chunk.wire->width && chunk.offset == 0)
@@ -245,7 +245,7 @@ void RTLIL_BACKEND::dump_wire(std::ostream &f, std::string indent, const RTLIL::
 		f << stringf("inout %d ", wire->port_id);
 	if (wire->is_signed)
 		f << stringf("signed ");
-	f << twine_ref(design, wire->name.ref(), mode) << twine_cmt(design, wire->name.ref(), mode) << "\n";
+	f << twine_ref(design, wire->name, mode) << twine_cmt(design, wire->name, mode) << "\n";
 }
 
 void RTLIL_BACKEND::dump_memory(std::ostream &f, std::string indent, const RTLIL::Memory *memory, const RTLIL::Design *design, DumpMode mode)
@@ -265,8 +265,8 @@ void RTLIL_BACKEND::dump_cell(std::ostream &f, std::string indent, const RTLIL::
 {
 	dump_attributes(f, indent, cell, design, mode);
 	f << stringf("%s" "cell ", indent);
-	f << twine_ref(design, cell->type, mode) << " " << twine_ref(design, cell->name.ref(), mode)
-		<< twine_cmt(design, cell->type, mode) << twine_cmt(design, cell->name.ref(), mode) << "\n";
+	f << twine_ref(design, cell->type, mode) << " " << twine_ref(design, cell->name, mode)
+		<< twine_cmt(design, cell->type, mode) << twine_cmt(design, cell->name, mode) << "\n";
 	for (const auto& [name, param] : reversed(cell->parameters)) {
 		f << stringf("%s  parameter%s%s%s %s ", indent,
 				(param.flags & RTLIL::CONST_FLAG_SIGNED) != 0 ? " signed" : "",

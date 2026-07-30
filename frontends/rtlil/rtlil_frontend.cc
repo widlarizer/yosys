@@ -347,7 +347,7 @@ struct RTLILFrontendWorker {
 			error("No wires found for legalization");
 		int hash = hash_ops<IdString>::hash(id).yield();
 		RTLIL::Wire *wire = current_module->wire_at(abs(hash % wires_size));
-		log("Legalizing wire `%s' to `%s'.\n", log_id(id), design->twines.unescaped_str(wire->name.ref()));
+		log("Legalizing wire `%s' to `%s'.\n", log_id(id), design->twines.unescaped_str(wire->name));
 		return wire;
 	}
 

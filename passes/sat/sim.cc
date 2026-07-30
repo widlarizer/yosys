@@ -1220,7 +1220,7 @@ struct SimInstance
 						}
 					}
 					if (!found)
-						log_error("Unable to find required '%s' signal in file\n",(scope + "." + module->design->twines.unescaped_str(sig_y.as_wire()->name.ref())));
+						log_error("Unable to find required '%s' signal in file\n",(scope + "." + module->design->twines.unescaped_str(sig_y.as_wire()->name)));
 				}
 			}
 		}

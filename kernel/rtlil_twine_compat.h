@@ -46,6 +46,12 @@ struct NameMasqBase {
 	bool operator!=(const std::string &rhs) const { return self().escaped() != rhs; }
 	bool operator==(const Derived &rhs) const { return self().ref() == rhs.ref(); }
 	bool operator!=(const Derived &rhs) const { return self().ref() != rhs.ref(); }
+	template<typename Other>
+	bool operator==(const NameMasqBase<Other> &rhs) const
+		{ return self().ref() == static_cast<const Other &>(rhs).ref(); }
+	template<typename Other>
+	bool operator!=(const NameMasqBase<Other> &rhs) const
+		{ return self().ref() != static_cast<const Other &>(rhs).ref(); }
 	bool operator<(const Derived &rhs) const { return self().escaped() < rhs.escaped(); }
 	[[nodiscard]] Hasher hash_into(Hasher h) const { return self().ref().hash_into(h); }
 private:
@@ -139,6 +145,18 @@ private:
 	const RTLIL::Module *owner() const;
 	RTLIL::Module *owner();
 };
+
+namespace RTLIL {
+template<typename T>
+concept IsNameMasq = std::is_base_of_v<NameMasqBase<std::decay_t<T>>, std::decay_t<T>>;
+
+template<IsNameMasq A, typename B>
+auto make_pair(A &&a, B &&b) { return std::make_pair(a.ref(), std::forward<B>(b)); }
+template<typename A, IsNameMasq B>
+auto make_pair(A &&a, B &&b) { return std::make_pair(std::forward<A>(a), b.ref()); }
+template<IsNameMasq A, IsNameMasq B>
+auto make_pair(A &&a, B &&b) { return std::make_pair(a.ref(), b.ref()); }
+} // namespace RTLIL
 
 #endif // RTLIL_TWINE_COMPAT_H
 

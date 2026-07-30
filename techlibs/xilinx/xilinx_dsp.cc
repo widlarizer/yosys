@@ -306,20 +306,20 @@ void xilinx_dsp_pack(xilinx_dsp_pm &pm)
 
 	log("Analysing %s.%s for Xilinx DSP packing.\n", pm.module, st.dsp);
 
-	log_debug("preAdd:     %s\n", st.preAdd ? pm.module->design->twines.unescaped_str(st.preAdd->name.ref()) : "--");
-	log_debug("preSub:     %s\n", st.preSub ? pm.module->design->twines.unescaped_str(st.preSub->name.ref()) : "--");
-	log_debug("ffAD:       %s\n", st.ffAD ? pm.module->design->twines.unescaped_str(st.ffAD->name.ref()) : "--");
-	log_debug("ffA2:       %s\n", st.ffA2 ? pm.module->design->twines.unescaped_str(st.ffA2->name.ref()) : "--");
-	log_debug("ffA1:       %s\n", st.ffA1 ? pm.module->design->twines.unescaped_str(st.ffA1->name.ref()) : "--");
-	log_debug("ffB2:       %s\n", st.ffB2 ? pm.module->design->twines.unescaped_str(st.ffB2->name.ref()) : "--");
-	log_debug("ffB1:       %s\n", st.ffB1 ? pm.module->design->twines.unescaped_str(st.ffB1->name.ref()) : "--");
-	log_debug("ffD:        %s\n", st.ffD ? pm.module->design->twines.unescaped_str(st.ffD->name.ref()) : "--");
-	log_debug("dsp:        %s\n", st.dsp ? pm.module->design->twines.unescaped_str(st.dsp->name.ref()) : "--");
-	log_debug("ffM:        %s\n", st.ffM ? pm.module->design->twines.unescaped_str(st.ffM->name.ref()) : "--");
-	log_debug("postAdd:    %s\n", st.postAdd ? pm.module->design->twines.unescaped_str(st.postAdd->name.ref()) : "--");
-	log_debug("postAddMux: %s\n", st.postAddMux ? pm.module->design->twines.unescaped_str(st.postAddMux->name.ref()) : "--");
-	log_debug("ffP:        %s\n", st.ffP ? pm.module->design->twines.unescaped_str(st.ffP->name.ref()) : "--");
-	log_debug("overflow:   %s\n", st.overflow ? pm.module->design->twines.unescaped_str(st.overflow->name.ref()) : "--");
+	log_debug("preAdd:     %s\n", st.preAdd ? pm.module->design->twines.unescaped_str(st.preAdd->name) : "--");
+	log_debug("preSub:     %s\n", st.preSub ? pm.module->design->twines.unescaped_str(st.preSub->name) : "--");
+	log_debug("ffAD:       %s\n", st.ffAD ? pm.module->design->twines.unescaped_str(st.ffAD->name) : "--");
+	log_debug("ffA2:       %s\n", st.ffA2 ? pm.module->design->twines.unescaped_str(st.ffA2->name) : "--");
+	log_debug("ffA1:       %s\n", st.ffA1 ? pm.module->design->twines.unescaped_str(st.ffA1->name) : "--");
+	log_debug("ffB2:       %s\n", st.ffB2 ? pm.module->design->twines.unescaped_str(st.ffB2->name) : "--");
+	log_debug("ffB1:       %s\n", st.ffB1 ? pm.module->design->twines.unescaped_str(st.ffB1->name) : "--");
+	log_debug("ffD:        %s\n", st.ffD ? pm.module->design->twines.unescaped_str(st.ffD->name) : "--");
+	log_debug("dsp:        %s\n", st.dsp ? pm.module->design->twines.unescaped_str(st.dsp->name) : "--");
+	log_debug("ffM:        %s\n", st.ffM ? pm.module->design->twines.unescaped_str(st.ffM->name) : "--");
+	log_debug("postAdd:    %s\n", st.postAdd ? pm.module->design->twines.unescaped_str(st.postAdd->name) : "--");
+	log_debug("postAddMux: %s\n", st.postAddMux ? pm.module->design->twines.unescaped_str(st.postAddMux->name) : "--");
+	log_debug("ffP:        %s\n", st.ffP ? pm.module->design->twines.unescaped_str(st.ffP->name) : "--");
+	log_debug("overflow:   %s\n", st.overflow ? pm.module->design->twines.unescaped_str(st.overflow->name) : "--");
 
 	Cell *cell = st.dsp;
 
@@ -539,17 +539,17 @@ void xilinx_dsp48a_pack(xilinx_dsp48a_pm &pm)
 
 	log("Analysing %s.%s for Xilinx DSP48A/DSP48A1 packing.\n", pm.module, st.dsp);
 
-	log_debug("preAdd:     %s\n", st.preAdd ? pm.module->design->twines.unescaped_str(st.preAdd->name.ref()) : "--");
-	log_debug("ffA1:       %s\n", st.ffA1 ? pm.module->design->twines.unescaped_str(st.ffA1->name.ref()) : "--");
-	log_debug("ffA0:       %s\n", st.ffA0 ? pm.module->design->twines.unescaped_str(st.ffA0->name.ref()) : "--");
-	log_debug("ffB1:       %s\n", st.ffB1 ? pm.module->design->twines.unescaped_str(st.ffB1->name.ref()) : "--");
-	log_debug("ffB0:       %s\n", st.ffB0 ? pm.module->design->twines.unescaped_str(st.ffB0->name.ref()) : "--");
-	log_debug("ffD:        %s\n", st.ffD ? pm.module->design->twines.unescaped_str(st.ffD->name.ref()) : "--");
-	log_debug("dsp:        %s\n", st.dsp ? pm.module->design->twines.unescaped_str(st.dsp->name.ref()) : "--");
-	log_debug("ffM:        %s\n", st.ffM ? pm.module->design->twines.unescaped_str(st.ffM->name.ref()) : "--");
-	log_debug("postAdd:    %s\n", st.postAdd ? pm.module->design->twines.unescaped_str(st.postAdd->name.ref()) : "--");
-	log_debug("postAddMux: %s\n", st.postAddMux ? pm.module->design->twines.unescaped_str(st.postAddMux->name.ref()) : "--");
-	log_debug("ffP:        %s\n", st.ffP ? pm.module->design->twines.unescaped_str(st.ffP->name.ref()) : "--");
+	log_debug("preAdd:     %s\n", st.preAdd ? pm.module->design->twines.unescaped_str(st.preAdd->name) : "--");
+	log_debug("ffA1:       %s\n", st.ffA1 ? pm.module->design->twines.unescaped_str(st.ffA1->name) : "--");
+	log_debug("ffA0:       %s\n", st.ffA0 ? pm.module->design->twines.unescaped_str(st.ffA0->name) : "--");
+	log_debug("ffB1:       %s\n", st.ffB1 ? pm.module->design->twines.unescaped_str(st.ffB1->name) : "--");
+	log_debug("ffB0:       %s\n", st.ffB0 ? pm.module->design->twines.unescaped_str(st.ffB0->name) : "--");
+	log_debug("ffD:        %s\n", st.ffD ? pm.module->design->twines.unescaped_str(st.ffD->name) : "--");
+	log_debug("dsp:        %s\n", st.dsp ? pm.module->design->twines.unescaped_str(st.dsp->name) : "--");
+	log_debug("ffM:        %s\n", st.ffM ? pm.module->design->twines.unescaped_str(st.ffM->name) : "--");
+	log_debug("postAdd:    %s\n", st.postAdd ? pm.module->design->twines.unescaped_str(st.postAdd->name) : "--");
+	log_debug("postAddMux: %s\n", st.postAddMux ? pm.module->design->twines.unescaped_str(st.postAddMux->name) : "--");
+	log_debug("ffP:        %s\n", st.ffP ? pm.module->design->twines.unescaped_str(st.ffP->name) : "--");
 
 	Cell *cell = st.dsp;
 	SigSpec &opmode = cell->connections_.at(ID(OPMODE));
@@ -716,7 +716,7 @@ void xilinx_dsp_packC(xilinx_dsp_CREG_pm &pm)
 	auto &st = pm.st_xilinx_dsp_packC;
 
 	log_debug("Analysing %s.%s for Xilinx DSP packing (CREG).\n", pm.module, st.dsp);
-	log_debug("ffC:        %s\n", st.ffC ? pm.module->design->twines.unescaped_str(st.ffC->name.ref()) : "--");
+	log_debug("ffC:        %s\n", st.ffC ? pm.module->design->twines.unescaped_str(st.ffC->name) : "--");
 
 	Cell *cell = st.dsp;
 

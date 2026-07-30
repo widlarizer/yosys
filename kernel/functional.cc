@@ -524,10 +524,10 @@ public:
 		for (auto riter = module->ports.rbegin(); riter != module->ports.rend(); ++riter) {
 			auto *wire = module->wire(*riter);
 			if (wire && wire->port_input) {
-				factory.add_input(wire->name.ref(), ID($input), Sort(wire->width));
+				factory.add_input(wire->name, ID($input), Sort(wire->width));
 			}
 			if (wire && wire->port_output) {
-				auto &output = factory.add_output(wire->name.ref(), ID($output), Sort(wire->width));
+				auto &output = factory.add_output(wire->name, ID($output), Sort(wire->width));
 				output.set_value(enqueue(DriveChunk(DriveChunkWire(wire, 0, wire->width))));
 			}
 		}
@@ -567,7 +567,7 @@ private:
 		// - Since wr port j can only have priority over wr port i if j > i, if we do writes in
 		//   ascending index order the result will obey the priorty relation.
 		vector<Node> read_results;
-		auto &state = factory.add_state(mem->cell->name.ref(), ID($state), Sort(ceil_log2(mem->size), mem->width));
+		auto &state = factory.add_state(mem->cell->name, ID($state), Sort(ceil_log2(mem->size), mem->width));
 		state.set_initial_value(MemContents(mem));
 		Node node = factory.value(state);
 		for (size_t i = 0; i < mem->wr_ports.size(); i++) {
@@ -631,7 +631,7 @@ private:
 					n_outputs++;
 				}
 			}
-			std::variant<dict<IdString, Node>, Node> outputs = simplifier.handle(cell->name.ref(), cell->type, cell->parameters, connections);
+			std::variant<dict<IdString, Node>, Node> outputs = simplifier.handle(cell->name, cell->type, cell->parameters, connections);
 			if(auto *nodep = std::get_if<Node>(&outputs); nodep != nullptr) {
 				log_assert(n_outputs == 1);
 				factory.update_pending(cell_outputs.at({cell, output_name}), *nodep);
@@ -675,14 +675,14 @@ public:
 					DriveChunkWire wire_chunk = chunk.wire();
 					if (wire_chunk.is_whole()) {
 						if (wire_chunk.wire->port_input) {
-							Node node = factory.value(factory.ir().input(wire_chunk.wire->name.ref()));
-							factory.suggest_name(node, wire_chunk.wire->name.ref());
+							Node node = factory.value(factory.ir().input(wire_chunk.wire->name));
+							factory.suggest_name(node, wire_chunk.wire->name);
 							factory.update_pending(pending, node);
 						} else {
 							DriveSpec driver = driver_map(DriveSpec(wire_chunk));
-							check_undriven(driver, design->twines.unescaped_str(wire_chunk.wire->name.ref()));
+							check_undriven(driver, design->twines.unescaped_str(wire_chunk.wire->name));
 							Node node = enqueue(driver);
-							factory.suggest_name(node, wire_chunk.wire->name.ref());
+							factory.suggest_name(node, wire_chunk.wire->name);
 							factory.update_pending(pending, node);
 						}
 					} else {

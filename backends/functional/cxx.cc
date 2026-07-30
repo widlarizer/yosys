@@ -186,7 +186,7 @@ struct CxxModule {
 			output_struct.insert(output->name, output->sort);
 		for (auto state : ir.states())
 			state_struct.insert(state->name, state->sort);
-		module_name = CxxScope<int>(module->design).unique_name(module->name.ref());
+		module_name = CxxScope<int>(module->design).unique_name(module->name);
 	}
 	void write_header(CxxWriter &f) {
 		f.print("#include \"sim.h\"\n\n");

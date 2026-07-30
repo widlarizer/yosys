@@ -129,7 +129,7 @@ void generate_pattern(std::function<void(pm&,std::function<void()>)> run, const 
 	Module *m = design->addModule(stringf("\\pmtest_%s_%s", pmclass, pattern));
 	log("Creating module %s with %d cells.\n", m, GetSize(mods));
 	for (auto mod : mods) {
-		Cell *c = m->addCell(mod->name.ref(), mod->name.ref());
+		Cell *c = m->addCell(mod->name, mod->name);
 		for (auto port : mod->ports) {
 			Wire *w = m->addWire(NEW_ID, GetSize(mod->wire(port)));
 			c->setPort(port, w);

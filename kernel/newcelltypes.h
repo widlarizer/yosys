@@ -585,7 +585,7 @@ struct NewCellTypes {
 			if (wire->port_output)
 				outputs.insert(wire->name);
 		}
-		setup_type(module->name.ref(), inputs, outputs);
+		setup_type(module->name, inputs, outputs);
 	}
 
 	void setup_type(RTLIL::IdString type, const pool<RTLIL::IdString> &inputs, const pool<RTLIL::IdString> &outputs, bool is_evaluable = false, bool is_combinatorial = false, bool is_synthesizable = false) {

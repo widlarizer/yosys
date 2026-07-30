@@ -151,7 +151,7 @@ struct QlBramMergeWorker {
 
 		// Create the new cell
 		RTLIL::Cell* merged = module->addCell(NEW_ID, merged_cell_type);
-		log_debug("Merging split BRAM cells %s and %s -> %s\n", module->design->twines.unescaped_str(bram1->name.ref()), module->design->twines.unescaped_str(bram2->name.ref()), module->design->twines.unescaped_str(merged->name.ref()));
+		log_debug("Merging split BRAM cells %s and %s -> %s\n", module->design->twines.unescaped_str(bram1->name), module->design->twines.unescaped_str(bram2->name), module->design->twines.unescaped_str(merged->name));
 
 		for (auto &it : param_map(false))
 		{
@@ -169,14 +169,14 @@ struct QlBramMergeWorker {
 			if (bram1->hasPort(it.first))
 				set_bb_instance_port(merged, it.second, bram1->getPort(it.first));
 			else
-				log_error("Can't find port %s on cell %s!\n", module->design->twines.unescaped_str(it.first), module->design->twines.unescaped_str(bram1->name.ref()));
+				log_error("Can't find port %s on cell %s!\n", module->design->twines.unescaped_str(it.first), module->design->twines.unescaped_str(bram1->name));
 		}
 		for (auto &it : port_map(true))
 		{
 			if (bram2->hasPort(it.first))
 				set_bb_instance_port(merged, it.second, bram2->getPort(it.first));
 			else
-				log_error("Can't find port %s on cell %s!\n", module->design->twines.unescaped_str(it.first), module->design->twines.unescaped_str(bram2->name.ref()));
+				log_error("Can't find port %s on cell %s!\n", module->design->twines.unescaped_str(it.first), module->design->twines.unescaped_str(bram2->name));
 		}
 		merged->attributes = bram1->attributes;
 		for (auto attr: bram2->attributes)

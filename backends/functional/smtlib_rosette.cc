@@ -200,7 +200,7 @@ struct SmtrModule {
 	SmtrStruct state_struct;
 
 	SmtrModule(Module *module, bool assoc_list_helpers)
-	    : ir(Functional::IR::from_module(module)), design(module->design), scope(module->design), name(scope.unique_name(module->name.ref())), use_assoc_list_helpers(assoc_list_helpers),
+	    : ir(Functional::IR::from_module(module)), design(module->design), scope(module->design), name(scope.unique_name(module->name)), use_assoc_list_helpers(assoc_list_helpers),
 	      input_struct(scope.unique_name(module->design->twines.add(module->name.str() + "_Inputs")), scope, module->design),
 	      output_struct(scope.unique_name(module->design->twines.add(module->name.str() + "_Outputs")), scope, module->design),
 	      state_struct(scope.unique_name(module->design->twines.add(module->name.str() + "_State")), scope, module->design)

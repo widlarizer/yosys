@@ -230,7 +230,7 @@ struct IopadmapPass : public Pass {
 				if (wire->port_input || wire->port_output)
 					for (int i = 0; i < GetSize(wire); i++)
 						if (buf_bits.count(sigmap(SigBit(wire, i)))) {
-							buf_ports.insert(make_pair(module->name.ref(), make_pair(wire->name.ref(), i)));
+							buf_ports.insert(make_pair(module->name, make_pair(wire->name, i)));
 							log("Marking already mapped port: %s.%s[%d].\n", module, wire, i);
 						}
 		}
@@ -290,7 +290,7 @@ struct IopadmapPass : public Pass {
 						SigBit wire_bit(wire, i);
 						Cell *tbuf_cell = nullptr;
 
-						if (buf_ports.count(make_pair(module->name.ref(), make_pair(wire->name.ref(), i))))
+						if (buf_ports.count(make_pair(module->name, make_pair(wire->name, i))))
 							continue;
 
 						if (tbuf_bits.count(wire_bit))
@@ -367,7 +367,7 @@ struct IopadmapPass : public Pass {
 							if (!toutpad_portname_pad.empty())
 								rewrite_bits[wire][i] = make_pair(cell, module->design->twines.add(std::string{RTLIL::escape_id(toutpad_portname_pad)}));
 						}
-						buf_ports.insert(make_pair(module->name.ref(), make_pair(wire->name.ref(), i)));
+						buf_ports.insert(make_pair(module->name, make_pair(wire->name, i)));
 					}
 				}
 			}
@@ -381,7 +381,7 @@ struct IopadmapPass : public Pass {
 				pool<int> skip_bit_indices;
 
 				for (int i = 0; i < GetSize(wire); i++)
-					if (buf_ports.count(make_pair(module->name.ref(), make_pair(wire->name.ref(), i))))
+					if (buf_ports.count(make_pair(module->name, make_pair(wire->name, i))))
 						skip_bit_indices.insert(i);
 
 				if (GetSize(wire) == GetSize(skip_bit_indices))

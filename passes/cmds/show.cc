@@ -243,7 +243,7 @@ struct ShowWorker
 
 		if (sig.is_chunk()) {
 			const RTLIL::SigChunk &c = sig.as_chunk();
-			if (c.wire != nullptr && design->selected_member(module->name, c.wire->name.ref())) {
+			if (c.wire != nullptr && design->selected_member(module->name, c.wire->name)) {
 				if (!range_check || c.wire->width == c.width)
 						return stringf("n%d", id2num(c.wire->name));
 			} else {
@@ -566,12 +566,12 @@ struct ShowWorker
 		{
 			bool found_lhs_wire = false;
 			for (auto &c : conn.first.chunks()) {
-				if (c.wire == nullptr || design->selected_member(module->name, c.wire->name.ref()))
+				if (c.wire == nullptr || design->selected_member(module->name, c.wire->name))
 					found_lhs_wire = true;
 			}
 			bool found_rhs_wire = false;
 			for (auto &c : conn.second.chunks()) {
-				if (c.wire == nullptr || design->selected_member(module->name, c.wire->name.ref()))
+				if (c.wire == nullptr || design->selected_member(module->name, c.wire->name))
 					found_rhs_wire = true;
 			}
 			if (!found_lhs_wire || !found_rhs_wire)

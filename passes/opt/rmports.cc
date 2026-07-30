@@ -109,11 +109,11 @@ struct RmportsPassPass : public Pass {
 				if( (w1 == NULL) || (w2 == NULL) )
 					continue;
 
-				if( (w1->port_input || w1->port_output) && !used_ports.count(w1->name.ref()) )
-					used_ports.insert(w1->name.ref());
+				if( (w1->port_input || w1->port_output) && !used_ports.count(w1->name) )
+					used_ports.insert(w1->name);
 
-				if( (w2->port_input || w2->port_output) && !used_ports.count(w2->name.ref()) )
-					used_ports.insert(w2->name.ref());
+				if( (w2->port_input || w2->port_output) && !used_ports.count(w2->name) )
+					used_ports.insert(w2->name);
 			}
 		}
 
@@ -130,8 +130,8 @@ struct RmportsPassPass : public Pass {
 					if(sig == NULL)
 						continue;
 
-					if( (sig->port_input || sig->port_output) && !used_ports.count(sig->name.ref()) )
-						used_ports.insert(sig->name.ref());
+					if( (sig->port_input || sig->port_output) && !used_ports.count(sig->name) )
+						used_ports.insert(sig->name);
 				}
 			}
 		}

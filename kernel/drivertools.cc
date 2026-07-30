@@ -866,7 +866,7 @@ DriveSpec DriverMap::operator()(DriveSpec spec)
 
 std::string log_signal(DriveChunkWire const &chunk)
 {
-	std::string id = chunk.wire->module->design->twines.unescaped_str(chunk.wire->name.ref());
+	std::string id = chunk.wire->module->design->twines.unescaped_str(chunk.wire->name);
 	if (chunk.is_whole())
 		return id;
 	if (chunk.width == 1)

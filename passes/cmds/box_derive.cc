@@ -97,7 +97,7 @@ struct BoxDerivePass : Pass {
 				if (base_override)
 					base = base_override;
 
-				auto index = std::make_pair(base->name.ref(), cell->parameters);
+				auto index = std::make_pair(IdString(base->name), cell->parameters);
 
 				if (cell->parameters.empty())
 					continue;

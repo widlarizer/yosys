@@ -103,7 +103,7 @@ struct PrefixApplier
 		vector<SigChunk> chunks = sig;
 		for (auto &chunk : chunks)
 			if (chunk.wire != nullptr) {
-				IdString wire_ref = name(chunk.wire->name.ref());
+				IdString wire_ref = name(chunk.wire->name);
 				log_assert(module->wire(wire_ref) != nullptr);
 				chunk.wire = module->wire(wire_ref);
 			}
@@ -229,7 +229,7 @@ struct TechmapWorker
 				break;
 			}
 
-		PrefixApplier ap(module->design, cell->name.ref(), tpl->design);
+		PrefixApplier ap(module->design, cell->name, tpl->design);
 
 		dict<std::string, std::string> memory_renames;
 
@@ -254,7 +254,7 @@ struct TechmapWorker
 			if (tpl_w->port_id > 0)
 			{
 				IdString posportref = module->design->twines.add(std::string{stringf("$%d", tpl_w->port_id)});
-				positional_ports.emplace(posportref, tpl_w->name.ref());
+				positional_ports.emplace(posportref, tpl_w->name);
 
 				IdString tpl_portname = module->design->twines.find(tpl_w->name.str());
 				if (tpl_w->get_bool_attribute(ID::techmap_autopurge) &&
@@ -269,10 +269,10 @@ struct TechmapWorker
 							autopurge_tpl_bits.insert(bit);
 				}
 			}
-			IdString w_ref = ap.name(tpl_w->name.ref());
+			IdString w_ref = ap.name(tpl_w->name);
 			RTLIL::Wire *w = module->wire(w_ref);
 			if (w != nullptr) {
-				temp_renamed_wires[w] = w->name.ref();
+				temp_renamed_wires[w] = w->name;
 				module->rename(w, NEW_ID);
 				w = nullptr;
 			}
@@ -398,7 +398,7 @@ struct TechmapWorker
 			else if (const char *p = strstr(tpl_cell->name.unescape().c_str(), "_TECHMAP_REPLACE_."))
 				c_ref = module->design->twines.add(stringf("%s%s", orig_cell_name, p + strlen("_TECHMAP_REPLACE_")));
 			else
-				c_ref = ap.name(tpl_cell->name.ref());
+				c_ref = ap.name(tpl_cell->name);
 
 			RTLIL::Cell *c = module->addCell(c_ref, tpl_cell);
 			design->select(module, c);
@@ -932,7 +932,7 @@ struct TechmapWorker
 												+ final_id.substr(split_idx + 12);
 							while (tpl->wire(tpl->design->twines.add(std::string{new_name})) != nullptr)
 								new_name += "_";
-							tpl->rename(data.wire->name.ref(), new_name);
+							tpl->rename(data.wire->name, new_name);
 
 							keep_running = true;
 							break;
@@ -1293,7 +1293,7 @@ struct TechmapPass : public Pass {
 					}
 					auto saved = saved_designs.at(fn.substr(1));
 					for (auto mod : saved->modules())
-						if (!map->module(map->twines.copy_from(saved->twines, mod->name.ref())))
+						if (!map->module(map->twines.copy_from(saved->twines, mod->name)))
 							mod->clone(map);
 				} else {
 					Frontend::frontend_call(map, nullptr, fn, (fn.size() > 3 && fn.compare(fn.size()-3, std::string::npos, ".il") == 0 ? "rtlil" : verilog_frontend));

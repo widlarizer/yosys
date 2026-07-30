@@ -164,7 +164,7 @@ struct FlattenWorker
 	{
 		// Copy the contents of the flattened cell
 
-		IdString pub_prefix_ref = cell->name.ref();
+		IdString pub_prefix_ref = cell->name;
 		IdString priv_prefix_ref = design->twines.add("$flatten" + cell->name.unescape() + separator);
 		dict<IdString, IdString> remap_memo;
 		auto make_name = [&](IdString obj_ref) -> IdString {
@@ -201,7 +201,7 @@ struct FlattenWorker
 				}
 			}
 			if (new_wire == nullptr) {
-				new_wire = module->addWire(make_name(tpl_wire->name.ref()), tpl_wire);
+				new_wire = module->addWire(make_name(tpl_wire->name), tpl_wire);
 				new_wire->port_input = new_wire->port_output = false;
 				new_wire->port_id = false;
 			}
@@ -224,7 +224,7 @@ struct FlattenWorker
 		}
 
 		for (auto tpl_cell : tpl->cells()) {
-			RTLIL::Cell *new_cell = module->addCell(make_name(tpl_cell->name.ref()), tpl_cell);
+			RTLIL::Cell *new_cell = module->addCell(make_name(tpl_cell->name), tpl_cell);
 			map_attributes(cell, new_cell, std::string(tpl_cell->name));
 			if (new_cell->has_memid()) {
 				std::string memid = new_cell->getParam(ID::MEMID).decode_string();

@@ -65,7 +65,8 @@ struct CellTypes
 		cell_types[ct.type] = ct;
 	}
 
-	void setup_type(const std::string &type_str, const pool<IdString> &inputs, const pool<IdString> &outputs, bool is_evaluable = false, bool is_combinatorial = false, bool is_synthesizable = false)
+	template<typename N, YS_NAME_STRING(N)>
+	void setup_type(const N &type_str, const pool<RTLIL::IdString> &inputs, const pool<RTLIL::IdString> &outputs, bool is_evaluable = false, bool is_combinatorial = false, bool is_synthesizable = false)
 	{
 		setup_type(ID::lookup(type_str), inputs, outputs, is_evaluable, is_combinatorial, is_synthesizable);
 	}
@@ -80,7 +81,7 @@ struct CellTypes
 			if (wire->port_output)
 				outputs.insert(wire->name);
 		}
-		setup_type(module->name.ref(), inputs, outputs);
+		setup_type(module->name, inputs, outputs);
 	}
 
 	void setup_design(RTLIL::Design *design)

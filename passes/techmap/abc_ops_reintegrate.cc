@@ -250,7 +250,7 @@ void reintegrate(RTLIL::Module *module, bool dff_mode, std::string map_filename)
 	// pre-rename snapshot).
 	dict<IdString, IdString> name_ref;
 	for (auto mapped_cell : mapped_mod->cells())
-		name_ref[mapped_cell->name] = mapped_cell->name.ref();
+		name_ref[mapped_cell->name] = mapped_cell->name;
 
 	dict<std::string, RTLIL::Wire*> module_wire_by_name;
 	for (auto w : module->wires())
@@ -437,7 +437,7 @@ void reintegrate(RTLIL::Module *module, bool dff_mode, std::string map_filename)
 			}
 		}
 		else {
-			RTLIL::Cell *existing_cell = cell_of(design, module, module_cell_by_name, mapped_cell->name.ref());
+			RTLIL::Cell *existing_cell = cell_of(design, module, module_cell_by_name, mapped_cell->name);
 			if (!existing_cell)
 				log_error("Cannot find existing box cell with name '%s' in original design.\n", mapped_cell);
 

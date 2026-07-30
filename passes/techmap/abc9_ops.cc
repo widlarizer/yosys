@@ -38,7 +38,7 @@ void check(RTLIL::Design *design, bool dff_mode)
 			if (it == m->attributes.end())
 				continue;
 			auto id = it->second.as_int();
-			auto r = box_lookup.insert(std::make_pair(design->twines.add(stringf("$__boxid%d", id)), m->name.ref()));
+			auto r = box_lookup.insert(std::make_pair(design->twines.add(stringf("$__boxid%d", id)), IdString(m->name)));
 			if (!r.second)
 				log_error("Module '%s' has the same abc9_box_id = %d value as '%s'.\n",
 						m, id, design->twines.unescaped_str(r.first->second));
@@ -399,7 +399,7 @@ void prep_bypass(RTLIL::Design *design)
 						if (c.wire) {
 							auto port = bypass_module->wire(c.wire->name);
 							if (!port)
-								port = bypass_module->addWire(c.wire->name.ref(), c.wire);
+								port = bypass_module->addWire(c.wire->name, c.wire);
 							c.wire = port;
 						}
 						new_sig.append(std::move(c));
@@ -549,7 +549,7 @@ void prep_dff_unmap(RTLIL::Design *design)
 		}
 		box_module->fixup_ports();
 
-		auto unmap_module = unmap_design->addModule(to_unmap(box_module->name.ref()));
+		auto unmap_module = unmap_design->addModule(to_unmap(box_module->name));
 		replace_cell = unmap_module->addCell(ID::_TECHMAP_REPLACE_, module->name.str());
 		for (auto port_name : box_module->ports) {
 			auto w = unmap_module->addWire(to_unmap(port_name), box_module->wire(port_name));
@@ -790,7 +790,7 @@ void prep_xaiger(RTLIL::Module *module, bool dff)
 					for (auto bit : sigmap(conn.second))
 						bit_drivers[bit].insert(cell->name);
 			}
-			name_ref[cell->name] = cell->name.ref();
+			name_ref[cell->name] = cell->name;
 			toposort.node(cell->name);
 		}
 
@@ -870,7 +870,7 @@ void prep_xaiger(RTLIL::Module *module, bool dff)
 	RTLIL::Design *holes_design = r.first->second;
 	log_assert(holes_design);
 	auto to_holes = [&](IdString t) { return holes_design->twines.add(std::string{design->twines.str(t)}); };
-	RTLIL::Module *holes_module = holes_design->addModule(to_holes(module->name.ref()));
+	RTLIL::Module *holes_module = holes_design->addModule(to_holes(module->name));
 	log_assert(holes_module);
 
 	dict<IdString, Cell*> cell_cache;

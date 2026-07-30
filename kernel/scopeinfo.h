@@ -337,7 +337,7 @@ template<typename O>
 std::vector<IdString> parse_hdlname(const O* object)
 {
 	TwinePool &twines = RTLIL::design_of(object)->twines;
-	IdString name = object->name.ref();
+	IdString name = object->name;
 	std::vector<IdString> path;
 	for (auto const &item : object->get_hdlname_attribute())
 		path.push_back(twines.add("\\" + item));
@@ -357,7 +357,7 @@ std::pair<std::vector<IdString>, IdString> parse_scopename(const O* object)
 {
 	TwinePool &twines = RTLIL::design_of(object)->twines;
 	std::vector<IdString> path;
-	IdString trailing = object->name.ref();
+	IdString trailing = object->name;
 	if (trailing.isPublic() || object->name.begins_with("$paramod") || object->name.begins_with("$abstract")) {
 		for (auto const &item : object->get_hdlname_attribute())
 			path.push_back(twines.add("\\" + item));

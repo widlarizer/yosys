@@ -458,9 +458,9 @@ struct Coolrunner2FixupPass : public Pass {
 										cell->type.str().c_str());
 
 									auto new_xor_cell = module->addCell(
-										module->uniquify(xor_cell->name.ref()), xor_cell);
+										module->uniquify(xor_cell->name), xor_cell);
 									auto new_wire = module->addWire(
-										module->uniquify(wire_in.wire->name.ref()));
+										module->uniquify(wire_in.wire->name));
 									new_xor_cell->setPort(ID(OUT), new_wire);
 									cell->setPort(conn.first, new_wire);
 								}
@@ -506,9 +506,9 @@ struct Coolrunner2FixupPass : public Pass {
 										cell->type.str().c_str());
 
 									auto new_or_cell = module->addCell(
-										module->uniquify(or_cell->name.ref()), or_cell);
+										module->uniquify(or_cell->name), or_cell);
 									auto new_wire = module->addWire(
-										module->uniquify(wire_in.wire->name.ref()));
+										module->uniquify(wire_in.wire->name));
 									new_or_cell->setPort(ID(OUT), new_wire);
 									cell->setPort(conn.first, new_wire);
 								}

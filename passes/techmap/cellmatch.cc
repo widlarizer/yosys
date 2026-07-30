@@ -281,20 +281,20 @@ struct CellmatchPass : Pass {
 
 							for (int i = 0; i < outputs.size(); i++) {
 								log_assert(outputs[i].is_wire());
-								Wire *w = map->addWire(map_design->twines.copy_from(m->design->twines, outputs[i].wire->name.ref()), 1);
+								Wire *w = map->addWire(map_design->twines.copy_from(m->design->twines, outputs[i].wire->name), 1);
 								w->port_id = outputs[i].wire->port_id;
 								w->port_output = true;
 								log_assert(target_outputs[output_map[i]].is_wire());
-								cell->setPort(map_design->twines.copy_from(target.module->design->twines, target_outputs[output_map[i]].wire->name.ref()), w);
+								cell->setPort(map_design->twines.copy_from(target.module->design->twines, target_outputs[output_map[i]].wire->name), w);
 							}
 
 							for (int i = 0; i < inputs.size(); i++) {
 								log_assert(inputs[i].is_wire());
-								Wire *w = map->addWire(map_design->twines.copy_from(m->design->twines, inputs[i].wire->name.ref()), 1);
+								Wire *w = map->addWire(map_design->twines.copy_from(m->design->twines, inputs[i].wire->name), 1);
 								w->port_id = inputs[i].wire->port_id;
 								w->port_input = true;
 								log_assert(target_inputs[input_map[i]].is_wire());
-								cell->setPort(map_design->twines.copy_from(target.module->design->twines, target_inputs[input_map[i]].wire->name.ref()), w);
+								cell->setPort(map_design->twines.copy_from(target.module->design->twines, target_inputs[input_map[i]].wire->name), w);
 							}
 
 							map->fixup_ports();

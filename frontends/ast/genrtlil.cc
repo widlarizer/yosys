@@ -1660,7 +1660,7 @@ RTLIL::SigSpec AstNode::genRTLIL(int width_hint, bool sign_hint)
 
 			if (id2ast->type == AST_AUTOWIRE && current_module->wire(str_ref) == nullptr) {
 				RTLIL::Wire *wire = current_module->addWire(str_ref);
-				str_ref = wire->name.ref();
+				str_ref = wire->name;
 				set_src_attr(wire, this);
 
 				// If we are currently processing a bind directive which wires up

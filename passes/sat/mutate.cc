@@ -433,7 +433,7 @@ void mutate_list(Design *design, const mutate_opts_t &opts, const string &filena
 
 	for (auto module : design->selected_modules())
 	{
-		if (opts.module != Twine::Null && module->name.ref() != opts.module)
+		if (opts.module != Twine::Null && module->name != opts.module)
 			continue;
 
 		SigMap sigmap(module);
@@ -478,15 +478,15 @@ void mutate_list(Design *design, const mutate_opts_t &opts, const string &filena
 
 		for (auto cell : module->selected_cells())
 		{
-			if (opts.cell != Twine::Null && cell->name.ref() != opts.cell)
+			if (opts.cell != Twine::Null && cell->name != opts.cell)
 				continue;
 
 			for (auto &conn : cell->connections())
 			{
 				for (int i = 0; i < GetSize(conn.second); i++) {
 					mutate_t entry;
-					entry.module = module->name.ref();
-					entry.cell = cell->name.ref();
+					entry.module = module->name;
+					entry.cell = cell->name;
 					entry.port = conn.first;
 					entry.portbit = i;
 
@@ -609,7 +609,7 @@ SigSpec mutate_ctrl_sig(Module *module, IdString name, int width)
 		for (auto mod : module->design->modules())
 		for (auto cell : mod->cells())
 		{
-			if (cell->type != module->name.ref())
+			if (cell->type != module->name)
 				continue;
 
 			SigSpec ctrl = mutate_ctrl_sig(mod, name, width);

@@ -245,12 +245,12 @@ static void select_op_random(RTLIL::Design *design, RTLIL::Selection &lhs, int c
 
 		for (auto cell : mod->cells()) {
 			if (lhs.selected_member(mod->name, cell->name))
-				objects.push_back(make_pair(mod->name.ref(), cell->name.ref()));
+				objects.push_back(make_pair(mod->name, cell->name));
 		}
 
 		for (auto wire : mod->wires()) {
 			if (lhs.selected_member(mod->name, wire->name))
-				objects.push_back(make_pair(mod->name.ref(), wire->name.ref()));
+				objects.push_back(make_pair(mod->name, wire->name));
 		}
 	}
 
@@ -571,10 +571,10 @@ static int select_op_expand(RTLIL::Design *design, RTLIL::Selection &lhs, std::v
 				if (chunk.wire != nullptr) {
 					if (max_objects != 0 && selected_wires.count(chunk.wire) > 0 && selected_members.count(cell->name) == 0)
 						if (mode == 'x' || (mode == 'i' && is_output) || (mode == 'o' && is_input))
-							lhs.selected_members[mod->name].insert(cell->name.ref()), sel_objects++, max_objects--;
-					if (max_objects != 0 && selected_members.count(cell->name.ref()) > 0 && limits.count(cell->name) == 0 && selected_members.count(chunk.wire->name.ref()) == 0)
+							lhs.selected_members[mod->name].insert(cell->name), sel_objects++, max_objects--;
+					if (max_objects != 0 && selected_members.count(cell->name) > 0 && limits.count(cell->name) == 0 && selected_members.count(chunk.wire->name) == 0)
 						if (mode == 'x' || (mode == 'i' && is_input) || (mode == 'o' && is_output))
-							lhs.selected_members[mod->name].insert(chunk.wire->name.ref()), sel_objects++, max_objects--;
+							lhs.selected_members[mod->name].insert(chunk.wire->name), sel_objects++, max_objects--;
 				}
 		exclude_match:;
 		}
@@ -914,22 +914,22 @@ static void select_stmt(RTLIL::Design *design, std::string arg, bool disable_emp
 		if (arg_memb.compare(0, 2, "w:") == 0) {
 			for (auto wire : mod->wires())
 				if (match_ids(wire->name, arg_memb.substr(2)))
-					sel.selected_members[mod->name].insert(wire->name.ref());
+					sel.selected_members[mod->name].insert(wire->name);
 		} else
 		if (arg_memb.compare(0, 2, "i:") == 0) {
 			for (auto wire : mod->wires())
 				if (wire->port_input && match_ids(wire->name, arg_memb.substr(2)))
-					sel.selected_members[mod->name].insert(wire->name.ref());
+					sel.selected_members[mod->name].insert(wire->name);
 		} else
 		if (arg_memb.compare(0, 2, "o:") == 0) {
 			for (auto wire : mod->wires())
 				if (wire->port_output && match_ids(wire->name, arg_memb.substr(2)))
-					sel.selected_members[mod->name].insert(wire->name.ref());
+					sel.selected_members[mod->name].insert(wire->name);
 		} else
 		if (arg_memb.compare(0, 2, "x:") == 0) {
 			for (auto wire : mod->wires())
 				if ((wire->port_input || wire->port_output) && match_ids(wire->name, arg_memb.substr(2)))
-					sel.selected_members[mod->name].insert(wire->name.ref());
+					sel.selected_members[mod->name].insert(wire->name);
 		} else
 		if (arg_memb.compare(0, 2, "s:") == 0) {
 			size_t delim = arg_memb.substr(2).find(':');
@@ -937,7 +937,7 @@ static void select_stmt(RTLIL::Design *design, std::string arg, bool disable_emp
 				int width = atoi(arg_memb.substr(2).c_str());
 				for (auto wire : mod->wires())
 					if (wire->width == width)
-						sel.selected_members[mod->name].insert(wire->name.ref());
+						sel.selected_members[mod->name].insert(wire->name);
 			} else {
 				std::string min_str = arg_memb.substr(2, delim);
 				std::string max_str = arg_memb.substr(2+delim+1);
@@ -945,7 +945,7 @@ static void select_stmt(RTLIL::Design *design, std::string arg, bool disable_emp
 				int max_width = max_str.empty() ? -1 : atoi(max_str.c_str());
 				for (auto wire : mod->wires())
 					if (min_width <= wire->width && (wire->width <= max_width || max_width == -1))
-						sel.selected_members[mod->name].insert(wire->name.ref());
+						sel.selected_members[mod->name].insert(wire->name);
 			}
 		} else
 		if (arg_memb.compare(0, 2, "m:") == 0) {
@@ -956,7 +956,7 @@ static void select_stmt(RTLIL::Design *design, std::string arg, bool disable_emp
 		if (arg_memb.compare(0, 2, "c:") == 0) {
 			for (auto cell : mod->cells())
 				if (match_ids(cell->name, arg_memb.substr(2)))
-					sel.selected_members[mod->name].insert(cell->name.ref());
+					sel.selected_members[mod->name].insert(cell->name);
 		} else
 		if (arg_memb.compare(0, 2, "t:") == 0) {
 			if (arg_memb.compare(2, 1, "@") == 0) {
@@ -968,11 +968,11 @@ static void select_stmt(RTLIL::Design *design, std::string arg, bool disable_emp
 				auto &muster = design->selection_vars[set_twine];
 				for (auto cell : mod->cells())
 					if (muster.selected_modules.count(cell->type))
-						sel.selected_members[mod->name].insert(cell->name.ref());
+						sel.selected_members[mod->name].insert(cell->name);
 			} else {
 				for (auto cell : mod->cells())
 					if (match_ids(cell->type, arg_memb.substr(2)))
-						sel.selected_members[mod->name].insert(cell->name.ref());
+						sel.selected_members[mod->name].insert(cell->name);
 			}
 		} else
 		if (arg_memb.compare(0, 2, "p:") == 0) {
@@ -983,13 +983,13 @@ static void select_stmt(RTLIL::Design *design, std::string arg, bool disable_emp
 		if (arg_memb.compare(0, 2, "a:") == 0) {
 			for (auto wire : mod->wires())
 				if (match_attr(design, wire, arg_memb.substr(2)))
-					sel.selected_members[mod->name].insert(wire->name.ref());
+					sel.selected_members[mod->name].insert(wire->name);
 			for (auto &it : mod->memories)
 				if (match_attr(design, it.second, arg_memb.substr(2)))
 					sel.selected_members[mod->name].insert(it.first);
 			for (auto cell : mod->cells())
 				if (match_attr(design, cell, arg_memb.substr(2)))
-					sel.selected_members[mod->name].insert(cell->name.ref());
+					sel.selected_members[mod->name].insert(cell->name);
 			for (auto &it : mod->processes)
 				if (match_attr(design, it.second, arg_memb.substr(2)))
 					sel.selected_members[mod->name].insert(it.first);
@@ -997,14 +997,14 @@ static void select_stmt(RTLIL::Design *design, std::string arg, bool disable_emp
 		if (arg_memb.compare(0, 2, "r:") == 0) {
 			for (auto cell : mod->cells())
 				if (match_attr(design->twines, cell->parameters, arg_memb.substr(2)))
-					sel.selected_members[mod->name].insert(cell->name.ref());
+					sel.selected_members[mod->name].insert(cell->name);
 		} else {
 			std::string orig_arg_memb = arg_memb;
 			if (arg_memb.compare(0, 2, "n:") == 0)
 				arg_memb = arg_memb.substr(2);
 			for (auto wire : mod->wires())
 				if (match_ids(wire->name, arg_memb)) {
-					sel.selected_members[mod->name].insert(wire->name.ref());
+					sel.selected_members[mod->name].insert(wire->name);
 					arg_memb_found[orig_arg_memb] = true;
 				}
 			for (auto &it : mod->memories)
@@ -1014,7 +1014,7 @@ static void select_stmt(RTLIL::Design *design, std::string arg, bool disable_emp
 				}
 			for (auto cell : mod->cells())
 				if (match_ids(cell->name, arg_memb)) {
-					sel.selected_members[mod->name].insert(cell->name.ref());
+					sel.selected_members[mod->name].insert(cell->name);
 					arg_memb_found[orig_arg_memb] = true;
 				}
 			for (auto &it : mod->processes)

@@ -197,7 +197,7 @@ struct SmtModule {
 	SmtModule(Module *module)
 		: ir(Functional::IR::from_module(module))
 		, scope(module->design)
-		, name(scope.unique_name(module->name.ref()))
+		, name(scope.unique_name(module->name))
 		, input_struct(scope.unique_name(module->design->twines.add(module->name.str() + "_Inputs")), scope, module->design)
 		, output_struct(scope.unique_name(module->design->twines.add(module->name.str() + "_Outputs")), scope, module->design)
 		, state_struct(scope.unique_name(module->design->twines.add(module->name.str() + "_State")), scope, module->design)

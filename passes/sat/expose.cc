@@ -202,8 +202,8 @@ void create_dff_dq_map(std::map<RTLIL::IdString, dff_map_info_t> &map, RTLIL::Mo
 		info.arst_polarity = ref_info.arst_polarity;
 		info.arst_value = arst_value;
 		for (auto it : cells)
-			info.cells.push_back(it->name.ref());
-		map[w->name.ref()] = info;
+			info.cells.push_back(it->name);
+		map[w->name] = info;
 	}
 }
 
@@ -377,8 +377,8 @@ struct ExposePass : public Pass {
 				{
 					for (auto w : module->wires())
 						if (design->selected(module, w) && consider_wire(w, dff_dq_maps[module]))
-							if (!flag_dff || dff_wires.count(w->name.ref()))
-								shared_wires.insert(w->name.ref());
+							if (!flag_dff || dff_wires.count(w->name))
+								shared_wires.insert(w->name);
 
 					if (flag_evert)
 						for (auto cell : module->cells())
@@ -642,8 +642,8 @@ struct ExposePass : public Pass {
 							log("New module port: %s/%s (%s)\n", module, w, cell->type.unescape());
 
 							RTLIL::SigSpec sig;
-							if (cell->hasPort(p->name.ref()))
-								sig = cell->getPort(p->name.ref());
+							if (cell->hasPort(p->name))
+								sig = cell->getPort(p->name);
 							sig.extend_u0(w->width);
 							if (w->port_input)
 								module->connect(RTLIL::SigSig(sig, w));

@@ -257,7 +257,7 @@ QbfSolutionType qbf_solve(RTLIL::Module *mod, const QbfSolveOptions &opt) {
 	const std::string tempdir_name = make_temp_dir(get_base_tmpdir() + "/yosys-qbfsat-XXXXXX");
 	RTLIL::Module *module = mod;
 	RTLIL::Design *design = module->design;
-	IdString module_name = module->name.ref();
+	IdString module_name = module->name;
 	IdString wire_to_optimize_name = Twine::Null;
 	bool maximize = false;
 	log_assert(module->design != nullptr);
@@ -273,7 +273,7 @@ QbfSolutionType qbf_solve(RTLIL::Module *mod, const QbfSolveOptions &opt) {
 	//Find the wire to be optimized, if any:
 	for (auto wire : module->wires()) {
 		if (wire->get_bool_attribute(ID::maximize) || wire->get_bool_attribute(ID::minimize)) {
-			wire_to_optimize_name = wire->name.ref();
+			wire_to_optimize_name = wire->name;
 			maximize = wire->get_bool_attribute(ID::maximize);
 			if (opt.nooptimize) {
 				if (maximize)
@@ -608,7 +608,7 @@ struct QbfSatPass : public Pass {
 		log_push();
 		if (!opt.specialize_from_file) {
 			//Save the design to restore after modiyfing the current module.
-			IdString module_name = module->name.ref();
+			IdString module_name = module->name;
 
 			QbfSolutionType ret = qbf_solve(module, opt);
 			module = design->module(module_name);
