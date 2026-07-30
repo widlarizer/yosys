@@ -113,6 +113,10 @@ struct ID {
 #undef X
 	};
 
+	static constexpr bool is_static(IdString ref) {
+		return ref.untag().value < STATIC_TWINE_END;
+	}
+
 	static std::string str(IdString ref) {
 		IdString idx = ref.untag();
 		log_assert(idx.value < STATIC_TWINE_END);

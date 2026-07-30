@@ -616,10 +616,9 @@ const char *log_id(const IdString &str)
 {
 	if (str == Twine::Null)
 		return log_id_cached(std::string());
-	std::string name = ID::str(str);
-	if (name.empty())
+	if (!ID::is_static(str))
 		return log_id_cached(stringf("$twine$%zu", (size_t)str.untag()));
-	return log_id_cached(RTLIL::unescape_id(name));
+	return log_id_cached(RTLIL::unescape_id(ID::str(str)));
 }
 
 static const char *log_id_twine(const RTLIL::Design *design, IdString name)
