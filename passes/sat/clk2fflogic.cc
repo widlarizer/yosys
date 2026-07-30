@@ -173,7 +173,7 @@ struct Clk2fflogicPass : public Pass {
 					auto &port = mem.rd_ports[i];
 					if (port.clk_enable)
 						log_error("Read port %d of memory %s.%s is clocked. This is not supported by \"clk2fflogic\"! "
-								"Call \"memory\" with -nordff to avoid this error.\n", i, module->design->twines.unescaped_str(mem.memid), module);
+								"Call \"memory\" with -nordff to avoid this error.\n", i, log_id(module, mem.memid), module);
 				}
 
 				for (int i = 0; i < GetSize(mem.wr_ports); i++)
@@ -184,7 +184,7 @@ struct Clk2fflogicPass : public Pass {
 						continue;
 
 					log("Modifying write port %d on memory %s.%s: CLK=%s, A=%s, D=%s\n",
-							i, module, module->design->twines.unescaped_str(mem.memid), log_signal(port.clk),
+							i, module, log_id(module, mem.memid), log_signal(port.clk),
 							log_signal(port.addr), log_signal(port.data));
 
 					Wire *past_clk = module->addWire(NEW_ID_SUFFIX(stringf("%s#%d#past_clk#%s", module->design->twines.unescaped_str(mem.memid), i, log_signal(port.clk))));

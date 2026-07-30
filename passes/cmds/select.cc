@@ -1691,10 +1691,10 @@ struct SelectPass : public Pass {
 			if (sel.full_selection)
 				log("*\n");
 			for (auto &it : sel.selected_modules)
-				log("%s\n", design->twines.unescaped_str(it).c_str());
+				log("%s\n", log_id(design, it));
 			for (auto &it : sel.selected_members)
 				for (auto &it2 : it.second)
-					log("%s/%s\n", design->twines.unescaped_str(it.first).c_str(), design->twines.unescaped_str(it2).c_str());
+					log("%s/%s\n", log_id(design, it.first), log_id(design, it2));
 			return;
 		}
 
@@ -1803,7 +1803,7 @@ struct CdPass : public Pass {
 			return;
 		}
 
-		log_cmd_error("No such module `%s' found!\n", design->twines.unescaped_str(modname));
+		log_cmd_error("No such module `%s' found!\n", log_id(design, modname));
 	}
 } CdPass;
 

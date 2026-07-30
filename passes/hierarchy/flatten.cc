@@ -308,7 +308,7 @@ struct FlattenWorker
 
 			if (sigmap(new_conn.first).has_const())
 				log_error("Cell port %s.%s.%s is driving constant bits: %s <= %s\n",
-					module, cell, design->twines.unescaped_str(port_it.first), log_signal(new_conn.first), log_signal(new_conn.second));
+					module, cell, log_id(design, port_it.first), log_signal(new_conn.first), log_signal(new_conn.second));
 
 			module->connect(new_conn);
 			sigmap.add(new_conn.first, new_conn.second);

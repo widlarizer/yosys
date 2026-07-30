@@ -95,11 +95,11 @@ struct FmcombineWorker
 	void generate()
 	{
 		if (design->module(combined_type)) {
-			// log("Combined module %s already exists.\n", design->twines.unescaped_str(combined_type));
+			// log("Combined module %s already exists.\n", log_id(design, combined_type));
 			return;
 		}
 
-		log("Generating combined module %s from module %s.\n", design->twines.unescaped_str(combined_type), design->twines.unescaped_str(orig_type));
+		log("Generating combined module %s from module %s.\n", log_id(design, combined_type), log_id(design, orig_type));
 		module = design->addModule(combined_type);
 
 		for (auto wire : original->wires()) {
@@ -332,15 +332,15 @@ struct FmcombinePass : public Pass {
 
 			module = design->module(module_name);
 			if (module == nullptr)
-				log_cmd_error("Module %s not found.\n", design->twines.unescaped_str(module_name));
+				log_cmd_error("Module %s not found.\n", log_id(design, module_name));
 
 			gold_cell = module->cell(gold_name);
 			if (gold_cell == nullptr)
-				log_cmd_error("Gold cell %s not found in module %s.\n", design->twines.unescaped_str(gold_name), module);
+				log_cmd_error("Gold cell %s not found in module %s.\n", log_id(design, gold_name), module);
 
 			gate_cell = module->cell(gate_name);
 			if (gate_cell == nullptr)
-				log_cmd_error("Gate cell %s not found in module %s.\n", design->twines.unescaped_str(gate_name), module);
+				log_cmd_error("Gate cell %s not found in module %s.\n", log_id(design, gate_name), module);
 		}
 		else
 		{

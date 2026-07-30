@@ -539,7 +539,7 @@ struct RenamePass : public Pass {
 			if (module == nullptr)
 				log_cmd_error("No top module found!\n");
 
-			log("Renaming module %s to %s.\n", log_id(module), design->twines.unescaped_str(new_name));
+			log("Renaming module %s to %s.\n", log_id(module), log_id(design, new_name));
 			design->rename(module, new_name);
 		}
 		else

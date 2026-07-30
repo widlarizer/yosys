@@ -370,7 +370,7 @@ struct OptBalanceTreePass : public Pass {
 
 		// Log stats
 		for (auto cell_type : cell_types)
-			log("Converted %d %s cells into trees.\n", cell_count[cell_type], design->twines.unescaped_str(cell_type));
+			log("Converted %d %s cells into trees.\n", cell_count[cell_type], log_id(design, cell_type));
 
 		// Clean up
 		Yosys::run_pass("clean -purge");

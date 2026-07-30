@@ -319,7 +319,7 @@ struct EquivMakeWorker
 						new_sig[i] = old_sig[i];
 				if (old_sig != new_sig) {
 					log("Changing input %s of cell %s (%s): %s -> %s\n",
-							equiv_mod->design->twines.str(conn.first).c_str(), c, c->type.unescape(),
+							log_id(equiv_mod, conn.first), c, c->type.unescape(),
 							log_signal(old_sig), log_signal(new_sig));
 					c->setPort(conn.first, new_sig);
 				}

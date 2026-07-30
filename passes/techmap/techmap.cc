@@ -206,7 +206,7 @@ struct TechmapWorker
 		if (tpl->processes.size() != 0) {
 			log("Technology map yielded processes:");
 			for (auto &it : tpl->processes)
-				log(" %s", tpl->design->twines.unescaped_str(it.first));
+				log(" %s", log_id(tpl, it.first));
 			log("\n");
 			if (autoproc_mode) {
 				Pass::call_on_module(tpl->design, tpl, "proc");
@@ -317,7 +317,7 @@ struct TechmapWorker
 				w = map_port(tpl, design, portname);
 			if (w == nullptr || w->port_id == 0) {
 				if (design->twines.str(portname).starts_with("$"))
-					log_error("Can't map port `%s' of cell `%s' to template `%s'!\n", design->twines.unescaped_str(portname).data(), log_id(cell->name), log_id(tpl->name));
+					log_error("Can't map port `%s' of cell `%s' to template `%s'!\n", log_id(design, portname), log_id(cell->name), log_id(tpl->name));
 				continue;
 			}
 
@@ -799,7 +799,7 @@ struct TechmapWorker
 								RTLIL::SigSpec value = elem.value;
 								if (value.is_fully_const() && value.as_bool()) {
 									log("Not using module `%s' from techmap as it contains a %s marker wire with non-zero value %s.\n",
-											map->twines.unescaped_str(derived_name).data(), elem.wire->name.unescape().data(), log_signal(value));
+											log_id(map, derived_name), elem.wire->name.unescape().data(), log_signal(value));
 									techmap_do_cache[tpl] = false;
 								}
 							}

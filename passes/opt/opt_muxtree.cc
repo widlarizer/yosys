@@ -522,7 +522,7 @@ struct OptMuxtreeWorker
 		}
 
 		if (did_something) {
-			log("      Replacing known input bits on port %s of cell %s: %s -> %s\n", design->twines.unescaped_str(portname).c_str(),
+			log("      Replacing known input bits on port %s of cell %s: %s -> %s\n", log_id(design, portname),
 					muxinfo.cell, log_signal(muxinfo.cell->getPort(portname)), log_signal(sig));
 			muxinfo.cell->setPort(portname, sig);
 		}

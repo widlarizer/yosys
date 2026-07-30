@@ -132,7 +132,7 @@ struct CutpointPass : public Pass {
 						if (cell->input(conn.first))
 							for (auto bit : sigmap(conn.second))
 								if (wire_drivers.count(bit)) {
-									log_debug("  Treating inout port '%s' as input.\n", design->twines.unescaped_str(conn.first));
+									log_debug("  Treating inout port '%s' as input.\n", log_id(design, conn.first));
 									do_cut = false;
 									break;
 								}
@@ -140,7 +140,7 @@ struct CutpointPass : public Pass {
 						if (do_cut) {
 							module->connect(conn.second, flag_undef ? Const(State::Sx, GetSize(conn.second)) : module->Anyseq(NEW_ID, GetSize(conn.second)));
 							if (cell->input(conn.first)) {
-								log_debug("  Treating inout port '%s' as output.\n", design->twines.unescaped_str(conn.first));
+								log_debug("  Treating inout port '%s' as output.\n", log_id(design, conn.first));
 								for (auto bit : sigmap(conn.second))
 									wire_drivers.insert(bit);
 							}

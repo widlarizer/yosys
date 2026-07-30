@@ -263,9 +263,9 @@ struct VlogHammerReporter
 					if (module == modules.front()) {
 						RTLIL::SigSpec sig(wire);
 						if (!ce.eval(sig))
-							log_error("Can't read back value for port %s!\n", design->twines.unescaped_str(inputs[i]));
+							log_error("Can't read back value for port %s!\n", log_id(design, inputs[i]));
 						input_pattern_list += stringf(" %s", sig.as_const().as_string());
-						log("++PAT++ %d %s %s #\n", idx, design->twines.unescaped_str(inputs[i]), sig.as_const().as_string());
+						log("++PAT++ %d %s %s #\n", idx, log_id(design, inputs[i]), sig.as_const().as_string());
 					}
 				}
 

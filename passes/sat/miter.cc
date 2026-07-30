@@ -130,7 +130,7 @@ void create_miter_equiv(struct Pass *that, std::vector<std::string> args, RTLIL:
 		log_cmd_error("No matching port in gold module was found for %s!\n", gate_wire->name.unescape().c_str());
 	}
 
-	log("Creating miter cell \"%s\" with gold cell \"%s\" and gate cell \"%s\".\n", design->twines.unescaped_str(miter_name), design->twines.unescaped_str(gold_name), design->twines.unescaped_str(gate_name));
+	log("Creating miter cell \"%s\" with gold cell \"%s\" and gate cell \"%s\".\n", log_id(design, miter_name), log_id(design, gold_name), log_id(design, gate_name));
 
 	RTLIL::Module *miter_module = new RTLIL::Module;
 	miter_module->design = design;

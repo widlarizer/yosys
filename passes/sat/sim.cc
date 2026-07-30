@@ -1469,7 +1469,7 @@ struct SimWorker : SimShared
 			Wire *w = top->module->wire(portref);
 
 			if (w == nullptr)
-				log_error("Can't find port %s on module %s.\n", top->module->design->twines.unescaped_str(portref), top->module);
+				log_error("Can't find port %s on module %s.\n", log_id(top->module, portref), top->module);
 
 			top->set_state(w, value);
 		}
@@ -1553,12 +1553,12 @@ struct SimWorker : SimShared
 			IdString portref = portname;
 			Wire *w = topmod->wire(portref);
 			if (!w)
-				log_error("Can't find port %s on module %s.\n", topmod->design->twines.unescaped_str(portref), top->module);
+				log_error("Can't find port %s on module %s.\n", log_id(topmod, portref), top->module);
 			if (!w->port_input)
-				log_error("Clock port %s on module %s is not input.\n", topmod->design->twines.unescaped_str(portref), top->module);
+				log_error("Clock port %s on module %s is not input.\n", log_id(topmod, portref), top->module);
 			fstHandle id = fst->getHandle(scope + "." + topmod->design->twines.unescaped_str(portref));
 			if (id==0)
-				log_error("Can't find port %s.%s in FST.\n", scope, topmod->design->twines.unescaped_str(portref));
+				log_error("Can't find port %s.%s in FST.\n", scope, log_id(topmod, portref));
 			fst_clock.push_back(id);
 		}
 		for (auto portname : clockn)
@@ -1566,12 +1566,12 @@ struct SimWorker : SimShared
 			IdString portref = portname;
 			Wire *w = topmod->wire(portref);
 			if (!w)
-				log_error("Can't find port %s on module %s.\n", topmod->design->twines.unescaped_str(portref), top->module);
+				log_error("Can't find port %s on module %s.\n", log_id(topmod, portref), top->module);
 			if (!w->port_input)
-				log_error("Clock port %s on module %s is not input.\n", topmod->design->twines.unescaped_str(portref), top->module);
+				log_error("Clock port %s on module %s is not input.\n", log_id(topmod, portref), top->module);
 			fstHandle id = fst->getHandle(scope + "." + topmod->design->twines.unescaped_str(portref));
 			if (id==0)
-				log_error("Can't find port %s.%s in FST.\n", scope, topmod->design->twines.unescaped_str(portref));
+				log_error("Can't find port %s.%s in FST.\n", scope, log_id(topmod, portref));
 			fst_clock.push_back(id);
 		}
 
@@ -2224,12 +2224,12 @@ struct SimWorker : SimShared
 			IdString portref = portname;
 			Wire *w = topmod->wire(portref);
 			if (!w)
-				log_error("Can't find port %s on module %s.\n", topmod->design->twines.unescaped_str(portref), top->module);
+				log_error("Can't find port %s on module %s.\n", log_id(topmod, portref), top->module);
 			if (!w->port_input)
-				log_error("Clock port %s on module %s is not input.\n", topmod->design->twines.unescaped_str(portref), top->module);
+				log_error("Clock port %s on module %s is not input.\n", log_id(topmod, portref), top->module);
 			fstHandle id = fst->getHandle(scope + "." + topmod->design->twines.unescaped_str(portref));
 			if (id==0)
-				log_error("Can't find port %s.%s in FST.\n", scope, topmod->design->twines.unescaped_str(portref));
+				log_error("Can't find port %s.%s in FST.\n", scope, log_id(topmod, portref));
 			fst_clock.push_back(id);
 			clocks[w] = id;
 		}
@@ -2238,12 +2238,12 @@ struct SimWorker : SimShared
 			IdString portref = portname;
 			Wire *w = topmod->wire(portref);
 			if (!w)
-				log_error("Can't find port %s on module %s.\n", topmod->design->twines.unescaped_str(portref), top->module);
+				log_error("Can't find port %s on module %s.\n", log_id(topmod, portref), top->module);
 			if (!w->port_input)
-				log_error("Clock port %s on module %s is not input.\n", topmod->design->twines.unescaped_str(portref), top->module);
+				log_error("Clock port %s on module %s is not input.\n", log_id(topmod, portref), top->module);
 			fstHandle id = fst->getHandle(scope + "." + topmod->design->twines.unescaped_str(portref));
 			if (id==0)
-				log_error("Can't find port %s.%s in FST.\n", scope, topmod->design->twines.unescaped_str(portref));
+				log_error("Can't find port %s.%s in FST.\n", scope, log_id(topmod, portref));
 			fst_clock.push_back(id);
 			clocks[w] = id;
 		}
@@ -2565,7 +2565,7 @@ struct AIWWriter : public OutputWriter
 			IdString escaped_s = worker->top->module->design->twines.add(RTLIL::escape_id(symbol));
 			Wire *w = worker->top->module->wire(escaped_s);
 			if (!w)
-				log_error("Wire %s not present in module %s\n", worker->top->module->design->twines.unescaped_str(escaped_s), worker->top->module);
+				log_error("Wire %s not present in module %s\n", log_id(worker->top->module, escaped_s), worker->top->module);
 			if (index < w->start_offset || index > w->start_offset + w->width)
 				log_error("Index %d for wire %s is out of range\n", index, log_signal(w));
 			if (type == "input") {

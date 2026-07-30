@@ -1033,7 +1033,7 @@ Cell *Mem::extract_rdff(int idx, FfInitVals *initvals) {
 
 	if (c)
 		log("Extracted %s FF from read port %d of %s.%s: %s\n", trans_use_addr ? "addr" : "data",
-			idx, module, module->design->twines.unescaped_str(memid), c);
+			idx, module, log_id(module, memid), c);
 
 	port.en = State::S1;
 	port.clk = State::S0;

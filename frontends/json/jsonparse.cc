@@ -340,22 +340,22 @@ void json_import(Design *design, string &modname, JsonNode *node)
 			JsonNode *port_node = ports_node->data_dict.at(ports_node->data_dict_keys[port_id-1]);
 
 			if (port_node->type != 'D')
-				log_error("JSON port node '%s' is not a dictionary.\n", design->twines.unescaped_str(port_ref));
+				log_error("JSON port node '%s' is not a dictionary.\n", log_id(design, port_ref));
 
 			if (port_node->data_dict.count("direction") == 0)
-				log_error("JSON port node '%s' has no direction attribute.\n", design->twines.unescaped_str(port_ref));
+				log_error("JSON port node '%s' has no direction attribute.\n", log_id(design, port_ref));
 
 			if (port_node->data_dict.count("bits") == 0)
-				log_error("JSON port node '%s' has no bits attribute.\n", design->twines.unescaped_str(port_ref));
+				log_error("JSON port node '%s' has no bits attribute.\n", log_id(design, port_ref));
 
 			JsonNode *port_direction_node = port_node->data_dict.at("direction");
 			JsonNode *port_bits_node = port_node->data_dict.at("bits");
 
 			if (port_direction_node->type != 'S')
-				log_error("JSON port node '%s' has non-string direction attribute.\n", design->twines.unescaped_str(port_ref));
+				log_error("JSON port node '%s' has non-string direction attribute.\n", log_id(design, port_ref));
 
 			if (port_bits_node->type != 'A')
-				log_error("JSON port node '%s' has non-array bits attribute.\n", design->twines.unescaped_str(port_ref));
+				log_error("JSON port node '%s' has non-array bits attribute.\n", log_id(design, port_ref));
 
 			Wire *port_wire = module->wire(port_ref);
 
@@ -390,7 +390,7 @@ void json_import(Design *design, string &modname, JsonNode *node)
 				port_wire->port_input = true;
 				port_wire->port_output = true;
 			} else
-				log_error("JSON port node '%s' has invalid '%s' direction attribute.\n", design->twines.unescaped_str(port_ref), port_direction_node->data_string);
+				log_error("JSON port node '%s' has invalid '%s' direction attribute.\n", log_id(design, port_ref), port_direction_node->data_string);
 
 			port_wire->port_id = port_id;
 
@@ -410,7 +410,7 @@ void json_import(Design *design, string &modname, JsonNode *node)
 						module->connect(sigbit, State::Sz);
 					else
 						log_error("JSON port node '%s' has invalid '%s' bit string value on bit %d.\n",
-								design->twines.unescaped_str(port_ref), bitval_node->data_string.c_str(), i);
+								log_id(design, port_ref), bitval_node->data_string.c_str(), i);
 				} else
 				if (bitval_node->type == 'N') {
 					int bitidx = bitval_node->data_number;
@@ -425,7 +425,7 @@ void json_import(Design *design, string &modname, JsonNode *node)
 						signal_bits[bitidx] = sigbit;
 					}
 				} else
-					log_error("JSON port node '%s' has invalid bit value on bit %d.\n", design->twines.unescaped_str(port_ref), i);
+					log_error("JSON port node '%s' has invalid bit value on bit %d.\n", log_id(design, port_ref), i);
 			}
 		}
 
@@ -445,15 +445,15 @@ void json_import(Design *design, string &modname, JsonNode *node)
 			JsonNode *net_node = net.second;
 
 			if (net_node->type != 'D')
-				log_error("JSON netname node '%s' is not a dictionary.\n", design->twines.unescaped_str(net_ref));
+				log_error("JSON netname node '%s' is not a dictionary.\n", log_id(design, net_ref));
 
 			if (net_node->data_dict.count("bits") == 0)
-				log_error("JSON netname node '%s' has no bits attribute.\n", design->twines.unescaped_str(net_ref));
+				log_error("JSON netname node '%s' has no bits attribute.\n", log_id(design, net_ref));
 
 			JsonNode *bits_node = net_node->data_dict.at("bits");
 
 			if (bits_node->type != 'A')
-				log_error("JSON netname node '%s' has non-array bits attribute.\n", design->twines.unescaped_str(net_ref));
+				log_error("JSON netname node '%s' has non-array bits attribute.\n", log_id(design, net_ref));
 
 			Wire *wire = module->wire(net_ref);
 
@@ -488,7 +488,7 @@ void json_import(Design *design, string &modname, JsonNode *node)
 						module->connect(sigbit, State::Sz);
 					else
 						log_error("JSON netname node '%s' has invalid '%s' bit string value on bit %d.\n",
-								design->twines.unescaped_str(net_ref), bitval_node->data_string.c_str(), i);
+								log_id(design, net_ref), bitval_node->data_string.c_str(), i);
 				} else
 				if (bitval_node->type == 'N') {
 					int bitidx = bitval_node->data_number;
@@ -499,7 +499,7 @@ void json_import(Design *design, string &modname, JsonNode *node)
 						signal_bits[bitidx] = sigbit;
 					}
 				} else
-					log_error("JSON netname node '%s' has invalid bit value on bit %d.\n", design->twines.unescaped_str(net_ref), i);
+					log_error("JSON netname node '%s' has invalid bit value on bit %d.\n", log_id(design, net_ref), i);
 			}
 
 			if (net_node->data_dict.count("attributes"))
@@ -520,27 +520,27 @@ void json_import(Design *design, string &modname, JsonNode *node)
 			JsonNode *cell_node = cell_node_it.second;
 
 			if (cell_node->type != 'D')
-				log_error("JSON cells node '%s' is not a dictionary.\n", design->twines.unescaped_str(cell_ref));
+				log_error("JSON cells node '%s' is not a dictionary.\n", log_id(design, cell_ref));
 
 			if (cell_node->data_dict.count("type") == 0)
-				log_error("JSON cells node '%s' has no type attribute.\n", design->twines.unescaped_str(cell_ref));
+				log_error("JSON cells node '%s' has no type attribute.\n", log_id(design, cell_ref));
 
 			JsonNode *type_node = cell_node->data_dict.at("type");
 
 			if (type_node->type != 'S')
-				log_error("JSON cells node '%s' has a non-string type.\n", design->twines.unescaped_str(cell_ref));
+				log_error("JSON cells node '%s' has a non-string type.\n", log_id(design, cell_ref));
 
 			IdString cell_type = design->twines.add(RTLIL::escape_id(type_node->data_string));
 
 			Cell *cell = module->addCell(cell_ref, cell_type);
 
 			if (cell_node->data_dict.count("connections") == 0)
-				log_error("JSON cells node '%s' has no connections attribute.\n", design->twines.unescaped_str(cell_ref));
+				log_error("JSON cells node '%s' has no connections attribute.\n", log_id(design, cell_ref));
 
 			JsonNode *connections_node = cell_node->data_dict.at("connections");
 
 			if (connections_node->type != 'D')
-				log_error("JSON cells node '%s' has non-dictionary connections attribute.\n", design->twines.unescaped_str(cell_ref));
+				log_error("JSON cells node '%s' has non-dictionary connections attribute.\n", log_id(design, cell_ref));
 
 			for (auto &conn_it : connections_node->data_dict)
 			{
@@ -548,7 +548,7 @@ void json_import(Design *design, string &modname, JsonNode *node)
 				JsonNode *conn_node = conn_it.second;
 
 				if (conn_node->type != 'A')
-					log_error("JSON cells node '%s' connection '%s' is not an array.\n", design->twines.unescaped_str(cell_ref), design->twines.unescaped_str(conn_ref));
+					log_error("JSON cells node '%s' connection '%s' is not an array.\n", log_id(design, cell_ref), log_id(design, conn_ref));
 
 				SigSpec sig;
 
@@ -567,7 +567,7 @@ void json_import(Design *design, string &modname, JsonNode *node)
 							sig.append(State::Sz);
 						else
 							log_error("JSON cells node '%s' connection '%s' has invalid '%s' bit string value on bit %d.\n",
-									design->twines.unescaped_str(cell_ref), design->twines.unescaped_str(conn_ref), bitval_node->data_string.c_str(), i);
+									log_id(design, cell_ref), log_id(design, conn_ref), bitval_node->data_string.c_str(), i);
 					} else
 					if (bitval_node->type == 'N') {
 						int bitidx = bitval_node->data_number;
@@ -576,7 +576,7 @@ void json_import(Design *design, string &modname, JsonNode *node)
 						sig.append(signal_bits.at(bitidx));
 					} else
 						log_error("JSON cells node '%s' connection '%s' has invalid bit value on bit %d.\n",
-								design->twines.unescaped_str(cell_ref), design->twines.unescaped_str(conn_ref), i);
+								log_id(design, cell_ref), log_id(design, conn_ref), i);
 
 				}
 

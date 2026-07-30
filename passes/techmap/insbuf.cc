@@ -116,7 +116,7 @@ struct InsbufPass : public Pass {
 							if (s == port.second)
 								continue;
 							log("Rewrite %s/%s/%s: %s -> %s\n", module, cell,
-									module->design->twines.unescaped_str(port.first).c_str(), log_signal(port.second), log_signal(s));
+									log_id(module, port.first), log_signal(port.second), log_signal(s));
 							cell->setPort(port.first, s);
 						}
 				}

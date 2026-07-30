@@ -41,7 +41,7 @@ void check(RTLIL::Design *design, bool dff_mode)
 			auto r = box_lookup.insert(std::make_pair(design->twines.add(stringf("$__boxid%d", id)), IdString(m->name)));
 			if (!r.second)
 				log_error("Module '%s' has the same abc9_box_id = %d value as '%s'.\n",
-						m, id, design->twines.unescaped_str(r.first->second));
+						m, id, log_id(design, r.first->second));
 		}
 
 		// Make carry in the last PI, and carry out the last PO
@@ -113,7 +113,7 @@ void check(RTLIL::Design *design, bool dff_mode)
 				if (!derived_module->get_bool_attribute(ID::abc9_flop))
 					continue;
 				if (derived_module->get_blackbox_attribute(true /* ignore_wb */))
-					log_error("Module '%s' with (* abc9_flop *) is a blackbox.\n", design->twines.unescaped_str(derived_type));
+					log_error("Module '%s' with (* abc9_flop *) is a blackbox.\n", log_id(design, derived_type));
 
 				if (derived_module->has_processes())
 					Pass::call_on_module(design, derived_module, "proc -noopt");
@@ -672,7 +672,7 @@ void prep_delays(RTLIL::Design *design, bool dff_mode)
 			auto port_wire = inst_module->wire(i.first.name);
 			if (!port_wire)
 				log_error("Port %s in cell %s (type %s) from module %s does not actually exist",
-						design->twines.unescaped_str(i.first.name), cell, cell->type.unescape(), module);
+						log_id(design, i.first.name), cell, cell->type.unescape(), module);
 			log_assert(port_wire->port_input);
 
 			auto d = i.second.first;
@@ -691,7 +691,7 @@ void prep_delays(RTLIL::Design *design, bool dff_mode)
 			if (ys_debug(1)) {
 				static pool<std::pair<IdString,TimingInfo::NameBit>> seen;
 				if (seen.emplace(cell->type, i.first).second) log("%s.%s[%d] abc9_required = %d\n",
-						cell->type.unescape(), design->twines.unescaped_str(i.first.name), offset, d);
+						cell->type.unescape(), log_id(design, i.first.name), offset, d);
 			}
 #endif
 			auto r = box_cache.insert(d);
@@ -991,9 +991,9 @@ void prep_lut(RTLIL::Design *design, int maxlut)
 		auto r = table.emplace(K, entry);
 		if (!r.second) {
 			if (r.first->second.area != entry.area)
-				log_error("Modules '%s' and '%s' have conflicting (* abc9_lut *) values.\n", module, design->twines.unescaped_str(r.first->second.name));
+				log_error("Modules '%s' and '%s' have conflicting (* abc9_lut *) values.\n", module, log_id(design, r.first->second.name));
 			if (r.first->second.delays != entry.delays)
-				log_error("Modules '%s' and '%s' have conflicting specify entries.\n", module, design->twines.unescaped_str(r.first->second.name));
+				log_error("Modules '%s' and '%s' have conflicting specify entries.\n", module, log_id(design, r.first->second.name));
 		}
 	}
 
@@ -1100,7 +1100,7 @@ void prep_box(RTLIL::Design *design)
 					if (ys_debug(1)) {
 						static std::set<std::pair<IdString,IdString>> seen;
 						if (seen.emplace(module->name, port_name).second) log("%s.%s abc9_required = %d\n", module,
-								design->twines.unescaped_str(port_name), it->second.first);
+								log_id(design, port_name), it->second.first);
 					}
 #endif
 				}

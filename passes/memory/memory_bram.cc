@@ -785,7 +785,7 @@ grow_read_ports:;
 			if (match_properties[it.first] >= it.second)
 				continue;
 			log("    Rule for bram type %s rejected: requirement 'min %s %d' not met.\n",
-					rules.design->twines.unescaped_str(match.name), it.first.c_str(), it.second);
+					log_id(rules.design, match.name), it.first.c_str(), it.second);
 			return false;
 		}
 		for (auto it : match.max_limits) {
@@ -795,7 +795,7 @@ grow_read_ports:;
 			if (match_properties[it.first] <= it.second)
 				continue;
 			log("    Rule for bram type %s rejected: requirement 'max %s %d' not met.\n",
-					rules.design->twines.unescaped_str(match.name), it.first.c_str(), it.second);
+					log_id(rules.design, match.name), it.first.c_str(), it.second);
 			return false;
 		}
 
@@ -831,7 +831,7 @@ grow_read_ports:;
 					ss << "=\"" << value.decode_string() << "\"";
 
 				log("    Rule for bram type %s rejected: requirement 'attribute %s ...' not met.\n",
-						rules.design->twines.unescaped_str(match.name), ss.str().c_str());
+						log_id(rules.design, match.name), ss.str().c_str());
 				return false;
 			}
 		}
@@ -1143,7 +1143,7 @@ void handle_memory(Mem &mem, const rules_t &rules, FfInitVals *initvals)
 				goto next_match_rule;
 
 			log("    Metrics for %s: awaste=%d dwaste=%d bwaste=%d waste=%d efficiency=%d\n",
-					rules.design->twines.unescaped_str(match.name), awaste, dwaste, bwaste, waste, efficiency);
+					log_id(rules.design, match.name), awaste, dwaste, bwaste, waste, efficiency);
 
 			if (cell_init && bram.init == 0) {
 				log("    Rule #%d for bram type %s (variant %d) rejected: cannot be initialized.\n",
@@ -1209,7 +1209,7 @@ void handle_memory(Mem &mem, const rules_t &rules, FfInitVals *initvals)
 						ss << "=\"" << value.decode_string() << "\"";
 
 					log("    Rule for bram type %s (variant %d) rejected: requirement 'attribute %s ...' not met.\n",
-							rules.design->twines.unescaped_str(bram.name), bram.variant, ss.str().c_str());
+							log_id(rules.design, bram.name), bram.variant, ss.str().c_str());
 					goto next_match_rule;
 				}
 			}

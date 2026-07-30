@@ -271,7 +271,7 @@ unsigned int abstract_value(Module* mod, EnableLogic enable, const std::vector<S
 				for (int i = 0; i < conn.second.size(); i++) {
 					if (selected_reps.count(sigmap(conn.second[i]))) {
 						log_debug("Abstracting value for %s.%s[%i] in module %s due to selections:\n",
-							cell, cell->module->design->twines.unescaped_str(conn.first).c_str(), i, mod);
+							cell, log_id(cell->module, conn.first), i, mod);
 						explain_selections(selected_reps.at(sigmap(conn.second[i])));
 						offsets_to_abstract.insert(i);
 					}

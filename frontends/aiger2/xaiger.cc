@@ -87,7 +87,7 @@ struct Xaiger2Frontend : public Frontend {
 
 		Module *module = design->module(*module_name);
 		if (!module)
-			log_error("Module '%s' not found\n", design->twines.unescaped_str(*module_name));
+			log_error("Module '%s' not found\n", log_id(design, *module_name));
 
 		std::ifstream map_file;
 		map_file.open(map_filename);
@@ -278,9 +278,9 @@ struct Xaiger2Frontend : public Frontend {
 					uint32_t nins = read_be32(*f);
 					for (uint32_t j = 0; j < nins; j++)
 						cell.ins.push_back(design->twines.add(std::string{read_idstring(*f)}));
-					log_debug("M: Cell %s (out %s, ins", design->twines.str(cell.type).c_str(), design->twines.unescaped_str(cell.out));
+					log_debug("M: Cell %s (out %s, ins", log_id(design, cell.type), design->twines.unescaped_str(cell.out));
 					for (auto in : cell.ins)
-						log_debug(" %s", design->twines.unescaped_str(in).c_str());
+						log_debug(" %s", log_id(design, in));
 					log_debug(")\n");
 				}
 

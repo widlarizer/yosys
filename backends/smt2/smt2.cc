@@ -207,7 +207,7 @@ struct Smt2Worker
 				}
 			else if (is_output || !is_input)
 				log_error("Unsupported or unknown directionality on port %s of cell %s.%s (%s).\n",
-						module->design->twines.str(conn.first).c_str(), module, cell, cell->type.unescape());
+						log_id(module, conn.first), module, cell, cell->type.unescape());
 
 			if (cell->type.in(ID($dff), ID($_DFF_P_), ID($_DFF_N_)) && (conn.first == ID::CLK || conn.first == ID::C))
 			{
@@ -823,7 +823,7 @@ struct Smt2Worker
 
 					if (port.clk_enable)
 						log_error("Read port %d (%s) of memory %s.%s is clocked. This is not supported by \"write_smt2\"! "
-								"Call \"memory\" with -nordff to avoid this error.\n", i, log_signal(port.data), module->design->twines.unescaped_str(mem->memid), module);
+								"Call \"memory\" with -nordff to avoid this error.\n", i, log_signal(port.data), log_id(module, mem->memid), module);
 
 					decls.push_back(stringf("(define-fun |%s_m:R%dA %s| ((state |%s_s|)) (_ BitVec %d) %s) ; %s\n",
 							get_id(module), i, get_id(mem->memid), get_id(module), abits, addr.c_str(), log_signal(addr_sig)));
@@ -867,7 +867,7 @@ struct Smt2Worker
 
 					if (port.clk_enable)
 						log_error("Read port %d (%s) of memory %s.%s is clocked. This is not supported by \"write_smt2\"! "
-								"Call \"memory\" with -nordff to avoid this error.\n", i, log_signal(port.data), module->design->twines.unescaped_str(mem->memid), module);
+								"Call \"memory\" with -nordff to avoid this error.\n", i, log_signal(port.data), log_id(module, mem->memid), module);
 
 					decls.push_back(stringf("(define-fun |%s_m:R%dA %s| ((state |%s_s|)) (_ BitVec %d) %s) ; %s\n",
 							get_id(module), i, get_id(mem->memid), get_id(module), abits, addr.c_str(), log_signal(addr_sig)));

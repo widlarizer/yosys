@@ -296,7 +296,7 @@ struct BugpointPass : public Pass {
 
 						if (index++ == seed)
 						{
-							log_header(design, "Trying to remove cell port %s.%s.%s.\n", mod, cell, design->twines.unescaped_str(it.first).c_str());
+							log_header(design, "Trying to remove cell port %s.%s.%s.\n", mod, cell, log_id(design, it.first));
 							RTLIL::SigSpec port_x(State::Sx, port.size());
 							cell->unsetPort(it.first);
 							cell->setPort(it.first, port_x);
@@ -305,7 +305,7 @@ struct BugpointPass : public Pass {
 
 						if (!stage2 && (cell->input(it.first) || cell->output(it.first)) && index++ == seed)
 						{
-							log_header(design, "Trying to expose cell port %s.%s.%s as module port.\n", mod, cell, design->twines.unescaped_str(it.first).c_str());
+							log_header(design, "Trying to expose cell port %s.%s.%s as module port.\n", mod, cell, log_id(design, it.first));
 							RTLIL::Wire *wire = mod->addWire(NEW_ID, port.size());
 							wire->set_bool_attribute(ID($bugpoint));
 							wire->port_input = cell->input(it.first);
@@ -334,7 +334,7 @@ struct BugpointPass : public Pass {
 
 					if (index++ == seed)
 					{
-						log_header(design, "Trying to remove process %s.%s.\n", mod, design->twines.unescaped_str(process.first).c_str());
+						log_header(design, "Trying to remove process %s.%s.\n", mod, log_id(design, process.first));
 						removed_process = process.second;
 						break;
 					}
@@ -363,7 +363,7 @@ struct BugpointPass : public Pass {
 						{
 							if (index++ == seed)
 							{
-								log_header(design, "Trying to remove assign %s %s in %s.%s.\n", log_signal(it->lhs), log_signal(it->rhs), mod, design->twines.unescaped_str(pr.first).c_str());
+								log_header(design, "Trying to remove assign %s %s in %s.%s.\n", log_signal(it->lhs), log_signal(it->rhs), mod, log_id(design, pr.first));
 								cs->actions.erase(it);
 								return design_copy;
 							}
@@ -389,7 +389,7 @@ struct BugpointPass : public Pass {
 						{
 							if (index++ == seed)
 							{
-								log_header(design, "Trying to remove sync %s update %s %s in %s.%s.\n", log_signal(sy->signal), log_signal(it->lhs), log_signal(it->rhs), mod, design->twines.unescaped_str(pr.first).c_str());
+								log_header(design, "Trying to remove sync %s update %s %s in %s.%s.\n", log_signal(sy->signal), log_signal(it->lhs), log_signal(it->rhs), mod, log_id(design, pr.first));
 								sy->actions.erase(it);
 								return design_copy;
 							}
@@ -399,7 +399,7 @@ struct BugpointPass : public Pass {
 						{
 							if (index++ == seed)
 							{
-								log_header(design, "Trying to remove sync %s memwr %s %s %s %s in %s.%s.\n", log_signal(sy->signal), design->twines.unescaped_str(it->memid), log_signal(it->address), log_signal(it->data), log_signal(it->enable), mod, design->twines.str(pr.first).c_str());
+								log_header(design, "Trying to remove sync %s memwr %s %s %s %s in %s.%s.\n", log_signal(sy->signal), log_id(design, it->memid), log_signal(it->address), log_signal(it->data), log_signal(it->enable), mod, log_id(design, pr.first));
 								sy->mem_write_actions.erase(it);
 								// Remove the bit for removed action from other actions' priority masks.
 								for (auto it2 = sy->mem_write_actions.begin(); it2 != sy->mem_write_actions.end(); ++it2) {

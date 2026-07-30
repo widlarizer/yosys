@@ -832,12 +832,12 @@ struct BtorWorker
 
 			if (asyncwr && syncwr)
 				log_error("Memory %s.%s has mixed async/sync write ports.\n",
-						module, module->design->twines.unescaped_str(mem->memid));
+						module, log_id(module, mem->memid));
 
 			for (auto &port : mem->rd_ports) {
 				if (port.clk_enable)
 					log_error("Memory %s.%s has sync read ports.  Please use memory_nordff to convert them first.\n",
-							module, module->design->twines.unescaped_str(mem->memid));
+							module, log_id(module, mem->memid));
 			}
 
 			int data_sid = get_bv_sid(mem->width);

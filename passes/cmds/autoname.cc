@@ -243,10 +243,10 @@ struct ModuleAutonamer
 		full += nd.suffix;
 		IdString name = module->uniquify(full);
 		if (nd.cell) {
-			log_debug("Rename cell %s in %s to %s.\n", nd.cell, module, module->design->twines.unescaped_str(name));
+			log_debug("Rename cell %s in %s to %s.\n", nd.cell, module, log_id(module, name));
 			module->rename(nd.cell, name);
 		} else {
-			log_debug("Rename wire %s in %s to %s.\n", nd.wire, module, module->design->twines.unescaped_str(name));
+			log_debug("Rename wire %s in %s to %s.\n", nd.wire, module, log_id(module, name));
 			module->rename(nd.wire, name);
 		}
 		renamed++;

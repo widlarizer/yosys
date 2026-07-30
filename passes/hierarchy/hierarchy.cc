@@ -446,7 +446,7 @@ void check_cell_connections(const RTLIL::Module &module, RTLIL::Cell &cell, RTLI
 			log_error("Module `%s' referenced in module `%s' in cell `%s' "
 			          "does not have a port named '%s'.\n",
 			          cell.type.unescape(), &module, &cell,
-			          module.design->twines.unescaped_str(conn.first).data());
+			          log_id(module.design, conn.first));
 		}
 	}
 	for (auto &param : cell.parameters) {
@@ -629,12 +629,12 @@ bool expand_module(RTLIL::Design *design, RTLIL::Module *module, bool flag_check
 					}
 			}
 			if (mod->wire(portname) == nullptr)
-				log_error("Array cell `%s.%s' connects to unknown port `%s'.\n", module, cell, module->design->twines.unescaped_str(conn.first).data());
+				log_error("Array cell `%s.%s' connects to unknown port `%s'.\n", module, cell, log_id(module, conn.first));
 			int port_size = mod->wire(portname)->width;
 			if (conn_size == port_size || conn_size == 0)
 				continue;
 			if (conn_size != port_size*num)
-				log_error("Array cell `%s.%s' has invalid port vs. signal size for port `%s'.\n", module, cell, module->design->twines.unescaped_str(conn.first).data());
+				log_error("Array cell `%s.%s' has invalid port vs. signal size for port `%s'.\n", module, cell, log_id(module, conn.first));
 			conn.second = conn.second.extract(port_size*idx, port_size);
 		}
 	}
@@ -1549,7 +1549,7 @@ struct HierarchyPass : public Pass {
 					bool resize_widths = !keep_portwidths && GetSize(w) != GetSize(conn.second);
 					if (resize_widths && verific_mod && boxed_params)
 						log_debug("Ignoring width mismatch on %s.%s.%s from verific, is port width parametrizable?\n",
-								module, cell, design->twines.unescaped_str(conn.first).data()
+								module, cell, log_id(design, conn.first)
 						);
 					else if (resize_widths) {
 						if (GetSize(w) < GetSize(conn.second))
@@ -1574,13 +1574,13 @@ struct HierarchyPass : public Pass {
 
 						if (!conn.second.is_fully_const() || !w->port_input || w->port_output)
 							log_warning("Resizing cell port %s.%s.%s from %d bits to %d bits.\n", module, cell,
-									design->twines.unescaped_str(conn.first).data(), GetSize(conn.second), GetSize(sig));
+									log_id(design, conn.first), GetSize(conn.second), GetSize(sig));
 						cell->setPort(conn.first, sig);
 					}
 
 					if (w->port_output && !w->port_input && sig.has_const())
 						log_error("Output port %s.%s.%s (%s) is connected to constants: %s\n",
-								module, cell, design->twines.str(conn.first).data(), cell->type.unescape(), log_signal(sig));
+								module, cell, log_id(design, conn.first), cell->type.unescape(), log_signal(sig));
 				}
 			}
 		}

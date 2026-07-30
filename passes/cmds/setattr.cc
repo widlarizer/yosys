@@ -253,7 +253,7 @@ struct ChparamPass : public Pass {
 			for (auto module : design->selected_modules()) {
 				log("%s:\n", module);
 				for (auto param : module->avail_parameters)
-					log("  %s\n", design->twines.unescaped_str(param));
+					log("  %s\n", log_id(design, param));
 			}
 			return;
 		}

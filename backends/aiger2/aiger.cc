@@ -636,10 +636,10 @@ struct Index {
 					Wire *w = def->wire(portname);
 					if (!w)
 						log_error("Output port %s on instance %s of %s doesn't exist\n",
-								  design->twines.unescaped_str(portname).c_str(), driver, def);
+								  log_id(design, portname), driver, def);
 					if (bit.offset >= w->width)
 						log_error("Bit position %d of output port %s on instance %s of %s is out of range (port has width %d)\n",
-								  bit.offset, design->twines.unescaped_str(portname).c_str(), driver, def, w->width);
+								  bit.offset, log_id(design, portname), driver, def, w->width);
 					ret = visit(cursor, SigBit(w, bit.offset));
 				}
 				cursor.exit(*this);
@@ -655,11 +655,11 @@ struct Index {
 				IdString portname = bit.wire->name;
 				if (!instance->hasPort(portname))
 					log_error("Input port %s on instance %s of %s unconnected\n",
-							  design->twines.unescaped_str(portname).c_str(), instance, instance->type);
+							  log_id(design, portname), instance, instance->type);
 				auto &port = instance->getPort(portname);
 				if (bit.offset >= port.size())
 					log_error("Bit %d of input port %s on instance %s of %s unconnected\n",
-							  bit.offset, design->twines.str(portname).c_str(), instance, instance->type.unescape());
+							  bit.offset, log_id(design, portname), instance, instance->type.unescape());
 				ret = visit(cursor, port[bit.offset]);
 			}
 			cursor.enter(*this, instance);
@@ -1048,7 +1048,7 @@ struct XAigerWriter : AigerWriter {
 			} else if (!is_input && !inputs) {
 				for (auto &bit : conn.second) {
 					if (!bit.wire || (bit.wire->port_input && !bit.wire->port_output))
-						log_error("Bad connection %s/%s ~ %s\n", box, design->twines.unescaped_str(conn.first).c_str(), log_signal(conn.second));
+						log_error("Bad connection %s/%s ~ %s\n", box, log_id(design, conn.first), log_signal(conn.second));
 
 
 					ensure_pi(bit, cursor);
@@ -1158,7 +1158,7 @@ struct XAigerWriter : AigerWriter {
 						} else {
 							// FIXME: hierarchical path
 							log_warning("connection on port %s[%d] of instance %s (type %s) missing, using 1'bx\n",
-										design->twines.str(port_id).c_str(), i, box, box->type.unescape());
+										log_id(design, port_id), i, box, box->type.unescape());
 							bit = RTLIL::Sx;
 						}
 
@@ -1193,7 +1193,7 @@ struct XAigerWriter : AigerWriter {
 						} else {
 							// FIXME: hierarchical path
 							log_warning("connection on port %s[%d] of instance %s (type %s) missing\n",
-										design->twines.str(port_id).c_str(), i, box, box->type.unescape());
+										log_id(design, port_id), i, box, box->type.unescape());
 							pad_pi();
 							continue;
 						}
@@ -1210,7 +1210,7 @@ struct XAigerWriter : AigerWriter {
 					holes_wb->setPort(port_id, w);
 				} else {
 					log_error("Ambiguous port direction on %s/%s\n",
-							  box->type.unescape(), design->twines.str(port_id).c_str());
+							  box->type.unescape(), log_id(design, port_id));
 				}
 			}
 		}
