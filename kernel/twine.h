@@ -256,7 +256,10 @@ struct HashConsPool {
 		return backing[idx.value - Derived::kStaticCount];
 	}
 
+	static void check_ready() {}
+
 	void rebuild_index() {
+		Derived::check_ready();
 		for (size_t idx = 0; idx < Derived::kStaticCount; idx++)
 			index.insert(Ref(idx));
 		free_list.clear();
@@ -347,6 +350,8 @@ struct TwinePool : HashConsPool<TwinePool, Twine, IdString> {
 
 	static const Twine& static_node(size_t idx) { return globals_[idx]; }
 	static IdString untag(IdString ref) { return ref.untag(); }
+
+	static void check_ready() { log_assert(globals_.size() == kStaticCount); }
 
 	static void canonicalize(Twine& t) {
 		if (auto *sfx = std::get_if<Twine::Suffix>(&t.data))
