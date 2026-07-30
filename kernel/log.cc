@@ -617,7 +617,7 @@ const char *log_id(const IdString &str)
 	if (str == Twine::Null)
 		return log_id_cached(std::string());
 	if (!ID::is_static(str))
-		return log_id_cached(stringf("$twine$%zu", (size_t)str.untag()));
+		return log_id_cached(stringf("$twine$%zu", str.untag().value));
 	return log_id_cached(RTLIL::unescape_id(ID::str(str)));
 }
 

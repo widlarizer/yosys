@@ -34,19 +34,19 @@ YOSYS_NAMESPACE_BEGIN
 
 static std::string twine_handle(IdString ref)
 {
-	return stringf("%s@%zu", ref.isPublic() ? "$pub" : "$priv", (size_t)ref.untag());
+	return stringf("%s@%zu", ref.isPublic() ? "$pub" : "$priv", ref.untag().value);
 }
 
 static std::string twine_ref(const RTLIL::Design *design, IdString ref, DumpMode mode)
 {
-	if (mode == DumpMode::Readable || ref.untag() < STATIC_TWINE_END)
+	if (mode == DumpMode::Readable || ID::is_static(ref))
 		return design->twines.str(ref);
 	return twine_handle(ref);
 }
 
 static std::string twine_cmt(const RTLIL::Design *design, IdString ref, DumpMode mode)
 {
-	if (mode != DumpMode::Replayable || ref.untag() < STATIC_TWINE_END)
+	if (mode != DumpMode::Replayable || ID::is_static(ref))
 		return "";
 	return stringf("  # %s", design->twines.str(ref).c_str());
 }
@@ -141,16 +141,16 @@ void RTLIL_BACKEND::dump_twines(std::ostream &f, const RTLIL::Design *design)
 	f << stringf("twines\n");
 	std::vector<IdString> ids;
 	for (size_t idx = 0; idx < design->twines.backing.size(); ++idx)
-		ids.push_back(STATIC_TWINE_END + idx);
+		ids.push_back(IdString(STATIC_TWINE_END + idx));
 	std::sort(ids.begin(), ids.end());
 	for (IdString id : ids) {
 		const Twine &n = design->twines[id];
 		if (n.is_leaf()) {
-			f << stringf("  leaf %zu ", id);
+			f << stringf("  leaf %zu ", id.value);
 			dump_const(f, RTLIL::Const(n.leaf()));
 			f << stringf("\n");
 		} else if (n.is_suffix()) {
-			f << stringf("  suffix %zu %zu ", id, n.suffix().prefix);
+			f << stringf("  suffix %zu %zu ", id.value, n.suffix().prefix.value);
 			dump_const(f, RTLIL::Const(n.suffix().tail));
 			f << stringf("\n");
 		}
@@ -197,7 +197,7 @@ void RTLIL_BACKEND::dump_sigchunk(std::ostream &f, const RTLIL::SigChunk &chunk,
 		dump_const(f, chunk.data, chunk.width, chunk.offset, autoint);
 	} else {
 		IdString wref = chunk.wire->name.ref();
-		std::string name = (mode == DumpMode::Readable || wref.untag() < STATIC_TWINE_END)
+		std::string name = (mode == DumpMode::Readable || ID::is_static(wref))
 			? chunk.wire->name.str() : twine_handle(wref);
 		if (chunk.width == chunk.wire->width && chunk.offset == 0)
 			f << name;

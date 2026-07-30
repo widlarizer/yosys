@@ -74,8 +74,7 @@ TEST(CellTypesTest, basic)
 
 	TwinePool empty_pool;
 	for (size_t i = 0; i < static_cast<size_t>(STATIC_TWINE_END); i++) {
-		IdString type;
-		type = i;
+		IdString type(i);
 		EXPECT_EQ(older.cell_known(type), newer.cell_known(type));
 		if (older.cell_evaluable(type) != newer.cell_evaluable(type))
 			std::cout << empty_pool.unescaped_str(type) << "\n";

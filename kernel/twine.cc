@@ -11,7 +11,7 @@ IdString twine_populate(std::string name) {
 	log_assert(name[0] == '\\');
 	name = name.substr(1);
 	TwinePool::globals_.push_back(Twine::Leaf{std::move(name)});
-	return TwinePool::globals_.size() - 1;
+	return IdString(TwinePool::globals_.size() - 1);
 }
 void twine_prepopulate() {
 	if (TwinePool::globals_.size() == STATIC_TWINE_END)

@@ -151,13 +151,13 @@ struct ShowWorker
 	std::string findColor(IdString member_ref)
 	{
 		for (auto &s : color_selections)
-			if (member_ref && s.second.selected_member(module->name, member_ref)) {
+			if (member_ref != Twine::Null && s.second.selected_member(module->name, member_ref)) {
 				return stringf("color=\"%s\", fontcolor=\"%s\"", s.first, s.first);
 			}
 
 		RTLIL::Const colorattr_value;
-		RTLIL::Cell *cell = member_ref ? module->cell(member_ref) : nullptr;
-		RTLIL::Wire *wire = member_ref ? module->wire(member_ref) : nullptr;
+		RTLIL::Cell *cell = member_ref != Twine::Null ? module->cell(member_ref) : nullptr;
+		RTLIL::Wire *wire = member_ref != Twine::Null ? module->wire(member_ref) : nullptr;
 
 		if (cell && cell->attributes.count(colorattr))
 			colorattr_value = cell->attributes.at(colorattr);
@@ -178,7 +178,7 @@ struct ShowWorker
 	{
 		IdString member_ref = search.find(member_name);
 		for (auto &s : label_selections)
-			if (member_ref && s.second.selected_member(module->name, member_ref))
+			if (member_ref != Twine::Null && s.second.selected_member(module->name, member_ref))
 				return escape(s.first);
 		return escape(member_name, true);
 	}

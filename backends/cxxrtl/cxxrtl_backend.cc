@@ -214,7 +214,7 @@ bool is_ff_cell(RTLIL::IdString type)
 
 bool is_internal_cell(RTLIL::IdString type)
 {
-	return !type.isPublic() && type.untag().value < STATIC_TWINE_END;
+	return !type.isPublic() && ID::is_static(type);
 }
 
 bool is_effectful_cell(RTLIL::IdString type)

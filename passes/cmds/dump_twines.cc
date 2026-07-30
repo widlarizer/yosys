@@ -42,15 +42,15 @@ struct DumpTwinesPass : public Pass {
 		const TwinePool &pool = design->twines;
 		log("twine pool: %zu local nodes\n", pool.size());
 		for (size_t idx = 0; idx < pool.backing.size(); ++idx) {
-			IdString id = STATIC_TWINE_END + idx;
+			IdString id(STATIC_TWINE_END + idx);
 			const Twine &n = pool.backing[idx];
 			if (n.is_leaf()) {
-				log("  @%zu leaf \"%s\"", (size_t)id, n.leaf().c_str());
+				log("  @%zu leaf \"%s\"", id.value, n.leaf().c_str());
 			} else if (n.is_suffix()) {
-				log("  @%zu suffix @%zu + \"%s\"", (size_t)id,
-						(size_t)n.suffix().prefix, n.suffix().tail.c_str());
+				log("  @%zu suffix @%zu + \"%s\"", id.value,
+						n.suffix().prefix.value, n.suffix().tail.c_str());
 			} else {
-				log("  @%zu dead", (size_t)id);
+				log("  @%zu dead", id.value);
 			}
 			if (flat)
 				log(" -> \"%s\"", pool.str(id).c_str());

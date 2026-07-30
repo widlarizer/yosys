@@ -27,19 +27,15 @@ struct IdString {
 	static constexpr size_t kNull      = ~size_t{0};
 
 	constexpr IdString() : value(kNull) {}
-	constexpr IdString(size_t val) : value(val) {}
-	constexpr operator size_t() const { return value; }
+	explicit constexpr IdString(size_t val) : value(val) {}
+
+	constexpr bool operator==(const IdString&) const = default;
+	constexpr auto operator<=>(const IdString&) const = default;
 
 	template <typename... Args>
 	constexpr bool in(const Args&... args) const {
 		return ((*this == args) || ...);
 	}
-
-	constexpr IdString operator|(IdString rhs) const { return IdString(value | rhs.value); }
-	constexpr IdString operator&(IdString rhs) const { return IdString(value & rhs.value); }
-	constexpr IdString operator~() const { return IdString(~value); }
-	constexpr IdString& operator++() { ++value; return *this; }
-	constexpr IdString  operator++(int) { return IdString(value++); }
 
 	// A ref is "empty" when it names nothing at all.
 	constexpr bool empty() const { return value == kNull; }
@@ -483,7 +479,7 @@ struct TwinePool : HashConsPool<TwinePool, Twine, IdString> {
 
 		bool is_public = ref.isPublic();
 		IdString untagged = ref.untag();
-		if (untagged < STATIC_TWINE_END)
+		if (ID::is_static(untagged))
 			return ref;
 		const Twine& t = src[untagged];
 		if (t.is_leaf())
@@ -496,8 +492,8 @@ struct TwinePool : HashConsPool<TwinePool, Twine, IdString> {
 	void dump(std::ostream& os = std::cout) const {
 		os << "--- TwinePool Dump (" << backing.size() << " nodes) ---\n";
 		for (size_t idx = 0; idx < backing.size(); ++idx) {
-			IdString ref = STATIC_TWINE_END + idx;
-			os << ref << " -> ";
+			IdString ref(STATIC_TWINE_END + idx);
+			os << ref.value << " -> ";
 			dump(ref, os);
 			os << '\n';
 		}
@@ -775,12 +771,12 @@ struct TwineSearch {
 	const TwinePool* pool;
 	std::unordered_set<IdString, DeepTwineHash, DeepTwineEq> index;
 	TwineSearch(const TwinePool* pool) : pool(pool), index(0, DeepTwineHash{pool}, DeepTwineEq{pool}) {
-		for (IdString ref = 0; ref < STATIC_TWINE_END; ref++)
-			index.insert(ref);
+		for (size_t idx = 0; idx < STATIC_TWINE_END; idx++)
+			index.insert(IdString(idx));
 		for (size_t idx = 0; idx < pool->backing.size(); ++idx) {
 			if (pool->backing[idx].is_dead())
 				continue;
-			index.insert(STATIC_TWINE_END + idx);
+			index.insert(IdString(STATIC_TWINE_END + idx));
 		}
 	}
 	// Keep a hoisted search current after adding a ref to the pool, so the
