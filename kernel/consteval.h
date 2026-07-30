@@ -49,10 +49,10 @@ struct ConstEval
 		ct.static_cell_types = StaticCellTypes::Compat::nomem_noff;
 
 		for (auto &it : module->cells_) {
-			if (!ct.cell_known(it.second->type_impl))
+			if (!ct.cell_known(it.second->type))
 				continue;
 			for (auto &it2 : it.second->connections())
-				if (ct.cell_output(it.second->type_impl, it2.first))
+				if (ct.cell_output(it.second->type, it2.first))
 					sig2driver.insert(assign_map(it2.second), it.second);
 		}
 	}

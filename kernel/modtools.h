@@ -321,7 +321,7 @@ struct ModIndex : public RTLIL::Monitor
 				log("  PRIMARY OUTPUT\n");
 			for (auto &port : it.second.ports)
 				log("  PORT: %s.%s[%d] (%s)\n", port.cell,
-						module->design->twines.str(port.port), port.offset, port.cell->module->design->twines.unescaped_str(port.cell->type_impl));
+						module->design->twines.str(port.port), port.offset, port.cell->module->design->twines.unescaped_str(port.cell->type));
 		}
 	}
 };

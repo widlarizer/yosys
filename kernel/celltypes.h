@@ -118,8 +118,6 @@ struct CellTypes
 		setup_type(ID($future_ff), {ID::A}, {ID::Y});
 		setup_type(ID($scopeinfo), {}, {});
 		setup_type(ID($input_port), {}, {ID::Y});
-		setup_type(ID($output_port), {ID::A}, {});
-		setup_type(ID($public), {ID::A}, {});
 		setup_type(ID($connect), {ID::A, ID::B}, {});
 	}
 
@@ -520,7 +518,7 @@ struct CellTypes
 		bool signed_a = cell->parameters.count(ID::A_SIGNED) > 0 && cell->parameters[ID::A_SIGNED].as_bool();
 		bool signed_b = cell->parameters.count(ID::B_SIGNED) > 0 && cell->parameters[ID::B_SIGNED].as_bool();
 		int result_len = cell->parameters.count(ID::Y_WIDTH) > 0 ? cell->parameters[ID::Y_WIDTH].as_int() : -1;
-		return eval(cell->type_impl, arg1, arg2, signed_a, signed_b, result_len, errp);
+		return eval(cell->type, arg1, arg2, signed_a, signed_b, result_len, errp);
 	}
 
 	// Consider using the ConstEval struct instead if you need named ports and/or multiple outputs

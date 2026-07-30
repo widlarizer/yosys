@@ -139,12 +139,12 @@ unsigned int CellCosts::get(RTLIL::Cell *cell)
 {
 
 	// simple 1-bit cells
-	if (cmos_gate_cost().count(cell->type_impl))
+	if (cmos_gate_cost().count(cell->type))
 		return 1;
 
-	if (design_ && design_->module(cell->type_impl) && cell->parameters.empty()) {
+	if (design_ && design_->module(cell->type) && cell->parameters.empty()) {
 		log_debug("%s is a module, recurse\n", cell->name);
-		return get(design_->module(cell->type_impl));
+		return get(design_->module(cell->type));
 	} else if (cell->is_builtin_ff()) {
 		log_assert(cell->hasPort(ID::Q) && "Weird flip flop");
 		log_debug("%s is ff\n", cell->name);

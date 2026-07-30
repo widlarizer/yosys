@@ -175,14 +175,14 @@ struct ClkbufmapPass : public Pass {
 			for (auto cell : module->cells())
 			for (auto port : cell->connections())
 			for (int i = 0; i < port.second.size(); i++)
-				if (sink_ports.count(make_pair(cell->type_impl, make_pair(port.first, i))))
+				if (sink_ports.count(make_pair(cell->type.ref(), make_pair(port.first, i))))
 					sink_wire_bits.insert(sigmap(port.second[i]));
 
 			// Second, collect ones that already have a clock buffer.
 			for (auto cell : module->cells())
 			for (auto port : cell->connections())
 			for (int i = 0; i < port.second.size(); i++)
-				if (buf_ports.count(make_pair(cell->type_impl, make_pair(port.first, i))))
+				if (buf_ports.count(make_pair(cell->type.ref(), make_pair(port.first, i))))
 					buf_wire_bits.insert(sigmap(port.second[i]));
 
 			// Third, propagate tags through inverters.
@@ -192,7 +192,7 @@ struct ClkbufmapPass : public Pass {
 				for (auto cell : module->cells())
 				for (auto port : cell->connections())
 				for (int i = 0; i < port.second.size(); i++) {
-					auto it = inv_ports_out.find(make_pair(cell->type_impl, make_pair(port.first, i)));
+					auto it = inv_ports_out.find(make_pair(cell->type.ref(), make_pair(port.first, i)));
 					auto bit = sigmap(port.second[i]);
 					// If output of an inverter is connected to a sink, mark it as buffered,
 					// and request a buffer on the inverter's input instead.
@@ -204,7 +204,7 @@ struct ClkbufmapPass : public Pass {
 					}
 					// If input of an inverter is marked as already-buffered,
 					// mark its output already-buffered as well.
-					auto it2 = inv_ports_in.find(make_pair(cell->type_impl, make_pair(port.first, i)));
+					auto it2 = inv_ports_in.find(make_pair(cell->type.ref(), make_pair(port.first, i)));
 					if (it2 != inv_ports_in.end() && buf_wire_bits.count(bit)) {
 						auto other_bit = sigmap(cell->getPort(it2->second.first)[it2->second.second]);
 						if (!buf_wire_bits.count(other_bit)) {
