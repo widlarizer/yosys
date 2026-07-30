@@ -95,7 +95,7 @@ struct Async2syncPass : public Pass {
 
 					if (trg_width == 0) {
 						if (initstate == State::S0)
-							initstate = module->Initstate(module->design->twines.add(NEW_ID));
+							initstate = module->Initstate(NEW_ID);
 
 						SigBit sig_en = cell->getPort(ID::EN);
 						cell->setPort(ID::EN, module->And(NEW_ID, sig_en, initstate));

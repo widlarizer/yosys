@@ -82,7 +82,7 @@ struct Slice {
 };
 
 void emit_mux_anyseq(Module* mod, const SigSpec& mux_input, const SigSpec& mux_output, EnableLogic enable) {
-	auto anyseq = mod->Anyseq(mod->design->twines.add(NEW_ID), mux_input.size());
+	auto anyseq = mod->Anyseq(NEW_ID, mux_input.size());
 	if (enable.bit == (enable.pol ? State::S1 : State::S0)) {
 		mod->connect(mux_output, anyseq);
 	}
@@ -502,7 +502,7 @@ struct AbstractPass : public Pass {
 						enable_logic = { enable_wire, enable == Enable::ActiveHigh };
 					} break;
 					case Enable::Initstates: {
-						SigBit in_init_states = mod->Initstate(mod->design->twines.add(NEW_ID));
+						SigBit in_init_states = mod->Initstate(NEW_ID);
 						for (int i = 1; i < initstates; i++) {
 							Wire *in_init_states_q = mod->addWire(NEW_ID);
 							mod->addFf(NEW_ID, in_init_states, in_init_states_q);

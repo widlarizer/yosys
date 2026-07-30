@@ -15,7 +15,7 @@ protected:
 
 	void SetUp() override {
 		d = new Design;
-		m = d->addModule(d->twines.add(std::string{"$test"}));
+		m = d->addModule("$test");
 	}
 
 	void TearDown() override {
@@ -26,7 +26,7 @@ protected:
 	std::vector<Wire*> createWires(int count, int width = 4) {
 		std::vector<Wire*> wires;
 		for (int i = 0; i < count; i++) {
-			Wire* w = m->addWire(d->twines.add(std::string{stringf("$w%d", i)}), width);
+			Wire* w = m->addWire(stringf("$w%d", i), width);
 			wires.push_back(w);
 		}
 		return wires;

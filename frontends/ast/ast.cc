@@ -1394,7 +1394,7 @@ AST_INTERNAL::process_and_replace_module(RTLIL::Design *design,
 		 << counter;
 	++counter;
 
-	design->rename(old_module, design->twines.add(new_name.str()));
+	design->rename(old_module, new_name.str());
 	old_module->set_bool_attribute(ID::to_delete);
 
 	// Check if the module was the top module. If it was, we need to remove

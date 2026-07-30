@@ -15,11 +15,11 @@ protected:
 
 	void SetUp() override {
 		design = new RTLIL::Design;
-		module = design->addModule(design->twines.add(std::string{"\\test_module"}));
-		wire_a = module->addWire(design->twines.add(std::string{"\\a"}));
-		wire_b = module->addWire(design->twines.add(std::string{"\\b"}));
-		wire_c = module->addWire(design->twines.add(std::string{"\\c"}));
-		bus = module->addWire(design->twines.add(std::string{"\\bus"}), 4);
+		module = design->addModule("\\test_module");
+		wire_a = module->addWire("\\a");
+		wire_b = module->addWire("\\b");
+		wire_c = module->addWire("\\c");
+		bus = module->addWire("\\bus", 4);
 	}
 
 	void TearDown() override {

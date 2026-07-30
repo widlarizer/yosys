@@ -25,7 +25,7 @@ PRIVATE_NAMESPACE_BEGIN
 
 static IdString uniq(RTLIL::Module *module, std::string name)
 {
-	return module->uniquify(module->design->twines.add(std::move(name)));
+	return module->uniquify(std::move(name));
 }
 
 RTLIL::Wire *makexorbuffer(RTLIL::Module *module, SigBit inwire, const char *cellname)

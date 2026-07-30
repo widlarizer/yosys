@@ -198,7 +198,7 @@ void parse_blif(RTLIL::Design *design, std::istream &f, IdString dff_name, bool 
 					int width = wp.second.first;
 					bool isinput = wp.second.second;
 
-					RTLIL::Wire *wire = module->addWire(design->twines.add(std::string{design->twines.str(name)}), width);
+					RTLIL::Wire *wire = module->addWire(name, width);
 					wire->port_input = isinput;
 					wire->port_output = !isinput;
 
@@ -239,13 +239,13 @@ void parse_blif(RTLIL::Design *design, std::istream &f, IdString dff_name, bool 
 					Wire *undef_wire = module->wire(ID::lookup("$undef"));
 
 					if (true_wire != nullptr)
-						module->rename(true_wire, design->twines.add(std::string{stringf("$true$%d", ++blif_maxnum)}));
+						module->rename(true_wire, stringf("$true$%d", ++blif_maxnum));
 
 					if (false_wire != nullptr)
-						module->rename(false_wire, design->twines.add(std::string{stringf("$false$%d", ++blif_maxnum)}));
+						module->rename(false_wire, stringf("$false$%d", ++blif_maxnum));
 
 					if (undef_wire != nullptr)
-						module->rename(undef_wire, design->twines.add(std::string{stringf("$undef$%d", ++blif_maxnum)}));
+						module->rename(undef_wire, stringf("$undef$%d", ++blif_maxnum));
 
 					autoidx.ensure_at_least(blif_maxnum+1);
 					blif_maxnum = 0;
@@ -309,7 +309,7 @@ void parse_blif(RTLIL::Design *design, std::istream &f, IdString dff_name, bool 
 					goto error_with_reason;
 				}
 
-				module->rename(lastcell, design->twines.add(std::string{RTLIL::escape_id(p)}));
+				module->rename(lastcell, RTLIL::escape_id(p));
 				continue;
 			}
 

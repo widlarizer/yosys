@@ -147,7 +147,7 @@ void prep_hier(RTLIL::Design *design, bool dff_mode)
 	if (r.second)
 		r.first->second = new Design;
 	Design *unmap_design = r.first->second;
-	auto to_unmap = [&](IdString t) { return unmap_design->twines.add(std::string{design->twines.str(t)}); };
+	auto to_unmap = [&](IdString t) { return unmap_design->twines.copy_from(design->twines, t); };
 
 	// Keep track of derived versions of modules that we haven't used, to prevent these being used for unwanted techmaps later on.
 	pool<IdString> unused_derived;
@@ -271,8 +271,8 @@ void prep_bypass(RTLIL::Design *design)
 	if (r.second)
 		r.first->second = new Design;
 	Design *unmap_design = r.first->second;
-	auto to_map = [&](IdString t) { return map_design->twines.add(std::string{design->twines.str(t)}); };
-	auto to_unmap = [&](IdString t) { return unmap_design->twines.add(std::string{design->twines.str(t)}); };
+	auto to_map = [&](IdString t) { return map_design->twines.copy_from(design->twines, t); };
+	auto to_unmap = [&](IdString t) { return unmap_design->twines.copy_from(design->twines, t); };
 
 	pool<IdString> processed;
 	for (auto module : design->selected_modules())
@@ -524,7 +524,7 @@ void prep_dff_submod(RTLIL::Design *design)
 void prep_dff_unmap(RTLIL::Design *design)
 {
 	Design *unmap_design = saved_designs.at("$abc9_unmap");
-	auto to_unmap = [&](IdString t) { return unmap_design->twines.add(std::string{design->twines.str(t)}); };
+	auto to_unmap = [&](IdString t) { return unmap_design->twines.copy_from(design->twines, t); };
 
 	for (auto module : design->modules()) {
 		if (!module->get_bool_attribute(ID::abc9_flop) || module->get_bool_attribute(ID::abc9_box))
@@ -869,7 +869,7 @@ void prep_xaiger(RTLIL::Module *module, bool dff)
 		r.first->second = new Design;
 	RTLIL::Design *holes_design = r.first->second;
 	log_assert(holes_design);
-	auto to_holes = [&](IdString t) { return holes_design->twines.add(std::string{design->twines.str(t)}); };
+	auto to_holes = [&](IdString t) { return holes_design->twines.copy_from(design->twines, t); };
 	RTLIL::Module *holes_module = holes_design->addModule(to_holes(module->name));
 	log_assert(holes_module);
 

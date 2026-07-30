@@ -196,8 +196,8 @@ static RTLIL::SigSpec create_tristate(RTLIL::Module *module, RTLIL::SigSpec func
 
 static void create_latch_ff_wires(RTLIL::Module *module, const LibertyAst *node)
 {
-	module->addWire(module->design->twines.add(std::string{RTLIL::escape_id(node->args.at(0))}));
-	module->addWire(module->design->twines.add(std::string{RTLIL::escape_id(node->args.at(1))}));
+	module->addWire(RTLIL::escape_id(node->args.at(0)));
+	module->addWire(RTLIL::escape_id(node->args.at(1)));
 }
 
 static std::pair<RTLIL::SigSpec, RTLIL::SigSpec> find_latch_ff_wires(RTLIL::Module *module, const LibertyAst *node)
@@ -647,7 +647,7 @@ struct LibertyFrontend : public Frontend {
 						}
 					}
 					if (!flag_lib || dir->value != "internal")
-						module->addWire(module->design->twines.add(std::string{RTLIL::escape_id(node->args.at(0))}));
+						module->addWire(RTLIL::escape_id(node->args.at(0)));
 				}
 
 				if (node->id == "bus" && node->args.size() == 1)
@@ -687,7 +687,7 @@ struct LibertyFrontend : public Frontend {
 					int bus_type_offset = std::get<1>(type_map.at(bus_type_node->value));
 					bool bus_type_upto = std::get<2>(type_map.at(bus_type_node->value));
 
-					Wire *wire = module->addWire(module->design->twines.add(std::string{RTLIL::escape_id(node->args.at(0))}), bus_type_width);
+					Wire *wire = module->addWire(RTLIL::escape_id(node->args.at(0)), bus_type_width);
 					wire->start_offset = bus_type_offset;
 					wire->upto = bus_type_upto;
 

@@ -119,7 +119,7 @@ static void run_ice40_opts(Module *module)
 				optimized_co.insert(sigmap(cell->getPort(ID::CO)[0]));
 				auto it = cell->attributes.find(module->design->twines.add(std::string("\\SB_LUT4.name")));
 				if (it != cell->attributes.end()) {
-					module->rename(cell, module->design->twines.add(std::string{it->second.decode_string()}));
+					module->rename(cell, it->second.decode_string());
 					decltype(Cell::attributes) new_attr;
 					TwinePool &twines = module->design->twines;
 					IdString lut_name_attr = twines.add(std::string("\\SB_LUT4.name"));

@@ -343,7 +343,7 @@ RTLIL::Wire* AigerReader::createWireIfNotExists(RTLIL::Module *module, unsigned 
 		return it->second;
 	std::string wire_name = stringf("$aiger%d$%d%s", aiger_autoidx, variable, invert ? "b" : "");
 	log_debug2("Creating %s\n", wire_name);
-	RTLIL::Wire *wire = module->addWire(module->design->twines.add(std::string(wire_name)));
+	RTLIL::Wire *wire = module->addWire(wire_name);
 	wire->port_input = wire->port_output = false;
 	aiger_wires[literal] = wire;
 	if (!invert) return wire;
@@ -355,7 +355,7 @@ RTLIL::Wire* AigerReader::createWireIfNotExists(RTLIL::Module *module, unsigned 
 	else {
 		std::string wire_inv_name = stringf("$aiger%d$%d", aiger_autoidx, variable);
 		log_debug2("Creating %s\n", wire_inv_name);
-		wire_inv = module->addWire(module->design->twines.add(std::move(wire_inv_name)));
+		wire_inv = module->addWire(std::move(wire_inv_name));
 		wire_inv->port_input = wire_inv->port_output = false;
 		aiger_wires[base_literal] = wire_inv;
 	}
@@ -485,7 +485,7 @@ void AigerReader::parse_xaiger()
 				mapping_cell.type = design->twines.add(std::string{RTLIL::escape_id(cellName)});
 				mapping_cell.out = design->twines.add(std::string{RTLIL::escape_id(outPinName)});
 
-				auto module = design->addModule(design->twines.add(std::string{RTLIL::escape_id(cellName)}));
+				auto module = design->addModule(RTLIL::escape_id(cellName));
 				module->set_bool_attribute(ID::blackbox);
 				module->addWire(RTLIL::escape_id(outPinName))->port_output = true;
 
@@ -909,9 +909,9 @@ void AigerReader::post_process()
 		if (cell->type != ID($lut)) continue;
 		auto y_port = cell->getPort(ID::Y).as_bit();
 		if (y_port.wire->width == 1)
-			module->rename(cell, design->twines.add(std::string{stringf("$lut%s", y_port.wire->name.str().c_str())}));
+			module->rename(cell, stringf("$lut%s", y_port.wire->name.str().c_str()));
 		else
-			module->rename(cell, design->twines.add(std::string{stringf("$lut%s[%d]", y_port.wire->name.str().c_str(), y_port.offset)}));
+			module->rename(cell, stringf("$lut%s[%d]", y_port.wire->name.str().c_str(), y_port.offset));
 	}
 }
 

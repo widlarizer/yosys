@@ -1116,7 +1116,7 @@ struct XAigerWriter : AigerWriter {
 		for (auto [cursor, box, def] : opaque_boxes)
 			append_opaque_box_ports(box, cursor, false);
 
-		holes_module = design->addModule(design->twines.add(NEW_ID));
+		holes_module = design->addModule(NEW_ID);
 		std::vector<RTLIL::Wire *> holes_pis;
 		int boxes_ci_num = 0, boxes_co_num = 0;
 

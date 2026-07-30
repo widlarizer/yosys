@@ -140,7 +140,7 @@ struct Ice40WrapCarryPass : public Pass {
 					TwinePool &twines = module->design->twines;
 					IdString lut_name_attr = twines.add(std::string("\\SB_LUT4.name"));
 					auto lut_name = cell->attributes.at(lut_name_attr, Const(twines.str(twines.add(NEW_ID)))).decode_string();
-					auto lut = module->addCell(module->design->twines.add(std::string{lut_name}), ID($lut));
+					auto lut = module->addCell(lut_name, ID($lut));
 					lut->setParam(ID::WIDTH, 4);
 					lut->setParam(ID::LUT, cell->getParam(ID::LUT));
 					auto I3 = cell->getPort(cell->getParam(ID(I3_IS_CI)).as_bool() ? ID::CI : ID(I3));

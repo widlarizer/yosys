@@ -104,10 +104,10 @@ TEST(TwinePublicityTest, GcKeepsTaggedRoots)
 TEST(TwinePublicityTest, WireNameMasquerade)
 {
 	RTLIL::Design design;
-	RTLIL::Module *mod = design.addModule(design.twines.add(std::string("\\top")));
+	RTLIL::Module *mod = design.addModule("\\top");
 
-	RTLIL::Wire *pub = mod->addWire(design.twines.add(std::string("\\sig")));
-	RTLIL::Wire *priv = mod->addWire(design.twines.add(std::string("$sig")));
+	RTLIL::Wire *pub = mod->addWire("\\sig");
+	RTLIL::Wire *priv = mod->addWire("$sig");
 
 	EXPECT_TRUE(pub->name.isPublic());
 	EXPECT_FALSE(priv->name.isPublic());

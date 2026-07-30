@@ -296,7 +296,7 @@ RTLIL::Cell *replace(RTLIL::Module *needle, RTLIL::Module *haystack, SubCircuit:
 	auto &tw = needle->design->twines;
 
 	// create new cell
-	RTLIL::Cell *cell = haystack->addCell(stringf("$extract$%s$%d", needle->name, autoidx++), haystack->design->twines.add(needle->name.str()));
+	RTLIL::Cell *cell = haystack->addCell(stringf("$extract$%s$%d", needle->name, autoidx++), haystack->design->twines.copy_from(tw, needle->name));
 
 	// create cell ports. Port names come from the needle (map) pool; translate
 	// them into the haystack pool so the new cell's ports are keyed by the same

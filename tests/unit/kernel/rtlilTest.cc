@@ -303,9 +303,9 @@ namespace RTLIL {
 
 	TEST_F(KernelRtlilTest, ModuleAddWireWidthLimit) {
 		std::unique_ptr<Design> design = std::make_unique<Design>();
-		Module *mod = design->addModule(design->twines.add(std::string{"$test_mod"}));
-		EXPECT_DEATH(mod->addWire(design->twines.add(std::string{"\\test"}), RTLIL::WIDTH_LIMIT), "");
-		EXPECT_NO_FATAL_FAILURE(mod->addWire(design->twines.add(std::string{"\\test2"}), RTLIL::WIDTH_LIMIT - 1));
+		Module *mod = design->addModule("$test_mod");
+		EXPECT_DEATH(mod->addWire("\\test", RTLIL::WIDTH_LIMIT), "");
+		EXPECT_NO_FATAL_FAILURE(mod->addWire("\\test2", RTLIL::WIDTH_LIMIT - 1));
 	}
 
 	TEST_F(KernelRtlilTest, ConstEqualStr) {
@@ -433,8 +433,8 @@ namespace RTLIL {
 
 	TEST_P(WireRtlVsHdlIndexConversionTest, WireRtlVsHdlIndexConversion) {
 		std::unique_ptr<Design> design = std::make_unique<Design>();
-		Module *mod = design->addModule(design->twines.add(std::string{"$test_mod"}));
-		Wire *wire = mod->addWire(design->twines.add(std::string{"\\test"}), 10);
+		Module *mod = design->addModule("$test_mod");
+		Wire *wire = mod->addWire("\\test", 10);
 
 		auto [upto, start_offset, width] = GetParam();
 

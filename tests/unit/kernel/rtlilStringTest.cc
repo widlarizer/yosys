@@ -10,8 +10,8 @@ namespace RTLIL {
 
 	TEST(RtlilStrTest, DesignToString) {
 		Design design;
-		Module *mod = design.addModule(design.twines.add(std::string{"\\my_module"}));
-		mod->addWire(design.twines.add(std::string{"\\my_wire"}), 1);
+		Module *mod = design.addModule("\\my_module");
+		mod->addWire("\\my_wire", 1);
 
 		std::string design_str = design.to_rtlil_str();
 
@@ -21,8 +21,8 @@ namespace RTLIL {
 
 	TEST(RtlilStrTest, ModuleToString) {
 		Design design;
-		Module *mod = design.addModule(design.twines.add(std::string{"\\test_mod"}));
-		Wire *wire = mod->addWire(design.twines.add(std::string{"\\clk"}), 1);
+		Module *mod = design.addModule("\\test_mod");
+		Wire *wire = mod->addWire("\\clk", 1);
 		wire->port_input = true;
 
 		std::string mod_str = mod->to_rtlil_str();
@@ -35,8 +35,8 @@ namespace RTLIL {
 
 	TEST(RtlilStrTest, WireToString) {
 		Design design;
-		Module *mod = design.addModule(design.twines.add(std::string{"\\m"}));
-		Wire *wire = mod->addWire(design.twines.add(std::string{"\\data"}), 8);
+		Module *mod = design.addModule("\\m");
+		Wire *wire = mod->addWire("\\data", 8);
 
 		std::string wire_str = wire->to_rtlil_str();
 
@@ -47,8 +47,8 @@ namespace RTLIL {
 
 	TEST(RtlilStrTest, CellToString) {
 		Design design;
-		Module *mod = design.addModule(design.twines.add(std::string{"\\m"}));
-		Cell *cell = mod->addCell(design.twines.add(std::string{"\\u1"}), design.twines.add(std::string{"\\my_cell_type"}));
+		Module *mod = design.addModule("\\m");
+		Cell *cell = mod->addCell("\\u1", design.twines.add(std::string{"\\my_cell_type"}));
 
 		std::string cell_str = cell->to_rtlil_str();
 
