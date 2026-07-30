@@ -591,11 +591,11 @@ struct RTLILFrontendWorker {
 		IdString ref;
 		switch (desc.kind) {
 		case TwineDesc::Leaf:
-			ref = design->twines.add_inner(Twine::Leaf{desc.text});
+			ref = design->twines.add_src_leaf(desc.text);
 			break;
 		case TwineDesc::Suffix:
-			ref = design->twines.add_inner(Twine::Suffix{
-					materialize_file_twine(desc.parent), desc.text});
+			ref = design->twines.add_src_suffix(
+					materialize_file_twine(desc.parent), desc.text);
 			break;
 		}
 		desc.materializing = false;

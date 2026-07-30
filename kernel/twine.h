@@ -457,6 +457,15 @@ struct TwinePool : HashConsPool<TwinePool, Twine, IdString> {
 
 	IdString add(std::string s) { return add_escaped(*this, std::move(s)); }
 
+	// Raw, untagged interning for content that is not a name and must not be
+	// run through the publicity rules: source locations and their prefixes.
+	IdString add_src_leaf(std::string content) {
+		return add_inner(Twine::Leaf{std::move(content)});
+	}
+	IdString add_src_suffix(IdString prefix, std::string tail) {
+		return add_inner(Twine::Suffix{prefix, std::move(tail)});
+	}
+
 	IdString copy_from(const TwinePool& src, IdString ref) {
 		if (ref == Twine::Null)
 			return ref;
@@ -485,6 +494,9 @@ struct TwinePool : HashConsPool<TwinePool, Twine, IdString> {
 	}
 	// Silly compat
 	std::string flat_string(IdString t) const { return str(t); }
+
+private:
+	using HashConsPool::add_inner;
 };
 
 inline size_t TwinePool::hash_node(const Twine& t) {
@@ -538,12 +550,12 @@ struct SrcPool : HashConsPool<SrcPool, Src, SrcRef> {
 	static void for_each_child(const Src&, F&&) {}
 
 	SrcRef add(const std::string &location) {
-		return intern({twines->add_inner(Twine::Leaf{location})});
+		return intern({twines->add_src_leaf(location)});
 	}
 
 	SrcRef add(const std::string &file, const std::string &tail) {
-		IdString prefix = twines->add_inner(Twine::Leaf{file});
-		return intern({twines->add_inner(Twine::Suffix{prefix, tail})});
+		IdString prefix = twines->add_src_leaf(file);
+		return intern({twines->add_src_suffix(prefix, tail)});
 	}
 
 	SrcRef merge(std::span<const SrcRef> refs) {
