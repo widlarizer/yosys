@@ -701,7 +701,7 @@ struct RTLIL::AttrObject
 	// static std::string strpool_attribute_to_str(const pool<string> &data);
 	// void set_strpool_attribute(IdString id, const pool<string> &data);
 	// void add_strpool_attribute(IdString id, const pool<string> &data);
-	// pool<string> get_strpool_attribute(IdString id) const;
+	pool<string> get_strpool_attribute(IdString id) const;
 
 	void set_hdlname_attribute(const vector<string> &hierarchy);
 	vector<string> get_hdlname_attribute() const;

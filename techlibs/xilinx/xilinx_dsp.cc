@@ -64,62 +64,18 @@ static Cell* addDsp(Module *module) {
 	return cell;
 }
 
-SigPool simd_signals(Module *module, SigMap* sigmap)
-{
-	SigPool simd_signals;
-	// Mark representatives of wires that have the attribute
-	for (auto wire : module->wires()) {
-		SigSpec reps = (*sigmap)(wire);
-		log_assert(reps.size() == wire->width);
-		for (int i = 0; i < reps.size(); i++) {
-			auto bit = reps[i];
-			auto src_bit = SigBit(wire, i);
-			if (src_bit.is_wire() && src_bit.wire->has_attribute(ID::use_dsp)) {
-				auto use_dsp_tokens = split_tokens(src_bit.wire->attributes.at(ID::use_dsp).decode_string(), "|");
-				if (std::find(use_dsp_tokens.begin(), use_dsp_tokens.end(), "simd") != use_dsp_tokens.end()) {
-					simd_signals.add(bit);
-				}
-			}
-		}
-	}
-	// Also mark all aliases of those representatives
-	for (auto wire : module->wires()) {
-		SigSpec reps = (*sigmap)(wire);
-		log_assert(reps.size() == wire->width);
-		for (int i = 0; i < reps.size(); i++) {
-			auto bit = reps[i];
-			auto src_bit = SigBit(wire, i);
-			if (simd_signals.check(bit)) {
-				simd_signals.add(src_bit);
-			}
-		}
-	}
-	// This seems silly, but that's generalized RTLIL for you!
-	return simd_signals;
-}
-
-bool is_allowed(SigSpec& sig, SigPool& allowed_bits)
-{
-	for (auto bit : sig.bits()) {
-		if (!allowed_bits.check(bit)) {
-			return false;
-		}
-	}
-	return true;
-}
-
-void xilinx_simd_pack(Module *module, SigMap* sigmap, const std::vector<Cell*> &selected_cells)
+void xilinx_simd_pack(Module *module, const std::vector<Cell*> &selected_cells)
 {
 	std::deque<Cell*> simd12_add, simd12_sub;
 	std::deque<Cell*> simd24_add, simd24_sub;
-
-	SigPool simds = simd_signals(module, sigmap);
 
 	for (auto cell : selected_cells) {
 		if (!cell->type.in(ID($add), ID($sub)))
 			continue;
 		SigSpec Y = cell->getPort(ID::Y);
-		if (!is_allowed(Y, simds))
+		if (!Y.is_chunk())
+			continue;
+		if (!Y.as_chunk().wire->get_strpool_attribute(ID(use_dsp)).count("simd"))
 			continue;
 		if (GetSize(Y) > 25)
 			continue;
@@ -850,7 +806,7 @@ struct XilinxDspPass : public Pass {
 			//   (* use_dsp48="simd" *) into DSP48E1's using its
 			//   SIMD feature
 			if (family == "xc7")
-				xilinx_simd_pack(module, &sigmap, module->selected_cells());
+				xilinx_simd_pack(module, module->selected_cells());
 
 			// Match for all features ([ABDMP][12]?REG, pre-adder,
 			// post-adder, pattern detector, etc.) except for CREG

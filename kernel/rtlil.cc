@@ -978,14 +978,14 @@ pool<std::string> RTLIL::Design::src_leaves(const RTLIL::AttrObject *obj) const
 // 		set_strpool_attribute(id, union_data);
 // }
 
-// pool<string> RTLIL::AttrObject::get_strpool_attribute(IdString id) const
-// {
-// 	pool<string> data;
-// 	if (attributes.count(id) != 0)
-// 		for (auto s : split_tokens(get_string_attribute(id), "|"))
-// 			data.insert(s);
-// 	return data;
-// }
+pool<string> RTLIL::AttrObject::get_strpool_attribute(IdString id) const
+{
+	pool<string> data;
+	if (attributes.count(id) != 0)
+		for (auto s : split_tokens(get_string_attribute(id), "|"))
+			data.insert(s);
+	return data;
+}
 
 void RTLIL::AttrObject::set_hdlname_attribute(const vector<string> &hierarchy)
 {
