@@ -6,15 +6,11 @@
 #include <cassert>
 
 #include <algorithm>
-#include <cstdint>
 #include <deque>
-#include <limits>
 #include <span>
-#include <sstream>
 #include <string>
 #include <string_view>
 #include <unordered_set>
-#include <list>
 #include <variant>
 #include <vector>
 
@@ -330,8 +326,6 @@ struct HashConsPool {
 
 	size_t size() const { return backing.size() - free_list.size(); }
 
-	// Erases every backing node not reachable from `roots`; refs to
-	// surviving nodes stay valid. Returns the number of erased nodes.
 	template<typename Roots>
 	size_t gc(const Roots& roots) {
 		pool<Ref> live;
@@ -369,7 +363,6 @@ struct TwinePool : HashConsPool<TwinePool, Twine, IdString> {
 	static const Twine& static_node(size_t idx) { return globals_[idx]; }
 	static IdString untag(IdString ref) { return twine_untag(ref); }
 
-	// Nodes store content only: strip the publicity tag off the prefix.
 	static void canonicalize(Twine& t) {
 		if (auto *sfx = std::get_if<Twine::Suffix>(&t.data))
 			sfx->prefix = twine_untag(sfx->prefix);
@@ -432,23 +425,21 @@ struct TwinePool : HashConsPool<TwinePool, Twine, IdString> {
 			}
 		}, (*this)[ref].data);
 	}
-	// Escaped form: leading '\' for public name handles, content otherwise.
+	// Publicity bit provides escaping
 	std::string str(IdString ref) const {
 		std::string out;
 		append_str(ref, out);
 		return out;
 	}
 
-	// Name content without the publicity escape.
+	// Publicity bit ignored
 	std::string unescaped_str(IdString ref) const {
 		return str(twine_untag(ref));
 	}
 
 	using HashConsPool::find;
 
-	// Escaped-name aware: strips a leading '\' and tags the result public,
-	// mirroring add(std::string), then resolves the content against the
-	// structural index. Returns Twine::Null if absent.
+	// Avoid. Parameter is expected to be escaped. For compatibility only
 	IdString find(const std::string &name) const {
 		bool is_public = !name.empty() && name[0] == '\\';
 		return find(Twine::Leaf{is_public ? name.substr(1) : name}).tag(is_public);
@@ -460,6 +451,7 @@ struct TwinePool : HashConsPool<TwinePool, Twine, IdString> {
 			return add_inner(Twine::Suffix{pref, std::move(ap->tail)});
 		}
 		bool is_public = false;
+		// Inherit publicity from prefix
 		if (auto *sfx = std::get_if<Twine::Suffix>(&t.data)) {
 			is_public = twine_is_public(sfx->prefix);
 		}
@@ -471,8 +463,7 @@ struct TwinePool : HashConsPool<TwinePool, Twine, IdString> {
 	IdString copy_from(const TwinePool& src, IdString ref) {
 		if (ref == Twine::Null)
 			return ref;
-		// Statics are shared across pools; preserve the handle's publicity
-		// tag across the copy in either case.
+
 		bool is_public = twine_is_public(ref);
 		IdString untagged = twine_untag(ref);
 		if (untagged < STATIC_TWINE_END)
@@ -500,24 +491,15 @@ struct TwinePool : HashConsPool<TwinePool, Twine, IdString> {
 };
 
 inline size_t TwinePool::hash_node(const Twine& t) {
-	// size_t h = std::hash<size_t>{}(t.data.index());
 	Hasher h;
 
 	std::visit([&h](const auto& val) {
 		using T = std::decay_t<decltype(val)>;
-
-		// auto combine = [&h](auto v) {
-		// 	h ^= v + 0x9e3779b9 + (h << 6) + (h >> 2);
-		// };
-
 		if constexpr (std::is_same_v<T, Twine::Leaf>) {
 			h.eat(val.s);
-			// combine(std::hash<std::string>{}(val));
 		} else if constexpr (std::is_same_v<T, Twine::Suffix>) {
 			h.eat(val.prefix);
 			h.eat(val.tail);
-			// combine(std::hash<IdString>{}(val.prefix));
-			// combine(std::hash<std::string>{}(val.tail));
 		}
 	}, t.data);
 
