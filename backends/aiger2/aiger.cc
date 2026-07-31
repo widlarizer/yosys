@@ -967,8 +967,16 @@ struct XAigerWriter : AigerWriter {
 	}
 
 	bool mapping_prep = false;
+	bool map_refs = false;
 	pool<Wire *> keep_wires;
 	std::ofstream map_file;
+
+	std::string map_sym(IdString name) const
+	{
+		if (map_refs)
+			return "#" + std::to_string((uint64_t)name.value);
+		return design->twines.str(name);
+	}
 
 	typedef std::pair<SigBit, HierCursor> HierBit;
 	std::vector<HierBit> pos;
@@ -999,7 +1007,7 @@ struct XAigerWriter : AigerWriter {
 				log_assert(cursor.is_top()); // TODO
 				driven_by_opaque_box.insert(bit);
 				map_file << "pi " << pis.size() - 1 << " " << bit.offset
-						<< " " << bit.wire->name.str().c_str() << "\n";
+						<< " " << map_sym(bit.wire->name) << "\n";
 			}
 		} else {
 			log_assert(!box_port);
@@ -1034,8 +1042,8 @@ struct XAigerWriter : AigerWriter {
 					if (map_file.is_open()) {
 						log_assert(cursor.is_top());
 						map_file << "pseudopo " << proper_pos_counter << " " << bitp
-							<< " " << box->name.str().c_str()
-							<< " " << design->twines.str(conn.first).c_str() << "\n";
+							<< " " << map_sym(box->name)
+							<< " " << map_sym(conn.first) << "\n";
 					}
 					proper_pos_counter++;
 					pos.push_back(std::make_pair(bit, cursor));
@@ -1139,7 +1147,7 @@ struct XAigerWriter : AigerWriter {
 
 			if (map_file.is_open()) {
 				log_assert(cursor.is_top());
-				map_file << "box " << box_seq << " " << box->name.str().c_str() << "\n";
+				map_file << "box " << box_seq << " " << map_sym(box->name) << "\n";
 			}
 			box_seq++;
 
@@ -1278,7 +1286,7 @@ struct XAigerWriter : AigerWriter {
 					// do emit a proper PO.
 					if (map_file.is_open() && !driven_by_opaque_box.count(SigBit(w, i))) {
 						map_file << "po " << proper_pos_counter << " " << i
-									<< " " << w->name.str().c_str() << "\n";
+									<< " " << map_sym(w->name) << "\n";
 					}
 					proper_pos_counter++;
 					pos.push_back(std::make_pair(SigBit(w, i), HierCursor{}));
@@ -1506,6 +1514,12 @@ struct XAiger2Backend : Backend {
 		log("        reintegrate a mapping\n");
 		log("        (conflicts with -flatten)\n");
 		log("\n");
+		log("    -map-refs\n");
+		log("        write the symbols in the -map2 file as opaque name references rather\n");
+		log("        than readable names, which 'read_xaiger2 -sc_mapping' can resolve.\n");
+		log("        Improves performance and memory usage.\n");
+		log("        These references are only valid within one run of yosys.\n");
+		log("\n");
 	}
 
 	void execute(std::ostream *&f, std::string filename, std::vector<std::string> args, Design *design) override
@@ -1525,6 +1539,8 @@ struct XAiger2Backend : Backend {
 				writer.mapping_prep = true;
 			else if (args[argidx] == "-map2" && argidx + 1 < args.size())
 				map_filename = args[++argidx];
+			else if (args[argidx] == "-map-refs")
+				writer.map_refs = true;
 			else
 				break;
 		}
@@ -1535,10 +1551,14 @@ struct XAiger2Backend : Backend {
 		if (!top || !design->selected_whole_module(top))
 			log_cmd_error("No top module selected\n");
 
+		if (writer.map_refs && map_filename.empty())
+			log_cmd_error("The '-map-refs' option requires '-map2'.\n");
 		if (!map_filename.empty()) {
 			writer.map_file.open(map_filename);
 			if (!writer.map_file)
 				log_cmd_error("Failed to open '%s' for writing\n", map_filename);
+			if (writer.map_refs)
+				writer.map_file << "refs " << (uint64_t)top->name.ref().value << "\n";
 		}
 
 		design->bufNormalize(true);

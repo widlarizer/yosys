@@ -37,6 +37,24 @@ std::string read_idstring(std::istream &f)
 	return RTLIL::escape_id(str);
 }
 
+IdString ref_from_token(Design *design, const std::string &tok)
+{
+	if (tok.size() < 2 || tok[0] != '#')
+		log_error("Bad map file: expected a name reference, got '%s'\n", tok.c_str());
+	IdString ref((size_t)std::stoull(tok.substr(1)));
+	size_t idx = ref.untag().value;
+	if (idx >= STATIC_TWINE_END &&
+			(idx - STATIC_TWINE_END >= design->twines.backing.size() ||
+			 design->twines.backing[idx - STATIC_TWINE_END].is_dead()))
+		log_error("Bad map file: name reference '%s' is out of range or dead\n", tok.c_str());
+	return ref;
+}
+
+IdString resolve_sym(Design *design, const TwineSearch *search, const std::string &tok)
+{
+	return search ? search->find(tok) : ref_from_token(design, tok);
+}
+
 struct Xaiger2Frontend : public Frontend {
 	Xaiger2Frontend() : Frontend("xaiger2", "(experimental) read XAIGER file")
 	{
@@ -84,15 +102,35 @@ struct Xaiger2Frontend : public Frontend {
 		if (module_name.empty())
 			log_error("A '-module_name' argument is required\n");
 
-		TwineSearch search(&design->twines);
-		Module *module = design->module(search.find(module_name));
-		if (!module)
-			log_error("Module '%s' not found\n", RTLIL::unescape_id(module_name));
-
 		std::ifstream map_file;
 		map_file.open(map_filename);
 		if (!map_file)
 			log_error("Failed to open map file '%s'\n", map_filename);
+
+		bool map_refs = false;
+		IdString module_ref = Twine::Null;
+		{
+			std::string tok;
+			if (map_file >> tok && tok == "refs") {
+				uint64_t modref = 0;
+				if (!(map_file >> modref))
+					log_error("Bad map file '%s': truncated 'refs' header\n", map_filename.c_str());
+				module_ref = IdString((size_t)modref);
+				map_refs = true;
+			} else {
+				map_file.clear();
+				map_file.seekg(0);
+			}
+		}
+
+		std::optional<TwineSearch> search;
+		if (!map_refs)
+			search.emplace(&design->twines);
+		const TwineSearch *searchp = map_refs ? nullptr : &*search;
+
+		Module *module = design->module(map_refs ? module_ref : searchp->find(module_name));
+		if (!module)
+			log_error("Module '%s' not found\n", RTLIL::unescape_id(module_name));
 
 		unsigned int M, I, L, O, A;
 		std::string header;
@@ -133,7 +171,7 @@ struct Xaiger2Frontend : public Frontend {
 				int lit = (2 * pi_idx) + 2;
 				if (lit < 0 || lit >= (int) bits.size())
 					log_error("Bad map file: primary input literal out of range\n");
-				Wire *w = module->wire(search.find(name));
+				Wire *w = module->wire(resolve_sym(design, searchp, name));
 				if (!w || woffset < 0 || woffset >= w->width)
 					log_error("Map file references non-existent signal bit %s[%d]\n",
 							  name.c_str(), woffset);
@@ -146,7 +184,8 @@ struct Xaiger2Frontend : public Frontend {
 				if (box_seq < 0)
 					log_error("Bad map file: box out of range\n");
 
-				Cell *box = module->cell(search.find(RTLIL::escape_id(name)));
+				Cell *box = module->cell(searchp ? searchp->find(RTLIL::escape_id(name))
+						: ref_from_token(design, name));
 				if (!box)
 					log_error("Map file references non-existent box %s\n",
 							  name.c_str());
@@ -412,7 +451,7 @@ struct Xaiger2Frontend : public Frontend {
 					log_error("Bad map file: primary output literal out of range\n");
 				if (bits[lit] == RTLIL::Sm)
 					log_error("Bad map file: primary output literal is a marker\n");
-				Wire *w = module->wire(search.find(name));
+				Wire *w = module->wire(resolve_sym(design, searchp, name));
 				if (!w || woffset < 0 || woffset >= w->width)
 					log_error("Map file references non-existent signal bit %s[%d]\n",
 							  name.c_str(), woffset);
@@ -432,8 +471,8 @@ struct Xaiger2Frontend : public Frontend {
 					log_error("Bad map file: pseudo primary output literal out of range\n");
 				if (bits[lit] == RTLIL::Sm)
 					log_error("Bad map file: pseudo primary output literal is a marker\n");
-				Cell *cell = module->cell(search.find(box_name));
-				auto box_port_ref = search.find(box_port);
+				Cell *cell = module->cell(resolve_sym(design, searchp, box_name));
+				auto box_port_ref = resolve_sym(design, searchp, box_port);
 				if (!cell || !cell->hasPort(box_port_ref))
 					log_error("Map file references non-existent box port %s/%s\n",
 							  box_name.c_str(), box_port.c_str());

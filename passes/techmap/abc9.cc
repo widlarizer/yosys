@@ -376,7 +376,7 @@ struct Abc9Pass : public ScriptPass
 				run("foreach module in selection");
 				run("    abc9_ops -write_lut <abc-temp-dir>/input.lut", "(skip if '-lut' or '-luts')");
 				run("    abc9_ops -write_box <abc-temp-dir>/input.box", "(skip if '-box')");
-				run("    write_xaiger -map <abc-temp-dir>/input.sym [-dff] <abc-temp-dir>/input.xaig");
+				run("    write_xaiger -map <abc-temp-dir>/input.sym -map-refs [-dff] <abc-temp-dir>/input.xaig");
 				run("    abc9_exe [options] -cwd <abc-temp-dir> -lut [<abc-temp-dir>/input.lut] -box [<abc-temp-dir>/input.box]");
 				run("    read_aiger -xaiger -module_name <module-name>$abc9 <abc-temp-dir>/output.aig");
 				run("    abc_ops_reintegrate -map <abc-temp-dir>/input.sym [-dff]");
@@ -410,7 +410,7 @@ struct Abc9Pass : public ScriptPass
 						run_nocheck(stringf("abc9_ops -write_lut %s/input.lut", tempdir_name));
 					if (box_file.empty())
 						run_nocheck(stringf("abc9_ops -write_box %s/input.box", tempdir_name));
-					run_nocheck(stringf("write_xaiger -map %s/input.sym %s %s/input.xaig", tempdir_name, dff_mode ? "-dff" : "", tempdir_name));
+					run_nocheck(stringf("write_xaiger -map %s/input.sym -map-refs %s %s/input.xaig", tempdir_name, dff_mode ? "-dff" : "", tempdir_name));
 
 					int num_outputs = active_design->scratchpad_get_int("write_xaiger.num_outputs");
 
