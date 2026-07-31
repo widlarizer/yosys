@@ -339,7 +339,7 @@ void emit_elaborated_extmodules(RTLIL::Design *design, std::ostream &f)
 		for (auto cell : module->cells())
 		{
 			// Is this cell a module instance?
-			bool cellIsModuleInstance = cell->type[0] != '$';
+			bool cellIsModuleInstance = cell->type.isPublic();
 
 			if (cellIsModuleInstance)
 			{

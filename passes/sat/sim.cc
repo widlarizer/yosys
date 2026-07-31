@@ -277,7 +277,7 @@ struct SimInstance
 				}
 			}
 
-			if ((shared->fst) && !(shared->hide_internal && wire->name[0] == '$')) {
+			if ((shared->fst) && !(shared->hide_internal && !wire->name.isPublic())) {
 				fstHandle id = shared->fst->getHandle(scope + "." + wire->name.unescape());
 				if (id==0 && wire->name.isPublic())
 					log_warning("Unable to find wire %s in input file.\n", (scope + "." + wire->name.unescape()));
@@ -1024,7 +1024,7 @@ struct SimInstance
 	{
 		for (auto wire : module->wires())
 		{
-			if (shared->hide_internal && wire->name[0] == '$')
+			if (shared->hide_internal && !wire->name.isPublic())
 				continue;
 
 			signal_database[wire] = {id, Const(), sigmap(wire)};

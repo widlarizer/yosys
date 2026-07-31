@@ -41,7 +41,7 @@ struct dff_map_bit_info_t {
 
 bool consider_wire(RTLIL::Wire *wire, std::map<RTLIL::IdString, dff_map_info_t> &dff_dq_map)
 {
-	if (wire->name[0] == '$' || dff_dq_map.count(wire->name))
+	if (!wire->name.isPublic() || dff_dq_map.count(wire->name))
 		return false;
 	if (wire->port_input)
 		return false;
@@ -50,9 +50,9 @@ bool consider_wire(RTLIL::Wire *wire, std::map<RTLIL::IdString, dff_map_info_t> 
 
 bool consider_cell(RTLIL::Design *design, std::set<RTLIL::IdString> &dff_cells, RTLIL::Cell *cell)
 {
-	if (cell->name[0] == '$' || dff_cells.count(cell->name))
+	if (!cell->name.isPublic() || dff_cells.count(cell->name))
 		return false;
-	if (cell->type[0] == '\\' && (design->module(cell->type) == nullptr))
+	if (cell->type.isPublic() && (design->module(cell->type) == nullptr))
 		return false;
 	return true;
 }

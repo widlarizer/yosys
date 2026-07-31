@@ -426,7 +426,7 @@ struct SetundefPass : public Pass {
 					{
 						for (auto wire : module->wires())
 						{
-							if (wire->name[0] == (wire_types ? '\\' : '$'))
+							if (wire->name.isPublic() == wire_types)
 								continue;
 
 							if (!wire->attributes.count(ID::init))
@@ -455,7 +455,7 @@ struct SetundefPass : public Pass {
 					{
 						for (auto wire : module->wires())
 						{
-							if (wire->name[0] == (wire_types ? '\\' : '$'))
+							if (wire->name.isPublic() == wire_types)
 								continue;
 
 							for (auto bit : sigmap(wire))
@@ -476,7 +476,7 @@ struct SetundefPass : public Pass {
 					{
 						for (auto wire : module->wires())
 						{
-							if (wire->name[0] == (wire_types ? '\\' : '$'))
+							if (wire->name.isPublic() == wire_types)
 								continue;
 
 							for (auto bit : sigmap(wire))

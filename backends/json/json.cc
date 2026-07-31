@@ -202,7 +202,7 @@ struct JsonWriter
 				continue;
 			f << stringf("%s\n", first ? "" : ",");
 			f << stringf("        %s: {\n", get_name(c->name));
-			f << stringf("          \"hide_name\": %s,\n", c->name[0] == '$' ? "1" : "0");
+			f << stringf("          \"hide_name\": %s,\n", c->name.isPublic() ? "0" : "1");
 			f << stringf("          \"type\": %s,\n", get_name(c->type));
 			if (aig_mode) {
 				Aig aig(c);
@@ -251,7 +251,7 @@ struct JsonWriter
 					continue;
 				f << stringf("%s\n", first ? "" : ",");
 				f << stringf("        %s: {\n", get_name(it.second->name));
-				f << stringf("          \"hide_name\": %s,\n", it.second->name[0] == '$' ? "1" : "0");
+				f << stringf("          \"hide_name\": %s,\n", it.second->name.isPublic() ? "0" : "1");
 				f << stringf("          \"attributes\": {");
 				write_parameters(it.second->attributes, false, it.second);
 				f << stringf("\n          },\n");
@@ -271,7 +271,7 @@ struct JsonWriter
 				continue;
 			f << stringf("%s\n", first ? "" : ",");
 			f << stringf("        %s: {\n", get_name(w->name));
-			f << stringf("          \"hide_name\": %s,\n", w->name[0] == '$' ? "1" : "0");
+			f << stringf("          \"hide_name\": %s,\n", w->name.isPublic() ? "0" : "1");
 			f << stringf("          \"bits\": %s,\n", get_bits(w));
 			if (w->start_offset)
 				f << stringf("          \"offset\": %d,\n", w->start_offset);

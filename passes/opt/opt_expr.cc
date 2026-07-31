@@ -73,7 +73,7 @@ void replace_undriven(RTLIL::Module *module, const NewCellTypes &ct)
 	{
 		RTLIL::SigSpec sig = c;
 
-		if (c.wire->name[0] == '$')
+		if (!c.wire->name.isPublic())
 			sig = used_signals.extract(sig);
 		if (sig.size() == 0)
 			continue;
@@ -398,7 +398,7 @@ void replace_const_cells(RTLIL::Design *design, RTLIL::Module *module, bool cons
 	dict<RTLIL::SigSpec, RTLIL::SigSpec> invert_map;
 
 	for (auto cell : module->cells()) {
-		if (design->selected(module, cell) && cell->type[0] == '$') {
+		if (design->selected(module, cell) && !cell->type.isPublic()) {
 			if (cell->type.in(ID($_NOT_), ID($not), ID($logic_not)) &&
 					GetSize(cell->getPort(ID::A)) == 1 && GetSize(cell->getPort(ID::Y)) == 1)
 				invert_map[assign_map(cell->getPort(ID::Y))] = assign_map(cell->getPort(ID::A));

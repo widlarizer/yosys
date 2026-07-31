@@ -734,9 +734,9 @@ void AbcModuleState::handle_loops(AbcSigMap &assign_map, RTLIL::Module *module)
 					id1 = id2;
 				else if (w2 == nullptr)
 					continue;
-				else if (w1->name[0] == '$' && w2->name[0] == '\\')
+				else if (!w1->name.isPublic() && w2->name.isPublic())
 					id1 = id2;
-				else if (w1->name[0] == '\\' && w2->name[0] == '$')
+				else if (w1->name.isPublic() && !w2->name.isPublic())
 					continue;
 				else if (edges[id1].size() < edges[id2].size())
 					id1 = id2;

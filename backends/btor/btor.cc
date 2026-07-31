@@ -1367,7 +1367,7 @@ struct BtorWorker
 
 		for (auto wire : module->wires())
 		{
-			if (wire->port_id || wire->name[0] == '$')
+			if (wire->port_id || !wire->name.isPublic())
 				continue;
 
 			btorf_push(stringf("wire %s", wire));

@@ -83,10 +83,9 @@ IdString remap_flattened_name(RTLIL::Design *design, IdString obj_ref,
 				pub_prefix_ref, priv_prefix_ref, separator, memo);
 		result = design->twines.add(Twine::Suffix{prefix, sfx.tail});
 	} else {
-		std::string escaped = design->twines.str(obj_ref);
-		std::string_view obj = escaped;
-		if (!obj.empty() && obj[0] == '\\') {
-			result = design->twines.add(Twine::Suffix{pub_prefix_ref, separator + std::string(obj.substr(1))});
+		std::string_view obj = node.leaf();
+		if (obj_ref.isPublic()) {
+			result = design->twines.add(Twine::Suffix{pub_prefix_ref, separator + std::string(obj)});
 		} else {
 			constexpr std::string_view flatten_prefix = "$flatten";
 			if (obj.substr(0, flatten_prefix.size()) == flatten_prefix)

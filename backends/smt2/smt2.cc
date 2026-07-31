@@ -1120,7 +1120,7 @@ struct Smt2Worker
 
 				string name_a = get_bool(cell->getPort(ID::A));
 				string name_en = get_bool(cell->getPort(ID::EN));
-				bool private_name = cell->name[0] == '$';
+				bool private_name = !cell->name.isPublic();
 
 				if (!private_name && cell->has_attribute(ID::hdlname)) {
 					for (auto const &part : cell->get_hdlname_attribute()) {

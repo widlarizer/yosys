@@ -268,7 +268,7 @@ struct AigMaker
 
 Aig::Aig(Cell *cell)
 {
-	if (cell->type[0] != '$')
+	if (cell->type.isPublic())
 		return;
 
 	AigMaker mk(this, cell);

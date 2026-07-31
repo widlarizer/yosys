@@ -1010,7 +1010,7 @@ void dump_cell_expr_port(std::ostream &f, RTLIL::Cell *cell, std::string port, b
 
 std::string cellname(RTLIL::Cell *cell)
 {
-	if (!norename && cell->name[0] == '$' && cell->is_builtin_ff() && cell->hasPort(ID::Q) && !cell->type.in(ID($ff), ID($_FF_)))
+	if (!norename && !cell->name.isPublic() && cell->is_builtin_ff() && cell->hasPort(ID::Q) && !cell->type.in(ID($ff), ID($_FF_)))
 	{
 		RTLIL::SigSpec sig = cell->getPort(ID::Q);
 		if (GetSize(sig) != 1 || sig.is_fully_const())
@@ -1018,7 +1018,7 @@ std::string cellname(RTLIL::Cell *cell)
 
 		RTLIL::Wire *wire = sig[0].wire;
 
-		if (wire->name[0] != '\\')
+		if (!wire->name.isPublic())
 			goto no_special_reg_name;
 
 		std::string cell_name = wire->name.str();
@@ -1999,7 +1999,7 @@ void dump_cell(std::ostream &f, std::string indent, RTLIL::Cell *cell)
 	if (cell->is_mem_cell())
 		return;
 
-	if (cell->type[0] == '$' && !noexpr) {
+	if (!cell->type.isPublic() && !noexpr) {
 		if (dump_cell_expr(f, indent, cell))
 			return;
 	}
