@@ -641,7 +641,7 @@ RTLIL::Const RTLIL::Const::extract(int offset, int len, RTLIL::State padding) co
 bool RTLIL::AttrObject::has_attribute(RTLIL::IdString id) const
 {
 	if (id == ID::src)
-		return meta_ != nullptr && meta_->src != Src::Null;
+		return src_ != Src::Null;
 	return attributes.count(id);
 }
 
@@ -657,7 +657,7 @@ void RTLIL::AttrObject::set_bool_attribute(RTLIL::IdString id, bool value)
 bool RTLIL::AttrObject::get_bool_attribute(RTLIL::IdString id) const
 {
 	if (id == ID::src)
-		return meta_ != nullptr && meta_->src != Src::Null;
+		return src_ != Src::Null;
 	const auto it = attributes.find(id);
 	if (it == attributes.end())
 		return false;
@@ -683,35 +683,6 @@ string RTLIL::AttrObject::get_string_attribute(RTLIL::IdString id) const
 	return value;
 }
 
-void RTLIL::Design::obj_set_src_id(RTLIL::AttrObject *obj, SrcRef id)
-{
-	if (obj->meta_ == nullptr) {
-		if (id == Src::Null)
-			return;
-		obj->meta_ = alloc_obj_meta();
-	}
-	ObjMeta &m = *obj->meta_;
-	if (m.src == id)
-		return;
-	m.src = id;
-	if (m.src == Src::Null) {
-		free_obj_meta(obj->meta_);
-		obj->meta_ = nullptr;
-	}
-}
-
-void RTLIL::Design::obj_release_src(RTLIL::AttrObject *obj)
-{
-	if (obj->meta_ == nullptr)
-		return;
-	ObjMeta &m = *obj->meta_;
-	if (m.src != Src::Null) {
-		m.src = Src::Null;
-	}
-	free_obj_meta(obj->meta_);
-	obj->meta_ = nullptr;
-}
-
 void RTLIL::Design::set_src_attribute(RTLIL::AttrObject *obj, SrcRef src)
 {
 	obj_set_src_id(obj, src);
@@ -731,7 +702,7 @@ void RTLIL::Design::adopt_src_from(RTLIL::AttrObject *obj,
 		const RTLIL::AttrObject *source, const SrcPool *src_pool)
 {
 	(void)src_pool;
-	if (!source || source->meta_ == nullptr) {
+	if (!source || source->src_ == Src::Null) {
 		obj_set_src_id(obj, Src::Null);
 		return;
 	}
@@ -768,25 +739,6 @@ namespace {
 		SrcRef new_id = dst_design->srcs.copy_from(src_design->srcs, src_id);
 		dst_design->obj_set_src_id(dst, new_id);
 	}
-}
-
-RTLIL::ObjMeta *RTLIL::Design::alloc_obj_meta()
-{
-	if (!obj_meta_free_.empty()) {
-		ObjMeta *m = obj_meta_free_.back();
-		obj_meta_free_.pop_back();
-		*m = ObjMeta{};
-		return m;
-	}
-	obj_meta_storage_.emplace_back();
-	return &obj_meta_storage_.back();
-}
-
-void RTLIL::Design::free_obj_meta(RTLIL::ObjMeta *m)
-{
-	log_assert(m != nullptr);
-	log_assert(m->src == Src::Null);
-	obj_meta_free_.push_back(m);
 }
 
 void RTLIL::Design::merge_src(RTLIL::AttrObject *target, const RTLIL::AttrObject *source)
@@ -847,8 +799,7 @@ size_t RTLIL::Design::gc_twines()
 	walk_attr_objects(this, [&](const RTLIL::AttrObject *obj) {
 		for (auto &attr : obj->attributes)
 			root(attr.first);
-		if (obj->meta_)
-			src_root(obj->meta_->src);
+		src_root(obj->src_);
 	});
 
 	root(selected_active_module);
@@ -1482,7 +1433,6 @@ RTLIL::Module::Module()
 	design = nullptr;
 	refcount_wires_ = 0;
 	refcount_cells_ = 0;
-	meta_ = new ObjMeta;
 
 #ifdef YOSYS_ENABLE_PYTHON
 	RTLIL::Module::get_all_modules()->insert(std::pair<unsigned int, RTLIL::Module*>(hashidx_, this));
@@ -1501,8 +1451,6 @@ RTLIL::Module::~Module()
 		delete pr.second;
 	for (auto binding : bindings_)
 		delete binding;
-	if (design)
-		design->obj_release_src(this);
 #ifdef YOSYS_ENABLE_PYTHON
 	RTLIL::Module::get_all_modules()->erase(hashidx_);
 #endif
@@ -2726,11 +2674,8 @@ void RTLIL::Module::cloneInto(RTLIL::Module *new_mod, bool src_id_verbatim) cons
 	for (auto &attr : attributes)
 		new_mod->attributes[dst_id(attr.first)] = attr.second;
 	if (src_id_verbatim) {
-		if (this->meta_ && new_mod->design) {
-			if (!new_mod->meta_)
-				new_mod->meta_ = new_mod->design->alloc_obj_meta();
-			*new_mod->meta_ = *this->meta_;
-		}
+		if (this->src_ != Src::Null && new_mod->design)
+			new_mod->src_ = this->src_;
 	} else {
 		if (this->design && new_mod->design)
 			copy_src_into(this, this->design, new_mod, new_mod->design);
@@ -2740,14 +2685,9 @@ void RTLIL::Module::cloneInto(RTLIL::Module *new_mod, bool src_id_verbatim) cons
 
 	if (src_id_verbatim) {
 		auto copy_meta = [&](const RTLIL::AttrObject *src_obj, RTLIL::AttrObject *dst_obj) {
-			if (!src_obj->meta_ || !new_mod->design)
+			if (src_obj->src_ == Src::Null || !new_mod->design)
 				return;
-			if (dst_obj->meta_) {
-				dst_obj->meta_->src = Src::Null;
-				new_mod->design->free_obj_meta(dst_obj->meta_);
-			}
-			dst_obj->meta_ = new_mod->design->alloc_obj_meta();
-			*dst_obj->meta_ = *src_obj->meta_;
+			dst_obj->src_ = src_obj->src_;
 		};
 		for (auto it = wires_.rbegin(); it != wires_.rend(); ++it) {
 			const RTLIL::Wire *o = it->second;
@@ -6245,38 +6185,12 @@ RTLIL::SyncRule *RTLIL::SyncRule::clone() const
 	new_syncrule->actions = actions;
 	new_syncrule->mem_write_actions = mem_write_actions;
 	for (auto &mwa : new_syncrule->mem_write_actions)
-		mwa.meta_ = nullptr;
+		mwa.src_ = Src::Null;
 	return new_syncrule;
-}
-
-namespace {
-	void release_process_tree_src(RTLIL::Process *p)
-	{
-		if (!p->module || !p->module->design)
-			return;
-		RTLIL::Design *d = p->module->design;
-		std::vector<RTLIL::CaseRule*> case_stack{&p->root_case};
-		while (!case_stack.empty()) {
-			RTLIL::CaseRule *cs = case_stack.back();
-			case_stack.pop_back();
-			d->obj_release_src(cs);
-			for (auto *sw : cs->switches) {
-				d->obj_release_src(sw);
-				for (auto *case_ : sw->cases)
-					case_stack.push_back(case_);
-			}
-		}
-		for (auto *sync : p->syncs)
-			for (auto &mwa : sync->mem_write_actions)
-				d->obj_release_src(&mwa);
-	}
 }
 
 RTLIL::Process::~Process()
 {
-	release_process_tree_src(this);
-	if (module && module->design)
-		module->design->obj_release_src(this);
 	for (auto it = syncs.begin(); it != syncs.end(); it++)
 		delete *it;
 }
@@ -6305,8 +6219,6 @@ RTLIL::Process *RTLIL::Process::clone() const
 
 RTLIL::Memory::~Memory()
 {
-	if (module && module->design)
-		module->design->obj_release_src(this);
 #ifdef YOSYS_ENABLE_PYTHON
 	RTLIL::Memory::get_all_memorys()->erase(hashidx_);
 #endif

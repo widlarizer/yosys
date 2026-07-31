@@ -117,7 +117,6 @@ namespace RTLIL
 	struct SyncRule;
 	struct Process;
 	struct Binding;
-	struct ObjMeta;
 	template<typename Derived> struct SrcOwner;
 
 	typedef std::pair<SigSpec, SigSpec> SigSig;
@@ -637,16 +636,11 @@ public:
 	[[nodiscard]] Hasher hash_into(Hasher h) const;
 };
 
-struct RTLIL::ObjMeta
-{
-	SrcRef src = SrcRef::Null;
-};
-
 struct RTLIL::AttrObject
 {
 	dict<RTLIL::IdString, RTLIL::Const> attributes;
 
-	RTLIL::ObjMeta *meta_ = nullptr;
+	SrcRef src_ = SrcRef::Null;
 
 	bool has_attribute(RTLIL::IdString id) const;
 
@@ -1312,17 +1306,8 @@ struct RTLIL::Design
 	TwinePool twines;
 	SrcPool srcs{&twines};
 
-	std::deque<RTLIL::ObjMeta> obj_meta_storage_;
-	std::vector<RTLIL::ObjMeta*> obj_meta_free_;
-
-	RTLIL::ObjMeta *alloc_obj_meta();
-	void free_obj_meta(RTLIL::ObjMeta *m);
-
-	SrcRef obj_src_id(const RTLIL::AttrObject *obj) const {
-		return (obj->meta_ ? obj->meta_->src : SrcRef::Null);
-	}
-	void obj_set_src_id(RTLIL::AttrObject *obj, SrcRef id);
-	void obj_release_src(RTLIL::AttrObject *obj);
+	SrcRef obj_src_id(const RTLIL::AttrObject *obj) const { return obj->src_; }
+	void obj_set_src_id(RTLIL::AttrObject *obj, SrcRef id) const { obj->src_ = id; }
 
 	std::string obj_name(const RTLIL::NamedObject *obj) const {
 		return twines.str(obj->name_);
@@ -1514,7 +1499,7 @@ struct RTLIL::SrcOwner
 	void set_src_id(SrcRef id) { require_design()->obj_set_src_id(&self(), id); }
 
 	void set_src_attribute(SrcRef src) {
-		if (src == SrcRef::Null && self().meta_ == nullptr)
+		if (src == SrcRef::Null && self().src_ == SrcRef::Null)
 			return;
 		require_design()->set_src_attribute(&self(), src);
 	}

@@ -147,7 +147,7 @@ static bool match_attr(const TwinePool &pool, const dict<IdString, RTLIL::Const>
 
 static bool match_attr(const RTLIL::Design *design, const RTLIL::AttrObject *obj, const std::string &match_expr)
 {
-	if (design && obj->meta_ != nullptr) {
+	if (design && design->obj_src_id(obj) != Src::Null) {
 		size_t pos = match_expr.find_first_of("<!=>");
 		std::string name_part = (pos == std::string::npos) ? match_expr : match_expr.substr(0, pos);
 		if (name_part == "src" || name_part == "\\src") {

@@ -816,8 +816,6 @@ struct RTLILFrontendWorker {
 					} else
 						error("RTLIL error: redefinition of memory %s.", design->twines.str(mem_name).c_str());
 				}
-				if (memory->meta_ == nullptr)
-					memory->meta_ = design->alloc_obj_meta();
 				memory->name = mem_name;
 				break;
 			}
@@ -1088,7 +1086,7 @@ struct RTLILFrontendWorker {
 				act.enable = parse_sigspec();
 				act.priority_mask = parse_const();
 				rule->mem_write_actions.push_back(act);
-				act.meta_ = nullptr;
+				act.src_ = Src::Null;
 				expect_eol();
 			}
 			// The old parser allowed dangling attributes before a "sync" to carry through
