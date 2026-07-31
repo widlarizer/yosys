@@ -30,7 +30,11 @@ struct IdString {
 	explicit constexpr IdString(size_t val) : value(val) {}
 
 	constexpr bool operator==(const IdString&) const = default;
-	constexpr auto operator<=>(const IdString&) const = default;
+	constexpr std::strong_ordering operator<=>(const IdString &rhs) const {
+		if (auto cmp = (value & ~kPublicBit) <=> (rhs.value & ~kPublicBit); cmp != 0)
+			return cmp;
+		return (value & kPublicBit) <=> (rhs.value & kPublicBit);
+	}
 
 	template <typename... Args>
 	constexpr bool in(const Args&... args) const {

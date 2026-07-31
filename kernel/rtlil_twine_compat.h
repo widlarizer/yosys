@@ -53,7 +53,7 @@ struct NameMasqBase {
 	template<typename Other>
 	bool operator!=(const NameMasqBase<Other> &rhs) const
 		{ return self().ref() != static_cast<const Other &>(rhs).ref(); }
-	bool operator<(const Derived &rhs) const { return self().escaped() < rhs.escaped(); }
+	bool operator<(const Derived &rhs) const { return self().ref() < rhs.ref(); }
 	[[nodiscard]] Hasher hash_into(Hasher h) const { return self().ref().hash_into(h); }
 private:
 	const Derived &self() const { return *static_cast<const Derived *>(this); }
