@@ -3431,8 +3431,10 @@ void RTLIL::copy_attr_dict(dict<IdString, RTLIL::Const> &dst,
 		return;
 	}
 	dst.clear();
-	for (auto &it : src)
+	for (int i = GetSize(src) - 1; i >= 0; i--) {
+		auto &it = *src.element(i);
 		dst[dst_design->twines.copy_from(src_design->twines, it.first)] = it.second;
+	}
 }
 
 RTLIL::Wire *RTLIL::Module::addWire(IdString name, const RTLIL::Wire *other)
@@ -3477,10 +3479,13 @@ RTLIL::Cell *RTLIL::Module::addCell(IdString name, const RTLIL::Cell *other)
 	RTLIL::copy_attr_dict(cell->parameters, other->parameters, src_design, this->design);
 	RTLIL::copy_attr_dict(cell->attributes, other->attributes, src_design, this->design);
 
-	for (auto &c : other->connections_) {
-		IdString port = cross_pool ? this->design->twines.copy_from(src_design->twines, c.first) : c.first;
-		cell->connections_[port] = c.second;
-	}
+	if (!cross_pool)
+		cell->connections_ = other->connections_;
+	else
+		for (int i = GetSize(other->connections_) - 1; i >= 0; i--) {
+			auto &c = *other->connections_.element(i);
+			cell->connections_[this->design->twines.copy_from(src_design->twines, c.first)] = c.second;
+		}
 	if (src_design && this->design)
 		copy_src_into(other, src_design, cell, this->design);
 	return cell;
