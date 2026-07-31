@@ -172,7 +172,7 @@ namespace RTLIL {
 	struct sort_by_id_str {
 		const TwinePool& pool;
 		explicit sort_by_id_str(const TwinePool& pool) : pool(pool) {}
-		bool operator()(IdString a, IdString b) const {
+		bool operator()(RTLIL::IdString a, RTLIL::IdString b) const {
 			return twine_compare_by_name(pool, a, b) < 0;
 		}
 	};
@@ -648,10 +648,10 @@ struct RTLIL::AttrObject
 
 	RTLIL::ObjMeta *meta_ = nullptr;
 
-	bool has_attribute(IdString id) const;
+	bool has_attribute(RTLIL::IdString id) const;
 
-	void set_bool_attribute(IdString id, bool value=true);
-	bool get_bool_attribute(IdString id) const;
+	void set_bool_attribute(RTLIL::IdString id, bool value=true);
+	bool get_bool_attribute(RTLIL::IdString id) const;
 
 	[[deprecated("Use Module::get_blackbox_attribute() instead.")]]
 	bool get_blackbox_attribute(bool ignore_wb=false) const {
@@ -659,15 +659,15 @@ struct RTLIL::AttrObject
 	}
 
 	void set_string_attribute(IdString id, string value);
-	string get_string_attribute(IdString id) const;
+	string get_string_attribute(RTLIL::IdString id) const;
 
-	pool<string> get_strpool_attribute(IdString id) const;
+	pool<string> get_strpool_attribute(RTLIL::IdString id) const;
 
 	void set_hdlname_attribute(const vector<string> &hierarchy);
 	vector<string> get_hdlname_attribute() const;
 
 	void set_intvec_attribute(IdString id, const vector<int> &data);
-	vector<int> get_intvec_attribute(IdString id) const;
+	vector<int> get_intvec_attribute(RTLIL::IdString id) const;
 };
 
 struct RTLIL::NamedObject : public RTLIL::AttrObject
@@ -1346,15 +1346,15 @@ struct RTLIL::Design
 	std::unique_ptr<define_map_t> verilog_defines;
 
 	std::vector<RTLIL::Selection> selection_stack;
-	dict<IdString, RTLIL::Selection> selection_vars;
+	dict<RTLIL::IdString, RTLIL::Selection> selection_vars;
 	IdString selected_active_module;
 
 	Design();
 	~Design();
 
 	RTLIL::ObjRange<RTLIL::Module*, IdString> modules();
-	RTLIL::Module *module(IdString name);
-	const RTLIL::Module *module(IdString name) const;
+	RTLIL::Module *module(RTLIL::IdString name);
+	const RTLIL::Module *module(RTLIL::IdString name) const;
 	RTLIL::Module *top_module() const;
 
 	bool has(RTLIL::IdString id) const {
@@ -1578,7 +1578,7 @@ public:
 	bool known_driver() const { return driverCell_ != nullptr; }
 
 	RTLIL::Cell *driverCell() const    { log_assert(driverCell_); return driverCell_; };
-	IdString driverPort() const { log_assert(driverCell_); return driverPort_; };
+	RTLIL::IdString driverPort() const { log_assert(driverCell_); return driverPort_; };
 
 	int from_hdl_index(int hdl_index) {
 		int zero_index = hdl_index - start_offset;
@@ -1657,8 +1657,8 @@ public:
 	RTLIL::Module *module;
 	IdString type_impl;
 	[[no_unique_address]] RTLIL::CellTypeMasq type;
-	dict<IdString, RTLIL::SigSpec> connections_;
-	dict<IdString, RTLIL::Const> parameters;
+	dict<RTLIL::IdString, RTLIL::SigSpec> connections_;
+	dict<RTLIL::IdString, RTLIL::Const> parameters;
 
 	RTLIL::Design *owning_design() const;
 
@@ -1755,7 +1755,7 @@ struct RTLIL::MemWriteAction : RTLIL::AttrObject, RTLIL::SrcOwner<RTLIL::MemWrit
 {
 	RTLIL::Module *module = nullptr;
 
-	IdString memid;
+	RTLIL::IdString memid;
 	RTLIL::SigSpec address;
 	RTLIL::SigSpec data;
 	RTLIL::SigSpec enable;

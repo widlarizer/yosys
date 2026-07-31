@@ -56,12 +56,12 @@ inline const TwinePool *RTLIL::ObjNameMasq<Owner>::pool() const {
 
 template<typename Owner>
 inline std::string RTLIL::ObjNameMasq<Owner>::escaped() const {
-	return RTLIL::render_escaped(pool(), ref());
+	return RTLIL::masq_detail::render_escaped(pool(), ref());
 }
 
 template<typename Owner>
 inline std::string RTLIL::ObjNameMasq<Owner>::unescape() const {
-	return RTLIL::render_unescaped(pool(), ref());
+	return RTLIL::masq_detail::render_unescaped(pool(), ref());
 }
 
 template<typename Owner>
@@ -90,11 +90,11 @@ inline const TwinePool *RTLIL::CellTypeMasq::pool() const {
 }
 
 inline std::string RTLIL::CellTypeMasq::escaped() const {
-	return RTLIL::render_escaped(pool(), ref());
+	return RTLIL::masq_detail::render_escaped(pool(), ref());
 }
 
 inline std::string RTLIL::CellTypeMasq::unescape() const {
-	return RTLIL::render_unescaped(pool(), ref());
+	return RTLIL::masq_detail::render_unescaped(pool(), ref());
 }
 
 inline RTLIL::CellTypeMasq &RTLIL::CellTypeMasq::operator=(IdString id) {
@@ -122,11 +122,11 @@ inline const TwinePool *RTLIL::ModuleNameMasq::pool() const {
 }
 
 inline std::string RTLIL::ModuleNameMasq::escaped() const {
-	return RTLIL::render_escaped(pool(), ref());
+	return RTLIL::masq_detail::render_escaped(pool(), ref());
 }
 
 inline std::string RTLIL::ModuleNameMasq::unescape() const {
-	return RTLIL::render_unescaped(pool(), ref());
+	return RTLIL::masq_detail::render_unescaped(pool(), ref());
 }
 
 inline RTLIL::ModuleNameMasq &RTLIL::ModuleNameMasq::operator=(IdString id) {
@@ -141,11 +141,11 @@ inline RTLIL::PooledName::PooledName(const RTLIL::Module *module, IdString id)
 	: PooledName(module ? module->design : nullptr, id) { }
 
 inline std::string RTLIL::PooledName::escaped() const {
-	return RTLIL::render_escaped(pool_, id_);
+	return RTLIL::masq_detail::render_escaped(pool_, id_);
 }
 
 inline std::string RTLIL::PooledName::unescape() const {
-	return RTLIL::render_unescaped(pool_, id_);
+	return RTLIL::masq_detail::render_unescaped(pool_, id_);
 }
 #ifdef __GNUC__
 #pragma GCC diagnostic pop

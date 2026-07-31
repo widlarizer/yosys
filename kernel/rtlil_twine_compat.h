@@ -36,6 +36,7 @@ namespace RTLIL {
 // Derived must define ref(), pool(), escaped(), and unescape(); everything
 // else is derived from those via operator IdString().
 namespace RTLIL {
+namespace masq_detail {
 
 inline std::string render_escaped(const TwinePool *pool, IdString id) {
 	if (id == IdString::Null)
@@ -48,6 +49,8 @@ inline std::string render_unescaped(const TwinePool *pool, IdString id) {
 		return std::string();
 	return pool ? pool->unescaped_str(id) : ID::unescaped_str(id);
 }
+
+} // namespace masq_detail
 
 template<typename Derived>
 struct NameMasqBase {
