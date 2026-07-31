@@ -43,7 +43,7 @@ struct DumpTwinesPass : public Pass {
 		log("twine pool: %zu local nodes\n", pool.size());
 		for (size_t idx = 0; idx < pool.backing.size(); ++idx) {
 			IdString id(STATIC_TWINE_END + idx);
-			const Twine &n = pool.backing[idx];
+			const TwineNode &n = pool.backing[idx];
 			if (n.is_leaf()) {
 				log("  @%zu leaf \"%s\"", id.value, n.leaf().c_str());
 			} else if (n.is_suffix()) {

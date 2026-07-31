@@ -179,8 +179,6 @@ struct Twine {
 	};
 
 	std::variant<
-				// Unused slot
-				std::monostate,
 				// "leaf", regular deduplicated string
 				Leaf,
 				// "suffix", deduplicates shared prefixes
@@ -189,27 +187,39 @@ struct Twine {
 				// turned into a regular Suffix when added to a TwinePool
 				AutoSuffix> data;
 
-	Twine() = default;
 	Twine(Leaf v) : data(std::move(v)) {}
 	Twine(Suffix v) : data(std::move(v)) {}
 	Twine(AutoSuffix v) : data(std::move(v)) {}
 
-	bool is_dead() const { return std::holds_alternative<std::monostate>(data); }
 	bool is_leaf() const { return std::holds_alternative<Leaf>(data); }
 	bool is_suffix() const { return std::holds_alternative<Suffix>(data); }
-	const std::string &leaf() const { return std::get<Leaf>(data).s; }
-	const Suffix &suffix() const { return std::get<Suffix>(data); }
+};
+
+// What a TwinePool stores. A Twine::AutoSuffix is resolved to a Suffix on the
+// way in, so it never reaches this type; monostate is a freed slot.
+struct TwineNode {
+	std::variant<std::monostate, Twine::Leaf, Twine::Suffix> data;
+
+	TwineNode() = default;
+	TwineNode(Twine::Leaf v) : data(std::move(v)) {}
+	TwineNode(Twine::Suffix v) : data(std::move(v)) {}
+
+	bool is_dead() const { return std::holds_alternative<std::monostate>(data); }
+	bool is_leaf() const { return std::holds_alternative<Twine::Leaf>(data); }
+	bool is_suffix() const { return std::holds_alternative<Twine::Suffix>(data); }
+	const std::string &leaf() const { return std::get<Twine::Leaf>(data).s; }
+	const Twine::Suffix &suffix() const { return std::get<Twine::Suffix>(data); }
 };
 
 struct StaticTwines {
 	static constexpr size_t count = STATIC_TWINE_END;
 
 	static void init();
-	static const Twine &node(size_t idx) { return nodes_[idx]; }
+	static const TwineNode &node(size_t idx) { return nodes_[idx]; }
 	static bool ready() { return nodes_.size() == count; }
 
 private:
-	static std::vector<Twine> nodes_;
+	static std::vector<TwineNode> nodes_;
 };
 
 void twine_prepopulate();
@@ -414,29 +424,29 @@ public:
 	}
 };
 
-struct TwinePool : HashConsPool<TwinePool, Twine, IdString> {
+struct TwinePool : HashConsPool<TwinePool, TwineNode, IdString> {
 	static constexpr size_t kStaticCount = StaticTwines::count;
 
-	static const Twine& static_node(size_t idx) { return StaticTwines::node(idx); }
+	static const TwineNode& static_node(size_t idx) { return StaticTwines::node(idx); }
 	static IdString untag(IdString ref) { return ref.untag(); }
 
 	static void check_ready() { log_assert(StaticTwines::ready()); }
 
-	static void canonicalize(Twine& t) {
+	static void canonicalize(TwineNode& t) {
 		if (auto *sfx = std::get_if<Twine::Suffix>(&t.data))
 			sfx->prefix = sfx->prefix.untag();
 	}
 
-	static size_t hash_node(const Twine& t);
+	static size_t hash_node(const TwineNode& t);
 
 	template<typename F>
-	static void for_each_child(const Twine& t, F&& f) {
+	static void for_each_child(const TwineNode& t, F&& f) {
 		if (t.is_suffix())
 			f(t.suffix().prefix);
 	}
 
 	void dump(IdString ref, std::ostream& os = std::cout) const {
-		const Twine& twine = (*this)[ref];
+		const TwineNode& twine = (*this)[ref];
 		std::visit([&](const auto& val) {
 			using T = std::decay_t<decltype(val)>;
 			if constexpr (std::is_same_v<T, std::monostate>) {
@@ -511,7 +521,7 @@ struct TwinePool : HashConsPool<TwinePool, Twine, IdString> {
 			t = Twine::Suffix{prefix, std::move(ap->tail)};
 		}
 		bool is_public = inherits_publicity(t);
-		return HashConsPool::find(std::move(t)).tag(is_public);
+		return HashConsPool::find(to_node(std::move(t))).tag(is_public);
 	}
 
 	IdString add(Twine t) {
@@ -520,7 +530,7 @@ struct TwinePool : HashConsPool<TwinePool, Twine, IdString> {
 			t = Twine::Suffix{prefix, std::move(ap->tail)};
 		}
 		bool is_public = inherits_publicity(t);
-		return add_inner(std::move(t)).tag(is_public);
+		return add_inner(to_node(std::move(t))).tag(is_public);
 	}
 
 	IdString add(std::string s) {
@@ -547,7 +557,7 @@ struct TwinePool : HashConsPool<TwinePool, Twine, IdString> {
 		IdString untagged = ref.untag();
 		if (ID::is_static(untagged))
 			return ref;
-		const Twine& t = src[untagged];
+		const TwineNode& t = src[untagged];
 		if (t.is_leaf())
 			return (add(Twine::Leaf{t.leaf()})).tag(is_public);
 		if (t.is_suffix())
@@ -578,6 +588,12 @@ private:
 		return sfx != nullptr && sfx->prefix.isPublic();
 	}
 
+	static TwineNode to_node(Twine t) {
+		if (auto *leaf = std::get_if<Twine::Leaf>(&t.data))
+			return TwineNode{std::move(*leaf)};
+		return TwineNode{std::move(std::get<Twine::Suffix>(t.data))};
+	}
+
 	using HashConsPool::add_inner;
 	using HashConsPool::gc;
 };
@@ -590,7 +606,7 @@ struct TwineSegments {
 		if (ref == IdString::Null)
 			return;
 		for (IdString cur = ref.untag(); ;) {
-			const Twine &t = pool[cur];
+			const TwineNode &t = pool[cur];
 			if (t.is_suffix()) {
 				push(t.suffix().tail);
 				cur = t.suffix().prefix.untag();
@@ -689,8 +705,8 @@ inline int twine_compare_by_name(const TwinePool &pool, IdString a, IdString b)
 		return 1;
 
 	if (a.isPublic() == b.isPublic()) {
-		const Twine &ta = pool[a.untag()];
-		const Twine &tb = pool[b.untag()];
+		const TwineNode &ta = pool[a.untag()];
+		const TwineNode &tb = pool[b.untag()];
 		if (ta.is_leaf() && tb.is_leaf())
 			return twine_compare_views(ta.leaf(), tb.leaf());
 		if (ta.is_suffix() && tb.is_suffix() && ta.suffix().prefix == tb.suffix().prefix)
@@ -710,7 +726,7 @@ inline int twine_compare_by_name(const TwinePool &pool, IdString a, IdString b)
 	}
 }
 
-inline size_t TwinePool::hash_node(const Twine& t) {
+inline size_t TwinePool::hash_node(const TwineNode& t) {
 	Hasher h;
 
 	std::visit([&h](const auto& val) {
@@ -875,7 +891,7 @@ private:
 	using HashConsPool::gc;
 };
 
-static_assert(HashConsPolicy<TwinePool, Twine, IdString>);
+static_assert(HashConsPolicy<TwinePool, TwineNode, IdString>);
 static_assert(HashConsPolicy<SrcPool, Src, SrcRef>);
 
 struct DeepTwineHash {
@@ -908,7 +924,7 @@ struct DeepTwineHash {
 	void combine(Stream& s, IdString t) const {
 		if (t == IdString::Null)
 			return;
-		const Twine& n = (*pool)[t];
+		const TwineNode& n = (*pool)[t];
 		if (n.is_dead()) return;
 
 		if (n.is_leaf()) {
@@ -941,7 +957,7 @@ struct DeepTwineEq {
 	bool consume(IdString t, std::string_view& sv) const noexcept {
 		if (t == IdString::Null)
 			return true;
-		const Twine& n = (*pool)[t];
+		const TwineNode& n = (*pool)[t];
 		if (n.is_dead()) return true;
 
 		if (n.is_leaf()) {

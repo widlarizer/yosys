@@ -71,7 +71,7 @@ IdString remap_flattened_name(RTLIL::Design *design, IdString obj_ref,
 	if (auto it = memo.find(obj_ref); it != memo.end())
 		return it->second;
 
-	const Twine &node = design->twines[obj_ref];
+	const TwineNode &node = design->twines[obj_ref];
 	IdString result;
 	if (node.is_suffix()) {
 		const Twine::Suffix &sfx = node.suffix();

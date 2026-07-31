@@ -144,7 +144,7 @@ void RTLIL_BACKEND::dump_twines(std::ostream &f, const RTLIL::Design *design)
 		ids.push_back(IdString(STATIC_TWINE_END + idx));
 	std::sort(ids.begin(), ids.end());
 	for (IdString id : ids) {
-		const Twine &n = design->twines[id];
+		const TwineNode &n = design->twines[id];
 		if (n.is_leaf()) {
 			f << stringf("  leaf %zu ", id.value);
 			dump_const(f, RTLIL::Const(n.leaf()));

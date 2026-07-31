@@ -74,7 +74,7 @@ struct PrefixApplier
 		if (auto it = memo.find(obj_ref); it != memo.end())
 			return it->second;
 
-		const Twine &node = src->twines[obj_ref];
+		const TwineNode &node = src->twines[obj_ref];
 		IdString result;
 		if (node.is_suffix()) {
 			const Twine::Suffix &sfx = node.suffix();

@@ -3,7 +3,7 @@
 
 YOSYS_NAMESPACE_BEGIN
 
-std::vector<Twine> StaticTwines::nodes_;
+std::vector<TwineNode> StaticTwines::nodes_;
 
 void StaticTwines::init() {
 	if (ready())
