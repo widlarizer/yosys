@@ -166,7 +166,7 @@ struct Twine {
 
 
 	struct AutoSuffix {
-		const std::string *prefix;
+		std::string_view prefix;
 		std::string tail;
 		auto operator<=>(const AutoSuffix&) const = default;
 	};
@@ -511,7 +511,7 @@ struct TwinePool : HashConsPool<TwinePool, TwineNode, IdString> {
 
 	IdString find(Twine t) const {
 		if (auto *ap = std::get_if<Twine::AutoSuffix>(&t.data)) {
-			IdString prefix = HashConsPool::find(Twine::Leaf{*ap->prefix});
+			IdString prefix = HashConsPool::find(Twine::Leaf{std::string(ap->prefix)});
 			if (prefix == IdString::Null)
 				return IdString::Null;
 			t = Twine::Suffix{prefix, std::move(ap->tail)};
@@ -522,7 +522,7 @@ struct TwinePool : HashConsPool<TwinePool, TwineNode, IdString> {
 
 	IdString add(Twine t) {
 		if (auto *ap = std::get_if<Twine::AutoSuffix>(&t.data)) {
-			IdString prefix = add_inner(Twine::Leaf{*ap->prefix});
+			IdString prefix = add_inner(Twine::Leaf{std::string(ap->prefix)});
 			t = Twine::Suffix{prefix, std::move(ap->tail)};
 		}
 		bool is_public = inherits_publicity(t);
