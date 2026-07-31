@@ -691,6 +691,24 @@ inline bool twine_begins_with(const TwinePool &pool, IdString ref, std::string_v
 	return true;
 }
 
+inline bool twine_content_equal(const TwinePool &pool, IdString a, IdString b)
+{
+	if (a == b)
+		return true;
+
+	TwineSegments sa(pool, a.untag()), sb(pool, b.untag());
+	while (true) {
+		std::string_view x = sa.peek(), y = sb.peek();
+		if (x.empty() || y.empty())
+			return x.empty() && y.empty();
+		size_t n = std::min(x.size(), y.size());
+		if (std::memcmp(x.data(), y.data(), n) != 0)
+			return false;
+		sa.advance(n);
+		sb.advance(n);
+	}
+}
+
 inline int twine_compare_by_name(const TwinePool &pool, IdString a, IdString b)
 {
 	if (a == b)
@@ -977,9 +995,7 @@ struct DeepTwineEq {
 
 	// Required by unordered_set to handle hash collisions between two IdStrings.
 	bool operator()(IdString a, IdString b) const {
-		if (a == b) return true; // Index or structural equality shortcut
-		std::string fb = pool->unescaped_str(b);
-		return (*this)(a, std::string_view(fb));
+		return twine_content_equal(*pool, a, b);
 	}
 
 };

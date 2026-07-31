@@ -80,6 +80,42 @@ TEST(TwinePublicityTest, LookupReturnsTaggedHandle)
 	EXPECT_EQ(search.find("\\nonexistent"), IdString::Null);
 }
 
+TEST(TwinePublicityTest, SearchUnifiesLeafAndSuffixSpellingTheSameName)
+{
+	TwinePool pool;
+	IdString flat = pool.add(Twine::Leaf{"$abc"});
+	IdString head = pool.add(Twine::Leaf{"$a"});
+	IdString split = pool.add(Twine::Suffix{head, "bc"});
+
+	ASSERT_NE(flat, split);
+	ASSERT_EQ(pool.str(flat), pool.str(split));
+
+	TwineSearch search(&pool);
+	EXPECT_EQ(search.index.count(flat), 1u);
+	EXPECT_EQ(search.index.count(split), 1u);
+	EXPECT_EQ(search.index.count(head), 1u);
+	EXPECT_NE(search.find("$abc"), IdString::Null);
+	EXPECT_EQ(search.find("$a"), head);
+}
+
+TEST(TwinePublicityTest, SearchIsBlindToPublicity)
+{
+	TwinePool pool;
+	IdString priv = pool.add(Twine::Leaf{"sig"});
+	IdString pub = pool.add(std::string("\\sig"));
+
+	ASSERT_EQ(priv, pub.untag());
+
+	TwineSearch search(&pool);
+	IdString found_pub = search.find("\\sig");
+	IdString found_priv = search.find("sig");
+
+	EXPECT_TRUE(found_pub.isPublic());
+	EXPECT_FALSE(found_priv.isPublic());
+	EXPECT_EQ(found_pub.untag(), found_priv.untag());
+	EXPECT_EQ(found_pub, pub);
+}
+
 TEST(TwinePublicityTest, CopyFromPreservesTag)
 {
 	TwinePool src, dst;
