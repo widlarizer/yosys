@@ -84,7 +84,7 @@ static std::string derive_name_from_src(const std::string &src, int counter)
 		return stringf("\\%s$%d", src_base, counter);
 }
 
-static IdString derive_name_from_cell_output_wire(const RTLIL::Cell *cell, string suffix, bool move_to_cell)
+static IdString derive_name_from_cell_output_wire(const RTLIL::Cell *cell, string suffix, TwineSearch *search)
 {
 	// Find output
 	const SigSpec *output = nullptr;
@@ -122,9 +122,8 @@ static IdString derive_name_from_cell_output_wire(const RTLIL::Cell *cell, strin
 
 	RTLIL::Wire *wire;
 
-	if (move_to_cell) {
-		TwineSearch search(&cell->module->design->twines);
-		IdString name_ref = search.find(name);
+	if (search != nullptr) {
+		IdString name_ref = search->find(name);
 		if (name_ref == Twine::Null || (!(wire = cell->module->wire(name_ref)) || !(wire->port_input || wire->port_output)))
 			return cell->module->design->twines.add(std::move(name));
 	}
@@ -429,11 +428,16 @@ struct RenamePass : public Pass {
 		{
 			extra_args(args, argidx, design);
 
+			std::optional<TwineSearch> wire_search;
+			if (flag_move_to_cell)
+				wire_search.emplace(&design->twines);
+
 			for (auto module : design->selected_modules()) {
 				dict<RTLIL::Cell *, IdString> new_cell_names;
 				for (auto cell : module->selected_cells())
 					if (!cell->name.isPublic())
-						new_cell_names[cell] = derive_name_from_cell_output_wire(cell, cell_suffix, flag_move_to_cell);
+						new_cell_names[cell] = derive_name_from_cell_output_wire(cell, cell_suffix,
+								wire_search ? &*wire_search : nullptr);
 				for (auto &[cell, new_name] : new_cell_names) {
 					if (flag_move_to_cell) {
 						IdString new_name_ref = new_name;
