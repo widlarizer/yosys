@@ -127,6 +127,7 @@ void Mem::emit() {
 		}
 		cell->type = ID($mem_v2);
 		cell->attributes = attributes;
+		module->design->adopt_src_from(cell, this);
 		cell->parameters[ID::MEMID] = Const(module->design->twines.str(memid));
 		cell->parameters[ID::WIDTH] = Const(width);
 		cell->parameters[ID::OFFSET] = Const(start_offset);
@@ -298,6 +299,7 @@ void Mem::emit() {
 		mem->start_offset = start_offset;
 		mem->size = size;
 		mem->attributes = attributes;
+		module->design->adopt_src_from(mem, this);
 		for (auto &port : rd_ports) {
 			if (!port.cell)
 				port.cell = module->addCell(NEW_ID, ID($memrd_v2));
@@ -567,6 +569,7 @@ namespace {
 		res.packed = false;
 		res.mem = mem;
 		res.attributes = mem->attributes;
+		module->design->adopt_src_from(&res, mem);
 		std::vector<bool> rd_transparent;
 		std::vector<int> wr_portid;
 		if (index.rd_ports.count(memid)) {
@@ -729,6 +732,7 @@ namespace {
 		res.packed = true;
 		res.cell = cell;
 		res.attributes = cell->attributes;
+		cell->module->design->adopt_src_from(&res, cell);
 		Const &init = cell->parameters.at(ID::INIT);
 		if (!init.is_fully_undef()) {
 			int pos = 0;
