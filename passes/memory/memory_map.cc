@@ -112,7 +112,7 @@ struct MemoryMapWorker
 		std::map<int, RTLIL::SigSpec> static_cells_map;
 
 		mem_src = (mem.module && mem.module->design)
-				? mem.module->design->obj_src_id(&mem) : Src::Null;
+				? mem.module->design->obj_src_id(&mem) : SrcRef::Null;
 
 		SigSpec init_data = mem.get_init_data();
 
@@ -122,7 +122,7 @@ struct MemoryMapWorker
 		// check if attributes allow us to infer FFRAM for this memory
 		for (const auto &attr : attributes) {
 			IdString attr_ref = design->twines.find(attr.first);
-			if (attr_ref != Twine::Null && mem.attributes.count(attr_ref)) {
+			if (attr_ref != IdString::Null && mem.attributes.count(attr_ref)) {
 				const auto &cell_attr = mem.attributes[attr_ref];
 				if (attr.second.empty()) {
 					log("Not mapping memory %s in module %s (attribute %s is set).\n",

@@ -70,7 +70,7 @@ std::optional<std::string> format_with_params(const TwinePool &twines, std::stri
 			} else {
 				auto name = RTLIL::escape_id(std::string(beg, it));
 				IdString id = twines.find(name);
-				if (id == Twine::Null || !parameters.count(id)) {
+				if (id == IdString::Null || !parameters.count(id)) {
 					log("Parameter %s referenced in format string '%s' not found\n", name, fmt);
 					return {};
 				}

@@ -158,8 +158,6 @@ struct ID {
 #define ID(id) (ID::id)
 
 struct Twine {
-	static constexpr NullIdString Null = IdString::Null;
-
 	struct Suffix {
 		IdString prefix;
 		std::string tail;
@@ -743,8 +741,6 @@ inline size_t TwinePool::hash_node(const TwineNode& t) {
 }
 
 struct Src {
-	static constexpr NullSrcRef Null = SrcRef::Null;
-
 	std::vector<IdString> data;
 
 	bool is_dead() const { return data.empty(); }

@@ -102,7 +102,7 @@ void RTLIL::Module::bufNormalize()
 			if (wire->port_input && !wire->port_output) {
 				if (wire->driverCell_ != nullptr && wire->driverCell_->type != ID($input_port)) {
 					wire->driverCell_ = nullptr;
-					wire->driverPort_ = Twine::Null;
+					wire->driverPort_ = IdString::Null;
 				}
 				if (wire->driverCell_ == nullptr) {
 					Cell *input_port_cell = addCell(NEW_ID, ID($input_port));
@@ -333,7 +333,7 @@ void RTLIL::Module::bufNormalize()
 		// to keep track of the wires that we still have to update.
 		for (auto wire : wire_queue_entries) {
 			wire->driverCell_ = nullptr;
-			wire->driverPort_ = Twine::Null;
+			wire->driverPort_ = IdString::Null;
 		}
 
 		// For the unique driving cell ports fully connected to a full wire, we

@@ -773,14 +773,14 @@ RTLIL::Wire *find_implicit_port_wire(Module *module, Cell *cell, const std::stri
 	while ((idx = cellname.find_last_of('.', idx-1)) != std::string::npos) {
 		std::string wire_name = cellname.substr(0, idx+1) + port.substr(1);
 		IdString ref = search.find(wire_name);
-		if (ref != Twine::Null) {
+		if (ref != IdString::Null) {
 			Wire *found = module->wire(ref);
 			if (found != nullptr)
 				return found;
 		}
 	}
 	IdString ref = search.find(port);
-	if (ref != Twine::Null)
+	if (ref != IdString::Null)
 		return module->wire(ref);
 	return nullptr;
 }

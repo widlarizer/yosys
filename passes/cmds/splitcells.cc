@@ -61,7 +61,7 @@ struct SplitcellsWorker
 				SigBit bit(sig[i]);
 				if (!bit_drivers_db.count(bit)) continue;
 				bit_users_db[bit].insert(tuple<IdString,IdString,int>(wire->name,
-						Twine::Null, i-std::get<2>(bit_drivers_db[bit])));
+						IdString::Null, i-std::get<2>(bit_drivers_db[bit])));
 			}
 		}
 	}

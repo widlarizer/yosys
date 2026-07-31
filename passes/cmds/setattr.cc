@@ -51,7 +51,7 @@ static void do_setunset(RTLIL::Design *design, dict<IdString, RTLIL::Const> &att
 	for (auto &item : list)
 		if (item.unset) {
 			IdString name = design->twines.find(item.name);
-			if (name != Twine::Null)
+			if (name != IdString::Null)
 				attrs.erase(name);
 		} else
 			attrs[design->twines.add(std::string(item.name))] = item.value;

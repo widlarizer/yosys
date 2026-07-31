@@ -271,7 +271,7 @@ static void create_ff(RTLIL::Module *module, const LibertyAst *node)
 			module->addNotGate(NEW_ID, q_sig, out_sig);
 		}
 
-		RTLIL::Cell* cell = module->addCell(NEW_ID, Twine::Null);
+		RTLIL::Cell* cell = module->addCell(NEW_ID, IdString::Null);
 		cell->setPort(ID::D, data_sig);
 		cell->setPort(ID::Q, q_sig);
 		cell->setPort(ID::C, clk_sig);

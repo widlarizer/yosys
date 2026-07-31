@@ -53,7 +53,7 @@ struct PrefixApplier
 	RTLIL::Design *src;
 	IdString cell_name;
 	IdString pub_prefix;
-	IdString priv_prefix = Twine::Null;
+	IdString priv_prefix = IdString::Null;
 	dict<IdString, IdString> memo;
 
 	PrefixApplier(RTLIL::Design *dst, IdString prefix, RTLIL::Design *src)
@@ -64,7 +64,7 @@ struct PrefixApplier
 
 	IdString techmap_prefix()
 	{
-		if (priv_prefix == Twine::Null)
+		if (priv_prefix == IdString::Null)
 			priv_prefix = dst->twines.add("$techmap" + dst->twines.str(cell_name) + ".");
 		return priv_prefix;
 	}

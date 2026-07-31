@@ -354,7 +354,7 @@ struct DesignPass : public Pass {
 
 			design->selection_stack.clear();
 			design->selection_vars.clear();
-			design->selected_active_module = Twine::Null;
+			design->selected_active_module = IdString::Null;
 
 			if (reset_mode && save_name.empty()) {
 				design->twines = TwinePool{};

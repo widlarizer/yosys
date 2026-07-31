@@ -42,7 +42,7 @@ PRIVATE_NAMESPACE_BEGIN
 
 // Similar to a SigBit; but module-independent
 struct IdBit {
-    IdBit() : name(Twine::Null), bit(0) {};
+    IdBit() : name(IdString::Null), bit(0) {};
     IdBit(IdString name, int bit = 0) : name(name), bit(bit) {};
 
     bool operator==(const IdBit &other) const { return name == other.name && bit == other.bit; };

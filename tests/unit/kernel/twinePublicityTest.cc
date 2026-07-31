@@ -77,7 +77,7 @@ TEST(TwinePublicityTest, LookupReturnsTaggedHandle)
 	EXPECT_EQ(search.find("\\net"), pub);
 	EXPECT_EQ(search.find("$net"), priv);
 	EXPECT_EQ(search.find("\\A"), ID::A);
-	EXPECT_EQ(search.find("\\nonexistent"), Twine::Null);
+	EXPECT_EQ(search.find("\\nonexistent"), IdString::Null);
 }
 
 TEST(TwinePublicityTest, CopyFromPreservesTag)

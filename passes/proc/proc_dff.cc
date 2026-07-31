@@ -61,7 +61,7 @@ void transfer_wire_sources(const SigSpec& sig, Cell* cell)
 		if (chunk.wire)
 			refs.push_back(chunk.wire->src_id());
 	SrcRef merged = cell->module->design->srcs.merge(std::span<const SrcRef>{refs});
-	if (merged != Src::Null)
+	if (merged != SrcRef::Null)
 		cell->set_src_attribute(merged);
 }
 

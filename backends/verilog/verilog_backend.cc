@@ -418,7 +418,7 @@ void dump_attributes(std::ostream &f, std::string indent, const RTLIL::AttrObjec
 		as_comment = true;
 	if (active_module && active_module->design) {
 		SrcRef src = active_module->design->obj_src_id(obj);
-		if (src != Src::Null) {
+		if (src != SrcRef::Null) {
 			f << stringf("%s" "%s %s", indent, as_comment ? "/*" : "(*", id(ID::str(ID::src)));
 			f << stringf(" = ");
 			dump_const(f, RTLIL::Const(active_module->design->srcs.str(src)), -1, 0, false, as_comment);
@@ -999,7 +999,7 @@ void dump_memory(std::ostream &f, std::string indent, Mem &mem)
 void dump_cell_expr_port(std::ostream &f, RTLIL::Cell *cell, std::string port, bool gen_signed = true)
 {
 	IdString signed_param = cell->module->design->twines.find("\\" + port + "_SIGNED");
-	if (gen_signed && signed_param != Twine::Null && cell->parameters.count(signed_param) > 0 && cell->parameters[signed_param].as_bool()) {
+	if (gen_signed && signed_param != IdString::Null && cell->parameters.count(signed_param) > 0 && cell->parameters[signed_param].as_bool()) {
 		f << stringf("$signed(");
 		dump_sigspec(f, cell->getPort(ID::lookup(port)));
 		f << stringf(")");
@@ -2035,7 +2035,7 @@ void dump_cell(std::ostream &f, std::string indent, RTLIL::Cell *cell)
 		IdString port_ref = active_search->find(port_str);
 		bool found_port = false;
 		for (auto it = cell->connections().begin(); it != cell->connections().end(); ++it) {
-			if (port_ref == Twine::Null || it->first != port_ref)
+			if (port_ref == IdString::Null || it->first != port_ref)
 				continue;
 			if (!first_arg)
 				f << stringf(",");

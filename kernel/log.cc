@@ -612,7 +612,7 @@ static const char *log_id_cached(std::string unescaped)
 
 const char *log_id(const IdString &str)
 {
-	if (str == Twine::Null)
+	if (str == IdString::Null)
 		return log_id_cached(std::string());
 	if (!ID::is_static(str))
 		return log_id_cached(stringf("$twine$%zu", str.untag().value));

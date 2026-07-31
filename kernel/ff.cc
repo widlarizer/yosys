@@ -46,7 +46,7 @@ void manufacture_info(InputType flop, OutputType& info, FfInitVals *initvals) {
 		info.sig_q = cell->getPort(ID::Q);
 		info.width = GetSize(info.sig_q);
 		info.attributes = cell->attributes;
-		if (cell->src_id() != Src::Null && cell->module && cell->module->design)
+		if (cell->src_id() != SrcRef::Null && cell->module && cell->module->design)
 			info.src_twine = cell->src_id();
 		if (initvals)
 			info.val_init = (*initvals)(info.sig_q);
@@ -764,7 +764,7 @@ Cell *FfData::emit() {
 		}
 	}
 	cell->attributes = attributes;
-	if (src_twine != Src::Null && cell->module && cell->module->design)
+	if (src_twine != SrcRef::Null && cell->module && cell->module->design)
 		cell->set_src_id(src_twine);
 	if (initvals && !is_anyinit)
 		initvals->set_init(cell->getPort(ID::Q), val_init);

@@ -258,7 +258,7 @@ QbfSolutionType qbf_solve(RTLIL::Module *mod, const QbfSolveOptions &opt) {
 	RTLIL::Module *module = mod;
 	RTLIL::Design *design = module->design;
 	IdString module_name = module->name;
-	IdString wire_to_optimize_name = Twine::Null;
+	IdString wire_to_optimize_name = IdString::Null;
 	bool maximize = false;
 	log_assert(module->design != nullptr);
 
@@ -294,7 +294,7 @@ QbfSolutionType qbf_solve(RTLIL::Module *mod, const QbfSolveOptions &opt) {
 		Pass::call(module->design, "opt");
 	}
 
-	if (opt.nobisection || opt.nooptimize || wire_to_optimize_name == Twine::Null) {
+	if (opt.nobisection || opt.nooptimize || wire_to_optimize_name == IdString::Null) {
 		ret = call_qbf_solver(module, opt, tempdir_name, false, 0);
 	} else {
 		//Do the iterated bisection method:
@@ -303,7 +303,7 @@ QbfSolutionType qbf_solve(RTLIL::Module *mod, const QbfSolveOptions &opt) {
 		unsigned int failure = 0;
 		unsigned int cur_thresh = 0;
 
-		log_assert(wire_to_optimize_name != Twine::Null);
+		log_assert(wire_to_optimize_name != IdString::Null);
 		log_assert(module->wire(wire_to_optimize_name) != nullptr);
 		log("%s wire \"%s\".\n", (maximize? "Maximizing" : "Minimizing"), design->twines.str(wire_to_optimize_name));
 

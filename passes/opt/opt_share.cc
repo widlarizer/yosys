@@ -59,7 +59,7 @@ struct ExtSigSpec {
 
 	ExtSigSpec() {}
 
-	ExtSigSpec(RTLIL::SigSpec s, RTLIL::SigSpec sign = RTLIL::Const(0, 1), bool is_signed = false, IdString semantics = Twine::Null) : sig(s), sign(sign), is_signed(is_signed), semantics(semantics) {}
+	ExtSigSpec(RTLIL::SigSpec s, RTLIL::SigSpec sign = RTLIL::Const(0, 1), bool is_signed = false, IdString semantics = IdString::Null) : sig(s), sign(sign), is_signed(is_signed), semantics(semantics) {}
 
 	bool empty() const { return sig.empty(); }
 
@@ -134,7 +134,7 @@ RTLIL::IdString decode_port_semantics(RTLIL::Cell *cell, RTLIL::IdString port_na
 	if (cell->type.in(ID($_ANDNOT_), ID($_ORNOT_)))
 		return port_name;
 
-	return Twine::Null;
+	return IdString::Null;
 }
 
 RTLIL::SigSpec decode_port_sign(RTLIL::Cell *cell, RTLIL::IdString port_name) {
@@ -154,7 +154,7 @@ bool decode_port_signed(RTLIL::Cell *cell, RTLIL::IdString port_name)
 
 	IdString param_signed = cell->module->design->twines.find(
 			cell->module->design->twines.str(port_name) + "_SIGNED");
-	if (param_signed != Twine::Null && cell->hasParam(param_signed))
+	if (param_signed != IdString::Null && cell->hasParam(param_signed))
 		return cell->getParam(param_signed).as_bool();
 
 	return false;

@@ -133,7 +133,7 @@ struct JsonWriter
 	void write_parameters(const dict<IdString, Const> &parameters, bool for_module=false, const RTLIL::AttrObject *src_obj=nullptr)
 	{
 		bool first = true;
-		if (src_obj && design && design->obj_src_id(src_obj) != Src::Null) {
+		if (src_obj && design && design->obj_src_id(src_obj) != SrcRef::Null) {
 			f << stringf("\n        %s%s: ", for_module ? "" : "    ", get_name(RTLIL::ID::src));
 			write_parameter_value(RTLIL::Const(design->get_src_attribute(src_obj)));
 			first = false;

@@ -390,7 +390,7 @@ namespace RTLIL {
 		IdString id = twines.add(NEW_ID);
 		TwineSearch search(&twines);
 		EXPECT_EQ(id, search.find(twines.str(id)));
-		EXPECT_EQ(twines.find(twines.str(id)), Twine::Null);
+		EXPECT_EQ(twines.find(twines.str(id)), IdString::Null);
 	}
 
 	TEST_F(KernelRtlilTest, NewIdBeginsWith) {

@@ -123,7 +123,7 @@ struct BtorWorker
 			if (srcsymbols.count(s))
 				return true;
 			IdString ref = src_search.find("\\" + s);
-			return ref != Twine::Null && module->count_id(ref) != 0;
+			return ref != IdString::Null && module->count_id(ref) != 0;
 		};
 		if (taken(src)) {
 			for (int i = 1;; i++) {

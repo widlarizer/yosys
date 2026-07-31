@@ -121,7 +121,7 @@ static IdString derive_name_from_cell_output_wire(const RTLIL::Cell *cell, strin
 
 	if (search != nullptr) {
 		IdString name_ref = search->find(name);
-		if (name_ref == Twine::Null || (!(wire = cell->module->wire(name_ref)) || !(wire->port_input || wire->port_output)))
+		if (name_ref == IdString::Null || (!(wire = cell->module->wire(name_ref)) || !(wire->port_input || wire->port_output)))
 			return cell->module->design->twines.add(std::move(name));
 	}
 
@@ -438,7 +438,7 @@ struct RenamePass : public Pass {
 				for (auto &[cell, new_name] : new_cell_names) {
 					if (flag_move_to_cell) {
 						IdString new_name_ref = new_name;
-						RTLIL::Wire *found_wire = new_name_ref != Twine::Null ? module->wire(new_name_ref) : nullptr;
+						RTLIL::Wire *found_wire = new_name_ref != IdString::Null ? module->wire(new_name_ref) : nullptr;
 						if (found_wire) {
 							std::string wire_suffix = cell_suffix;
 							if (wire_suffix.empty()) {
@@ -631,7 +631,7 @@ struct RenamePass : public Pass {
 			std::string from_name = args[argidx++];
 			std::string to_name = args[argidx++];
 
-			if (design->selected_active_module != Twine::Null)
+			if (design->selected_active_module != IdString::Null)
 			{
 				if (design->module(design->selected_active_module) != nullptr)
 					rename_in_module(design->module(design->selected_active_module), from_name, to_name, flag_output);

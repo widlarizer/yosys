@@ -115,7 +115,7 @@ void RTLIL_BACKEND::dump_const(std::ostream &f, const RTLIL::Const &data, int wi
 
 void RTLIL_BACKEND::dump_attributes(std::ostream &f, std::string indent, const RTLIL::AttrObject *obj, const RTLIL::Design *design, DumpMode mode)
 {
-	if (design && design->obj_src_id(obj) != Src::Null) {
+	if (design && design->obj_src_id(obj) != SrcRef::Null) {
 		SrcRef id = design->obj_src_id(obj);
 		f << stringf("%s" "attribute \\src ", indent);
 		if (mode == DumpMode::Readable) {

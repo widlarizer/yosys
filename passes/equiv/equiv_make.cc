@@ -57,7 +57,7 @@ struct EquivMakeWorker
 					if (token.empty())
 						break;
 					IdString name = search.find(RTLIL::escape_id(token));
-					if (name != Twine::Null)
+					if (name != IdString::Null)
 						blacklist_names.insert(name);
 				}
 			}

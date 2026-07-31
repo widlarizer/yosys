@@ -376,7 +376,7 @@ void parse_blif(RTLIL::Design *design, std::istream &f, IdString dff_name, bool 
 					cell = module->addDlatchGate(NEW_ID, blif_wire(clock), blif_wire(d), blif_wire(q), false);
 				else {
 			no_latch_clock:
-					if (dff_name == Twine::Null) {
+					if (dff_name == IdString::Null) {
 						cell = module->addFfGate(NEW_ID, blif_wire(d), blif_wire(q));
 					} else {
 						cell = module->addCell(NEW_ID, dff_name);
@@ -694,7 +694,7 @@ struct BlifFrontend : public Frontend {
 		}
 		extra_args(f, filename, args, argidx);
 
-		parse_blif(design, *f, Twine::Null, true, sop_mode, wideports);
+		parse_blif(design, *f, IdString::Null, true, sop_mode, wideports);
 	}
 } BlifFrontend;
 

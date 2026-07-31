@@ -744,7 +744,7 @@ statdata_t hierarchy_worker(const TwinePool& twines, std::map<IdString, statdata
 
 	for (auto &it : mod_data.num_submodules_by_type) {
 		IdString sub = twines.find(it.first);
-		if (sub != Twine::Null && mod_stat.count(sub) > 0) {
+		if (sub != IdString::Null && mod_stat.count(sub) > 0) {
 			if (!quiet)
 				mod_data.print_log_line(RTLIL::unescape_id(it.first), mod_stat.at(sub).local_num_cells,
 							mod_stat.at(sub).local_area, mod_stat.at(sub).num_cells, mod_stat.at(sub).area,

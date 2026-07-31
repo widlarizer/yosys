@@ -118,11 +118,11 @@ static bool match_attr(const TwinePool &pool, const dict<IdString, RTLIL::Const>
 	} else {
 		if (name_pat.size() > 0 && (name_pat[0] == '\\' || name_pat[0] == '$')) {
 			IdString key = pool.find(name_pat);
-			if (key != Twine::Null && attributes.count(key) && match_attr_val(attributes.at(key), value_pat, match_op))
+			if (key != IdString::Null && attributes.count(key) && match_attr_val(attributes.at(key), value_pat, match_op))
 				return true;
 		}
 		IdString key = pool.find("\\" + name_pat);
-		if (key != Twine::Null && attributes.count(key) && match_attr_val(attributes.at(key), value_pat, match_op))
+		if (key != IdString::Null && attributes.count(key) && match_attr_val(attributes.at(key), value_pat, match_op))
 			return true;
 	}
 	return false;
@@ -147,7 +147,7 @@ static bool match_attr(const TwinePool &pool, const dict<IdString, RTLIL::Const>
 
 static bool match_attr(const RTLIL::Design *design, const RTLIL::AttrObject *obj, const std::string &match_expr)
 {
-	if (design && design->obj_src_id(obj) != Src::Null) {
+	if (design && design->obj_src_id(obj) != SrcRef::Null) {
 		size_t pos = match_expr.find_first_of("<!=>");
 		std::string name_part = (pos == std::string::npos) ? match_expr : match_expr.substr(0, pos);
 		if (name_part == "src" || name_part == "\\src") {
@@ -633,7 +633,7 @@ static void select_op_expand(RTLIL::Design *design, const std::string &arg, char
 				if (str[0] == '@') {
 					str = RTLIL::escape_id(str.substr(1));
 					IdString sel_name = design->twines.find(str);
-					if (sel_name != Twine::Null && design->selection_vars.count(sel_name) > 0) {
+					if (sel_name != IdString::Null && design->selection_vars.count(sel_name) > 0) {
 						for (auto i1 : design->selection_vars.at(sel_name).selected_members)
 						for (auto i2 : i1.second)
 							limits.insert(i2);
@@ -684,7 +684,7 @@ static void select_op_expand(RTLIL::Design *design, const std::string &arg, char
 
 static void select_filter_active_mod(RTLIL::Design *design, RTLIL::Selection &sel)
 {
-	if (design->selected_active_module == Twine::Null)
+	if (design->selected_active_module == IdString::Null)
 		return;
 
 	if (sel.full_selection) {
@@ -834,7 +834,7 @@ static void select_stmt(RTLIL::Design *design, std::string arg, bool disable_emp
 	if (arg[0] == '@') {
 		std::string set_name = RTLIL::escape_id(arg.substr(1));
 		IdString set_twine = design->twines.find(set_name);
-		if (set_twine != Twine::Null && design->selection_vars.count(set_twine) > 0)
+		if (set_twine != IdString::Null && design->selection_vars.count(set_twine) > 0)
 			work_stack.push_back(design->selection_vars[set_twine]);
 		else
 			log_cmd_error("Selection @%s is not defined!\n", RTLIL::unescape_id(set_name));
@@ -848,7 +848,7 @@ static void select_stmt(RTLIL::Design *design, std::string arg, bool disable_emp
 		select_blackboxes = true;
 	}
 
-	if (design->selected_active_module != Twine::Null) {
+	if (design->selected_active_module != IdString::Null) {
 		arg_mod = design->twines.str(design->selected_active_module);
 		arg_memb = arg;
 		if (!isprefixed(arg_memb))
@@ -956,7 +956,7 @@ static void select_stmt(RTLIL::Design *design, std::string arg, bool disable_emp
 			if (arg_memb.compare(2, 1, "@") == 0) {
 				std::string set_name = RTLIL::escape_id(arg_memb.substr(3));
 				IdString set_twine = design->twines.find(set_name);
-				if (set_twine == Twine::Null || !design->selection_vars.count(set_twine))
+				if (set_twine == IdString::Null || !design->selection_vars.count(set_twine))
 					log_cmd_error("Selection @%s is not defined!\n", RTLIL::unescape_id(set_name));
 
 				auto &muster = design->selection_vars[set_twine];
@@ -1438,7 +1438,7 @@ struct SelectPass : public Pass {
 			if (arg == "-module" && argidx+1 < args.size()) {
 				std::string mod_name = RTLIL::escape_id(args[++argidx]);
 				IdString t = search.find(mod_name);
-				if (t == Twine::Null || design->module(t) == nullptr)
+				if (t == IdString::Null || design->module(t) == nullptr)
 					log_cmd_error("No such module: %s\n", RTLIL::unescape_id(mod_name));
 				design->selected_active_module = t;
 				got_module = true;
@@ -1483,7 +1483,7 @@ struct SelectPass : public Pass {
 				std::string obj_name = RTLIL::escape_id(line.substr(slash_pos+1));
 				IdString mod_ref = search.find(mod_name);
 				IdString obj_ref = search.find(obj_name);
-				if (mod_ref == Twine::Null || obj_ref == Twine::Null)
+				if (mod_ref == IdString::Null || obj_ref == IdString::Null)
 					continue;
 				sel.selected_members[mod_ref].insert(obj_ref);
 			}
@@ -1529,7 +1529,7 @@ struct SelectPass : public Pass {
 
 		if (clear_mode) {
 			design->selection() = RTLIL::Selection::FullSelection(design);
-			design->selected_active_module = Twine::Null;
+			design->selected_active_module = IdString::Null;
 			return;
 		}
 
@@ -1675,7 +1675,7 @@ struct SelectPass : public Pass {
 		if (!unset_name.empty())
 		{
 			IdString unset_twine = design->twines.find(unset_name);
-			if (unset_twine == Twine::Null || !design->selection_vars.erase(unset_twine))
+			if (unset_twine == IdString::Null || !design->selection_vars.erase(unset_twine))
 				log_error("Selection '%s' does not exist!\n", unset_name);
 			return;
 		}
@@ -1740,7 +1740,7 @@ struct CdPass : public Pass {
 		if (args.size() == 1 || args[1] == "/") {
 			design->pop_selection();
 			design->push_full_selection();
-			design->selected_active_module = Twine::Null;
+			design->selected_active_module = IdString::Null;
 			return;
 		}
 
@@ -1750,7 +1750,7 @@ struct CdPass : public Pass {
 
 			design->pop_selection();
 			design->push_full_selection();
-			design->selected_active_module = Twine::Null;
+			design->selected_active_module = IdString::Null;
 
 			TwineSearch search(&design->twines);
 			while (1)
@@ -1781,10 +1781,10 @@ struct CdPass : public Pass {
 		TwineSearch search(&design->twines);
 		IdString modname = search.find(RTLIL::escape_id(args[1]));
 
-		if (design->module(modname) == nullptr && design->selected_active_module != Twine::Null) {
+		if (design->module(modname) == nullptr && design->selected_active_module != IdString::Null) {
 			RTLIL::Module *module = design->module(design->selected_active_module);
 			IdString cell_ref = modname;
-			if (module != nullptr && cell_ref != Twine::Null && module->cell(cell_ref) != nullptr)
+			if (module != nullptr && cell_ref != IdString::Null && module->cell(cell_ref) != nullptr)
 				modname = module->cell(cell_ref)->type;
 		}
 
@@ -1844,7 +1844,7 @@ struct LsPass : public Pass {
 		size_t argidx = 1;
 		extra_args(args, argidx, design);
 
-		if (design->selected_active_module == Twine::Null)
+		if (design->selected_active_module == IdString::Null)
 		{
 			std::vector<IdString> matches;
 

@@ -48,7 +48,7 @@ struct RTLILFrontendWorker {
 	RTLIL::Module *current_module;
 	dict<IdString, RTLIL::Const> attrbuf;
 
-	SrcRef pending_src = Src::Null;
+	SrcRef pending_src = SrcRef::Null;
 	std::vector<std::vector<RTLIL::SwitchRule*>*> switch_stack;
 	std::vector<RTLIL::CaseRule*> case_stack;
 
@@ -470,7 +470,7 @@ struct RTLILFrontendWorker {
 		current_module->name = module_name;
 		if (delete_current_module) {
 			attrbuf.erase(ID::src);
-			pending_src = Src::Null;
+			pending_src = SrcRef::Null;
 			current_module->attributes = std::move(attrbuf);
 		} else {
 			design->add(current_module);
@@ -554,9 +554,9 @@ struct RTLILFrontendWorker {
 
 	void flush_src(RTLIL::AttrObject *obj)
 	{
-		if (pending_src != Src::Null) {
+		if (pending_src != SrcRef::Null) {
 			design->set_src_attribute(obj, pending_src);
-			pending_src = Src::Null;
+			pending_src = SrcRef::Null;
 		}
 	}
 
@@ -803,7 +803,7 @@ struct RTLILFrontendWorker {
 		int width = 1;
 		int start_offset = 0;
 		int size = 0;
-		IdString mem_name = Twine::Null;
+		IdString mem_name = IdString::Null;
 		while (true)
 		{
 			std::optional<IdString> name = try_parse_twine();
@@ -852,7 +852,7 @@ struct RTLILFrontendWorker {
 	void legalize_width_parameter(RTLIL::Cell *cell, RTLIL::IdString port_name)
 	{
 		IdString width_param = design->twines.find(design->twines.str(port_name) + "_WIDTH");
-		if (width_param == Twine::Null || cell->parameters.count(width_param) == 0)
+		if (width_param == IdString::Null || cell->parameters.count(width_param) == 0)
 			return;
 		RTLIL::Const &param = cell->parameters.at(width_param);
 		if (param.as_int() != 0)
@@ -1086,7 +1086,7 @@ struct RTLILFrontendWorker {
 				act.enable = parse_sigspec();
 				act.priority_mask = parse_const();
 				rule->mem_write_actions.push_back(act);
-				act.src_ = Src::Null;
+				act.src_ = SrcRef::Null;
 				expect_eol();
 			}
 			// The old parser allowed dangling attributes before a "sync" to carry through

@@ -2217,7 +2217,7 @@ RTLIL::SigSpec AstNode::genRTLIL(int width_hint, bool sign_hint)
 
 			const std::string &id = str;
 			check_unique_id(current_module, id, this, "cell");
-			RTLIL::Cell *cell = current_module->addCell(intern_hier_name(current_module->design, id), Twine::Null);
+			RTLIL::Cell *cell = current_module->addCell(intern_hier_name(current_module->design, id), IdString::Null);
 			set_src_attr(cell, this);
 
 			for (auto it = children.begin(); it != children.end(); it++) {

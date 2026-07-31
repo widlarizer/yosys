@@ -173,7 +173,7 @@ struct OptDffWorker
 			return module->And(NEW_ID, a, b);
 	}
 
-	void create_mux_to_output(SigSpec a, SigSpec b, SigSpec sel, SigSpec y, bool pol, bool is_fine, SrcRef src = Src::Null) {
+	void create_mux_to_output(SigSpec a, SigSpec b, SigSpec sel, SigSpec y, bool pol, bool is_fine, SrcRef src = SrcRef::Null) {
 		if (is_fine) {
 			if (pol)
 				module->addMuxGate(NEW_ID, a, b, sel, y, src);

@@ -42,7 +42,7 @@ inline IdString rn(RTLIL::Design *design, IdString n)
 inline IdString refof(const dict<IdString, IdString> &name_ref, IdString n)
 {
 	auto it = name_ref.find(n);
-	return it == name_ref.end() ? Twine::Null : it->second;
+	return it == name_ref.end() ? IdString::Null : it->second;
 }
 
 inline RTLIL::Wire *wire_of(RTLIL::Design *design, RTLIL::Module *module,
@@ -304,7 +304,7 @@ void reintegrate(RTLIL::Module *module, bool dff_mode, std::string map_filename)
 
 		// Make carry in the last PI, and carry out the last PO
 		//   since ABC requires it this way
-		IdString carry_in = Twine::Null, carry_out = Twine::Null;
+		IdString carry_in = IdString::Null, carry_out = IdString::Null;
 		for (const auto &port_name : m->ports) {
 			auto w = m->wire(port_name);
 			log_assert(w);
@@ -319,7 +319,7 @@ void reintegrate(RTLIL::Module *module, bool dff_mode, std::string map_filename)
 				r.first->second.push_back(port_name);
 		}
 
-		if (carry_in != Twine::Null) {
+		if (carry_in != IdString::Null) {
 			r.first->second.push_back(carry_in);
 			r.first->second.push_back(carry_out);
 		}
@@ -413,7 +413,7 @@ void reintegrate(RTLIL::Module *module, bool dff_mode, std::string map_filename)
 					else
 						driver_name = stringf("$lut%s[%d]", a_bit.wire->name, a_bit.offset);
 					IdString driver_ref = mapped_mod->design->twines.find(driver_name);
-					driver_lut = driver_ref == Twine::Null ? nullptr : mapped_mod->cell(refof(name_ref, driver_ref));
+					driver_lut = driver_ref == IdString::Null ? nullptr : mapped_mod->cell(refof(name_ref, driver_ref));
 				}
 
 				if (!driver_lut) {

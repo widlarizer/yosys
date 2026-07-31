@@ -320,7 +320,7 @@ void create_miter_assert(struct Pass *that, std::vector<std::string> args, RTLIL
 		that->cmd_error(args, argidx, "command argument error");
 
 	IdString module_name = design->twines.add(RTLIL::escape_id(args[argidx++]));
-	IdString miter_name = argidx < args.size() ? design->twines.add(RTLIL::escape_id(args[argidx++])) : Twine::Null;
+	IdString miter_name = argidx < args.size() ? design->twines.add(RTLIL::escape_id(args[argidx++])) : IdString::Null;
 
 	if (design->module(module_name) == nullptr)
 		log_cmd_error("Can't find module %s!\n", design->twines.str(module_name));

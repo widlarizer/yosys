@@ -290,14 +290,14 @@ struct ProcArstPass : public Pass {
 		pool<Wire*> delete_initattr_wires;
 
 		TwineSearch search(&design->twines);
-		IdString global_arst_ref = global_arst.empty() ? Twine::Null
+		IdString global_arst_ref = global_arst.empty() ? IdString::Null
 				: search.find(global_arst);
 
 		for (auto mod : design->all_selected_modules()) {
 			SigMap assign_map(mod);
 			for (auto proc : mod->selected_processes()) {
 				proc_arst(mod, proc, assign_map);
-				if (global_arst_ref == Twine::Null || mod->wire(global_arst_ref) == nullptr)
+				if (global_arst_ref == IdString::Null || mod->wire(global_arst_ref) == nullptr)
 					continue;
 				std::vector<RTLIL::SigSig> arst_actions;
 				for (auto sync : proc->syncs)

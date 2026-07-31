@@ -108,7 +108,7 @@ struct Xaiger2Frontend : public Frontend {
 			log_error("Failed to open map file '%s'\n", map_filename);
 
 		bool map_refs = false;
-		IdString module_ref = Twine::Null;
+		IdString module_ref = IdString::Null;
 		{
 			std::string tok;
 			if (map_file >> tok && tok == "refs") {

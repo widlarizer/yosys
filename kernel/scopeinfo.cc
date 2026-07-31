@@ -102,7 +102,7 @@ bool scopeinfo_has_attribute(const RTLIL::Cell *scopeinfo, ScopeinfoAttrs attrs,
 	log_assert(scopeinfo->type == ID($scopeinfo));
 	TwinePool &twines = scopeinfo->module->design->twines;
 	IdString key = twines.find(attr_prefix(attrs) + twines.unescaped_str(id));
-	return key != Twine::Null && scopeinfo->has_attribute(key);
+	return key != IdString::Null && scopeinfo->has_attribute(key);
 }
 
 RTLIL::Const scopeinfo_get_attribute(const RTLIL::Cell *scopeinfo, ScopeinfoAttrs attrs, RTLIL::IdString id)
@@ -110,7 +110,7 @@ RTLIL::Const scopeinfo_get_attribute(const RTLIL::Cell *scopeinfo, ScopeinfoAttr
 	log_assert(scopeinfo->type == ID($scopeinfo));
 	TwinePool &twines = scopeinfo->module->design->twines;
 	IdString key = twines.find(attr_prefix(attrs) + twines.unescaped_str(id));
-	if (key == Twine::Null)
+	if (key == IdString::Null)
 		return RTLIL::Const();
 	auto found = scopeinfo->attributes.find(key);
 	if (found == scopeinfo->attributes.end())

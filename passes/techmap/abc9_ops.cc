@@ -46,27 +46,27 @@ void check(RTLIL::Design *design, bool dff_mode)
 
 		// Make carry in the last PI, and carry out the last PO
 		//   since ABC requires it this way
-		IdString carry_in = Twine::Null, carry_out = Twine::Null;
+		IdString carry_in = IdString::Null, carry_out = IdString::Null;
 		for (const auto &port_name : m->ports) {
 			auto w = m->wire(port_name);
 			log_assert(w);
 			if (w->get_bool_attribute(ID::abc9_carry)) {
 				if (w->port_input) {
-					if (carry_in != Twine::Null)
+					if (carry_in != IdString::Null)
 						log_error("Module '%s' contains more than one (* abc9_carry *) input port.\n", m);
 					carry_in = port_name;
 				}
 				if (w->port_output) {
-					if (carry_out != Twine::Null)
+					if (carry_out != IdString::Null)
 						log_error("Module '%s' contains more than one (* abc9_carry *) output port.\n", m);
 					carry_out = port_name;
 				}
 			}
 		}
 
-		if (carry_in != Twine::Null && carry_out == Twine::Null)
+		if (carry_in != IdString::Null && carry_out == IdString::Null)
 			log_error("Module '%s' contains an (* abc9_carry *) input port but no output port.\n", m);
-		if (carry_in == Twine::Null && carry_out != Twine::Null)
+		if (carry_in == IdString::Null && carry_out != IdString::Null)
 			log_error("Module '%s' contains an (* abc9_carry *) output port but no input port.\n", m);
 
 		if (flop) {
@@ -735,7 +735,7 @@ void prep_xaiger(RTLIL::Module *module, bool dff)
 			if (r.second) {
 				// Make carry in the last PI, and carry out the last PO
 				//   since ABC requires it this way
-				IdString carry_in = Twine::Null, carry_out = Twine::Null;
+				IdString carry_in = IdString::Null, carry_out = IdString::Null;
 				for (const auto &port_name : inst_module->ports) {
 					auto w = inst_module->wire(port_name);
 					log_assert(w);
@@ -749,7 +749,7 @@ void prep_xaiger(RTLIL::Module *module, bool dff)
 					else
 						r.first->second.push_back(port_name);
 				}
-				if (carry_in != Twine::Null) {
+				if (carry_in != IdString::Null) {
 					r.first->second.push_back(carry_in);
 					r.first->second.push_back(carry_out);
 				}
@@ -1110,7 +1110,7 @@ void prep_box(RTLIL::Design *design)
 			if (r2.second) {
 				// Make carry in the last PI, and carry out the last PO
 				//   since ABC requires it this way
-				IdString carry_in = Twine::Null, carry_out = Twine::Null;
+				IdString carry_in = IdString::Null, carry_out = IdString::Null;
 				for (const auto &port_name : module->ports) {
 					auto w = module->wire(port_name);
 					log_assert(w);
@@ -1125,7 +1125,7 @@ void prep_box(RTLIL::Design *design)
 						r2.first->second.push_back(port_name);
 				}
 
-				if (carry_in != Twine::Null) {
+				if (carry_in != IdString::Null) {
 					r2.first->second.push_back(carry_in);
 					r2.first->second.push_back(carry_out);
 				}

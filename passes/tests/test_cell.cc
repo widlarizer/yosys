@@ -1084,7 +1084,7 @@ struct TestCellPass : public Pass {
 			for (auto &it : cell_types)
 				if (ID::str(it.first) == s)
 					return it.first;
-			return Twine::Null;
+			return IdString::Null;
 		};
 
 		for (; argidx < GetSize(args); argidx++)
@@ -1109,7 +1109,7 @@ struct TestCellPass : public Pass {
 			}
 
 			IdString arg_type = find_type(args[argidx]);
-			if (arg_type == Twine::Null) {
+			if (arg_type == IdString::Null) {
 				std::string cell_type_list;
 				int charcount = 100;
 				for (auto &it : cell_types) {

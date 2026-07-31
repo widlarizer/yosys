@@ -325,12 +325,12 @@ struct FlattenWorker
 				else
 					scopeinfo->attributes.emplace(design->twines.add(stringf("\\cell_%s", design->twines.unescaped_str(attr.first))), attr.second);
 			}
-			if (cell->src_id() != Src::Null)
+			if (cell->src_id() != SrcRef::Null)
 				scopeinfo->attributes.emplace(design->twines.add(std::string("\\cell_src")), RTLIL::Const(cell->get_src_attribute()));
 
 			for (auto const &attr : tpl->attributes)
 				scopeinfo->attributes.emplace(design->twines.add(stringf("\\module_%s", design->twines.unescaped_str(attr.first))), attr.second);
-			if (tpl->src_id() != Src::Null)
+			if (tpl->src_id() != SrcRef::Null)
 				scopeinfo->attributes.emplace(design->twines.add(std::string("\\module_src")), RTLIL::Const(tpl->get_src_attribute()));
 
 			scopeinfo->attributes.emplace(ID::module, RTLIL::Const(tpl->name.unescape()));

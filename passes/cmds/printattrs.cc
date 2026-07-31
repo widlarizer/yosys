@@ -55,7 +55,7 @@ struct PrintAttrsPass : public Pass {
 	}
 
 	static void log_src(const RTLIL::Design *design, const RTLIL::AttrObject *obj, const unsigned int indent) {
-		if (design && design->obj_src_id(obj) != Src::Null)
+		if (design && design->obj_src_id(obj) != SrcRef::Null)
 			log("%s(* src=\"%s\" *)\n", get_indent_str(indent),
 					design->get_src_attribute(obj).c_str());
 	}
