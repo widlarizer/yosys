@@ -410,11 +410,11 @@ struct RenamePass : public Pass {
 				dict<RTLIL::Cell *, IdString> new_cell_names;
 
 				for (auto wire : module->selected_wires())
-					if (wire->name[0] == '$')
+					if (!wire->name.isPublic())
 						new_wire_names.emplace(wire, module->design->twines.add(derive_name_from_src(wire->get_src_attribute(), counter++)));
 
 				for (auto cell : module->selected_cells())
-					if (cell->name[0] == '$')
+					if (!cell->name.isPublic())
 						new_cell_names.emplace(cell, module->design->twines.add(derive_name_from_src(cell->get_src_attribute(), counter++)));
 
 				for (auto &it : new_wire_names)
@@ -432,7 +432,7 @@ struct RenamePass : public Pass {
 			for (auto module : design->selected_modules()) {
 				dict<RTLIL::Cell *, IdString> new_cell_names;
 				for (auto cell : module->selected_cells())
-					if (cell->name[0] == '$')
+					if (!cell->name.isPublic())
 						new_cell_names[cell] = derive_name_from_cell_output_wire(cell, cell_suffix, flag_move_to_cell);
 				for (auto &[cell, new_name] : new_cell_names) {
 					if (flag_move_to_cell) {
@@ -473,12 +473,12 @@ struct RenamePass : public Pass {
 					taken_cell_names.insert(cell->name.str());
 
 				for (auto wire : module->selected_wires())
-					if (wire->name[0] == '$')
+					if (!wire->name.isPublic())
 						new_wire_names[wire] = design->twines.add(
 								next_free_name(taken_wire_names, pattern_prefix, pattern_suffix, counter));
 
 				for (auto cell : module->selected_cells())
-					if (cell->name[0] == '$')
+					if (!cell->name.isPublic())
 						new_cell_names[cell] = design->twines.add(
 								next_free_name(taken_cell_names, pattern_prefix, pattern_suffix, counter));
 
@@ -651,7 +651,7 @@ struct RenamePass : public Pass {
 
 				if (module_to_rename != nullptr) {
 					to_name = RTLIL::escape_id(to_name);
-					log("Renaming module %s to %s.\n", log_id(module_to_rename), to_name);
+					log("Renaming module %s to %s.\n", module_to_rename->name, to_name);
 					design->rename(module_to_rename, to_name);
 				} else
 					log_cmd_error("Object `%s' not found!\n", from_name);

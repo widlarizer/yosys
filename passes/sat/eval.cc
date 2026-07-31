@@ -311,7 +311,7 @@ struct VlogHammerReporter
 			RTLIL::Module *mod = design->module(esc_name);
 			if (mod == nullptr)
 				log_error("Can't find module %s in current design!\n", name);
-			log("Using module %s (%s).\n", log_id(design, esc_name), name);
+			log("Using module %s (%s).\n", design->twines.str(esc_name), name);
 			modules.push_back(mod);
 			module_names.push_back(name);
 		}
@@ -331,7 +331,7 @@ struct VlogHammerReporter
 					log_error("Port %s has different sizes in the different modules!\n", name);
 				width = port->width;
 			}
-			log("Using input port %s with width %d.\n", log_id(design, esc_name), width);
+			log("Using input port %s with width %d.\n", design->twines.str(esc_name), width);
 			inputs.push_back(esc_name);
 			input_widths.push_back(width);
 			total_input_width += width;

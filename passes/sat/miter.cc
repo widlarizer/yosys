@@ -78,11 +78,11 @@ void create_miter_equiv(struct Pass *that, std::vector<std::string> args, RTLIL:
 	TwineSearch search(&design->twines);
 
 	if (design->module(gold_name) == nullptr)
-		log_cmd_error("Can't find gold module %s!\n", log_id(design, gold_name));
+		log_cmd_error("Can't find gold module %s!\n", design->twines.str(gold_name));
 	if (design->module(gate_name) == nullptr)
-		log_cmd_error("Can't find gate module %s!\n", log_id(design, gate_name));
+		log_cmd_error("Can't find gate module %s!\n", design->twines.str(gate_name));
 	if (design->module(miter_name) != nullptr)
-		log_cmd_error("There is already a module %s!\n", log_id(design, miter_name));
+		log_cmd_error("There is already a module %s!\n", design->twines.str(miter_name));
 
 	RTLIL::Module *gold_module = design->module(gold_name);
 	RTLIL::Module *gate_module = design->module(gate_name);
@@ -327,9 +327,9 @@ void create_miter_assert(struct Pass *that, std::vector<std::string> args, RTLIL
 	TwineSearch search(&design->twines);
 
 	if (design->module(module_name) == nullptr)
-		log_cmd_error("Can't find module %s!\n", log_id(design, module_name));
+		log_cmd_error("Can't find module %s!\n", design->twines.str(module_name));
 	if (!miter_name.empty() && design->module(miter_name) != nullptr)
-		log_cmd_error("There is already a module %s!\n", log_id(design, miter_name));
+		log_cmd_error("There is already a module %s!\n", design->twines.str(miter_name));
 
 	Module *module = design->module(module_name);
 

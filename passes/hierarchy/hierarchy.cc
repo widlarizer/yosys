@@ -60,7 +60,7 @@ void generate(RTLIL::Design *design, const std::vector<std::string> &celltypes, 
 		std::set<std::string> portnames;
 		std::set<RTLIL::IdString> parameters;
 		std::map<std::string, int> portwidths;
-		log("Generate module for cell type %s:\n", log_id(design, celltype));
+		log("Generate module for cell type %s:\n", design->twines.str(celltype));
 
 		for (auto mod : design->modules())
 		for (auto cell : mod->cells())

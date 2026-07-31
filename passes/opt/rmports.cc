@@ -148,7 +148,7 @@ struct RmportsPassPass : public Pass {
 		// Print the ports out as we go through them
 		for(auto port : unused_ports)
 		{
-			log("  removing unused port %s\n", log_id(module, port));
+			log("  removing unused port %s\n", module->design->twines.str(port));
 			IdString port_id = port;
 			removed_ports[module->name].insert(port_id);
 

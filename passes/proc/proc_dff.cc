@@ -99,7 +99,7 @@ void gen_dffsr_complex(RTLIL::Module *mod, RTLIL::SigSpec sig_d, RTLIL::SigSpec 
 	cell->module->design->merge_src(cell, proc);
 
 	log("  created %s cell `%s' with %s edge clock and multiple level-sensitive resets.\n",
-			log_id(cell->type), log_id(cell), clk_polarity ? "positive" : "negative");
+			cell->type, cell->name, clk_polarity ? "positive" : "negative");
 }
 
 void gen_aldff(RTLIL::Module *mod, RTLIL::SigSpec sig_in, RTLIL::SigSpec sig_set, RTLIL::SigSpec sig_out,
@@ -122,7 +122,7 @@ void gen_aldff(RTLIL::Module *mod, RTLIL::SigSpec sig_in, RTLIL::SigSpec sig_set
 	cell->setPort(ID::CLK, clk);
 	cell->setPort(ID::ALOAD, set);
 
-	log("  created %s cell `%s' with %s edge clock and %s level non-const reset.\n", log_id(cell->type), log_id(cell),
+	log("  created %s cell `%s' with %s edge clock and %s level non-const reset.\n", cell->type, cell->name,
 			clk_polarity ? "positive" : "negative", set_polarity ? "positive" : "negative");
 }
 
@@ -154,9 +154,9 @@ void gen_dff(RTLIL::Module *mod, RTLIL::SigSpec sig_in, RTLIL::Const val_rst, RT
 		cell->setPort(ID::CLK, clk);
 
 	if (!clk.empty())
-		log("  created %s cell `%s' with %s edge clock", log_id(cell->type), log_id(cell), clk_polarity ? "positive" : "negative");
+		log("  created %s cell `%s' with %s edge clock", cell->type, cell->name, clk_polarity ? "positive" : "negative");
 	else
-		log("  created %s cell `%s' with global clock", log_id(cell->type), log_id(cell));
+		log("  created %s cell `%s' with global clock", cell->type, cell->name);
 	if (arst)
 		log(" and %s level reset", arst_polarity ? "positive" : "negative");
 	log(".\n");
@@ -173,7 +173,7 @@ void proc_dff(RTLIL::Module *mod, RTLIL::Process *proc, ConstEval &ce)
 			break;
 
 		log("Creating register for signal `%s.%s' using process `%s.%s'.\n",
-				log_id(mod), log_signal(sig), log_id(mod), log_id(proc));
+				mod->name, log_signal(sig), mod->name, proc->name);
 
 		RTLIL::SigSpec insig = RTLIL::SigSpec(RTLIL::State::Sz, sig.size());
 		RTLIL::SyncRule *sync_edge = NULL;

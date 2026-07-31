@@ -167,7 +167,7 @@ struct TechmapWorker
 				}
 			}
 
-		return stringf("$paramod$constmap:%s%s", sha1(constmap_info), log_id(tpl->name));
+		return stringf("$paramod$constmap:%s%s", sha1(constmap_info), tpl->name);
 	}
 
 	TechmapWires techmap_find_special_wires(RTLIL::Module *module)
@@ -606,7 +606,7 @@ struct TechmapWorker
 							extmapper_module->check();
 
 							if (extmapper_name == "simplemap") {
-								log("Creating %s with simplemap.\n", log_id(extmapper_module->name));
+								log("Creating %s with simplemap.\n", extmapper_module);
 								if (simplemap_mappers.count(extmapper_cell->type) == 0)
 									log_error("No simplemap mapper for cell type %s found!\n", extmapper_cell->type.unescape());
 								simplemap_mappers.at(extmapper_cell->type)(extmapper_module, extmapper_cell);
@@ -614,7 +614,7 @@ struct TechmapWorker
 							}
 
 							if (extmapper_name == "maccmap") {
-								log("Creating %s with maccmap.\n", log_id(extmapper_module->name));
+								log("Creating %s with maccmap.\n", extmapper_module);
 								if (!extmapper_cell->type.in(IdString{ID($macc)}, IdString{ID($macc_v2)}))
 									log_error("The maccmap mapper can only map $macc/$macc_v2 (not %s) cells!\n", extmapper_cell->type.unescape());
 								maccmap(extmapper_module, extmapper_cell);
@@ -623,7 +623,7 @@ struct TechmapWorker
 
 							if (extmapper_name == "wrap") {
 								std::string cmd_string = tpl->attributes.at(ID::techmap_wrap).decode_string();
-								log("Running \"%s\" on wrapper %s.\n", cmd_string.c_str(), log_id(extmapper_module->name));
+								log("Running \"%s\" on wrapper %s.\n", cmd_string, extmapper_module);
 								mkdebug.on();
 								Pass::call_on_module(extmapper_design, extmapper_module, cmd_string);
 								log_continue = true;

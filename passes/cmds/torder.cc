@@ -116,12 +116,12 @@ struct TorderPass : public Pass {
 			for (auto &it : toposort.loops) {
 				log("  loop");
 				for (auto cell : it)
-					log(" %s", log_id(module, cell));
+					log(" %s", design->twines.str(cell));
 				log("\n");
 			}
 
 			for (auto cell : toposort.sorted)
-					log("  cell %s\n", log_id(module, cell));
+					log("  cell %s\n", design->twines.str(cell));
 		}
 	}
 } TorderPass;

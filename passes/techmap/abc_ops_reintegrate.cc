@@ -557,7 +557,7 @@ void reintegrate(RTLIL::Module *module, bool dff_mode, std::string map_filename)
 	}
 
 	for (auto &it : cell_stats)
-		log("ABC RESULTS:   %15s cells: %8d\n", log_id(design, it.first), it.second);
+		log("ABC RESULTS:   %15s cells: %8d\n", design->twines.str(it.first), it.second);
 	int in_wires = 0, out_wires = 0;
 
 	// Stitch in mapped_mod's inputs/outputs into module

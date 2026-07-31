@@ -99,7 +99,7 @@ struct OptLutWorker
 		}
 		for (int i = 0; i < GetSize(dlogic); i++)
 		{
-			log("  with %-12s (#%d) %4d\n", log_id(module, dlogic[i].cell_type), i, dlogic_counts[i]);
+			log("  with %-12s (#%d) %4d\n", module->design->twines.str(dlogic[i].cell_type), i, dlogic_counts[i]);
 		}
 	}
 

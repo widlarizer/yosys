@@ -128,7 +128,7 @@ struct MemoryMapWorker
 				const auto &cell_attr = mem.attributes[attr_ref];
 				if (attr.second.empty()) {
 					log("Not mapping memory %s in module %s (attribute %s is set).\n",
-							log_id(module, mem.memid), log_id(module), RTLIL::unescape_id(attr.first));
+							mem.memid, module->name, attr.first);
 					return;
 				}
 
@@ -142,10 +142,10 @@ struct MemoryMapWorker
 				if (!found) {
 					if (cell_attr.flags & RTLIL::CONST_FLAG_STRING) {
 						log("Not mapping memory %s in module %s (attribute %s is set to \"%s\").\n",
-								log_id(module, mem.memid), log_id(module), RTLIL::unescape_id(attr.first), cell_attr.decode_string().c_str());
+								mem.memid, module->name, attr.first, cell_attr.decode_string().c_str());
 					} else {
 						log("Not mapping memory %s in module %s (attribute %s is set to %d).\n",
-								log_id(module, mem.memid), log_id(module), RTLIL::unescape_id(attr.first), cell_attr.as_int());
+								mem.memid, module->name, attr.first, cell_attr.as_int());
 					}
 					return;
 				}
@@ -179,29 +179,29 @@ struct MemoryMapWorker
 				static_only = false;
 				if (GetSize(refclock) != 0)
 					log("Not mapping memory %s in module %s (mixed clocked and async write ports).\n",
-							log_id(module, mem.memid), log_id(module));
+							mem.memid, module->name);
 				if (!formal)
 					log("Not mapping memory %s in module %s (write port %d has no clock).\n",
-								log_id(module, mem.memid), log_id(module), i);
+								mem.memid, module->name, i);
 				async_wr = true;
 				continue;
 			}
 			static_only = false;
 			if (async_wr)
 				log("Not mapping memory %s in module %s (mixed clocked and async write ports).\n",
-						log_id(module, mem.memid), log_id(module));
+						mem.memid, module->name);
 			if (refclock.size() == 0) {
 				refclock = port.clk;
 				refclock_pol = port.clk_polarity;
 			}
 			if (port.clk != refclock || port.clk_polarity != refclock_pol) {
 				log("Not mapping memory %s in module %s (write clock %d is incompatible with other clocks).\n",
-						log_id(module, mem.memid), log_id(module), i);
+						mem.memid, module->name, i);
 				return;
 			}
 		}
 
-		log("Mapping memory %s in module %s:\n", log_id(module, mem.memid), log_id(module));
+		log("Mapping memory %s in module %s:\n", mem.memid, module->name);
 
 		int abits = ceil_log2(mem.size);
 		std::vector<RTLIL::SigSpec> data_reg_in(1 << abits);

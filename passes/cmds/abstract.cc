@@ -495,10 +495,10 @@ struct AbstractPass : public Pass {
 					case Enable::ActiveHigh: {
 						Wire *enable_wire = mod->wire(design->twines.find("\\" + enable_name));
 						if (!enable_wire)
-							log_cmd_error("Enable wire %s not found in module %s\n", enable_name, log_id(mod));
+							log_cmd_error("Enable wire %s not found in module %s\n", enable_name, mod->name);
 						if (GetSize(enable_wire) != 1)
 							log_cmd_error("Enable wire %s must have width 1 but has width %d in module %s\n",
-									enable_name.c_str(), GetSize(enable_wire), log_id(mod));
+									enable_name.c_str(), GetSize(enable_wire), mod->name);
 						enable_logic = { enable_wire, enable == Enable::ActiveHigh };
 					} break;
 					case Enable::Initstates: {

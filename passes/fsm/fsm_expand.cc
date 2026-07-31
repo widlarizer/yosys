@@ -243,7 +243,7 @@ struct FsmExpand
 	void execute()
 	{
 		log("\n");
-		log("Expanding FSM `%s' from module `%s':\n", log_id(fsm_cell), log_id(module));
+		log("Expanding FSM `%s' from module `%s':\n", fsm_cell->name, module->name);
 
 		already_optimized = false;
 		limit_transitions =  16 * fsm_cell->parameters[ID::TRANS_NUM].as_int();
