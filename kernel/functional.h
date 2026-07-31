@@ -580,7 +580,7 @@ namespace Functional {
 		void suggest_name(Node node, IdString name) {
 			_ir.mutate(node).sparse_attr() = name;
 		}
-		YS_NAME_FWD_SELF_2ND(suggest_name)
+		YS_NAME_FWD_2ND(suggest_name)
 	};
 	inline Factory IR::factory() { return Factory(*this); }
 	template<class Id> class Scope {

@@ -1514,45 +1514,6 @@ RTLIL::Module::~Module()
 #endif
 }
 
-SrcRef RTLIL::Module::src_id() const
-{
-	if (!design)
-		return Src::Null;
-	return design->obj_src_id(this);
-}
-
-void RTLIL::Module::set_src_id(SrcRef id)
-{
-	log_assert(design && "Module::set_src_id requires the module to be attached to a design");
-	design->obj_set_src_id(this, id);
-}
-
-void RTLIL::Module::set_src_attribute(SrcRef src)
-{
-	if (src == Src::Null && meta_ == nullptr)
-		return;
-	log_assert(design && "Module::set_src_attribute requires the module to be attached to a design");
-	design->set_src_attribute(this, src);
-}
-
-void RTLIL::Module::adopt_src_from(const RTLIL::AttrObject *source)
-{
-	log_assert(design && "Module::adopt_src_from requires the module to be attached to a design");
-	design->adopt_src_from(this, source);
-}
-
-std::string RTLIL::Module::get_src_attribute() const
-{
-	log_assert(design);
-	return design->get_src_attribute(this);
-}
-
-void RTLIL::Module::absorb_attrs(dict<IdString, RTLIL::Const> &&buf)
-{
-	log_assert(design && "Module::absorb_attrs requires the module to be attached to a design");
-	design->absorb_attrs(this, std::move(buf));
-}
-
 #ifdef YOSYS_ENABLE_PYTHON
 static std::map<unsigned int, RTLIL::Module*> all_modules;
 std::map<unsigned int, RTLIL::Module*> *RTLIL::Module::get_all_modules(void)
@@ -4517,44 +4478,9 @@ RTLIL::Wire::~Wire()
 #endif
 }
 
-SrcRef RTLIL::Wire::src_id() const
+RTLIL::Design *RTLIL::Wire::owning_design() const
 {
-	if (!module || !module->design)
-		return Src::Null;
-	return module->design->obj_src_id(this);
-}
-
-void RTLIL::Wire::set_src_id(SrcRef id)
-{
-	log_assert(module && module->design && "Wire::set_src_id requires the wire to be attached to a module in a design");
-	module->design->obj_set_src_id(this, id);
-}
-
-void RTLIL::Wire::set_src_attribute(SrcRef src)
-{
-	if (src == Src::Null && meta_ == nullptr)
-		return;
-	log_assert(module && module->design && "Wire::set_src_attribute requires the wire to be attached to a module in a design");
-	module->design->set_src_attribute(this, src);
-}
-
-std::string RTLIL::Wire::get_src_attribute() const
-{
-	log_assert(module);
-	log_assert(module->design);
-	return module->design->get_src_attribute(this);
-}
-
-void RTLIL::Wire::adopt_src_from(const RTLIL::AttrObject *source)
-{
-	log_assert(module && module->design && "Wire::adopt_src_from requires the wire to be attached to a module in a design");
-	module->design->adopt_src_from(this, source);
-}
-
-void RTLIL::Wire::absorb_attrs(dict<IdString, RTLIL::Const> &&buf)
-{
-	log_assert(module && module->design && "Wire::absorb_attrs requires the wire to be attached to a module in a design");
-	module->design->absorb_attrs(this, std::move(buf));
+	return module ? module->design : nullptr;
 }
 
 std::string RTLIL::Wire::to_rtlil_str() const
@@ -4628,42 +4554,9 @@ RTLIL::Cell::~Cell()
 #endif
 }
 
-SrcRef RTLIL::Cell::src_id() const
+RTLIL::Design *RTLIL::Cell::owning_design() const
 {
-	if (!module || !module->design)
-		return Src::Null;
-	return module->design->obj_src_id(this);
-}
-
-void RTLIL::Cell::set_src_id(SrcRef id)
-{
-	log_assert(module && module->design && "Cell::set_src_id requires the cell to be attached to a module in a design");
-	module->design->obj_set_src_id(this, id);
-}
-
-void RTLIL::Cell::set_src_attribute(SrcRef src)
-{
-	log_assert(module && module->design && "Cell::set_src_attribute requires the cell to be attached to a module in a design");
-	module->design->set_src_attribute(this, src);
-}
-
-std::string RTLIL::Cell::get_src_attribute() const
-{
-	log_assert(module);
-	log_assert(module->design);
-	return module->design->get_src_attribute(this);
-}
-
-void RTLIL::Cell::adopt_src_from(const RTLIL::AttrObject *source)
-{
-	log_assert(module && module->design && "Cell::adopt_src_from requires the cell to be attached to a module in a design");
-	module->design->adopt_src_from(this, source);
-}
-
-void RTLIL::Cell::absorb_attrs(dict<IdString, RTLIL::Const> &&buf)
-{
-	log_assert(module && module->design && "Cell::absorb_attrs requires the cell to be attached to a module in a design");
-	module->design->absorb_attrs(this, std::move(buf));
+	return module ? module->design : nullptr;
 }
 
 std::string RTLIL::Cell::to_rtlil_str() const
@@ -6394,44 +6287,9 @@ RTLIL::Process::~Process()
 		delete *it;
 }
 
-SrcRef RTLIL::Process::src_id() const
+RTLIL::Design *RTLIL::Process::owning_design() const
 {
-	if (!module || !module->design)
-		return Src::Null;
-	return module->design->obj_src_id(this);
-}
-
-void RTLIL::Process::set_src_id(SrcRef id)
-{
-	log_assert(module && module->design && "Process::set_src_id requires the process to be attached to a module in a design");
-	module->design->obj_set_src_id(this, id);
-}
-
-void RTLIL::Process::set_src_attribute(SrcRef src)
-{
-	if (src == Src::Null && meta_ == nullptr)
-		return;
-	log_assert(module && module->design && "Process::set_src_attribute requires the process to be attached to a module in a design");
-	module->design->set_src_attribute(this, src);
-}
-
-std::string RTLIL::Process::get_src_attribute() const
-{
-	if (!module || !module->design)
-		return {};
-	return module->design->get_src_attribute(this);
-}
-
-void RTLIL::Process::adopt_src_from(const RTLIL::AttrObject *source)
-{
-	log_assert(module && module->design && "Process::adopt_src_from requires the process to be attached to a module in a design");
-	module->design->adopt_src_from(this, source);
-}
-
-void RTLIL::Process::absorb_attrs(dict<IdString, RTLIL::Const> &&buf)
-{
-	log_assert(module && module->design && "Process::absorb_attrs requires the process to be attached to a module in a design");
-	module->design->absorb_attrs(this, std::move(buf));
+	return module ? module->design : nullptr;
 }
 
 RTLIL::Process *RTLIL::Process::clone() const
@@ -6460,149 +6318,24 @@ RTLIL::Memory::~Memory()
 #endif
 }
 
-SrcRef RTLIL::Memory::src_id() const
+RTLIL::Design *RTLIL::Memory::owning_design() const
 {
-	if (!module || !module->design)
-		return Src::Null;
-	return module->design->obj_src_id(this);
+	return module ? module->design : nullptr;
 }
 
-void RTLIL::Memory::set_src_id(SrcRef id)
+RTLIL::Design *RTLIL::CaseRule::owning_design() const
 {
-	log_assert(module && module->design && "Memory::set_src_id requires the memory to be attached to a module in a design");
-	module->design->obj_set_src_id(this, id);
+	return module ? module->design : nullptr;
 }
 
-void RTLIL::Memory::set_src_attribute(SrcRef src)
+RTLIL::Design *RTLIL::SwitchRule::owning_design() const
 {
-	if (src == Src::Null && meta_ == nullptr)
-		return;
-	log_assert(module && module->design && "Memory::set_src_attribute requires the memory to be attached to a module in a design");
-	module->design->set_src_attribute(this, src);
+	return module ? module->design : nullptr;
 }
 
-std::string RTLIL::Memory::get_src_attribute() const
+RTLIL::Design *RTLIL::MemWriteAction::owning_design() const
 {
-	if (!module || !module->design)
-		return {};
-	return module->design->get_src_attribute(this);
-}
-
-void RTLIL::Memory::adopt_src_from(const RTLIL::AttrObject *source)
-{
-	log_assert(module && module->design && "Memory::adopt_src_from requires the memory to be attached to a module in a design");
-	module->design->adopt_src_from(this, source);
-}
-
-void RTLIL::Memory::absorb_attrs(dict<IdString, RTLIL::Const> &&buf)
-{
-	log_assert(module && module->design && "Memory::absorb_attrs requires the memory to be attached to a module in a design");
-	module->design->absorb_attrs(this, std::move(buf));
-}
-
-SrcRef RTLIL::CaseRule::src_id() const
-{
-	if (!module || !module->design)
-		return Src::Null;
-	return module->design->obj_src_id(this);
-}
-void RTLIL::CaseRule::set_src_id(SrcRef id)
-{
-	log_assert(module && module->design && "CaseRule::set_src_id requires the case to belong to a module in a design");
-	module->design->obj_set_src_id(this, id);
-}
-void RTLIL::CaseRule::set_src_attribute(SrcRef src)
-{
-	if (src == Src::Null && meta_ == nullptr)
-		return;
-	log_assert(module && module->design && "CaseRule::set_src_attribute requires the case to belong to a module in a design");
-	module->design->set_src_attribute(this, src);
-}
-std::string RTLIL::CaseRule::get_src_attribute() const
-{
-	if (!module || !module->design)
-		return {};
-	return module->design->get_src_attribute(this);
-}
-void RTLIL::CaseRule::adopt_src_from(const RTLIL::AttrObject *source)
-{
-	log_assert(module && module->design && "CaseRule::adopt_src_from requires the case to belong to a module in a design");
-	module->design->adopt_src_from(this, source);
-}
-void RTLIL::CaseRule::absorb_attrs(dict<IdString, RTLIL::Const> &&buf)
-{
-	log_assert(module && module->design && "CaseRule::absorb_attrs requires the case to belong to a module in a design");
-	module->design->absorb_attrs(this, std::move(buf));
-}
-
-SrcRef RTLIL::SwitchRule::src_id() const
-{
-	if (!module || !module->design)
-		return Src::Null;
-	return module->design->obj_src_id(this);
-}
-void RTLIL::SwitchRule::set_src_id(SrcRef id)
-{
-	log_assert(module && module->design && "SwitchRule::set_src_id requires the switch to belong to a module in a design");
-	module->design->obj_set_src_id(this, id);
-}
-void RTLIL::SwitchRule::set_src_attribute(SrcRef src)
-{
-	if (src == Src::Null && meta_ == nullptr)
-		return;
-	log_assert(module && module->design && "SwitchRule::set_src_attribute requires the switch to belong to a module in a design");
-	module->design->set_src_attribute(this, src);
-}
-std::string RTLIL::SwitchRule::get_src_attribute() const
-{
-	if (!module || !module->design)
-		return {};
-	return module->design->get_src_attribute(this);
-}
-void RTLIL::SwitchRule::adopt_src_from(const RTLIL::AttrObject *source)
-{
-	log_assert(module && module->design && "SwitchRule::adopt_src_from requires the switch to belong to a module in a design");
-	module->design->adopt_src_from(this, source);
-}
-void RTLIL::SwitchRule::absorb_attrs(dict<IdString, RTLIL::Const> &&buf)
-{
-	log_assert(module && module->design && "SwitchRule::absorb_attrs requires the switch to belong to a module in a design");
-	module->design->absorb_attrs(this, std::move(buf));
-}
-
-SrcRef RTLIL::MemWriteAction::src_id() const
-{
-	if (!module || !module->design)
-		return Src::Null;
-	return module->design->obj_src_id(this);
-}
-void RTLIL::MemWriteAction::set_src_id(SrcRef id)
-{
-	log_assert(module && module->design && "MemWriteAction::set_src_id requires the action to belong to a module in a design");
-	module->design->obj_set_src_id(this, id);
-}
-void RTLIL::MemWriteAction::set_src_attribute(SrcRef src)
-{
-	if (src == Src::Null && meta_ == nullptr)
-		return;
-	log_assert(module && module->design && "MemWriteAction::set_src_attribute requires the action to belong to a module in a design");
-	module->design->set_src_attribute(this, src);
-}
-std::string RTLIL::MemWriteAction::get_src_attribute() const
-{
-	if (!module || !module->design)
-		return {};
-	return module->design->get_src_attribute(this);
-}
-void RTLIL::MemWriteAction::adopt_src_from(const RTLIL::AttrObject *source)
-{
-	log_assert(module && module->design && "MemWriteAction::adopt_src_from requires the action to belong to a module in a design");
-	module->design->adopt_src_from(this, source);
-}
-void RTLIL::MemWriteAction::absorb_attrs(dict<IdString, RTLIL::Const> &&buf)
-{
-	log_assert(module && module->design && "MemWriteAction::absorb_attrs requires the action to belong to a module in a design");
-	module->design->absorb_attrs(this, std::move(buf));
+	return module ? module->design : nullptr;
 }
 
 #ifdef YOSYS_ENABLE_PYTHON
