@@ -4910,7 +4910,7 @@ const RTLIL::Const &RTLIL::Cell::getParam(RTLIL::IdString paramname) const
 
 void RTLIL::Cell::sort()
 {
-	connections_.sort();
+	connections_.sort(sort_by_twine_str_expensive(module->design->twines));
 	parameters.sort(sort_by_twine_str_expensive(module->design->twines));
 	attributes.sort(sort_by_twine_str_expensive(module->design->twines));
 }
