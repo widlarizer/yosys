@@ -3,24 +3,21 @@
 
 YOSYS_NAMESPACE_BEGIN
 
-std::vector<Twine> TwinePool::globals_;
+std::vector<Twine> StaticTwines::nodes_;
 
-IdString twine_populate(std::string name) {
-	// Globals store content only: drop the prepended '\'. Publicity lives
-	// in the publicity bit on the ID:: handle, not in the stored string.
-	log_assert(name[0] == '\\');
-	name = name.substr(1);
-	TwinePool::globals_.push_back(Twine::Leaf{std::move(name)});
-	return IdString(TwinePool::globals_.size() - 1);
-}
-void twine_prepopulate() {
-	if (TwinePool::globals_.size() == STATIC_TWINE_END)
+void StaticTwines::init() {
+	if (ready())
 		return;
-	log_assert(TwinePool::globals_.empty());
-	TwinePool::globals_.reserve(STATIC_TWINE_END);
-#define X(_id) twine_populate("\\" #_id);
+	log_assert(nodes_.empty());
+	nodes_.reserve(count);
+#define X(_id) nodes_.push_back(Twine::Leaf{#_id});
 #include "kernel/constids.inc"
 #undef X
 }
+
+void twine_prepopulate() { StaticTwines::init(); }
+
+int64_t twine_gc_ns;
+int twine_gc_count;
 
 YOSYS_NAMESPACE_END

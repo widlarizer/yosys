@@ -93,12 +93,14 @@ TEST(TwinePublicityTest, CopyFromPreservesTag)
 
 TEST(TwinePublicityTest, GcKeepsTaggedRoots)
 {
-	TwinePool pool;
-	IdString pub = pool.add(std::string("\\keep"));
-	pool.add(std::string("\\drop"));
-	std::vector<IdString> roots{pub};
-	EXPECT_EQ(pool.gc(roots), 1u);
-	EXPECT_EQ(pool.str(pub), "\\keep");
+	TwinePool twines;
+	SrcPool srcs(&twines);
+	IdString pub = twines.add(std::string("\\keep"));
+	twines.add(std::string("\\drop"));
+	Yosys::pool<SrcRef> live_srcs;
+	Yosys::pool<IdString> roots{pub};
+	EXPECT_EQ(srcs.gc_with_twines(live_srcs, roots), 1u);
+	EXPECT_EQ(twines.str(pub), "\\keep");
 }
 
 TEST(TwinePublicityTest, WireNameMasquerade)

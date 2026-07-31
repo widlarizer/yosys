@@ -70,6 +70,7 @@ yosys_core(kernel
 	rtlil.cc
 	rtlil.h
 	rtlil_twine_compat.h
+	rtlil_twine_compat_impl.h
 	satgen.cc
 	satgen.h
 	scopeinfo.cc
@@ -144,6 +145,7 @@ yosys_core(kernel
 		register.h
 		rtlil.h
 		rtlil_twine_compat.h
+		rtlil_twine_compat_impl.h
 		satgen.h
 		scopeinfo.h
 		sexpr.h

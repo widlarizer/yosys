@@ -829,8 +829,6 @@ namespace {
 	}
 }
 
-int64_t twine_gc_ns;
-int twine_gc_count;
 
 size_t RTLIL::Design::gc_twines()
 {
@@ -908,11 +906,7 @@ size_t RTLIL::Design::gc_twines()
 		}
 	}
 
-	for (SrcRef ref : live_srcs)
-		for (IdString member : srcs[ref].members())
-			live.insert(member);
-
-	size_t erased = twines.gc(live) + srcs.gc(live_srcs);
+	size_t erased = srcs.gc_with_twines(live_srcs, live);
 
 	int64_t time_ns = PerformanceTimer::query() - start;
 	Pass::subtract_from_current_runtime_ns(time_ns);
