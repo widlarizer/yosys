@@ -82,8 +82,6 @@ struct ExactCellWires {
 
 int count_nontrivial_wire_attrs(RTLIL::Wire *w)
 {
-	// w->attributes no longer holds ID::src (typed src field), so it isn't
-	// counted in attributes.size() and we don't subtract for it here.
 	int count = w->attributes.size();
 	count -= w->attributes.count(ID::hdlname);
 	count -= w->attributes.count(ID::scopename);
@@ -141,7 +139,6 @@ bool compare_signals(const RTLIL::SigBit &s1, const RTLIL::SigBit &s2, const Sha
 	if (attrs1 != attrs2)
 		return attrs2 > attrs1;
 
-	// Stable even though not lexicographic
 	return w2->name < w1->name;
 }
 
@@ -580,8 +577,6 @@ bool rmunused_module_signals(RTLIL::Module *module, ParallelDispatchThreadPool::
 	if (clean_ctx.flags.verbose && deleted_and_unreported)
 		log_debug("  removed %d unused temporary wires.\n", deleted_and_unreported);
 
-	// if (deleted_total)
-	// 	module->design->scratchpad_set_bool("opt.did_something", true);
 
 	return deleted_total != 0;
 }

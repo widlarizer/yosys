@@ -125,7 +125,6 @@ namespace RTLIL
 struct SigMap;
 
 
-// TODO clean up?
 extern int64_t twine_gc_ns;
 extern int twine_gc_count;
 
@@ -133,10 +132,6 @@ namespace RTLIL { using YOSYS_NAMESPACE_PREFIX ID; }
 namespace RTLIL { using YOSYS_NAMESPACE_PREFIX IdString; }
 
 namespace RTLIL {
-	// Attribute and parameter names are IdStrings into the owning Design's
-	// pool, so a verbatim dict copy across designs would leave dangling
-	// handles. Rebuilds the keys through the destination pool when the
-	// designs differ; a plain copy otherwise.
 	void copy_attr_dict(dict<IdString, RTLIL::Const> &dst,
 			const dict<IdString, RTLIL::Const> &src,
 			const RTLIL::Design *src_design, RTLIL::Design *dst_design);
@@ -170,8 +165,6 @@ namespace RTLIL {
 		}
 	};
 
-	// Key comparator for containers of RTLIL object pointers whose iteration
-	// order must not depend on allocation addresses.
 	template<typename T> struct compare_ptr_by_name {
 		bool operator()(const T *a, const T *b) const {
 			return (a == nullptr || b == nullptr) ? (a < b) : (a->name.ref() < b->name.ref());
@@ -661,9 +654,6 @@ struct RTLIL::AttrObject
 {
 	dict<RTLIL::IdString, RTLIL::Const> attributes;
 
-	// Pointer to a per-object metadata record in the owning Design's pool.
-	// Nullable: stays null until the first non-null src write and is reset
-	// to null when src is cleared again.
 	RTLIL::ObjMeta *meta_ = nullptr;
 
 	bool has_attribute(IdString id) const;
@@ -679,9 +669,6 @@ struct RTLIL::AttrObject
 	void set_string_attribute(IdString id, string value);
 	string get_string_attribute(IdString id) const;
 
-	// static std::string strpool_attribute_to_str(const pool<string> &data);
-	// void set_strpool_attribute(IdString id, const pool<string> &data);
-	// void add_strpool_attribute(IdString id, const pool<string> &data);
 	pool<string> get_strpool_attribute(IdString id) const;
 
 	void set_hdlname_attribute(const vector<string> &hierarchy);
@@ -693,8 +680,6 @@ struct RTLIL::AttrObject
 
 struct RTLIL::NamedObject : public RTLIL::AttrObject
 {
-	// Storage behind the name masquerade each derived class declares. Same
-	// arrangement as Cell::type_impl / Cell::type.
 	IdString name_ = Twine::Null;
 };
 
@@ -1243,8 +1228,6 @@ struct RTLIL::Selection
 	}
 
 	// add member of module to this selection
-	// name_ rather than the masquerade: this is instantiated with NamedObject*
-	// as well as with the concrete Wire/Cell/... types.
 	template<typename T1, typename T2> void select(T1 *module, T2 *member) {
 		if (!selects_all() && selected_modules.count(module->name_) == 0) {
 			selected_members[module->name_].insert(member->name_);
@@ -1337,8 +1320,6 @@ struct RTLIL::Design
 	TwinePool twines;
 	SrcPool srcs{&twines};
 
-	// Per-Design ObjMeta pool: stable storage (deque) + LIFO freelist of
-	// returned slots. AttrObject::meta_ points into obj_meta_storage_.
 	std::deque<RTLIL::ObjMeta> obj_meta_storage_;
 	std::vector<RTLIL::ObjMeta*> obj_meta_free_;
 
@@ -1355,9 +1336,6 @@ struct RTLIL::Design
 		return twines.flat_string(obj->name_);
 	}
 
-	// Replacements for the methods that used to live on AttrObject and
-	// took an explicit pool. Same semantics; the pool resolves to
-	// this->srcs internally.
 	void set_src_attribute(RTLIL::AttrObject *obj, SrcRef src);
 	std::string get_src_attribute(const RTLIL::AttrObject *obj) const;
 	void adopt_src_from(RTLIL::AttrObject *obj, const RTLIL::AttrObject *source);
@@ -1365,22 +1343,11 @@ struct RTLIL::Design
 			const SrcPool *src_pool);
 	void absorb_attrs(RTLIL::AttrObject *obj, dict<IdString, RTLIL::Const> &&buf);
 
-	// Unions `source`'s src into `target`'s. Locations already present on
-	// `target` are not repeated. Use this instead of round-tripping through
-	// a pipe-joined string, which loses the pool's sharing.
 	void merge_src(RTLIL::AttrObject *target, const RTLIL::AttrObject *source);
 
 
-	// The individual locations backing obj's src attribute, unjoined. Use
-	// this when you actually need to iterate the path:line.col entries.
 	pool<std::string> src_leaves(const RTLIL::AttrObject *obj) const;
 
-	// Walk the design, collect every name and src handle a live object
-	// still refers to, then drop the unreachable nodes from both pools.
-	// Surviving nodes keep their ids. Intermediate src sets produced by
-	// successive merges become unreferenced once a fresh set takes their
-	// place on the surviving cell, so this is what reaps them. Returns the
-	// number of nodes freed.
 	size_t gc_twines();
 
 	std::vector<std::unique_ptr<AST::AstNode>> verilog_packages, verilog_globals;
@@ -1394,8 +1361,6 @@ struct RTLIL::Design
 	~Design();
 
 	RTLIL::ObjRange<RTLIL::Module*, IdString> modules();
-	// RTLIL::Module *module(IdString name);
-	// const RTLIL::Module *module(IdString name) const;
 	RTLIL::Module *module(IdString name);
 	const RTLIL::Module *module(IdString name) const;
 	RTLIL::Module *top_module() const;
@@ -1431,10 +1396,6 @@ struct RTLIL::Design
 	void check();
 	void optimize();
 
-	// Wholesale-copy this design into `dst`. `dst` must be empty (no
-	// modules). Copies twines verbatim and clones each module
-	// copy_from pool rebuild and yields byte-identical RTLIL output
-	// across design -push/-pop, -save/-load, etc.
 	void clone_into(RTLIL::Design *dst) const;
 
 	// checks if the given module is included in the current selection
@@ -1561,12 +1522,10 @@ private:
 	friend struct RTLIL::Cell;
 	friend struct RTLIL::Module;
 public:
-	// Shadows NamedObject::name. Reads materialise via twines; writes
 	[[no_unique_address]] RTLIL::WireNameMasq name;
 
 	Hasher::hash_t hashidx_;
 	[[nodiscard]] Hasher hash_into(Hasher h) const { h.eat(hashidx_); return h; }
-	// use module->addWire() and module->remove() to create or destroy wires
 	Wire(ConstructToken);
 	~Wire();
 
@@ -1574,7 +1533,6 @@ public:
 	RTLIL::Cell *driverCell_ = nullptr;
 	IdString driverPort_ = Twine::Null;
 
-	// do not simply copy wires
 	Wire(ConstructToken, RTLIL::Wire &other);
 	void operator=(RTLIL::Wire &other) = delete;
 
@@ -1582,15 +1540,11 @@ public:
 	int width, start_offset, port_id;
 	bool port_input, port_output, upto, is_signed;
 
-	// Context-aware src helpers. Resolve Design via module->design and
-	// route to the per-Design meta vector; assert the wire is attached.
 	SrcRef src_id() const;
 	SrcRef src_ref() const { return src_id(); }
 	void set_src_id(SrcRef id);
 	void set_src_attribute(SrcRef src);
 	std::string get_src_attribute() const;
-	// Transfer src from `source` verbatim (same pool). Asserts attached
-	// to a design.
 	void adopt_src_from(const RTLIL::AttrObject *source);
 	void absorb_attrs(dict<IdString, RTLIL::Const> &&buf);
 
@@ -1631,13 +1585,8 @@ struct RTLIL::Memory : public RTLIL::NamedObject
 	Memory();
 	~Memory();
 
-	// Wire::module. Set by Module::addMemory / the frontends that
-	// construct Memory free-standing before attaching to a module.
-	// Lets Memory's src access resolve uniformly via module->design.
 	RTLIL::Module *module = nullptr;
 
-	// Context-aware src helpers. Resolve Design via module->design and
-	// route to the per-Design meta vector; assert the memory is attached.
 	SrcRef src_id() const;
 	SrcRef src_ref() const { return src_id(); }
 	void set_src_id(SrcRef id);
@@ -1646,8 +1595,6 @@ struct RTLIL::Memory : public RTLIL::NamedObject
 	void adopt_src_from(const RTLIL::AttrObject *source);
 	void absorb_attrs(dict<IdString, RTLIL::Const> &&buf);
 
-	// Shadows NamedObject::name_ via a read-only masquerade, same contract as
-	// Wire::name/Cell::name (resolves the Design through Memory::module).
 	[[no_unique_address]] RTLIL::MemoryNameMasq name;
 
 	int width, start_offset, size;
@@ -1671,23 +1618,18 @@ private:
 	struct ConstructToken { explicit ConstructToken() = default; };
 	friend struct RTLIL::Module;
 
-	// Push existing port connections into the bufnorm index after module assignment.
-	// Assumes signals are already in normalized form.
 	void initIndex();
 
 	bool bufnorm_handle_setPort(IdString portname, RTLIL::SigSpec &signal, dict<IdString, RTLIL::SigSpec>::iterator conn_it);
 public:
-	// Shadows NamedObject::name. Reads materialise via twines; writes
 	[[no_unique_address]] RTLIL::CellNameMasq name;
 
 	Hasher::hash_t hashidx_;
 	[[nodiscard]] Hasher hash_into(Hasher h) const { h.eat(hashidx_); return h; }
 
-	// use module->addCell() and module->remove() to create or destroy cells
 	Cell(ConstructToken);
 	~Cell();
 
-	// do not simply copy cells
 	Cell(ConstructToken, RTLIL::Cell &other);
 	void operator=(RTLIL::Cell &other) = delete;
 
@@ -1697,8 +1639,6 @@ public:
 	dict<IdString, RTLIL::SigSpec> connections_;
 	dict<IdString, RTLIL::Const> parameters;
 
-	// Context-aware src helpers. Resolve Design via module->design and
-	// route to the per-Design meta vector; assert the cell is attached.
 	SrcRef src_id() const;
 	SrcRef src_ref() const { return src_id(); }
 	void set_src_id(SrcRef id);
@@ -1707,7 +1647,6 @@ public:
 	void adopt_src_from(const RTLIL::AttrObject *source);
 	void absorb_attrs(dict<IdString, RTLIL::Const> &&buf);
 
-	// access cell ports
 	bool hasPort(RTLIL::IdString portname) const;
 	void unsetPort(RTLIL::IdString portname);
 	void setPort(RTLIL::IdString portname, RTLIL::SigSpec signal);
@@ -1716,13 +1655,11 @@ public:
 	const RTLIL::SigSpec &getPort(RTLIL::IdString portname) const;
 	const dict<RTLIL::IdString, RTLIL::SigSpec> &connections() const;
 
-	// information about cell ports
 	bool known() const;
 	bool input(RTLIL::IdString portname) const;
 	bool output(RTLIL::IdString portname) const;
 	PortDir port_dir(RTLIL::IdString portname) const;
 
-	// access cell parameters
 	RTLIL::IdString intern_param_key(const std::string &paramname) const;
 	bool hasParam(RTLIL::IdString paramname) const;
 	void unsetParam(RTLIL::IdString paramname);
@@ -1760,12 +1697,6 @@ public:
 
 struct RTLIL::CaseRule : public RTLIL::AttrObject
 {
-	// Back-pointer to the owning module. Set by the frontend / kernel
-	// attach path before any src access; the per-Design src meta vector
-	// is resolved as `module->design`. Frontends that construct an
-	// inner-process tree must call setModuleRecursive() on the root before
-	// the tree is consumed (e.g. before set_src_attribute is invoked on
-	// any nested CaseRule/SwitchRule/MemWriteAction).
 	RTLIL::Module *module = nullptr;
 
 	std::vector<RTLIL::SigSpec> compare;
@@ -1776,12 +1707,8 @@ struct RTLIL::CaseRule : public RTLIL::AttrObject
 
 	bool empty() const;
 
-	// Walk the whole CaseRule subtree (this case, every switch, every
-	// nested case, every MemWriteAction inside this process's sync rules
-	// each. Idempotent.
 	void setModuleRecursive(RTLIL::Module *m);
 
-	// Context-aware src helpers via module->design.
 	SrcRef src_id() const;
 	SrcRef src_ref() const { return src_id(); }
 	void set_src_id(SrcRef id);
@@ -1797,7 +1724,6 @@ struct RTLIL::CaseRule : public RTLIL::AttrObject
 
 struct RTLIL::SwitchRule : public RTLIL::AttrObject
 {
-	// Back-pointer to the owning module; see CaseRule::module.
 	RTLIL::Module *module = nullptr;
 
 	RTLIL::SigSpec signal;
@@ -1809,7 +1735,6 @@ struct RTLIL::SwitchRule : public RTLIL::AttrObject
 
 	void setModuleRecursive(RTLIL::Module *m);
 
-	// Context-aware src helpers via module->design.
 	SrcRef src_id() const;
 	SrcRef src_ref() const { return src_id(); }
 	void set_src_id(SrcRef id);
@@ -1825,7 +1750,6 @@ struct RTLIL::SwitchRule : public RTLIL::AttrObject
 
 struct RTLIL::MemWriteAction : RTLIL::AttrObject
 {
-	// Back-pointer to the owning module; see CaseRule::module.
 	RTLIL::Module *module = nullptr;
 
 	IdString memid;
@@ -1834,7 +1758,6 @@ struct RTLIL::MemWriteAction : RTLIL::AttrObject
 	RTLIL::SigSpec enable;
 	RTLIL::Const priority_mask;
 
-	// Context-aware src helpers via module->design.
 	SrcRef src_id() const;
 	SrcRef src_ref() const { return src_id(); }
 	void set_src_id(SrcRef id);
@@ -1865,7 +1788,6 @@ struct RTLIL::Process : public RTLIL::NamedObject
 	[[nodiscard]] Hasher hash_into(Hasher h) const { h.eat(hashidx_); return h; }
 
 protected:
-	// use module->addProcess() and module->remove() to create or destroy processes
 	friend struct RTLIL::Module;
 	Process();
 	~Process();
@@ -1875,8 +1797,6 @@ public:
 	RTLIL::CaseRule root_case;
 	std::vector<RTLIL::SyncRule*> syncs;
 
-	// Context-aware src helpers. Resolve Design via module->design and
-	// route to the per-Design meta vector; assert the process is attached.
 	SrcRef src_id() const;
 	SrcRef src_ref() const { return src_id(); }
 	void set_src_id(SrcRef id);
@@ -1885,8 +1805,6 @@ public:
 	void adopt_src_from(const RTLIL::AttrObject *source);
 	void absorb_attrs(dict<IdString, RTLIL::Const> &&buf);
 
-	// Shadows NamedObject::name_ via a read-only masquerade, same contract as
-	// Wire::name/Cell::name (resolves the Design through Process::module).
 	[[no_unique_address]] RTLIL::ProcessNameMasq name;
 
 	template<typename T> void rewrite_sigspecs(T &functor);
@@ -1936,11 +1854,6 @@ inline Hasher RTLIL::SigBit::hash_top() const {
 	if (wire) {
 		IdString name = wire->name.ref();
 		uint32_t n = (uint32_t)name.value ^ (uint32_t)(name.value >> 32);
-		// This hashing trick is optimized for dense integers
-		// where the second integer is usually only up to 32 large
-		// which fits the offset of a wire. Better performance than
-		// just calling h.eat on the two fields in sequence!
-		// Do not mess this up again!
 		h.force(hashlib::legacy::djb2_add(n, offset));
 		return h;
 	}
@@ -2382,8 +2295,6 @@ public:
 	dict<IdString, RTLIL::Memory*> memories;
 	dict<IdString, RTLIL::Process*> processes;
 
-	// Context-aware src helpers. Resolve Design via this->design and
-	// route to the per-Design meta vector; assert the module is attached.
 	SrcRef src_id() const;
 	SrcRef src_ref() const { return src_id(); }
 	void set_src_id(SrcRef id);
@@ -2426,21 +2337,9 @@ public:
 
 	template<typename T> void rewrite_sigspecs(T &functor);
 	template<typename T> void rewrite_sigspecs2(T &functor);
-	// `src_id_verbatim`: when true, the caller guarantees that
-	// `new_mod->design`'s name and src pools are verbatim copies of
-	// `this->design`'s, so handles can be transferred as-is instead of
-	// being re-interned. Used by Design::clone_into for wholesale copies.
 	void cloneInto(RTLIL::Module *new_mod, bool src_id_verbatim = false) const;
 	virtual RTLIL::Module *clone() const;
-	// Clone variant that attaches the new module to `dst` BEFORE cloneInto
-	// runs. This is the right pattern when the destination design is known
-	// the pending-literal src stashing it entails. Subtypes override to
-	// preserve their type (AstModule). `src_id_verbatim` is forwarded to
-	// cloneInto.
 	virtual RTLIL::Module *clone(RTLIL::Design *dst, bool src_id_verbatim = false) const;
-	// As above, but additionally renames the new module to `target_name` in
-	// `dst`. Used when source and destination designs may contain modules
-	// with the same name and the new one must take a different identity.
 	virtual RTLIL::Module *clone(RTLIL::Design *dst, IdString target_name, bool src_id_verbatim = false) const;
 
 	bool has_memories() const;
@@ -2488,7 +2387,6 @@ public:
 
 	void add(RTLIL::Binding *binding);
 
-	// Removing wires is expensive. If you have to remove wires, remove them all at once.
 	void remove(const pool<RTLIL::Wire*> &wires);
 	void remove(RTLIL::Cell *cell);
 	void remove(RTLIL::Memory *memory);
@@ -2506,25 +2404,21 @@ public:
 	IdString uniquify(IdString name, int &index);
 	YS_NAME_FWD_SELF(uniquify)
 
-	// Primary overloads: name already interned in design->twines.
 	RTLIL::Wire *addWire(IdString name, int width = 1);
 	RTLIL::Wire *addWire(IdString name, const RTLIL::Wire *other);
 	YS_NAME_FWD_SELF(addWire)
 
-	// Primary overloads.
 	RTLIL::Cell *addCell(IdString name, IdString type);
 	RTLIL::Cell *addCell(IdString name, const RTLIL::Cell *other);
 	YS_NAME_FWD_SELF(addCell)
 	template<typename T, YS_UNPOOLED_NAME(T)>
 	RTLIL::Cell *addCell(IdString name, T type) { return addCell(name, intern(std::move(type))); }
 
-	// CellAdderMixin hook: cells added here are attached, so set src directly.
 	void cell_set_src(RTLIL::Cell *cell, SrcRef src) { cell->set_src_attribute(src); }
 
 	IdString intern(Twine name) { return design->twines.add(std::move(name)); }
 	IdString intern(std::string name) { return design->twines.add(std::move(name)); }
 
-	// NEW_ID analog for twine names; see NEW_ID in yosys_common.h.
 	IdString new_name(const std::string *prefix) {
 		IdString pref = design->twines.add(Twine::Leaf{*prefix});
 		return design->twines.add(Twine::Suffix{pref, std::to_string(autoidx++)});
@@ -2538,12 +2432,10 @@ public:
 	YS_NAME_FWD_SELF(addProcess)
 	RTLIL::Process *addProcess(IdString name, const RTLIL::Process *other);
 
-	// The add* methods create a cell and return the created cell. All signals must exist in advance.
 
 	RTLIL::Cell* addAnyinit(IdString name, const RTLIL::SigSpec &sig_d, const RTLIL::SigSpec &sig_q, SrcRef src = Src::Null);
 	YS_NAME_FWD_SELF(addAnyinit)
 
-	// The methods without the add* prefix create a cell and an output signal. They return the newly created output signal.
 
 	RTLIL::SigSpec Anyconst  (IdString name, int width = 1, SrcRef src = Src::Null);
 	RTLIL::SigSpec Anyseq    (IdString name, int width = 1, SrcRef src = Src::Null);
@@ -2696,8 +2588,6 @@ void RTLIL::Process::rewrite_sigspecs2(T &functor)
 		it->rewrite_sigspecs2(functor);
 }
 
-// Uniform way to reach the owning Design of any RTLIL object, so pool-dependent
-// helpers can be written generically over Module/Wire/Cell/Memory/Process.
 namespace RTLIL {
 	inline RTLIL::Design *design_of(const RTLIL::Module *m) { return m ? m->design : nullptr; }
 	inline RTLIL::Design *design_of(const RTLIL::Wire *w) { return w && w->module ? w->module->design : nullptr; }
@@ -2706,18 +2596,9 @@ namespace RTLIL {
 	inline RTLIL::Design *design_of(const RTLIL::Process *p) { return p && p->module ? p->module->design : nullptr; }
 }
 
-// Part two of the masquerade compat layer: the accessor bodies, which need
-// Design and Module to be complete (see kernel/rtlil_twine_compat.h).
 #define RTLIL_TWINE_COMPAT_IMPL
 #include "kernel/rtlil_twine_compat.h"
 
-// Carry source locations across a rewrite: combine the src of every cell in
-// `sources` into a single twine and set it on every cell in `targets`. When
-// more than one source contributes, the combination is a twine *concat node*
-// referencing the contributing nodes -- the locations are never rendered to a
-// string and re-interned, so the graph structure of the merged location is
-// preserved. Sources without a src are skipped; if none has one, targets are
-// left alone.
 void merge_cell_src(RTLIL::Module *module, const std::vector<RTLIL::Cell*> &sources,
 		const std::vector<RTLIL::Cell*> &targets);
 

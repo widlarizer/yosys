@@ -712,9 +712,6 @@ void prep_xaiger(RTLIL::Module *module, bool dff)
 {
 	auto design = module->design;
 	log_assert(design);
-	// toposort keys cells by IdString; recover the cell's own pool ref rather
-	// than re-interning the flattened name, which would yield a fresh leaf that
-	// never matches a Suffix-shaped auto name.
 	dict<IdString, IdString> name_ref;
 	auto refof = [&](IdString n) { return name_ref.at(n); };
 

@@ -268,7 +268,6 @@ struct WreduceWorker
 		if (bits_removed) {
 			log("Removed top %d bits (of %d) from port %c of cell %s.%s (%s).\n",
 					bits_removed, GetSize(sig) + bits_removed, port, module, cell, cell->type.unescape());
-			// SigSpec sig = mi.sigmap(cell->getPort(twines.add(std::string{stringf("\\%c", port)})));
 			cell->setPort(stringf("\\%c", port), sig);
 			did_something = true;
 		}
@@ -586,9 +585,6 @@ struct WreducePass : public Pass {
 			if (module->has_processes_warn())
 				continue;
 
-			// Memories are matched to $mem* cells by the MEMID string (the
-			// materialized memory name), as in kernel/mem.cc; a Suffix-shaped
-			// memory ref won't match a leaf reinterned from that string.
 			dict<std::string, RTLIL::Memory*> memory_by_name;
 			for (auto &it : module->memories)
 				memory_by_name[design->twines.str(it.first)] = it.second;

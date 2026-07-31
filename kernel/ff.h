@@ -170,10 +170,6 @@ struct FfData : FfTypeData {
 	// The FF data width in bits.
 	int width;
 	dict<IdString, Const> attributes;
-	// Stashed src across construction → emit. Refcount-managed so the
-	// source cell's pool slot survives if the cell itself is removed
-	// before emit() runs. Null when the source cell had no src (default
-	// IdString() is index 0, a valid constid, so it must be Null here).
 	SrcRef src_twine = Src::Null;
 
 	FfData(Module *module = nullptr, FfInitVals *initvals = nullptr, IdString name = IdString()) : module(module), initvals(initvals), cell(nullptr), name(name) {
@@ -187,8 +183,6 @@ struct FfData : FfTypeData {
 		pol_set = false;
 	}
 
-	// Convenience: intern a fresh name (NEW_ID and friends) into the
-	// module's design pool, so callers don't have to spell that out.
 	FfData(Module *module, FfInitVals *initvals, Twine &&name)
 			: FfData(module, initvals, module->design->twines.add(std::move(name))) {}
 

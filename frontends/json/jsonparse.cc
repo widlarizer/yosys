@@ -287,9 +287,6 @@ void json_parse_attr_param(RTLIL::Design *design, dict<IdString, Const> &results
 	}
 }
 
-// AttrObject-aware overload: extracts ID::src and routes it to the typed
-// meta-vector slot via Design::set_src_attribute. Other keys still land
-// in the attributes dict via the generic path.
 void json_parse_attributes(RTLIL::Design *design, RTLIL::AttrObject *obj, JsonNode *node)
 {
 	if (node->type != 'D')

@@ -21,10 +21,6 @@
 
 USING_YOSYS_NAMESPACE
 
-// Cells added to the module since `mark` (a cells_size() watermark taken
-// before the rewrite); used to carry a rewritten cell's source location onto
-// the helper cells that replace it. hashlib dicts iterate newest-first, so
-// the cells added since the watermark are cell_at(0 .. size-mark-1).
 static std::vector<RTLIL::Cell*> cells_added_since(RTLIL::Module *module, int mark)
 {
 	std::vector<RTLIL::Cell*> cells;
@@ -767,9 +763,6 @@ Cell *FfData::emit() {
 			}
 		}
 	}
-	// src is carried in info.src_twine (an OwnedTwine retaining the
-	// pool, no flatten. The OwnedTwine still holds its own ref until
-	// FfData is destroyed; set_src_id retains on the cell's behalf.
 	cell->attributes = attributes;
 	if (src_twine != Src::Null && cell->module && cell->module->design)
 		cell->set_src_id(src_twine);

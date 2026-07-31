@@ -453,8 +453,6 @@ struct Categories {
 		constexpr bool operator[](size_t idx) {
 			return data[idx];
 		}
-		// Indexed by IdString value, matching operator() and the Categories
-		// constructor.
 		constexpr void set_id(IdString type, bool val = true) {
 			size_t idx = type.value;
 			if (idx >= MAX_CELLS)
@@ -604,7 +602,6 @@ struct NewCellTypes {
 
 	bool cell_output(IdString type, IdString port) const
 	{
-		// TODO refactor
 		if (static_cell_types(type) && StaticCellTypes::port_info.outputs(type).contains(port)) {
 			return true;
 		}

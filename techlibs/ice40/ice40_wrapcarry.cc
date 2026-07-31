@@ -63,13 +63,10 @@ void create_ice40_wrapcarry(ice40_wrapcarry_pm &pm)
 		cell->attributes[twines.add(stringf("\\SB_CARRY.%s", twines.str(a.first)))] = a.second;
 	for (const auto &a : st.lut->attributes)
 		cell->attributes[twines.add(stringf("\\SB_LUT4.%s", twines.str(a.first)))] = a.second;
-	// via prefixed flat-literal attributes so the unwrap pass can restore.
 	if (st.carry->src_id() != Src::Null)
 		cell->attributes[twines.add(std::string("\\SB_CARRY.\\src"))] = Const(st.carry->get_src_attribute());
 	if (st.lut->src_id() != Src::Null)
 		cell->attributes[twines.add(std::string("\\SB_LUT4.\\src"))] = Const(st.lut->get_src_attribute());
-	// Propagate one of the cell-level srcs to the wrapper too so backends
-	// emitting `attribute \src` see a usable value on the wrapper.
 	if (cell->module && cell->module->design) {
 		if (st.carry->src_id() != Src::Null)
 			cell->set_src_id(st.carry->src_id());
@@ -149,8 +146,6 @@ struct Ice40WrapCarryPass : public Pass {
 
 					SrcRef carry_src = cell->src_id(), lut_src = cell->src_id();
 					for (const auto &a : cell->attributes) {
-						// Match the prefixed src first so we don't fall through
-						// to the generic SB_CARRY./SB_LUT4. prefix copy.
 						std::string aname = twines.str(a.first);
 						if (aname == "\\SB_CARRY.\\src") {
 							carry_src = module->design->srcs.add(a.second.decode_string());

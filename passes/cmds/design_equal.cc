@@ -22,10 +22,6 @@
 
 YOSYS_NAMESPACE_BEGIN
 
-// The two designs own separate twine pools, so a name handle minted in one is
-// meaningless in the other: comparing or looking up a raw ref across the pair
-// only agrees when both pools happen to have been filled in the same order.
-// Every name that crosses between the designs is resolved by content instead.
 class PoolBridge
 {
 	const TwinePool *pool_a;
@@ -38,7 +34,6 @@ public:
 			pool_a(&design_a->twines), pool_b(&design_b->twines),
 			search_a(&design_a->twines), search_b(&design_b->twines) {}
 
-	// Null when the other design has no name of that spelling.
 	IdString a_to_b(IdString ref) const { return search_b.find(pool_a->str(ref)); }
 	IdString b_to_a(IdString ref) const { return search_a.find(pool_b->str(ref)); }
 

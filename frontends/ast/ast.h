@@ -36,11 +36,6 @@ YOSYS_NAMESPACE_BEGIN
 
 namespace AST
 {
-	// Scratch pool used to intern attribute names before any Design exists.
-	// Constid keys (ID::foo) resolve identically in every pool; arbitrary
-	// (* foo *) names only need to round-trip back to text, so there is no
-	// cross-pool copy: at RTLIL generation time we recover the escaped text
-	// via attr_name_str() and re-intern it into the owning Design's pool.
 	TwinePool &ast_name_pool();
 	inline IdString intern_attr_name(const std::string &name) { return ast_name_pool().add(std::string(name)); }
 	inline std::string attr_name_str(IdString id) { return ast_name_pool().str(id); }
@@ -193,11 +188,8 @@ namespace AST
 		std::vector<std::unique_ptr<AstNode>> children;
 
 		// The list of attributes assigned to this node. Keys are IdStrings
-		// resolved against AST::ast_name_pool() (see there), not a Design's
-		// pool: the AST exists before any Design does.
 		std::map<IdString, std::unique_ptr<AstNode>> attributes;
 		bool get_bool_attribute(IdString id);
-		// Convenience for arbitrary (* foo *) attribute names.
 		bool get_bool_attribute(const std::string &id) { return get_bool_attribute(intern_attr_name(id)); }
 
 		// node content - most of it is unused in most node types
@@ -374,7 +366,6 @@ namespace AST
 			node->set_in_param_flag(true);
 			attributes[key] = std::move(node);
 		}
-		// Convenience for arbitrary (* foo *) attribute names.
 		void set_attribute(const std::string &key, std::unique_ptr<AstNode> node)
 		{
 			set_attribute(intern_attr_name(key), std::move(node));
@@ -447,7 +438,6 @@ namespace AST
 	AstNode * find_modport(AstNode *intf, std::string name);
 	void explode_interface_port(AstNode *module_ast, RTLIL::Module * intfmodule, std::string intfname, AstNode *modport);
 
-	// Intern Verilog hierarchical reference "a.b.c" as a Suffix chain "a" ".b" ".c"
 	IdString intern_hier_name(RTLIL::Design *design, std::string_view escaped);
 
 	// Helper for setting the src attribute.

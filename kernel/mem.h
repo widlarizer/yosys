@@ -223,8 +223,6 @@ struct Mem : RTLIL::AttrObject {
 	void emulate_read_first(FfInitVals *initvals);
 
 	Mem(Module *module, IdString memid, int width, int start_offset, int size) : module(module), memid(module->design, memid), packed(false), mem(nullptr), cell(nullptr), width(width), start_offset(start_offset), size(size) {}
-	// Convenience: intern a fresh name (NEW_ID and friends) into the module's
-	// design pool, so callers don't have to spell that out.
 	Mem(Module *module, Twine &&memid, int width, int start_offset, int size)
 			: Mem(module, module->design->twines.add(std::move(memid)), width, start_offset, size) {}
 };

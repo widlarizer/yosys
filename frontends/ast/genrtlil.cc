@@ -420,9 +420,6 @@ struct AST_INTERNAL::ProcessGenerator
 				if (GetSize(syncrule->signal) != 1)
 					always->input_error("Found posedge/negedge event on a signal that is not 1 bit wide!\n");
 				addChunkActions(syncrule->actions, subst_lvalue_from, subst_lvalue_to, child.get(), true);
-				// Automatic (nosync) variables must not become flip-flops: remove
-				// them from clocked sync rules so that proc_dff does not infer
-				// an unnecessary register for a purely combinational temporary.
 				syncrule->actions.erase(
 					std::remove_if(syncrule->actions.begin(), syncrule->actions.end(),
 						[](const RTLIL::SigSig &ss) {
@@ -737,7 +734,6 @@ struct AST_INTERNAL::ProcessGenerator
 						subst_lvalue_map.set(this_case_eq_lvalue[i], this_case_eq_ltemp[i]);
 
 					RTLIL::CaseRule *backup_case = current_case;
-					// here
 					current_case = new RTLIL::CaseRule;
 					current_case->module = current_module;
 					pool<RTLIL::SigBit> backup_assigned_bits = std::move(current_case_assigned_bits);
@@ -2394,10 +2390,6 @@ RTLIL::SigSpec AstNode::genRTLIL(int width_hint, bool sign_hint)
 				if (width <= 0)
 					input_error("Failed to detect width of %s!\n", RTLIL::unescape_id(str));
 
-				// str is the escaped form "\$anyseq"; the cell type is the
-				// internal id "$anyseq" (drop the leading '\'), otherwise the
-				// twine gets tagged public and hierarchy stops treating it as
-				// a builtin. Matches the pre-twine `str.substr(1)`.
 				IdString _type = current_module->design->twines.add(std::string{str.substr(1)});
 				Cell *cell = current_module->addCell(myid, _type);
 				set_src_attr(cell, this);

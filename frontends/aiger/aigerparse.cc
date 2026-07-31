@@ -843,11 +843,6 @@ void AigerReader::parse_aiger_binary()
 	}
 }
 
-// add(std::string) always interns a fresh leaf, but an equal-content name may
-// already exist in the pool as a NEW_ID suffix (auto-generated names share a
-// prefix leaf). Reuse that ref so every wire/cell with the same name string is
-// keyed by a single canonical ref; otherwise leaf-vs-suffix refs diverge and
-// module->wire()/cell() lookups miss.
 IdString AigerReader::intern_name(const std::string &escaped, TwineSearch &search)
 {
 	IdString existing = search.find(escaped);
@@ -900,8 +895,6 @@ void AigerReader::post_process()
 
 	design->scratchpad_set_int("read_aiger.co_count", co_count);
 
-	// Run "clean" scoped to just this module. Moving it to a throwaway design
-	// would dangle its names, since the twine refs live in this design's pool.
 	design->add(module);
 	Pass::call_on_module(design, module, "clean");
 

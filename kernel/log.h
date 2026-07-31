@@ -248,8 +248,6 @@ const char *log_id(const IdString &id);
 const char *log_id(const RTLIL::Design *design, IdString id);
 const char *log_id(const RTLIL::Module *module, IdString id);
 
-// Name masquerades know which Design backs them; the overloads that use this
-// live in rtlil.h, where those types are complete.
 const char *log_id_str(const std::string &str);
 
 const char *log_id(const RTLIL::Module *obj, const char *nullstr = nullptr);

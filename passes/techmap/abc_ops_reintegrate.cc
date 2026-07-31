@@ -39,9 +39,6 @@ inline IdString rn(RTLIL::Design *design, IdString n)
 	return design->twines.add(remap_name(design->twines.str(n)));
 }
 
-// toposort keys cells by IdString; recover the cell's own pool ref rather
-// than re-interning the flattened name, which would yield a fresh leaf that
-// never matches a Suffix-shaped auto name.
 inline IdString refof(const dict<IdString, IdString> &name_ref, IdString n)
 {
 	auto it = name_ref.find(n);
@@ -275,9 +272,6 @@ void reintegrate(RTLIL::Module *module, bool dff_mode, std::string map_filename)
 
 	mapped_mod->fixup_ports();
 
-	// Populated after the map_filename box/wire renames above have settled,
-	// so it reflects each cell's final name in mapped_mod (not a stale
-	// pre-rename snapshot).
 	dict<IdString, IdString> name_ref;
 	for (auto mapped_cell : mapped_mod->cells())
 		name_ref[mapped_cell->name] = mapped_cell->name;

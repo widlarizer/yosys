@@ -28,7 +28,6 @@ USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
 struct cell_mapping {
-	// Escaped liberty cell name; the library is read without a Design.
 	std::string cell_name;
 	std::map<std::string, char> ports;
 };

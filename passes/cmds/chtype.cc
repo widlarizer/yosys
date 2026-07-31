@@ -22,7 +22,6 @@
 USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
-// Internal ("$...") names become public ("\\$...") ones.
 static IdString publish(TwinePool &twines, IdString id) {
 	std::string name = twines.str(id);
 	if (!name.starts_with("$"))

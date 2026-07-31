@@ -390,8 +390,6 @@ namespace RTLIL {
 		IdString id = twines.add(NEW_ID);
 		TwineSearch search(&twines);
 		EXPECT_EQ(id, search.find(twines.str(id)));
-		// NEW_ID interns as a Suffix over a shared prefix leaf, and
-		// TwinePool::find only ever matches a whole Leaf.
 		EXPECT_EQ(twines.find(twines.str(id)), Twine::Null);
 	}
 

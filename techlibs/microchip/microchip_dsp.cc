@@ -318,7 +318,6 @@ struct MicrochipDspPass : public Pass {
 		}
 		extra_args(args, argidx, design);
 
-		// TODO deduplicate all this noise with xilinx_dsp.cc
 
 		for (auto module : design->selected_modules()) {
 

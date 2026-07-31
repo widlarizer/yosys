@@ -1128,8 +1128,6 @@ void AST::set_src_attr(RTLIL::AttrObject *obj, const AstNode *ast)
 		return;
 	auto it = ast->attributes.find(ID::src);
 	if (it != ast->attributes.end() && it->second->type == AST_CONSTANT) {
-		// An explicit (* src *) attribute (e.g. when re-reading written output)
-		// takes precedence over the parse position
 		current_module->design->set_src_attribute(obj,
 				current_module->design->srcs.add(it->second->asAttrConst().decode_string()));
 		return;
@@ -1139,11 +1137,6 @@ void AST::set_src_attr(RTLIL::AttrObject *obj, const AstNode *ast)
 		current_module->design->set_src_attribute(obj, current_module->design->srcs.add(ast->loc_string()));
 		return;
 	}
-	// Split filename and per-location tail so the filename interns once
-	// per file and every cell/wire src for that file gets a Suffix node
-	// carrying only ":line.col-line.col". For a typical large design with
-	// thousands of objects in one file this collapses N copies of a long
-	// path into 1 Leaf + N short Suffix tails.
 	current_module->design->obj_set_src_id(obj,
 			current_module->design->srcs.add(*loc.begin.filename,
 					stringf(":%d.%d-%d.%d", loc.begin.line, loc.begin.column,

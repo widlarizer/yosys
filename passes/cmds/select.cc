@@ -145,12 +145,6 @@ static bool match_attr(const TwinePool &pool, const dict<IdString, RTLIL::Const>
 	return match_attr(pool, attributes, match_expr, std::string(), 0);
 }
 
-// AttrObject-aware overload: routes src queries to the typed src_id_ field.
-// `a:src` and `a:src=path:lo-col` are popular legacy selectors; preserve
-// them after the migration of src out of the attribute dict by synthesizing
-// a one-element dict view containing the flattened ID::src and feeding it
-// through the normal match_attr path. Other ID::src-shaped patterns like
-// uses were rare and the dict-path migration is a separate concern.
 static bool match_attr(const RTLIL::Design *design, const RTLIL::AttrObject *obj, const std::string &match_expr)
 {
 	if (design && obj->meta_ != nullptr) {

@@ -367,7 +367,6 @@ struct CheckPass : public Pass {
 				}
 
 				if (cell->type == ID($connect)) {
-					// Inefficient, but rare case in sane design
 					auto sig_a = cell->getPort(ID::A);
 					auto sig_b = cell->getPort(ID::B);
 					for (int i = 0; i < sig_a.size(); i++) {
@@ -375,7 +374,6 @@ struct CheckPass : public Pass {
 						int count_b = wire_drivers_count[sig_b[i]];
 						wire_drivers_count[sig_a[i]] += count_b;
 						wire_drivers_count[sig_b[i]] += count_a;
-						// Guarantee default constructed members if missing
 						(void)wire_drivers[sig_a[i]];
 						(void)wire_drivers[sig_b[i]];
 						auto& drivers_a = wire_drivers[sig_a[i]];

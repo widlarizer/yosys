@@ -48,10 +48,6 @@ struct module_ptr_compare {
 	}
 };
 
-// Split an object's escaped name into the shared per-instance prefix and the
-// remaining tail; prefix + tail is the flattened escaped name. flatten_cell
-// interns the prefix once and shares it via a Suffix node (like techmap's
-// apply_prefix_ref) instead of storing a full leaf string per object.
 std::pair<std::string, std::string> hier_name_parts(RTLIL::Cell *cell, std::string_view object_name_view, const std::string &separator)
 {
 	if (!object_name_view.empty() && object_name_view[0] == '\\')
@@ -329,8 +325,6 @@ struct FlattenWorker
 				else
 					scopeinfo->attributes.emplace(design->twines.add(stringf("\\cell_%s", design->twines.unescaped_str(attr.first))), attr.second);
 			}
-			// src lives outside cell->attributes after the typed-src
-			// hand so `a:cell_src` selectors keep working.
 			if (cell->src_id() != Src::Null)
 				scopeinfo->attributes.emplace(design->twines.add(std::string("\\cell_src")), RTLIL::Const(cell->get_src_attribute()));
 
@@ -355,9 +349,6 @@ struct FlattenWorker
 
 		SigMap sigmap(module);
 
-		// hierconn wires are connection points pre-created in `module`; flatten
-		// reuses them by hierarchical name. Index them once instead of doing a
-		// pool-wide content search per template wire.
 		dict<std::string, RTLIL::Wire*> hier_wires;
 		for (auto wire : module->wires())
 			if (wire->get_bool_attribute(ID::hierconn))

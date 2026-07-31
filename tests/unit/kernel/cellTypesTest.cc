@@ -11,12 +11,10 @@ YOSYS_NAMESPACE_BEGIN
 
 TEST(CellTypesTest, basic)
 {
-	// yosys_setup() is done once for the whole binary by YosysSetupEnvironment.
 	CellTypes older;
 	NewCellTypes newer;
 	older.setup(nullptr);
 	newer.setup(nullptr);
-	// Non-constid cell types need a pool to live in.
 	TwinePool twines;
 	IdString bleh = twines.add(std::string("\\bleh"));
 	IdString aaaaa = twines.add(std::string("\\aaaaa"));

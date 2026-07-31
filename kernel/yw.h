@@ -25,8 +25,6 @@
 
 YOSYS_NAMESPACE_BEGIN
 
-// Witness files carry names as plain text and have no TwinePool behind them,
-// so a path is a vector of escaped name strings rather than of IdStrings.
 struct IdPath : public std::vector<std::string>
 {
 	template<typename... T>

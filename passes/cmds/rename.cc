@@ -62,9 +62,6 @@ static void rename_in_module(RTLIL::Module *module, std::string from_name, std::
 	log_cmd_error("Object `%s' not found!\n", RTLIL::unescape_id(from_name));
 }
 
-// Names are compared by rendered content, not by ref: the pool interns
-// structurally, so a Leaf and a Suffix chain can denote the same name and
-// module->wire(ref) would miss the collision.
 static std::string next_free_name(const pool<std::string> &taken, const std::string &prefix,
 		const std::string &suffix, int &counter)
 {

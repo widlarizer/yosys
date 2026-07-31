@@ -618,9 +618,7 @@ bool expand_module(RTLIL::Design *design, RTLIL::Module *module, bool flag_check
 			IdString portname = conn.first;
 			std::string portname_str = module->design->twines.str(conn.first);
 			if (portname_str.empty() || portname_str[0] != '$') {
-				// Named port, use as-is
 			} else {
-				// Positional port, find by port_id
 				int port_id = atoi(portname_str.substr(1).data());
 				for (auto wire : mod->wires())
 					if (wire->port_id == port_id) {

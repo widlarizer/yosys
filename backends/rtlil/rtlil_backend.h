@@ -31,12 +31,6 @@
 YOSYS_NAMESPACE_BEGIN
 
 namespace RTLIL_BACKEND {
-	// How names are rendered in the RTLIL text representation:
-	//   Replayable - twine handles ($pub@N) + a `twines` pool section +
-	//                `# name` comments. The default; perfectly replayable.
-	//   Readable   - real escaped names inline, no pool section, no comments.
-	//                Matches the historic RTLIL look. Lossy: breaks replay.
-	//   Small      - like Replayable but omits the `# name` comments.
 	enum class DumpMode { Replayable, Readable, Small };
 
 	void dump_attributes(std::ostream &f, std::string indent, const RTLIL::AttrObject *obj, const RTLIL::Design *design = nullptr, DumpMode mode = DumpMode::Replayable);

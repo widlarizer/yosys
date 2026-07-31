@@ -298,9 +298,6 @@ RTLIL::Cell *replace(RTLIL::Module *needle, RTLIL::Module *haystack, SubCircuit:
 	// create new cell
 	RTLIL::Cell *cell = haystack->addCell(stringf("$extract$%s$%d", needle->name, autoidx++), haystack->design->twines.copy_from(tw, needle->name));
 
-	// create cell ports. Port names come from the needle (map) pool; translate
-	// them into the haystack pool so the new cell's ports are keyed by the same
-	// refs as the referenced module in the haystack design.
 	for (auto wire : needle->wires()) {
 		if (wire->port_id > 0) {
 			IdString portname = haystack->design->twines.add(tw.str(wire->name));

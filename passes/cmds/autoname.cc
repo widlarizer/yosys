@@ -91,8 +91,6 @@ struct node {
 	// Is this name final?
 	bool decided = false;
 
-	// cell->name / wire->name are distinct masquerade types under twines;
-	// materialise a plain IdString (by value) for the naming logic.
 	IdString name() const { return cell ? IdString(cell->name) : IdString(wire->name); }
 };
 

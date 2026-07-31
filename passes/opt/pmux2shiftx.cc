@@ -846,8 +846,6 @@ struct OnehotPass : public Pass {
 					replacement = sig;
 				}
 
-				// The replacement is an existing signal, so there is no new
-				// cell to carry the removed cell's src onto.
 				SigSpec old_y = cell->getPort(ID::Y);
 				cell->unsetPort(ID::Y);
 				sigmap.add(old_y, replacement);

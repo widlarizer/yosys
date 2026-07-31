@@ -126,27 +126,6 @@ public:
 };
 
 
-// ---------------------------------------------------
-// ---------------------------------------------------
-//
-// Many passes that split a multi-bit cell or word-level FF into smaller
-// pieces share the same shape:
-//
-//   1. iterate bits of the output
-//   2. for each bit, compute a key describing where it should go (or
-//      decide it stays where it is)
-//   3. emit one piece per distinct key, covering exactly that group's bits
-//   4. either consume the un-grouped "remaining" bits as a smaller original,
-//      or report that everything was grouped.
-//
-// BitGrouper handles (1)+(2)+(3)'s bookkeeping; callers do (3)'s
-// per-group emission and (4)'s remainder handling.
-//
-// Construction is one-shot: pass a width and a `key_fn(int) -> optional<Key>`.
-// `key_fn` returning std::nullopt leaves the bit in `remaining()`.
-//
-// Group iteration order matches first appearance, so emission is
-// deterministic across runs.
 
 template<typename Key>
 class BitGrouper
@@ -156,8 +135,6 @@ public:
 		Key key;
 		std::vector<int> indices;
 
-		// True when `indices` is exactly [front, front+size). Callers can
-		// use this to pick the cheap contiguous slice op when available.
 		bool is_contiguous() const {
 			if (indices.empty())
 				return true;
@@ -193,8 +170,6 @@ public:
 	bool fully_grouped() const { return remaining_.empty(); }
 	bool nothing_grouped() const { return groups_.empty(); }
 
-	// Pick the bits of `sig` at the group's indices. Uses contiguous-range
-	// slicing when possible.
 	static RTLIL::SigSpec extract(const RTLIL::SigSpec &sig, const Group &g) {
 		if (g.is_contiguous() && !g.indices.empty())
 			return sig.extract(g.indices.front(), (int)g.indices.size());

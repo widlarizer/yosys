@@ -552,7 +552,6 @@ struct RTLILFrontendWorker {
 		expect_eol();
 	}
 
-	// Apply a pending "@N" src reference to the object just built from attrbuf.
 	void flush_src(RTLIL::AttrObject *obj)
 	{
 		if (pending_src != Src::Null) {
@@ -573,7 +572,6 @@ struct RTLILFrontendWorker {
 		return base.tag(is_public);
 	}
 
-	// Tolerates nodes listed out of dependency order
 	IdString materialize_file_twine(size_t id)
 	{
 		if (id < STATIC_TWINE_END)
@@ -620,7 +618,6 @@ struct RTLILFrontendWorker {
 		return ref;
 	}
 
-	// Parse a "$pub@N"/"$priv@N" twine handle into a resolved, retagged ref
 	std::optional<IdString> try_parse_twine_handle()
 	{
 		bool is_public;
@@ -633,8 +630,6 @@ struct RTLILFrontendWorker {
 		return resolve_file_twine(parse_integer(), is_public);
 	}
 
-	// A twine-typed token at a definition site: a $pub@/$priv@ reference into
-	// the twines table, or an escaped identifier interned into the pool.
 	std::optional<IdString> try_parse_twine()
 	{
 		if (std::optional<IdString> handle = try_parse_twine_handle())
@@ -653,10 +648,6 @@ struct RTLILFrontendWorker {
 		return *t;
 	}
 
-	// Parse a `twines` ... `end` block into per-file node descriptors, then
-	// intern them all into design->twines. The destination pool may already
-	// hold twines (multi-file load); it dedups by content. Static ids are
-	// universal and never appear in the block.
 	void parse_twines()
 	{
 		expect_eol();

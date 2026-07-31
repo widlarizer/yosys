@@ -42,8 +42,6 @@ struct MemoryMapWorker
 
 	std::map<std::pair<RTLIL::SigSpec, RTLIL::SigSpec>, RTLIL::SigBit> decoder_cache;
 
-	// src of the Mem currently being lowered, so every cell created on its
-	// behalf inherits source-location tracking from the original $mem_v2.
 	SrcRef mem_src;
 
 	MemoryMapWorker(RTLIL::Design *design, RTLIL::Module *module) : design(design), module(module), sigmap(module), initvals(&sigmap, module) {}

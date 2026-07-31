@@ -470,8 +470,6 @@ struct OptMergeWorker
 					}
 				}
 				log_debug("    Removing %s cell `%s' from module `%s'.\n", remove_cell->type, remove_cell->name, module->name);
-				// The surviving cell now stands for both, so it carries the
-				// source locations of both (as a twine concat node).
 				merge_cell_src(module, {remove_cell, keep_cell}, {keep_cell});
 
 				std::vector<RTLIL::SigSpec> old_sigs;
@@ -479,8 +477,6 @@ struct OptMergeWorker
 				for (auto &[port, keep_sig] : port_replacements)
 					old_sigs.push_back(remove_cell->getPort(port));
 
-				// Detach every port (inputs included) so the old output
-				// signals are not briefly double-driven while we rewire.
 				std::vector<IdString> all_ports;
 				all_ports.reserve(remove_cell->connections().size());
 				for (auto &it : remove_cell->connections())

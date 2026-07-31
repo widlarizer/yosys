@@ -26,7 +26,6 @@ PRIVATE_NAMESPACE_BEGIN
 
 struct setunset_t
 {
-	// Escaped name text; interned per Design at apply time.
 	std::string name;
 	RTLIL::Const value;
 	bool unset;

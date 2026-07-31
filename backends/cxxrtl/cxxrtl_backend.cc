@@ -728,7 +728,6 @@ struct CxxrtlWorker {
 	std::string indent;
 	int temporary = 0;
 
-	// Design whose twine pool backs every name rendered by this worker.
 	const RTLIL::Design *design = nullptr;
 
 	dict<const RTLIL::Module*, SigMap> sigmaps;

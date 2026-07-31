@@ -47,13 +47,6 @@ void apply_prefix(const std::string &prefix, std::string &id)
 		id = stringf("$techmap%s.%s", prefix, id);
 }
 
-// Prefixes a template object's name with an instance's "<cell>." (public) or
-// "$techmap<cell>." (private) prefix, for one cell's worth of instantiation.
-// A name like "\a.b.c" is stored as nested Suffix nodes
-// Suffix{Suffix{"\a.", "b."}, "c"}; recursing the Suffix chain re-prefixes only
-// the innermost leaf ("\a." -> "\u.a.") and reuses the rest, so "b.", "c" stay
-// shared instead of materialising "a.b.c" as one fresh tail per object.
-// Reads the template name from TwinePool src and writes TwinePool dst.
 struct PrefixApplier
 {
 	RTLIL::Design *dst;
@@ -69,9 +62,6 @@ struct PrefixApplier
 		pub_prefix = dst->twines.add(Twine::Suffix{prefix, "."});
 	}
 
-	// "$techmap<cell>." can't reuse the cell name's nodes (a tail is appended,
-	// not prepended), so it is the one prefix we materialise -- lazily, since
-	// many templates have no private wires.
 	IdString techmap_prefix()
 	{
 		if (priv_prefix == Twine::Null)
@@ -111,9 +101,6 @@ struct PrefixApplier
 	}
 };
 
-// techmap matches cell ports (named in the source design's twine pool) against
-// template ports (in the map design's pool). Only global constids share a
-// IdString across pools, so non-constid port names must be resolved by content.
 static RTLIL::Wire *map_port(RTLIL::Module *tpl, RTLIL::Design *src, IdString name)
 {
 	return tpl->wire(tpl->design->twines.find(src->twines.str(name)));
@@ -216,10 +203,6 @@ struct TechmapWorker
 		}
 
 		std::string orig_cell_name;
-		// Cache the source cell's src attribute (a "@N" ref or a legacy
-		// literal). Each technology-mapped object inherits this via
-		// design->merge_src, which routes through the twine pool so
-		// successive merges share substructure.
 		const RTLIL::Cell *src_cell = cell;
 
 		orig_cell_name = cell->name.str();
@@ -549,8 +532,6 @@ struct TechmapWorker
 			{
 				IdString derived_name = tpl_name;
 				RTLIL::Module *tpl = map->module(derived_name);
-				// The template lives in `map`, so parameter names must be keyed
-				// in the map pool: the cell's keys come from `design`.
 				dict<IdString, RTLIL::Const> parameters;
 				for (auto &p : cell->parameters)
 					parameters[map->twines.copy_from(design->twines, p.first)] = p.second;
@@ -588,8 +569,6 @@ struct TechmapWorker
 						{
 							extmapper_module = extmapper_design->addModule(m_name);
 							RTLIL::Cell *extmapper_cell = extmapper_module->addCell(cell->type, cell);
-							// addCell(name, cell) already migrated src across
-							// explicit set_src_attribute round-trip here.
 
 							int port_counter = 1;
 							for (auto &c : extmapper_cell->connections_) {

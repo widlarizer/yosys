@@ -610,8 +610,6 @@ static const char *log_id_cached(std::string unescaped)
 	return log_id_cache.back();
 }
 
-// Pool-free fallback: only static (ID::) handles carry their own name.
-// Anything else needs the owning Design; use log_id(design, ref) there.
 const char *log_id(const IdString &str)
 {
 	if (str == Twine::Null)

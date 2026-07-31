@@ -2173,7 +2173,6 @@ void dump_case_actions(std::ostream &f, std::string indent, RTLIL::CaseRule *cs)
 		f << stringf(" = ");
 		dump_sigspec(f, it->second);
 		f << stringf(";\n");
-		// TODO
 	}
 }
 

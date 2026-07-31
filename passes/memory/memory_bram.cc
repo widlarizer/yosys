@@ -26,7 +26,6 @@ PRIVATE_NAMESPACE_BEGIN
 
 struct rules_t
 {
-	// Design the rules file was parsed against; names are interned into it.
 	Design *design = nullptr;
 
 	struct portinfo_t {

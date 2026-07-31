@@ -37,7 +37,6 @@ struct RTLIL::Binding
 	virtual ~Binding() {}
 
 	// Return a string describing the binding. Takes the owning Design because
-	// the target names are IdStrings into its pool.
 	virtual std::string describe(const RTLIL::Design *design) const = 0;
 
 protected:
