@@ -236,7 +236,6 @@ struct VlogHammerReporter
 
 	void run()
 	{
-		TwineSearch search(&design->twines);
 		for (int idx = 0; idx < int(patterns.size()); idx++)
 		{
 			log("Creating report for pattern %d: %s\n", idx, log_signal(patterns[idx]));
@@ -305,7 +304,6 @@ struct VlogHammerReporter
 
 	VlogHammerReporter(RTLIL::Design *design, std::string module_prefix, std::string module_list, std::string input_list, std::string pattern_list) : design(design)
 	{
-		TwineSearch search(&design->twines);
 		for (auto name : split(module_list, ",")) {
 			IdString esc_name = design->twines.add(RTLIL::escape_id(module_prefix + name));
 			RTLIL::Module *mod = design->module(esc_name);

@@ -336,7 +336,6 @@ struct SimplecWorker
 		topo.analyze_loops = false;
 		topo.sort();
 
-		TwineSearch search(&design->twines);
 		for (int i = 0; i < GetSize(topo.sorted); i++)
 			topoidx[mod->cell(topo.sorted[i])] = i;
 
@@ -526,7 +525,6 @@ struct SimplecWorker
 					{
 						if (bit2output[work->module].count(bit) && work->parent)
 						{
-							TwineSearch search(&work->parent->module->design->twines);
 							for (auto outbit : bit2output[work->module][bit])
 							{
 								Module *parent_mod = work->parent->module;

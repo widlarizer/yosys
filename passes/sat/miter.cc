@@ -75,8 +75,6 @@ void create_miter_equiv(struct Pass *that, std::vector<std::string> args, RTLIL:
 	IdString gate_name = design->twines.add(RTLIL::escape_id(args[argidx++]));
 	IdString miter_name = design->twines.add(RTLIL::escape_id(args[argidx++]));
 
-	TwineSearch search(&design->twines);
-
 	if (design->module(gold_name) == nullptr)
 		log_cmd_error("Can't find gold module %s!\n", design->twines.str(gold_name));
 	if (design->module(gate_name) == nullptr)
@@ -323,8 +321,6 @@ void create_miter_assert(struct Pass *that, std::vector<std::string> args, RTLIL
 
 	IdString module_name = design->twines.add(RTLIL::escape_id(args[argidx++]));
 	IdString miter_name = argidx < args.size() ? design->twines.add(RTLIL::escape_id(args[argidx++])) : Twine::Null;
-
-	TwineSearch search(&design->twines);
 
 	if (design->module(module_name) == nullptr)
 		log_cmd_error("Can't find module %s!\n", design->twines.str(module_name));
