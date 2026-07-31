@@ -481,8 +481,8 @@ struct ShowWorker
 					out_ports.push_back(conn.first);
 			}
 
-			std::sort(in_ports.begin(), in_ports.end(), RTLIL::sort_by_twine_str_expensive(design->twines));
-			std::sort(out_ports.begin(), out_ports.end(), RTLIL::sort_by_twine_str_expensive(design->twines));
+			std::sort(in_ports.begin(), in_ports.end(), RTLIL::sort_by_id_str(design->twines));
+			std::sort(out_ports.begin(), out_ports.end(), RTLIL::sort_by_id_str(design->twines));
 
 			for (auto &p : in_ports) {
 				std::string p_str = design->twines.str(p);

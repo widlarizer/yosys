@@ -1859,7 +1859,7 @@ struct LsPass : public Pass {
 
 			if (!matches.empty()) {
 				log("\n%d %s:\n", int(matches.size()), "modules");
-				std::sort(matches.begin(), matches.end(), RTLIL::sort_by_twine_str_expensive(design->twines));
+				std::sort(matches.begin(), matches.end(), RTLIL::sort_by_id_str(design->twines));
 				for (auto id : matches)
 					log("  %s%s\n", log_id(design, id), design->selected_whole_module(design->module(id)) ? "" : "*");
 			}

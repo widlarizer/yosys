@@ -28,14 +28,12 @@ TEST(TwineSortTest, OrdersByRenderedString)
 		twines.add(std::string("$a")),
 		twines.add(std::string("$b")),
 	};
-	std::sort(refs.begin(), refs.end(), RTLIL::sort_by_twine_str_expensive(twines));
+	std::sort(refs.begin(), refs.end(), RTLIL::sort_by_id_str(twines));
 	EXPECT_EQ(twines.str(refs[0]), "$a");
 	EXPECT_EQ(twines.str(refs[1]), "$b");
 	EXPECT_EQ(twines.str(refs[2]), "$c");
 }
 
-// Two handles onto one content node must not be collapsed by the memo: the
-// rendered forms differ by the '\' escape, so they order strictly.
 TEST(TwineSortTest, PublicAndPrivateHandlesOrderStrictly)
 {
 	TwinePool twines;
@@ -45,7 +43,7 @@ TEST(TwineSortTest, PublicAndPrivateHandlesOrderStrictly)
 	ASSERT_EQ(twines.str(pub), "\\same");
 	ASSERT_EQ(twines.str(priv), "same");
 
-	RTLIL::sort_by_twine_str_expensive less(twines);
+	RTLIL::sort_by_id_str less(twines);
 	EXPECT_NE(less(pub, priv), less(priv, pub));
 	EXPECT_TRUE(less(pub, priv));
 }
@@ -54,15 +52,44 @@ TEST(TwineSortTest, SortIsAStrictWeakOrdering)
 {
 	TwinePool twines;
 	std::vector<IdString> refs = bench_refs(twines, 500);
-	RTLIL::sort_by_twine_str_expensive less(twines);
+	RTLIL::sort_by_id_str less(twines);
 	std::sort(refs.begin(), refs.end(), less);
 	for (size_t i = 1; i < refs.size(); i++)
 		ASSERT_FALSE(less(refs[i], refs[i - 1])) << "at " << i;
 }
 
-// Harness rather than an assertion of speed: the memoised comparator flattens
-// each ref once per sort instead of twice per comparison, so this should stay
-// far below the n log n flattening it replaced.
+TEST(TwineSortTest, MatchesRenderedOrderThroughTheGeneralWalk)
+{
+	TwinePool twines;
+	std::vector<IdString> refs;
+
+	IdString a = twines.add(std::string("$alpha"));
+	IdString b = twines.add(std::string("\\alpha"));
+	IdString c = twines.add(std::string("$alphabet"));
+	refs.insert(refs.end(), {a, b, c});
+
+	IdString deep = a;
+	for (int i = 0; i < 12; i++) {
+		deep = twines.add(Twine::Suffix{deep, stringf(".lvl%d", i)});
+		refs.push_back(deep);
+		refs.push_back(deep.tag(true));
+	}
+
+	IdString other = twines.add(std::string("$alpha."));
+	for (int i = 0; i < 12; i++) {
+		other = twines.add(Twine::Suffix{other, stringf("lvl%d.", i)});
+		refs.push_back(other);
+	}
+
+	RTLIL::sort_by_id_str less(twines);
+	for (IdString x : refs)
+		for (IdString y : refs) {
+			bool want = twines.str(x) < twines.str(y);
+			EXPECT_EQ(less(x, y), want)
+				<< twines.str(x) << " vs " << twines.str(y);
+		}
+}
+
 TEST(TwineSortTest, BenchmarkSort)
 {
 	constexpr int kNames = 50000;
@@ -71,7 +98,7 @@ TEST(TwineSortTest, BenchmarkSort)
 	std::vector<IdString> refs = bench_refs(twines, kNames);
 
 	auto t0 = std::chrono::steady_clock::now();
-	std::sort(refs.begin(), refs.end(), RTLIL::sort_by_twine_str_expensive(twines));
+	std::sort(refs.begin(), refs.end(), RTLIL::sort_by_id_str(twines));
 	auto t1 = std::chrono::steady_clock::now();
 
 	size_t flattens = 0;
@@ -86,10 +113,10 @@ TEST(TwineSortTest, BenchmarkSort)
 	auto ms = [](auto a, auto b) {
 		return std::chrono::duration_cast<std::chrono::microseconds>(b - a).count() / 1000.0;
 	};
-	std::cerr << "[ BENCH    ] " << kNames << " refs: memoised " << ms(t0, t1)
+	std::cerr << "[ BENCH    ] " << kNames << " refs: walked " << ms(t0, t1)
 		  << " ms vs per-comparison " << ms(t2, t3) << " ms ("
 		  << flattens << " flattens vs " << kNames << ")\n";
-	RecordProperty("memoised_ms", std::to_string(ms(t0, t1)));
+	RecordProperty("walked_ms", std::to_string(ms(t0, t1)));
 	RecordProperty("naive_ms", std::to_string(ms(t2, t3)));
 
 	EXPECT_LT(ms(t0, t1), ms(t2, t3));

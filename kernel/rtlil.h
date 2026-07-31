@@ -184,29 +184,11 @@ namespace RTLIL {
 		}
 	};
 
-	// std::sort passes comparators by value down its recursion, so the memo is
-	// held behind a shared handle: every copy of the comparator shares one
-	// cache, and each distinct ref is flattened once per sort rather than once
-	// per comparison.
-	struct sort_by_twine_str_expensive {
+	struct sort_by_id_str {
 		const TwinePool& pool;
-		std::shared_ptr<dict<IdString, std::string>> memo;
-		explicit sort_by_twine_str_expensive(const TwinePool& pool)
-			: pool(pool), memo(std::make_shared<dict<IdString, std::string>>()) {}
-		void intern(IdString a) const {
-			if (memo->find(a) == memo->end())
-				memo->emplace(a, pool.str(a));
-		}
+		explicit sort_by_id_str(const TwinePool& pool) : pool(pool) {}
 		bool operator()(IdString a, IdString b) const {
-			// Both interned first: a second emplace can reallocate the memo and
-			// invalidate a reference taken from the first.
-			intern(a);
-			intern(b);
-			const std::string& a_str = memo->at(a);
-			const std::string& b_str = memo->at(b);
-			if (a_str != b_str)
-				return a_str < b_str;
-			return a.isPublic() < b.isPublic();
+			return twine_compare_by_name(pool, a, b) < 0;
 		}
 	};
 

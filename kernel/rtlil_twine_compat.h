@@ -38,7 +38,12 @@ struct NameMasqBase {
 	size_t size() const { return self().escaped().size(); }
 	bool contains(const char *p) const { return self().escaped().find(p) != std::string::npos; }
 	char operator[](int n) const { return self().escaped()[n]; }
-	bool lt_by_name(const Derived &rhs) const { return self().escaped() < rhs.escaped(); }
+	bool lt_by_name(const Derived &rhs) const {
+		const TwinePool *pool = self().pool();
+		if (pool == nullptr)
+			return self().escaped() < rhs.escaped();
+		return twine_compare_by_name(*pool, self().ref(), rhs.ref()) < 0;
+	}
 	bool operator==(IdString rhs) const { return self().ref() == rhs; }
 	bool operator!=(IdString rhs) const { return self().ref() != rhs; }
 	bool operator==(NullIdString) const { return self().ref() == Twine::Null; }

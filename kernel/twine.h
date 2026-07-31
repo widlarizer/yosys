@@ -4,6 +4,7 @@
 #include "kernel/yosys_common.h"
 
 #include <algorithm>
+#include <cstring>
 #include <deque>
 #include <span>
 #include <string>
@@ -506,6 +507,116 @@ struct TwinePool : HashConsPool<TwinePool, Twine, IdString> {
 private:
 	using HashConsPool::add_inner;
 };
+
+struct TwineSegments {
+	static constexpr size_t kInlineDepth = 8;
+
+	TwineSegments(const TwinePool &pool, IdString ref) : pool_(pool)
+	{
+		if (ref == Twine::Null)
+			return;
+		if (ref.isPublic())
+			sigil_ = std::string_view("\\", 1);
+		IdString cur = ref.untag();
+		while (true) {
+			push(cur);
+			const Twine &t = pool_[cur];
+			if (!t.is_suffix())
+				break;
+			cur = t.suffix().prefix.untag();
+		}
+	}
+
+	std::string_view peek()
+	{
+		while (pos_ <= count_) {
+			std::string_view seg = at(pos_);
+			if (off_ < seg.size())
+				return seg.substr(off_);
+			pos_++;
+			off_ = 0;
+		}
+		return {};
+	}
+
+	void advance(size_t n) { off_ += n; }
+
+private:
+	std::string_view at(size_t i) const
+	{
+		if (i == 0)
+			return sigil_;
+		if (i > count_)
+			return {};
+		const Twine &t = pool_[nodes()[count_ - i]];
+		if (t.is_suffix())
+			return t.suffix().tail;
+		if (t.is_leaf())
+			return t.leaf();
+		return {};
+	}
+
+	void push(IdString ref)
+	{
+		if (spill_.empty() && count_ < kInlineDepth) {
+			inline_[count_++] = ref;
+			return;
+		}
+		if (spill_.empty())
+			spill_.assign(inline_, inline_ + count_);
+		spill_.push_back(ref);
+		count_++;
+	}
+
+	const IdString *nodes() const { return spill_.empty() ? inline_ : spill_.data(); }
+
+	const TwinePool &pool_;
+	std::string_view sigil_;
+	IdString inline_[kInlineDepth];
+	std::vector<IdString> spill_;
+	size_t count_ = 0;
+	size_t pos_ = 0;
+	size_t off_ = 0;
+};
+
+inline int twine_compare_views(std::string_view a, std::string_view b)
+{
+	size_t n = std::min(a.size(), b.size());
+	if (int diff = n ? std::memcmp(a.data(), b.data(), n) : 0; diff != 0)
+		return diff;
+	return a.size() < b.size() ? -1 : (a.size() > b.size() ? 1 : 0);
+}
+
+inline int twine_compare_by_name(const TwinePool &pool, IdString a, IdString b)
+{
+	if (a == b)
+		return 0;
+	if (a == Twine::Null)
+		return -1;
+	if (b == Twine::Null)
+		return 1;
+
+	if (a.isPublic() == b.isPublic()) {
+		const Twine &ta = pool[a.untag()];
+		const Twine &tb = pool[b.untag()];
+		if (ta.is_leaf() && tb.is_leaf())
+			return twine_compare_views(ta.leaf(), tb.leaf());
+		if (ta.is_suffix() && tb.is_suffix() && ta.suffix().prefix == tb.suffix().prefix)
+			return twine_compare_views(ta.suffix().tail, tb.suffix().tail);
+	}
+
+	TwineSegments sa(pool, a), sb(pool, b);
+	while (true) {
+		std::string_view x = sa.peek(), y = sb.peek();
+		if (x.empty() || y.empty())
+			return x.empty() ? (y.empty() ? 0 : -1) : 1;
+		size_t n = std::min(x.size(), y.size());
+		if (int diff = std::memcmp(x.data(), y.data(), n); diff != 0)
+			return diff;
+		sa.advance(n);
+		sb.advance(n);
+	}
+}
 
 inline size_t TwinePool::hash_node(const Twine& t) {
 	Hasher h;

@@ -1365,7 +1365,7 @@ void RTLIL::Design::rename(RTLIL::Module *module, RTLIL::IdString new_name)
 void RTLIL::Design::sort()
 {
 	scratchpad.sort();
-	modules_.sort(sort_by_twine_str_expensive(twines));
+	modules_.sort(sort_by_id_str(twines));
 	for (auto &it : modules_)
 		it.second->sort();
 }
@@ -1373,7 +1373,7 @@ void RTLIL::Design::sort()
 void RTLIL::Design::sort_modules()
 {
 	scratchpad.sort();
-	modules_.sort(sort_by_twine_str_expensive(twines));
+	modules_.sort(sort_by_id_str(twines));
 }
 
 void check_module(RTLIL::Module *module, ParallelDispatchThreadPool &thread_pool);
@@ -2654,17 +2654,17 @@ namespace {
 
 void RTLIL::Module::sort()
 {
-	wires_.sort(sort_by_twine_str_expensive(design->twines));
-	cells_.sort(sort_by_twine_str_expensive(design->twines));
-	parameter_default_values.sort(sort_by_twine_str_expensive(design->twines));
-	memories.sort(sort_by_twine_str_expensive(design->twines));
-	processes.sort(sort_by_twine_str_expensive(design->twines));
+	wires_.sort(sort_by_id_str(design->twines));
+	cells_.sort(sort_by_id_str(design->twines));
+	parameter_default_values.sort(sort_by_id_str(design->twines));
+	memories.sort(sort_by_id_str(design->twines));
+	processes.sort(sort_by_id_str(design->twines));
 	for (auto &it : cells_)
 		it.second->sort();
 	for (auto &it : wires_)
-		it.second->attributes.sort(sort_by_twine_str_expensive(design->twines));
+		it.second->attributes.sort(sort_by_id_str(design->twines));
 	for (auto &it : memories)
-		it.second->attributes.sort(sort_by_twine_str_expensive(design->twines));
+		it.second->attributes.sort(sort_by_id_str(design->twines));
 }
 
 void check_module(RTLIL::Module *module, ParallelDispatchThreadPool &thread_pool)
@@ -4915,9 +4915,9 @@ const RTLIL::Const &RTLIL::Cell::getParam(RTLIL::IdString paramname) const
 
 void RTLIL::Cell::sort()
 {
-	connections_.sort(sort_by_twine_str_expensive(module->design->twines));
-	parameters.sort(sort_by_twine_str_expensive(module->design->twines));
-	attributes.sort(sort_by_twine_str_expensive(module->design->twines));
+	connections_.sort(sort_by_id_str(module->design->twines));
+	parameters.sort(sort_by_id_str(module->design->twines));
+	attributes.sort(sort_by_id_str(module->design->twines));
 }
 
 void RTLIL::Cell::check()

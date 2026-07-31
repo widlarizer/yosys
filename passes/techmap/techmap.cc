@@ -1343,7 +1343,7 @@ struct TechmapPass : public Pass {
 
 		log_debug("Cell type mappings to use:\n");
 		for (auto &i : celltypeMap) {
-			i.second.sort(RTLIL::sort_by_twine_str_expensive(map->twines));
+			i.second.sort(RTLIL::sort_by_id_str(map->twines));
 			std::string maps = "";
 			for (auto &m : i.second)
 				maps += stringf(" %s", log_id(map, m));
