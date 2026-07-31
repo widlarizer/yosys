@@ -55,12 +55,12 @@ struct module_ptr_compare {
 std::pair<std::string, std::string> hier_name_parts(RTLIL::Cell *cell, std::string_view object_name_view, const std::string &separator)
 {
 	if (!object_name_view.empty() && object_name_view[0] == '\\')
-		return {cell->name.unescape() + separator, std::string(object_name_view.substr(1))};
+		return {cell->name.str() + separator, std::string(object_name_view.substr(1))};
 
 	constexpr std::string_view prefix = "$flatten";
 	if (object_name_view.substr(0, prefix.size()) == prefix)
 		object_name_view.remove_prefix(prefix.size());
-	return {"$flatten" + cell->name.unescape() + separator, std::string(object_name_view)};
+	return {"$flatten" + cell->name.str() + separator, std::string(object_name_view)};
 }
 
 std::string concat_name(RTLIL::Cell *cell, std::string_view object_name_view, const std::string &separator = ".")
@@ -165,7 +165,7 @@ struct FlattenWorker
 		// Copy the contents of the flattened cell
 
 		IdString pub_prefix_ref = cell->name;
-		IdString priv_prefix_ref = design->twines.add("$flatten" + cell->name.unescape() + separator);
+		IdString priv_prefix_ref = design->twines.add("$flatten" + cell->name.str() + separator);
 		dict<IdString, IdString> remap_memo;
 		auto make_name = [&](IdString obj_ref) -> IdString {
 			return module->uniquify(remap_flattened_name(design, obj_ref, pub_prefix_ref, priv_prefix_ref, separator, remap_memo));
@@ -187,7 +187,7 @@ struct FlattenWorker
 
 			RTLIL::Wire *new_wire = nullptr;
 			if (tpl_wire->name[0] == '\\') {
-				std::string wire_name = concat_name(cell, tpl_wire->name.unescape(), separator);
+				std::string wire_name = concat_name(cell, tpl_wire->name.str(), separator);
 				auto hwit = hier_wires.find(wire_name);
 				RTLIL::Wire *hier_wire = (hwit != hier_wires.end()) ? hwit->second : nullptr;
 				if (hier_wire != nullptr && hier_wire->get_bool_attribute(ID::hierconn)) {
@@ -362,7 +362,7 @@ struct FlattenWorker
 		dict<std::string, RTLIL::Wire*> hier_wires;
 		for (auto wire : module->wires())
 			if (wire->get_bool_attribute(ID::hierconn))
-				hier_wires[wire->name.unescape()] = wire;
+				hier_wires[wire->name.str()] = wire;
 
 		std::vector<RTLIL::Cell*> worklist = module->selected_cells();
 		while (!worklist.empty())
