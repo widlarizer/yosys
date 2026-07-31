@@ -122,7 +122,7 @@ struct FlattenWorker
 
 		// Preserve original names via the hdlname attribute, but only for objects with a fully public name.
 		// If the '-scopename' option is used, also preserve the containing scope of private objects if their scope is fully public.
-		if (cell->name[0] == '\\') {
+		if (cell->name.isPublic()) {
 			if (object->has_attribute(ID::hdlname) || (!orig_object_name.empty() && orig_object_name[0] == '\\')) {
 				std::string new_hdlname;
 
@@ -186,7 +186,7 @@ struct FlattenWorker
 				positional_ports.emplace(design->twines.add(stringf("$%d", tpl_wire->port_id)), tpl_wire->name);
 
 			RTLIL::Wire *new_wire = nullptr;
-			if (tpl_wire->name[0] == '\\') {
+			if (tpl_wire->name.isPublic()) {
 				std::string wire_name = concat_name(cell, tpl_wire->name.str(), separator);
 				auto hwit = hier_wires.find(wire_name);
 				RTLIL::Wire *hier_wire = (hwit != hier_wires.end()) ? hwit->second : nullptr;
@@ -267,7 +267,7 @@ struct FlattenWorker
 				std::string port_name_str = design->twines.str(port_name);
 				if (!port_name_str.empty() && port_name_str[0] == '$')
 					log_error("Can't map port `%s' of cell `%s' to template `%s'!\n",
-						std::string(port_name_str).c_str(), cell->name.unescape().c_str(), tpl->name);
+						port_name_str, cell->name, tpl->name);
 				continue;
 			}
 
@@ -340,7 +340,7 @@ struct FlattenWorker
 			if (tpl->src_id() != Src::Null)
 				scopeinfo->attributes.emplace(design->twines.add(std::string("\\module_src")), RTLIL::Const(tpl->get_src_attribute()));
 
-			scopeinfo->attributes.emplace(ID::module, RTLIL::Const(tpl->name.unescape().substr(1)));
+			scopeinfo->attributes.emplace(ID::module, RTLIL::Const(tpl->name.unescape()));
 		}
 
 		module->remove(cell);
