@@ -61,15 +61,14 @@ struct Xaiger2Frontend : public Frontend {
 
 	void read_sc_mapping(std::istream *&f, std::string filename, std::vector<std::string> args, Design *design)
 	{
-		std::optional<IdString> module_name;
-		TwineSearch search(&design->twines);
+		std::string module_name;
 		std::string map_filename;
 
 		size_t argidx;
 		for (argidx = 2; argidx < args.size(); argidx++) {
 			std::string arg = args[argidx];
 			if (arg == "-module_name" && argidx + 1 < args.size()) {
-				module_name = search.find(RTLIL::escape_id(args[++argidx]));
+				module_name = RTLIL::escape_id(args[++argidx]);
 				continue;
 			}
 			if (arg == "-map2" && argidx + 1 < args.size()) {
@@ -82,12 +81,13 @@ struct Xaiger2Frontend : public Frontend {
 
 		if (map_filename.empty())
 			log_error("A '-map2' argument is required\n");
-		if (!module_name)
+		if (module_name.empty())
 			log_error("A '-module_name' argument is required\n");
 
-		Module *module = design->module(*module_name);
+		TwineSearch search(&design->twines);
+		Module *module = design->module(search.find(module_name));
 		if (!module)
-			log_error("Module '%s' not found\n", log_id(design, *module_name));
+			log_error("Module '%s' not found\n", RTLIL::unescape_id(module_name));
 
 		std::ifstream map_file;
 		map_file.open(map_filename);
@@ -211,6 +211,7 @@ struct Xaiger2Frontend : public Frontend {
 					log_assert(cell && def);
 					retained_boxes[box_seq] = true;
 
+					std::string cell_name_str = cell->name.unescape();
 					int box_ci_idx = 0;
 					for (auto port_id : def->ports) {
 						Wire *port = def->wire(port_id);
@@ -219,14 +220,11 @@ struct Xaiger2Frontend : public Frontend {
 								log_error("Malformed design (1)\n");
 
 							SigSpec &conn = cell->connections_[port_id];
-							std::string port_id_str = design->twines.str(port_id);
+							std::string port_id_str = design->twines.unescaped_str(port_id);
 							for (int j = 0; j < port->width; j++) {
-								if (conn[j].wire && conn[j].wire->port_output) {
-									std::string cell_name_str = cell->name.unescape();
-									const char *port_id_str_part = port_id_str[0] == '\\' ? port_id_str.c_str() + 1 : port_id_str.c_str();
-									auto new_wire_name = module->uniquify(stringf("$box$%s$%s$%d", cell_name_str.c_str(), port_id_str_part, j));
-									conn[j] = module->addWire(new_wire_name);
-								}
+								if (conn[j].wire && conn[j].wire->port_output)
+									conn[j] = module->addWire(module->uniquify(
+												stringf("$box$%s$%s$%d", cell_name_str, port_id_str, j)));
 
 								bits[2*(pi_num + ci_counter + box_ci_idx++) + 2] = conn[j];
 							}
@@ -273,12 +271,12 @@ struct Xaiger2Frontend : public Frontend {
 
 				for (unsigned i = 0; i < no_cells; ++i) {
 					auto &cell = cells[i];
-					cell.type = design->twines.add(std::string{read_idstring(*f)});
-					cell.out = design->twines.add(std::string{read_idstring(*f)});
+					cell.type = design->twines.add(read_idstring(*f));
+					cell.out = design->twines.add(read_idstring(*f));
 					uint32_t nins = read_be32(*f);
 					for (uint32_t j = 0; j < nins; j++)
-						cell.ins.push_back(design->twines.add(std::string{read_idstring(*f)}));
-					log_debug("M: Cell %s (out %s, ins", log_id(design, cell.type), design->twines.unescaped_str(cell.out));
+						cell.ins.push_back(design->twines.add(read_idstring(*f)));
+					log_debug("M: Cell %s (out %s, ins", log_id(design, cell.type), log_id(design, cell.out));
 					for (auto in : cell.ins)
 						log_debug(" %s", log_id(design, in));
 					log_debug(")\n");
