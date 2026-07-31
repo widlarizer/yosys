@@ -33,8 +33,8 @@ namespace RTLIL {
 }
 
 // CRTP base shared by WireNameMasq, CellNameMasq, and ModuleNameMasq.
-// Derived must define ref(), pool(), escaped(), and unescape(); everything
-// else is derived from those via operator IdString().
+// Derived must define ref(), escaped(), and unescape(); everything else
+// is derived from those three via operator IdString().
 namespace RTLIL {
 namespace masq_detail {
 

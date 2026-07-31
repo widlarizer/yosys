@@ -193,8 +193,6 @@ struct Twine {
 	bool is_suffix() const { return std::holds_alternative<Suffix>(data); }
 };
 
-// What a TwinePool stores. A Twine::AutoSuffix is resolved to a Suffix on the
-// way in, so it never reaches this type; monostate is a freed slot.
 struct TwineNode {
 	std::variant<std::monostate, Twine::Leaf, Twine::Suffix> data;
 
