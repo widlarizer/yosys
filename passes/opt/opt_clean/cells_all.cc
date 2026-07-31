@@ -305,7 +305,7 @@ pool<Cell*> all_unused_cells(const Module *mod, const CellAnalysis& analysis, Wi
 	});
 	for (int cell_index : sharded_unused_cells)
 		unused_cells.insert(mod->cell_at(cell_index));
-	unused_cells.sort(RTLIL::sort_by_name<RTLIL::Cell>());
+	unused_cells.sort(RTLIL::sort_by_name_id<RTLIL::Cell>());
 	return unused_cells;
 }
 

@@ -54,7 +54,7 @@ struct WreduceWorker
 	Module *module;
 	ModIndex mi;
 
-	std::set<Cell*, RTLIL::compare_ptr_by_name<Cell>> work_queue_cells;
+	std::set<Cell*, IdString::compare_ptr_by_name<Cell>> work_queue_cells;
 	std::set<SigBit> work_queue_bits;
 	pool<SigBit> keep_bits;
 	FfInitVals initvals;

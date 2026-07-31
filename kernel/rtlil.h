@@ -160,15 +160,9 @@ namespace RTLIL {
 		return str.substr(1);
 	}
 
-	template <typename T> struct sort_by_name {
+	template <typename T> struct sort_by_name_id {
 		bool operator()(T *a, T *b) const {
 			return a->name < b->name;
-		}
-	};
-
-	template<typename T> struct compare_ptr_by_name {
-		bool operator()(const T *a, const T *b) const {
-			return (a == nullptr || b == nullptr) ? (a < b) : (a->name.ref() < b->name.ref());
 		}
 	};
 

@@ -42,6 +42,16 @@ struct IdString {
 		return ((*this == args) || ...);
 	}
 
+	// The following is a helper key_compare class. Instead of for example std::set<Cell*>
+	// use std::set<Cell*, IdString::compare_ptr_by_name<Cell>> if the order of cells in the
+	// set has an influence on the algorithm.
+
+	template<typename T> struct compare_ptr_by_name {
+		bool operator()(const T *a, const T *b) const {
+			return (a == nullptr || b == nullptr) ? (a < b) : (a->name < b->name);
+		}
+	};
+
 	// A ref is "empty" when it names nothing at all.
 	constexpr bool empty() const { return value == kNull; }
 

@@ -29,7 +29,7 @@
 USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
-typedef RTLIL::compare_ptr_by_name<RTLIL::Cell> cell_ptr_cmp;
+typedef RTLIL::IdString::compare_ptr_by_name<RTLIL::Cell> cell_ptr_cmp;
 typedef std::pair<RTLIL::SigSpec, RTLIL::Const> ssc_pair_t;
 
 struct ShareWorkerConfig

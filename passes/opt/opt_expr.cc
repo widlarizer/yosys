@@ -486,7 +486,7 @@ void replace_const_cells(RTLIL::Design *design, RTLIL::Module *module, bool cons
 		handle_clkpol_celltype_swap(cell, "$_DLATCHSR_??N_", "$_DLATCHSR_??P_", ID::R, assign_map, invert_map);
 	}
 
-	TopoSort<RTLIL::Cell*, RTLIL::compare_ptr_by_name<RTLIL::Cell>> cells;
+	TopoSort<RTLIL::Cell*, RTLIL::IdString::compare_ptr_by_name<RTLIL::Cell>> cells;
 	dict<RTLIL::SigBit, Cell*> outbit_to_cell;
 
 	for (auto cell : module->cells())

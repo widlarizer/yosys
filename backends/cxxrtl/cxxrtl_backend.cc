@@ -2779,7 +2779,7 @@ struct CxxrtlWorker {
 		this->design = design;
 		RTLIL::Module *top_module = nullptr;
 		std::vector<RTLIL::Module*> modules;
-		using Order = RTLIL::compare_ptr_by_name<RTLIL::Module>;
+		using Order = IdString::compare_ptr_by_name<RTLIL::Module>;
 		TopoSort<RTLIL::Module*, Order> topo_design;
 		for (auto module : design->modules()) {
 			if (!design->selected_module(module))
