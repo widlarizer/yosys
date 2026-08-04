@@ -1,6 +1,7 @@
 yosys_gtest(kernel
 	bitpatternTest.cc
 	cellTypesTest.cc
+	flattenPerfTest.cc
 	hashTest.cc
 	ioTest.cc
 	logTest.cc
@@ -15,4 +16,6 @@ yosys_gtest(kernel
 	twineHashTest.cc
 	twineSortTest.cc
 	twinePublicityTest.cc
+	COMPONENTS
+		flatten
 )
