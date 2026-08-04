@@ -13,6 +13,7 @@ select -assert-none c:*
 cd fine
 opt_expr
 select -assert-none c:*
+
 cd
 miter -equiv -flatten -make_assert -make_outputs coarse fine miter
 sat -verify -prove-asserts -show-ports miter

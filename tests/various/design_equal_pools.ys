@@ -1,8 +1,3 @@
-# Each design owns its own twine pool, so the same name can sit at a different
-# handle in each. design_equal must compare names by content, not by handle.
-# The names below are deliberately not constids -- constids share a handle
-# across all pools, so a test built from them cannot diverge.
-
 read_rtlil <<EOT
 module \zz_top_mod
   wire width 1 input 1 \zz_in_alpha
@@ -23,8 +18,6 @@ EOT
 
 design -save golden
 
-# Fill the second design's pool with unrelated names first, so every shared
-# name lands on a different handle than it has in the saved design.
 design -reset
 read_rtlil <<EOT
 module \zz_filler

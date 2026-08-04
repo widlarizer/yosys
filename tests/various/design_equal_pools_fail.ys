@@ -1,6 +1,3 @@
-# The mirror of design_equal_pools.ys: two designs whose pools agree on handles
-# but disagree on the name at one of them must still compare different.
-
 logger -expect error "Module top missing wire other in second design" 1
 
 read_rtlil <<EOT

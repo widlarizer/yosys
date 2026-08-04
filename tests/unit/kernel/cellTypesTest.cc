@@ -3,7 +3,6 @@
 #include "kernel/yosys_common.h"
 #include "kernel/celltypes.h"
 #include "kernel/newcelltypes.h"
-#include "tests/unit/yosysSetupEnv.h"
 
 #include <unordered_set>
 
@@ -15,9 +14,9 @@ TEST(CellTypesTest, basic)
 	NewCellTypes newer;
 	older.setup(nullptr);
 	newer.setup(nullptr);
-	TwinePool twines;
-	IdString bleh = twines.add(std::string("\\bleh"));
-	IdString aaaaa = twines.add(std::string("\\aaaaa"));
+	RTLIL::Design design;
+	IdString bleh = design.twines.add(std::string("\\bleh"));
+	IdString aaaaa = design.twines.add(std::string("\\aaaaa"));
 	older.setup_type(bleh, {ID::G}, {ID::H, ID::I}, false, true);
 	newer.setup_type(bleh, {ID::G}, {ID::H, ID::I}, false, true);
 	EXPECT_EQ(older.cell_known(aaaaa), newer.cell_known(aaaaa));
@@ -70,12 +69,11 @@ TEST(CellTypesTest, basic)
 		ID($_FF_),
 	};
 
-	TwinePool empty_pool;
 	for (size_t i = 0; i < static_cast<size_t>(STATIC_TWINE_END); i++) {
 		IdString type(i);
 		EXPECT_EQ(older.cell_known(type), newer.cell_known(type));
 		if (older.cell_evaluable(type) != newer.cell_evaluable(type))
-			std::cout << empty_pool.unescaped_str(type) << "\n";
+			std::cout << ID::unescaped_str(type) << "\n";
 		EXPECT_EQ(older.cell_evaluable(type), newer.cell_evaluable(type));
 		for (auto port : StaticCellTypes::builder.cells.data()->inputs.ports)
 			check_port(type, port);

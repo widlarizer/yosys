@@ -142,9 +142,9 @@ code
 		new_b.append(State::S0);
 
 	shift->setPort(\A, new_a);
-	setparam(shift, \A_WIDTH, GetSize(new_a));
+	shift->setParam(\A_WIDTH, GetSize(new_a));
 	shift->setPort(\B, new_b);
-	setparam(shift, \B_WIDTH, GetSize(new_b));
+	shift->setParam(\B_WIDTH, GetSize(new_b));
 	blacklist(add);
 	accept;
 }

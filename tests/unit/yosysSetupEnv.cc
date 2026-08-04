@@ -1,6 +1,3 @@
-#ifndef YOSYS_SETUP_ENV_H
-#define YOSYS_SETUP_ENV_H
-
 #include <gtest/gtest.h>
 
 #include "kernel/yosys.h"
@@ -12,5 +9,3 @@ namespace {
 	const ::testing::Environment *yosys_setup_env =
 		::testing::AddGlobalTestEnvironment(new YosysSetupEnvironment);
 }
-
-#endif /* YOSYS_SETUP_ENV_H */

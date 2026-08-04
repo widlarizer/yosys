@@ -122,29 +122,6 @@ struct QlBramMergeWorker {
 			return bram1_map;
 	}
 
-	void set_bb_instance_port(RTLIL::Cell *merged, IdString port, const RTLIL::SigSpec &sig)
-	{
-		RTLIL::Design *design = module->design;
-		IdString generated = design->twines.add(RTLIL::escape_id("ql_bram_merge_blackbox"));
-
-		RTLIL::Module *mod = design->module(merged->type);
-		if (mod == nullptr) {
-			mod = design->addModule(merged->type);
-			mod->set_bool_attribute(ID::blackbox);
-			mod->set_bool_attribute(generated);
-		}
-
-		if (mod->get_bool_attribute(generated) && mod->wire(port) == nullptr) {
-			std::string name = design->twines.str(port);
-			RTLIL::Wire *wire = mod->addWire(port, GetSize(sig));
-			bool is_output = name.size() >= 8 && name.compare(name.size() - 8, 8, "_RD_DATA") == 0;
-			(is_output ? wire->port_output : wire->port_input) = true;
-			mod->fixup_ports();
-		}
-
-		merged->setPort(port, sig);
-	}
-
 	void merge_brams(RTLIL::Cell* bram1, RTLIL::Cell* bram2)
 	{
 		const RTLIL::IdString merged_cell_type = ID($__QLF_TDP36K_MERGED);
@@ -167,14 +144,14 @@ struct QlBramMergeWorker {
 		for (auto &it : port_map(false))
 		{
 			if (bram1->hasPort(it.first))
-				set_bb_instance_port(merged, it.second, bram1->getPort(it.first));
+				merged->setPort(it.second, bram1->getPort(it.first));
 			else
 				log_error("Can't find port %s on cell %s!\n", log_id(module, it.first), bram1->name.unescape());
 		}
 		for (auto &it : port_map(true))
 		{
 			if (bram2->hasPort(it.first))
-				set_bb_instance_port(merged, it.second, bram2->getPort(it.first));
+				merged->setPort(it.second, bram2->getPort(it.first));
 			else
 				log_error("Can't find port %s on cell %s!\n", log_id(module, it.first), bram2->name.unescape());
 		}

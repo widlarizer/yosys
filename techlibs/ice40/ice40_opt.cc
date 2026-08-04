@@ -117,12 +117,12 @@ static void run_ice40_opts(Module *module)
 
 			if (GetSize(replacement_output)) {
 				optimized_co.insert(sigmap(cell->getPort(ID::CO)[0]));
-				auto it = cell->attributes.find(module->design->twines.add(std::string("\\SB_LUT4.name")));
+				TwinePool &twines = module->design->twines;
+				IdString lut_name_attr = twines.add(std::string("\\SB_LUT4.name"));
+				auto it = cell->attributes.find(lut_name_attr);
 				if (it != cell->attributes.end()) {
 					module->rename(cell, it->second.decode_string());
 					decltype(Cell::attributes) new_attr;
-					TwinePool &twines = module->design->twines;
-					IdString lut_name_attr = twines.add(std::string("\\SB_LUT4.name"));
 					for (const auto &a : cell->attributes) {
 						std::string aname = twines.str(a.first);
 						if (aname.starts_with("\\SB_LUT4.\\"))
@@ -142,8 +142,8 @@ static void run_ice40_opts(Module *module)
 				module->design->scratchpad_set_bool("opt.did_something", true);
 				log("Optimized $__ICE40_CARRY_WRAPPER cell back to logic (without SB_CARRY) %s.%s: CO=%s\n",
 						module, cell, log_signal(replacement_output));
-				auto I3 = get_bit_or_zero(cell->getPort(cell->getParam(ID::I3_IS_CI).as_bool() ? ID::CI : ID::I3));
-				RTLIL::SigSpec sig_a { I3, inbit[1], inbit[0], get_bit_or_zero(cell->getPort(ID::I0)) };
+				auto I3 = get_bit_or_zero(cell->getPort(cell->getParam(ID(I3_IS_CI)).as_bool() ? ID::CI : ID(I3)));
+				RTLIL::SigSpec sig_a { I3, inbit[1], inbit[0], get_bit_or_zero(cell->getPort(ID(I0))) };
 				RTLIL::SigSpec sig_y = cell->getPort(ID::O);
 				cell->unsetPort(ID::A);
 				cell->unsetPort(ID::B);

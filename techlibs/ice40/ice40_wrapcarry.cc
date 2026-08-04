@@ -48,7 +48,7 @@ void create_ice40_wrapcarry(ice40_wrapcarry_pm &pm)
 
 	cell->setPort(ID(I0), st.lut->getPort(ID(I0)));
 	auto I3 = st.lut->getPort(ID(I3));
-	if ((*pm.sigmap)(CI) == (*pm.sigmap)(I3)) {
+	if (pm.sigmap(CI) == pm.sigmap(I3)) {
 		cell->setParam(ID(I3_IS_CI), State::S1);
 		I3 = State::Sx;
 	}
@@ -63,14 +63,13 @@ void create_ice40_wrapcarry(ice40_wrapcarry_pm &pm)
 		cell->attributes[twines.add(stringf("\\SB_CARRY.%s", twines.str(a.first)))] = a.second;
 	for (const auto &a : st.lut->attributes)
 		cell->attributes[twines.add(stringf("\\SB_LUT4.%s", twines.str(a.first)))] = a.second;
-	if (st.carry->src_id() != SrcRef::Null)
+	if (st.carry->src_id() != SrcRef::Null) {
 		cell->attributes[twines.add(std::string("\\SB_CARRY.\\src"))] = Const(st.carry->get_src_attribute());
-	if (st.lut->src_id() != SrcRef::Null)
+		cell->set_src_id(st.carry->src_id());
+	}
+	if (st.lut->src_id() != SrcRef::Null) {
 		cell->attributes[twines.add(std::string("\\SB_LUT4.\\src"))] = Const(st.lut->get_src_attribute());
-	if (cell->module && cell->module->design) {
-		if (st.carry->src_id() != SrcRef::Null)
-			cell->set_src_id(st.carry->src_id());
-		else if (st.lut->src_id() != SrcRef::Null)
+		if (st.carry->src_id() == SrcRef::Null)
 			cell->set_src_id(st.lut->src_id());
 	}
 	cell->attributes[twines.add(std::string("\\SB_LUT4.name"))] = Const(st.lut->name.str());
@@ -122,7 +121,7 @@ struct Ice40WrapCarryPass : public Pass {
 		for (auto module : design->selected_modules()) {
 			if (!unwrap) {
 				SigMap sigmap(module);
-				ice40_wrapcarry_pm(module, &sigmap, module->selected_cells()).run_ice40_wrapcarry(create_ice40_wrapcarry);
+				ice40_wrapcarry_pm(module, module->selected_cells()).run_ice40_wrapcarry(create_ice40_wrapcarry);
 			} else {
 				for (auto cell : module->selected_cells()) {
 					if (cell->type != ID($__ICE40_CARRY_WRAPPER))
@@ -136,8 +135,10 @@ struct Ice40WrapCarryPass : public Pass {
 					module->swap_names(carry, cell);
 					TwinePool &twines = module->design->twines;
 					IdString lut_name_attr = twines.add(std::string("\\SB_LUT4.name"));
-					auto lut_name = cell->attributes.at(lut_name_attr, Const(twines.str(twines.add(NEW_ID)))).decode_string();
-					auto lut = module->addCell(lut_name, ID($lut));
+					auto lut_name = cell->attributes.find(lut_name_attr);
+					auto lut = lut_name != cell->attributes.end()
+						? module->addCell(lut_name->second.decode_string(), ID($lut))
+						: module->addCell(NEW_ID, ID($lut));
 					lut->setParam(ID::WIDTH, 4);
 					lut->setParam(ID::LUT, cell->getParam(ID::LUT));
 					auto I3 = cell->getPort(cell->getParam(ID(I3_IS_CI)).as_bool() ? ID::CI : ID(I3));

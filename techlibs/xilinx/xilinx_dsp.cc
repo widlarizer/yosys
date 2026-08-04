@@ -372,7 +372,7 @@ void xilinx_dsp_pack(xilinx_dsp_pm &pm)
 
 		auto f = [&pm,cell](SigSpec &A, Cell* ff, IdString ceport, IdString rstport) {
 			SigSpec D = ff->getPort(ID::D);
-			SigSpec Q = (*pm.sigmap)(ff->getPort(ID::Q));
+			SigSpec Q = pm.sigmap(ff->getPort(ID::Q));
 			if (!A.empty())
 				A.replace(Q, D);
 			if (rstport != IdString::Null) {
@@ -407,7 +407,7 @@ void xilinx_dsp_pack(xilinx_dsp_pm &pm)
 			SigSpec A = cell->getPort(ID::A);
 			f(A, st.ffA2, ID(CEA2), ID(RSTA));
 			if (st.ffA1) {
-				f(A, st.ffA1, ID::CEA1, IdString::Null);
+				f(A, st.ffA1, ID(CEA1), IdString::Null);
 				cell->setParam(ID(AREG), 2);
 				cell->setParam(ID(ACASCREG), 2);
 			}
@@ -422,7 +422,7 @@ void xilinx_dsp_pack(xilinx_dsp_pm &pm)
 			SigSpec B = cell->getPort(ID::B);
 			f(B, st.ffB2, ID(CEB2), ID(RSTB));
 			if (st.ffB1) {
-				f(B, st.ffB1, ID::CEB1, IdString::Null);
+				f(B, st.ffB1, ID(CEB1), IdString::Null);
 				cell->setParam(ID(BREG), 2);
 				cell->setParam(ID(BCASCREG), 2);
 			}
@@ -559,7 +559,7 @@ void xilinx_dsp48a_pack(xilinx_dsp48a_pm &pm)
 
 		auto f = [&pm,cell](SigSpec &A, Cell* ff, IdString ceport, IdString rstport) {
 			SigSpec D = ff->getPort(ID::D);
-			SigSpec Q = (*pm.sigmap)(ff->getPort(ID::Q));
+			SigSpec Q = pm.sigmap(ff->getPort(ID::Q));
 			if (!A.empty())
 				A.replace(Q, D);
 			if (rstport != IdString::Null) {
@@ -682,7 +682,7 @@ void xilinx_dsp_packC(xilinx_dsp_CREG_pm &pm)
 
 		auto f = [&pm,cell](SigSpec &A, Cell* ff, IdString ceport, IdString rstport) {
 			SigSpec D = ff->getPort(ID::D);
-			SigSpec Q = (*pm.sigmap)(ff->getPort(ID::Q));
+			SigSpec Q = pm.sigmap(ff->getPort(ID::Q));
 			if (!A.empty())
 				A.replace(Q, D);
 			if (rstport != IdString::Null) {
@@ -801,7 +801,6 @@ struct XilinxDspPass : public Pass {
 			if (design->scratchpad_get_bool("xilinx_dsp.multonly"))
 				continue;
 
-			SigMap sigmap(module);
 			// Experimental feature: pack $add/$sub cells with
 			//   (* use_dsp48="simd" *) into DSP48E1's using its
 			//   SIMD feature
@@ -811,10 +810,10 @@ struct XilinxDspPass : public Pass {
 			// Match for all features ([ABDMP][12]?REG, pre-adder,
 			// post-adder, pattern detector, etc.) except for CREG
 			if (family == "xc7") {
-				xilinx_dsp_pm pm(module, &sigmap, module->selected_cells());
+				xilinx_dsp_pm pm(module, module->selected_cells());
 				pm.run_xilinx_dsp_pack(xilinx_dsp_pack);
 			} else if (family == "xc6s" || family == "xc3sda") {
-				xilinx_dsp48a_pm pm(module, &sigmap, module->selected_cells());
+				xilinx_dsp48a_pm pm(module, module->selected_cells());
 				pm.run_xilinx_dsp48a_pack(xilinx_dsp48a_pack);
 			}
 			// Separating out CREG packing is necessary since there
@@ -826,14 +825,14 @@ struct XilinxDspPass : public Pass {
 			//   PREG of an upstream DSP that had not been visited
 			//   yet
 			{
-				xilinx_dsp_CREG_pm pm(module, &sigmap, module->selected_cells());
+				xilinx_dsp_CREG_pm pm(module, module->selected_cells());
 				pm.run_xilinx_dsp_packC(xilinx_dsp_packC);
 			}
 			// Lastly, identify and utilise PCOUT -> PCIN,
 			//   ACOUT -> ACIN, and BCOUT-> BCIN dedicated cascade
 			//   chains
 			{
-				xilinx_dsp_cascade_pm pm(module, &sigmap, module->selected_cells());
+				xilinx_dsp_cascade_pm pm(module, module->selected_cells());
 				pm.run_xilinx_dsp_cascade();
 			}
 		}

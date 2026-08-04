@@ -241,8 +241,7 @@ struct XilinxSrlPass : public Pass {
 			log_cmd_error("'-fixed' and/or '-variable' must be specified.\n");
 
 		for (auto module : design->selected_modules()) {
-			SigMap sigmap(module);
-			auto pm = xilinx_srl_pm(module, &sigmap, module->selected_cells());
+			auto pm = xilinx_srl_pm(module, module->selected_cells());
 			pm.ud_fixed.minlen = minlen;
 			pm.ud_variable.minlen = minlen;
 

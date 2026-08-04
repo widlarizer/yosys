@@ -163,10 +163,8 @@ struct TestPmgenPass : public Pass {
 		}
 		extra_args(args, argidx, design);
 
-		for (auto module : design->selected_modules()) {
-			SigMap sigmap(module);
-			while (test_pmgen_pm(module, &sigmap, module->selected_cells()).run_reduce(reduce_chain)) {}
-		}
+		for (auto module : design->selected_modules())
+			while (test_pmgen_pm(module, module->selected_cells()).run_reduce(reduce_chain)) {}
 	}
 
 	void execute_reduce_tree(std::vector<std::string> args, RTLIL::Design *design)
@@ -184,10 +182,8 @@ struct TestPmgenPass : public Pass {
 		}
 		extra_args(args, argidx, design);
 
-		for (auto module : design->selected_modules()) {
-			SigMap sigmap(module);
-			test_pmgen_pm(module, &sigmap, module->selected_cells()).run_reduce(reduce_tree);
-		}
+		for (auto module : design->selected_modules())
+			test_pmgen_pm(module, module->selected_cells()).run_reduce(reduce_tree);
 	}
 
 	void execute_eqpmux(std::vector<std::string> args, RTLIL::Design *design)
@@ -205,10 +201,8 @@ struct TestPmgenPass : public Pass {
 		}
 		extra_args(args, argidx, design);
 
-		for (auto module : design->selected_modules()) {
-			SigMap sigmap(module);
-			test_pmgen_pm(module, &sigmap, module->selected_cells()).run_eqpmux(opt_eqpmux);
-		}
+		for (auto module : design->selected_modules())
+			test_pmgen_pm(module, module->selected_cells()).run_eqpmux(opt_eqpmux);
 	}
 
 	void execute_generate(std::vector<std::string> args, RTLIL::Design *design)

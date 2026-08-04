@@ -141,17 +141,17 @@ code
 	SigSpec new_b = {mul_din, SigSpec(State::S0, factor_bits)};
 
 	shift->setPort(\Y, new_y);
-	setparam(shift, \Y_WIDTH, GetSize(new_y));
+	shift->setParam(\Y_WIDTH, GetSize(new_y));
 	if (shift->type == $shl) {
 		if (param(shift, \B_SIGNED).as_bool())
 			new_b.append(State::S0);
 		shift->setPort(\B, new_b);
-		setparam(shift, \B_WIDTH, GetSize(new_b));
+		shift->setParam(\B_WIDTH, GetSize(new_b));
 	} else {
 		SigSpec b_neg = module->addWire(NEW_ID, GetSize(new_b) + 1);
 		module->addNeg(NEW_ID, new_b, b_neg);
 		shift->setPort(\B, b_neg);
-		setparam(shift, \B_WIDTH, GetSize(b_neg));
+		shift->setParam(\B_WIDTH, GetSize(b_neg));
 	}
 
 	blacklist(shift);

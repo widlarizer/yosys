@@ -9,7 +9,6 @@
 
 #include "kernel/rtlil.h"
 #include "kernel/yosys.h"
-#include "tests/unit/yosysSetupEnv.h"
 
 YOSYS_NAMESPACE_BEGIN
 

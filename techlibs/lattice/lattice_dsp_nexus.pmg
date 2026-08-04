@@ -15,7 +15,7 @@ match add
 endmatch
 
 code
-	if (param(mul, \A_SIGNED).as_bool() != param(mul, \B_SIGNED).as_bool()) {
+	if (mul->getParam(\A_SIGNED).as_bool() != mul->getParam(\B_SIGNED).as_bool()) {
 		reject;
 	}
 
@@ -31,15 +31,15 @@ code
 			reject;
 		}
 
-		Cell *mac = module->addCell(NEW_ID, std::string("$__NX_MAC18X18"));
+		Cell *mac = module->addCell(NEW_ID, "$__NX_MAC18X18");
 		IdString add_C = (add_AB == \A) ? \B : \A;
 
 		mac->setPort(\A, port(mul, \A));
 		mac->setPort(\B, port(mul, \B));
 		mac->setPort(\C, port(add, add_C));
 		mac->setPort(\Y, port(add, \Y));
-		setparam(mac, \A_SIGNED, param(mul, \A_SIGNED));
-		setparam(mac, \SUBTRACT, add->type == $sub ? State::S1 : State::S0);
+		mac->setParam(\A_SIGNED, mul->getParam(\A_SIGNED));
+		mac->setParam(\SUBTRACT, add->type == $sub ? State::S1 : State::S0);
 
 		autoremove(mul);
 		autoremove(add);
@@ -81,7 +81,7 @@ code
 	}
 
 	{
-		Cell *mac = module->addCell(NEW_ID, std::string("$__NX_PREADD18X18"));
+		Cell *mac = module->addCell(NEW_ID, "$__NX_PREADD18X18");
 
 		IdString mul_other = (actual_mul_AB == \A) ? \B : \A;
 		IdString sgn_AC = (mul_other == \A) ? \B_SIGNED : \A_SIGNED;
@@ -102,16 +102,16 @@ code
 		if (pipe_ff) {
 			mac->setPort(\Y, port(pipe_ff, \Q));
 			mac->setPort(\CLK, port(pipe_ff, \CLK));
-			setparam(mac, \PIPELINED, State::S1);
+			mac->setParam(\PIPELINED, State::S1);
 		} else {
 			mac->setPort(\Y, port(mul, \Y));
 			mac->setPort(\CLK, State::S0);
-			setparam(mac, \PIPELINED, State::S0);
+			mac->setParam(\PIPELINED, State::S0);
 		}
 
-		setparam(mac, \A_SIGNED, param(mul, sgn_AC));
-		setparam(mac, \B_SIGNED, param(mul, sgn_B));
-		setparam(mac, \C_SIGNED, param(mul, sgn_AC));
+		mac->setParam(\A_SIGNED, mul->getParam(sgn_AC));
+		mac->setParam(\B_SIGNED, mul->getParam(sgn_B));
+		mac->setParam(\C_SIGNED, mul->getParam(sgn_AC));
 
 		if (pipe_ff) autoremove(pipe_ff);
 		autoremove(mul);
@@ -162,22 +162,22 @@ match mul0
 endmatch
 
 code
-	bool is_signed = param(mul0, \A_SIGNED).as_bool();
+	bool is_signed = mul0->getParam(\A_SIGNED).as_bool();
 
 	if (
-		param(mul0, \B_SIGNED).as_bool() != is_signed ||
-		param(mul1, \A_SIGNED).as_bool() != is_signed ||
-		param(mul1, \B_SIGNED).as_bool() != is_signed ||
-		param(mul2, \A_SIGNED).as_bool() != is_signed ||
-		param(mul2, \B_SIGNED).as_bool() != is_signed ||
-		param(mul3, \A_SIGNED).as_bool() != is_signed ||
-		param(mul3, \B_SIGNED).as_bool() != is_signed
+		mul0->getParam(\B_SIGNED).as_bool() != is_signed ||
+		mul1->getParam(\A_SIGNED).as_bool() != is_signed ||
+		mul1->getParam(\B_SIGNED).as_bool() != is_signed ||
+		mul2->getParam(\A_SIGNED).as_bool() != is_signed ||
+		mul2->getParam(\B_SIGNED).as_bool() != is_signed ||
+		mul3->getParam(\A_SIGNED).as_bool() != is_signed ||
+		mul3->getParam(\B_SIGNED).as_bool() != is_signed
 	) {
 		reject;
 	}
 
 	{
-		Cell *mac = module->addCell(NEW_ID, std::string("$__NX_MAC9X9WIDE_4LANE"));
+		Cell *mac = module->addCell(NEW_ID, "$__NX_MAC9X9WIDE_4LANE");
 
 		auto ext9 = [&](SigSpec s) {
 			s.extend_u0(9, is_signed);
@@ -193,7 +193,7 @@ code
 		mac->setPort(\A3, ext9(port(mul3, \A)));
 		mac->setPort(\B3, ext9(port(mul3, \B)));
 		mac->setPort(\Y, port(add_top, \Y));
-		setparam(mac, \SIGNED, is_signed ? State::S1 : State::S0);
+		mac->setParam(\SIGNED, is_signed ? State::S1 : State::S0);
 
 		autoremove(add_top);
 		autoremove(add_mid);
