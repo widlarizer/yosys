@@ -70,13 +70,17 @@ struct RmportsPassPass : public Pass {
 		for(auto cell : cells)
 		{
 			if(removed_ports.find(cell->type) == removed_ports.end())
+			{
+				// log("  Not touching instance \"%s\" because we didn't remove any ports from module \"%s\"\n",
+				//	cell->name.c_str(), cell->type.c_str());
 				continue;
+			}
 
 			auto ports_to_remove = removed_ports[cell->type];
 			for(auto p : ports_to_remove)
 			{
 				log("  Removing port \"%s\" from instance \"%s\"\n",
-					module->design->twines.str(p).c_str(), cell->type);
+					module->design->twines.str(p), cell->type.str());
 				cell->unsetPort(p);
 			}
 		}
@@ -109,10 +113,12 @@ struct RmportsPassPass : public Pass {
 				if( (w1 == NULL) || (w2 == NULL) )
 					continue;
 
-				if( (w1->port_input || w1->port_output) && !used_ports.count(w1->name) )
+				//log("  conn %s, %s\n", w1->name, w2->name);
+
+				if( (w1->port_input || w1->port_output) && (used_ports.find(w1->name) == used_ports.end()) )
 					used_ports.insert(w1->name);
 
-				if( (w2->port_input || w2->port_output) && !used_ports.count(w2->name) )
+				if( (w2->port_input || w2->port_output) && (used_ports.find(w2->name) == used_ports.end()) )
 					used_ports.insert(w2->name);
 			}
 		}
@@ -130,7 +136,8 @@ struct RmportsPassPass : public Pass {
 					if(sig == NULL)
 						continue;
 
-					if( (sig->port_input || sig->port_output) && !used_ports.count(sig->name) )
+					// log("  sig %s\n", sig->name);
+					if( (sig->port_input || sig->port_output) && (used_ports.find(sig->name) == used_ports.end()) )
 						used_ports.insert(sig->name);
 				}
 			}
@@ -140,7 +147,7 @@ struct RmportsPassPass : public Pass {
 		pool<IdString> unused_ports;
 		for(auto port : module->ports)
 		{
-			if(used_ports.count(port))
+			if(used_ports.find(port) != used_ports.end())
 				continue;
 			unused_ports.insert(port);
 		}
@@ -149,8 +156,7 @@ struct RmportsPassPass : public Pass {
 		for(auto port : unused_ports)
 		{
 			log("  removing unused port %s\n", module->design->twines.str(port));
-			IdString port_id = port;
-			removed_ports[module->name].insert(port_id);
+			removed_ports[module->name].insert(port);
 
 			// Remove from ports list
 			for(size_t i=0; i<module->ports.size(); i++)

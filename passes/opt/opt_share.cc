@@ -59,7 +59,7 @@ struct ExtSigSpec {
 
 	ExtSigSpec() {}
 
-	ExtSigSpec(RTLIL::SigSpec s, RTLIL::SigSpec sign = RTLIL::Const(0, 1), bool is_signed = false, IdString semantics = IdString::Null) : sig(s), sign(sign), is_signed(is_signed), semantics(semantics) {}
+	ExtSigSpec(RTLIL::SigSpec s, RTLIL::SigSpec sign = RTLIL::Const(0, 1), bool is_signed = false, RTLIL::IdString semantics = RTLIL::IdString::Null) : sig(s), sign(sign), is_signed(is_signed), semantics(semantics) {}
 
 	bool empty() const { return sig.empty(); }
 
@@ -108,7 +108,7 @@ bool cell_supported(RTLIL::Cell *cell)
 	return false;
 }
 
-dict<IdString, IdString> mergeable_type_map;
+std::map<IdString, IdString> mergeable_type_map;
 
 bool mergeable(RTLIL::Cell *a, RTLIL::Cell *b)
 {
@@ -134,7 +134,7 @@ RTLIL::IdString decode_port_semantics(RTLIL::Cell *cell, RTLIL::IdString port_na
 	if (cell->type.in(ID($_ANDNOT_), ID($_ORNOT_)))
 		return port_name;
 
-	return IdString::Null;
+	return RTLIL::IdString::Null;
 }
 
 RTLIL::SigSpec decode_port_sign(RTLIL::Cell *cell, RTLIL::IdString port_name) {
@@ -152,10 +152,9 @@ bool decode_port_signed(RTLIL::Cell *cell, RTLIL::IdString port_name)
 	if (cell->type.in(BITWISE_OPS, LOGICAL_OPS))
 		return false;
 
-	IdString param_signed = cell->module->design->twines.find(
-			cell->module->design->twines.str(port_name) + "_SIGNED");
-	if (param_signed != IdString::Null && cell->hasParam(param_signed))
-		return cell->getParam(param_signed).as_bool();
+	RTLIL::IdString param_name = port_name == ID::A ? ID::A_SIGNED : ID::B_SIGNED;
+	if (cell->hasParam(param_name))
+		return cell->getParam(param_name).as_bool();
 
 	return false;
 }
@@ -371,11 +370,10 @@ struct OptSharePass : public Pass {
 
 			dict<RTLIL::SigBit, int> bit_users;
 
-			for (auto cell : module->cells()) {
+			for (auto cell : module->cells())
 				for (auto conn : cell->connections())
 					for (auto bit : conn.second)
 						bit_users[sigmap(bit)]++;
-			}
 
 			for (auto wire : module->wires())
 				if (wire->port_id != 0)

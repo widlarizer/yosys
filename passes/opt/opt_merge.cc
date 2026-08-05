@@ -198,7 +198,7 @@ struct OptMergeThreadWorker
 	bool compare_cell_parameters_and_connections(const RTLIL::Cell *cell1, const RTLIL::Cell *cell2) const
 	{
 		if (cell1 == cell2) return true;
-		if (cell1->type != cell2->type && cell1->type.str() != cell2->type.str()) return false;
+		if (cell1->type != cell2->type) return false;
 
 		if (cell1->parameters != cell2->parameters)
 			return false;
@@ -456,38 +456,25 @@ struct OptMergeWorker
 			for (auto [remove_cell, keep_cell] : cell_ptrs)
 			{
 				log_debug("  Cell `%s' is identical to cell `%s'.\n", remove_cell->name, keep_cell->name);
-				std::vector<std::pair<IdString, RTLIL::SigSpec>> port_replacements;
 				for (auto &it : remove_cell->connections()) {
 					if (remove_cell->output(it.first)) {
 						RTLIL::SigSpec keep_sig = keep_cell->getPort(it.first);
-						log_debug("    Redirecting output %s: %s = %s\n", keep_cell->module->design->twines.str(it.first).c_str(),
+						log_debug("    Redirecting output %s: %s = %s\n", module->design->twines.str(it.first),
 								log_signal(it.second), log_signal(keep_sig));
 						Const init = initvals(keep_sig);
 						initvals.remove_init(it.second);
 						initvals.remove_init(keep_sig);
+						module->connect(RTLIL::SigSig(it.second, keep_sig));
+						auto keep_sig_it = keep_sig.begin();
+						for (SigBit remove_sig_bit : it.second) {
+							assign_map.add(remove_sig_bit, *keep_sig_it);
+							++keep_sig_it;
+						}
 						initvals.set_init(keep_sig, init);
-						port_replacements.emplace_back(it.first, keep_sig);
 					}
 				}
 				log_debug("    Removing %s cell `%s' from module `%s'.\n", remove_cell->type, remove_cell->name, module->name);
 				merge_cell_src(module, {remove_cell, keep_cell}, {keep_cell});
-
-				std::vector<RTLIL::SigSpec> old_sigs;
-				old_sigs.reserve(port_replacements.size());
-				for (auto &[port, keep_sig] : port_replacements)
-					old_sigs.push_back(remove_cell->getPort(port));
-
-				std::vector<IdString> all_ports;
-				all_ports.reserve(remove_cell->connections().size());
-				for (auto &it : remove_cell->connections())
-					all_ports.push_back(it.first);
-				for (auto port : all_ports)
-					remove_cell->unsetPort(port);
-
-				for (size_t i = 0; i < port_replacements.size(); i++) {
-					assign_map.add(old_sigs[i], port_replacements[i].second);
-					module->connect(old_sigs[i], port_replacements[i].second);
-				}
 				module->remove(remove_cell);
 				total_count++;
 			}

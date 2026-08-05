@@ -139,7 +139,19 @@ bool compare_signals(const RTLIL::SigBit &s1, const RTLIL::SigBit &s2, const Sha
 	if (attrs1 != attrs2)
 		return attrs2 > attrs1;
 
-	return w2->name < w1->name;
+	return w2->name.lt_by_name(w1->name);
+}
+
+bool check_public_name(RTLIL::Wire *wire)
+{
+	if (!wire->name.isPublic())
+		return false;
+	std::string name = wire->name.unescape();
+	if (name[0] == '_' && (name.back() == '_' || name.find("_[") != std::string::npos))
+		return false;
+	if (name.find(".$") != std::string::npos)
+		return false;
+	return true;
 }
 
 void add_spec(ShardedSigPool::Builder &builder, const ThreadIndex &thread, const RTLIL::SigSpec &spec) {
@@ -520,20 +532,6 @@ PRIVATE_NAMESPACE_END
 
 YOSYS_NAMESPACE_BEGIN
 
-bool check_public_name(Wire* wire)
-{
-	if (!wire->name.isPublic())
-		return false;
-	std::string id_str = wire->name;
-	if (!id_str.empty() && id_str[0] == '$')
-		return false;
-	if (id_str.rfind("\\_", 0) == 0 && (id_str.back() == '_' || id_str.find("_[") != std::string::npos))
-		return false;
-	if (id_str.find(".$") != std::string::npos)
-		return false;
-	return true;
-}
-
 bool rmunused_module_signals(RTLIL::Module *module, ParallelDispatchThreadPool::Subpool &subpool, CleanRunContext &clean_ctx)
 {
 	// Passing actx to function == function does parallel work
@@ -577,6 +575,8 @@ bool rmunused_module_signals(RTLIL::Module *module, ParallelDispatchThreadPool::
 	if (clean_ctx.flags.verbose && deleted_and_unreported)
 		log_debug("  removed %d unused temporary wires.\n", deleted_and_unreported);
 
+	if (deleted_total)
+		module->design->scratchpad_set_bool("opt.did_something", true);
 
 	return deleted_total != 0;
 }

@@ -825,7 +825,6 @@ struct OnehotPass : public Pass {
 				}
 
 				SigSpec Y = cell->getPort(ID::Y);
-				SigSpec replacement;
 
 				if (not_onehot)
 				{
@@ -833,7 +832,7 @@ struct OnehotPass : public Pass {
 						log("  replacing with constant 0 driver.\n");
 					else
 						log("Replacing one-hot $eq(%s, %s) cell %s/%s with constant 0 driver.\n", log_signal(A), log_signal(B), module, cell);
-					replacement = SigSpec(1, GetSize(Y));
+					module->connect(Y, SigSpec(1, GetSize(Y)));
 				}
 				else
 				{
@@ -843,13 +842,9 @@ struct OnehotPass : public Pass {
 					else
 						log("Replacing one-hot $eq(%s, %s) cell %s/%s with signal %s.\n",log_signal(A), log_signal(B), module, cell, log_signal(sig));
 					sig.extend_u0(GetSize(Y));
-					replacement = sig;
+					module->connect(Y, sig);
 				}
 
-				SigSpec old_y = cell->getPort(ID::Y);
-				cell->unsetPort(ID::Y);
-				sigmap.add(old_y, replacement);
-				module->connect(old_y, replacement);
 				module->remove(cell);
 			}
 		}
