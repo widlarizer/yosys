@@ -276,6 +276,10 @@ struct DesignPass : public Pass {
 				done[mod->name] = as_name_ref;
 			}
 
+			std::optional<TwineSearch> src_search;
+			if (copy_from_design)
+				src_search.emplace(&copy_from_design->twines);
+
 			while (!queue.empty() && copy_from_design)
 			{
 				pool<Module*> old_queue;
@@ -284,17 +288,18 @@ struct DesignPass : public Pass {
 				for (auto mod : old_queue)
 				for (auto cell : mod->cells())
 				{
-					Module *fmod = copy_from_design->module(cell->type);
+					Module *fmod = copy_from_design->module(
+							src_search->find(copy_to_design->twines.str(cell->type)));
 
 					if (fmod == nullptr)
 						continue;
 
 					if (done.count(cell->type) == 0)
 					{
-						std::string trg_name = prefix + "." + cell->type.unescape();
-						IdString trg_ref = copy_to_design->twines.add(std::string{trg_name});
+						IdString trg_ref = copy_to_design->twines.add(
+								Twine::Suffix{as_name_ref, "." + cell->type.unescape()});
 
-						log("Importing %s as %s.\n", log_id(fmod), RTLIL::unescape_id(trg_name).c_str());
+						log("Importing %s as %s.\n", log_id(fmod), log_id(copy_to_design, trg_ref));
 
 						if (copy_to_design->module(trg_ref) != nullptr)
 							copy_to_design->remove(copy_to_design->module(trg_ref));
@@ -357,8 +362,8 @@ struct DesignPass : public Pass {
 			design->selected_active_module = IdString::Null;
 
 			if (reset_mode && save_name.empty()) {
-				design->twines = TwinePool{};
-				design->srcs.clear();
+				design->twines.reset();
+				design->srcs.reset();
 			}
 
 			design->push_full_selection();

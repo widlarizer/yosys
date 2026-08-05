@@ -52,8 +52,8 @@ struct cost {
 // as neighbors. This means that the equivalent of `assign $w1 = \w2;` won't lead
 // to $w1 being renamed.
 struct Edge {
-	// Cell port name at which the wire connects to the cell (unescaped text)
-	std::string port;
+	// Cell port name at which the wire connects to the cell
+	IdString port;
 	int cell;
 	int wire;
 	bool cell_is_output;
@@ -142,7 +142,7 @@ struct ModuleAutonamer
 					if (!seen_in_this_port.insert(bit.wire).second)
 						continue;
 					Edge edge{
-						.port = module->design->twines.unescaped_str(conn.first),
+						.port = conn.first,
 						.cell = ci,
 						.wire = wi,
 						.cell_is_output = cell_is_output,
@@ -158,12 +158,11 @@ struct ModuleAutonamer
 
 		// Resolve selection before renaming
 		for (auto &nd : nodes) {
-			std::string name = module->design->twines.str(nd.name());
 			nd.selected = nd.cell ? module->selected(nd.cell) : module->selected(nd.wire);
-			nd.is_public = (name[0] != '$');
+			nd.is_public = nd.name().isPublic();
 			nd.renameable = !nd.is_public && (nd.cell || nd.wire->port_id == 0);
 			if (nd.is_public)
-				nd.name_length = name.size();
+				nd.name_length = module->design->twines.str(nd.name()).size();
 		}
 
 		// Only possible once every fanout is known
@@ -177,9 +176,10 @@ struct ModuleAutonamer
 		node &nd = nodes[to];
 		if (!nd.renameable || nd.decided)
 			return;
+		std::string port = module->design->twines.unescaped_str(edge.port);
 		string suffix = nd.cell
-			? stringf("_%s_%s", nd.cell->type.unescape(), edge.port)
-			: stringf("_%s", edge.port);
+			? stringf("_%s_%s", nd.cell->type.unescape(), port)
+			: stringf("_%s", port);
 		cost c{edge.score, nodes[from].name_length + suffix.length(), edge_pos};
 		if (c >= nd.c)
 			return;

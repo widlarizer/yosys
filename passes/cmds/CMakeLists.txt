@@ -181,6 +181,9 @@ yosys_pass(future
 yosys_pass(box_derive
 	box_derive.cc
 )
+yosys_pass(example_dt
+	example_dt.cc
+)
 yosys_pass(portarcs
 	portarcs.cc
 )
@@ -212,7 +215,4 @@ yosys_pass(symfpu
 	symfpu.cc
 	LIBRARIES
 		symfpu
-)
-yosys_pass(dump_twines
-	dump_twines.cc
 )

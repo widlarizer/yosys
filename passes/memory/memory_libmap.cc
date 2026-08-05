@@ -130,27 +130,9 @@ struct MemConfig {
 
 typedef std::vector<MemConfig> MemConfigs;
 
-static void set_ram_port(RTLIL::Cell *cell, const std::string &port_name,
-		const RTLIL::SigSpec &sig, bool is_output = false)
+static void set_ram_port(RTLIL::Cell *cell, const std::string &port_name, const RTLIL::SigSpec &sig)
 {
-	RTLIL::Design *design = cell->module->design;
-	IdString port = design->twines.add(std::string{port_name});
-
-	IdString generated = design->twines.add(RTLIL::escape_id("memory_libmap_blackbox"));
-	RTLIL::Module *mod = design->module(cell->type);
-	if (mod == nullptr) {
-		mod = design->addModule(cell->type);
-		mod->set_bool_attribute(ID::blackbox);
-		mod->set_bool_attribute(generated);
-	}
-
-	if (mod->get_bool_attribute(generated) && mod->wire(port) == nullptr) {
-		RTLIL::Wire *wire = mod->addWire(port, GetSize(sig));
-		(is_output ? wire->port_output : wire->port_input) = true;
-		mod->fixup_ports();
-	}
-
-	cell->setPort(port, sig);
+	cell->setPort(cell->module->design->twines.add(port_name), sig);
 }
 
 struct MapWorker {
@@ -1972,7 +1954,7 @@ void MemMapping::emit_port(const MemConfig &cfg, std::vector<Cell*> &cells, cons
 					}
 				}
 				SigSpec hw_rdata = mem.module->addWire(NEW_ID, width);
-				set_ram_port(cell, stringf("\\PORT_%s_RD_DATA", name), hw_rdata, true);
+				set_ram_port(cell, stringf("\\PORT_%s_RD_DATA", name), hw_rdata);
 				SigSpec lhs;
 				SigSpec rhs;
 				for (int i = 0; i < GetSize(hw_rdata); i++) {
@@ -2007,7 +1989,7 @@ void MemMapping::emit_port(const MemConfig &cfg, std::vector<Cell*> &cells, cons
 						cell->setParam(stringf("\\PORT_%s_RD_SRST_VALUE", name), Const(State::S0, width));
 				}
 				SigSpec hw_rdata = mem.module->addWire(NEW_ID, width);
-				set_ram_port(cell, stringf("\\PORT_%s_RD_DATA", name), hw_rdata, true);
+				set_ram_port(cell, stringf("\\PORT_%s_RD_DATA", name), hw_rdata);
 			}
 		}
 	}

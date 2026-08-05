@@ -330,7 +330,7 @@ struct ChformalPass : public Pass {
 				for (auto cell : constr_cells)
 				{
 					if (is_triggered_check_cell(cell))
-						log_error("Cannot delay edge triggered $check cell %s, run async2sync or clk2fflogic first.\n", log_id(cell));
+						log_error("Cannot delay edge triggered $check cell %s, run async2sync or clk2fflogic first.\n", cell);
 
 					for (int i = 0; i < mode_arg; i++)
 					{
@@ -372,8 +372,7 @@ struct ChformalPass : public Pass {
 					if (cell->type == ID($check)) {
 						Cell *cover = module->addCell(NEW_ID_SUFFIX("coverenable"), ID($check));
 						cover->attributes = cell->attributes;
-						if (cell->src_id() != SrcRef::Null && module->design)
-							cover->set_src_id(cell->src_id());
+						cover->adopt_src_from(cell);
 						cover->parameters = cell->parameters;
 						cover->setParam(ID(FLAVOR), Const("cover"));
 
@@ -413,14 +412,13 @@ struct ChformalPass : public Pass {
 						continue;
 
 					if (is_triggered_check_cell(cell))
-						log_error("Cannot lower edge triggered $check cell %s, run async2sync or clk2fflogic first.\n", log_id(cell));
+						log_error("Cannot lower edge triggered $check cell %s, run async2sync or clk2fflogic first.\n", cell);
 
 
 					Cell *plain_cell = module->addCell(NEW_ID, formal_flavor(cell));
 
 					plain_cell->attributes = cell->attributes;
-					if (cell->src_id() != SrcRef::Null && module->design)
-						plain_cell->set_src_id(cell->src_id());
+					plain_cell->adopt_src_from(cell);
 
 					SigBit sig_a = cell->getPort(ID::A);
 					SigBit sig_en = cell->getPort(ID::EN);

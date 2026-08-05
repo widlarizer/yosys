@@ -37,16 +37,6 @@ static void unset_drivers(RTLIL::Design *design, RTLIL::Module *module, SigMap &
 		if (ct.cell_output(cell->type, port.first))
 			sigmap(port.second).replace(sig, dummy_wire, &port.second);
 
-	bool need_fixup = false;
-	for (auto bit : sig.bits()) {
-		if (bit.is_wire() && bit.wire->port_input) {
-			bit.wire->port_input = false;
-			need_fixup = true;
-		}
-	}
-	if (need_fixup)
-		module->fixup_ports();
-
 	for (auto &conn : module->connections_)
 		sigmap(conn.first).replace(sig, dummy_wire, &conn.first);
 }
@@ -132,7 +122,7 @@ struct ConnectPass : public Pass {
 		RTLIL::Module *module = nullptr;
 		for (auto mod : design->selected_modules()) {
 			if (module != nullptr)
-				log_cmd_error("Multiple modules selected: %s, %s\n", log_id(module->name), log_id(mod->name));
+				log_cmd_error("Multiple modules selected: %s, %s\n", log_id(module), log_id(mod));
 			module = mod;
 		}
 		if (module == nullptr)
@@ -203,7 +193,7 @@ struct ConnectPass : public Pass {
 			if (!RTLIL::SigSpec::parse_sel(sig, design, module, port_expr))
 				log_cmd_error("Failed to parse port expression `%s'.\n", port_expr);
 
-			IdString port_port_ref = search.find(RTLIL::escape_id(port_port));
+			IdString port_port_ref = module->design->twines.add(RTLIL::escape_id(port_port));
 			if (!flag_assert) {
 				port_cell_obj->setPort(port_port_ref, sigmap(sig));
 			} else {

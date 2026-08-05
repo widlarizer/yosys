@@ -369,10 +369,15 @@ struct DftTagWorker {
 		pending_cells.erase(cell);
 	}
 
+	IdString tag_id(const Cell *cell)
+	{
+		return module->design->twines.add(RTLIL::escape_id(cell->getParam(ID::TAG).decode_string()));
+	}
+
 	void propagate_tags(Cell *cell)
 	{
 		if (cell->type == ID($set_tag)) {
-			IdString tag = module->design->twines.add(stringf("\\%s", cell->getParam(ID::TAG).decode_string()));
+			IdString tag = tag_id(cell);
 			if (all_tags.insert(tag).second) {
 				std::string tag_str = module->design->twines.str(tag);
 				auto group_sep = tag_str.find(':');
@@ -480,7 +485,7 @@ struct DftTagWorker {
 	void process_cell(IdString tag, Cell *cell)
 	{
 		if (cell->type == ID($set_tag)) {
-			IdString cell_tag = module->design->twines.add(stringf("\\%s", cell->getParam(ID::TAG).decode_string()));
+			IdString cell_tag = tag_id(cell);
 
 			auto tag_sig_a = tag_signal(tag, cell->getPort(ID::A));
 			auto &sig_y = cell->getPort(ID::Y);
@@ -754,7 +759,7 @@ struct DftTagWorker {
 
 		for (auto cell : get_tag_cells) {
 			auto &sig_a = cell->getPort(ID::A);
-			IdString tag = module->design->twines.add(stringf("\\%s", cell->getParam(ID::TAG).decode_string()));
+			IdString tag = tag_id(cell);
 
 			tag_signal(tag, sig_a);
 		}
@@ -820,7 +825,7 @@ struct DftTagWorker {
 		for (auto cell : get_tag_cells) {
 			auto &sig_a = cell->getPort(ID::A);
 			auto &sig_y = cell->getPort(ID::Y);
-			IdString tag = module->design->twines.add(stringf("\\%s", cell->getParam(ID::TAG).decode_string()));
+			IdString tag = tag_id(cell);
 
 			auto tag_sig = tag_signal(tag, sig_a);
 			module->connect(sig_y, tag_sig);

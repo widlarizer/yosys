@@ -41,9 +41,8 @@ struct EquivMakeWorker
 	pool<SigBit> undriven_bits;
 	SigMap assign_map;
 
-	void read_blacklists()
+	void read_blacklists(const TwineSearch &search)
 	{
-		TwineSearch search(&gold_mod->design->twines);
 		for (auto fn : blacklists)
 		{
 			std::ifstream f(fn);
@@ -64,9 +63,8 @@ struct EquivMakeWorker
 		}
 	}
 
-	void read_encfiles()
+	void read_encfiles(const TwineSearch &search)
 	{
-		TwineSearch search(&gold_mod->design->twines);
 		for (auto fn : encfiles)
 		{
 			std::ifstream f(fn);
@@ -145,7 +143,7 @@ struct EquivMakeWorker
 		equiv_mod->addAssert(NEW_ID_SUFFIX("assert"), eq_wire, State::S1);
 	}
 
-	void find_same_wires()
+	void find_same_wires(const TwineSearch &search)
 	{
 		SigMap assign_map(equiv_mod);
 		SigMap rd_signal_map;
@@ -154,7 +152,6 @@ struct EquivMakeWorker
 		// list of cells without added $equiv cells
 		auto cells_list = equiv_mod->cells().to_vector();
 
-		TwineSearch search(&equiv_mod->design->twines);
 		for (auto id : wire_names)
 		{
 			IdString gold_id = search.find(equiv_mod->design->twines.str(id) + "_gold");
@@ -328,11 +325,10 @@ struct EquivMakeWorker
 		equiv_mod->fixup_ports();
 	}
 
-	void find_same_cells()
+	void find_same_cells(const TwineSearch &search)
 	{
 		SigMap assign_map(equiv_mod);
 
-		TwineSearch search(&equiv_mod->design->twines);
 		for (auto id : cell_names)
 		{
 			IdString gold_id = search.find(equiv_mod->design->twines.str(id) + "_gold");
@@ -425,8 +421,9 @@ struct EquivMakeWorker
 	{
 		copy_to_equiv();
 		find_undriven_nets(false);
-		find_same_wires();
-		find_same_cells();
+		TwineSearch search(&equiv_mod->design->twines);
+		find_same_wires(search);
+		find_same_cells(search);
 		find_undriven_nets(true);
 	}
 };
@@ -514,8 +511,8 @@ struct EquivMakePass : public Pass {
 		if (worker.gate_mod->has_memories() || worker.gate_mod->has_processes())
 			log_cmd_error("Gate module contains memories or processes. Run 'memory' or 'proc' respectively.\n");
 
-		worker.read_blacklists();
-		worker.read_encfiles();
+		worker.read_blacklists(search);
+		worker.read_encfiles(search);
 
 		log_header(design, "Executing EQUIV_MAKE pass (creating equiv checking module).\n");
 

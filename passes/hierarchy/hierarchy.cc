@@ -765,21 +765,23 @@ RTLIL::Module *check_if_top_has_changed(Design *design, Module *top_mod)
 }
 
 // Find a matching wire for an implicit port connection; traversing generate block scope
-RTLIL::Wire *find_implicit_port_wire(Module *module, Cell *cell, const std::string& port)
+RTLIL::Wire *find_implicit_port_wire(Module *module, Cell *cell, const std::string& port,
+		std::optional<TwineSearch> &search)
 {
+	if (!search)
+		search.emplace(&module->design->twines);
 	const std::string &cellname = cell->name.str();
 	size_t idx = cellname.size();
-	TwineSearch search(&module->design->twines);
 	while ((idx = cellname.find_last_of('.', idx-1)) != std::string::npos) {
 		std::string wire_name = cellname.substr(0, idx+1) + port.substr(1);
-		IdString ref = search.find(wire_name);
+		IdString ref = search->find(wire_name);
 		if (ref != IdString::Null) {
 			Wire *found = module->wire(ref);
 			if (found != nullptr)
 				return found;
 		}
 	}
-	IdString ref = search.find(port);
+	IdString ref = search->find(port);
 	if (ref != IdString::Null)
 		return module->wire(ref);
 	return nullptr;
@@ -1079,11 +1081,9 @@ struct HierarchyPass : public Pass {
 		if (top_mod == nullptr)
 		{
 			std::vector<IdString> abstract_ids;
-			for (auto module : design->modules()) {
-				std::string mod_name = module->name.str();
-				if (!mod_name.empty() && mod_name[0] == '$' && mod_name.substr(0, 9) == "$abstract")
+			for (auto module : design->modules())
+				if (module->name.begins_with("$abstract"))
 					abstract_ids.push_back(module->name);
-			}
 			for (auto abstract_id : abstract_ids)
 				design->module(abstract_id)->derive(design, {});
 			for (auto abstract_id : abstract_ids)
@@ -1103,9 +1103,8 @@ struct HierarchyPass : public Pass {
 				log("Automatically selected %s as design top module.\n", top_mod);
 		}
 
-		std::string top_mod_name = top_mod ? top_mod->name.str() : std::string("");
-		if (top_mod != nullptr && !top_mod_name.empty() && top_mod_name[0] == '$' && top_mod_name.substr(0, 9) == "$abstract") {
-			IdString top_name = design->twines.add(top_mod_name.substr(strlen("$abstract")));
+		if (top_mod != nullptr && top_mod->name.begins_with("$abstract")) {
+			IdString top_name = design->twines.add(top_mod->name.str().substr(strlen("$abstract")));
 
 			dict<RTLIL::IdString, RTLIL::Const> top_parameters;
 			for (auto &para : parameters) {
@@ -1316,6 +1315,7 @@ struct HierarchyPass : public Pass {
 		// Process SV implicit wildcard port connections
 		std::set<Module*> blackbox_derivatives;
 		std::vector<Module*> design_modules = design->modules();
+		std::optional<TwineSearch> implicit_port_search;
 
 		for (auto module : design_modules)
 		{
@@ -1348,7 +1348,7 @@ struct HierarchyPass : public Pass {
 					if (old_connections.count(wire->name))
 						continue;
 					// Make sure a wire of correct name exists in the parent
-					Wire* parent_wire = find_implicit_port_wire(module, cell, wire->name.str());
+					Wire* parent_wire = find_implicit_port_wire(module, cell, wire->name.str(), implicit_port_search);
 
 					// Missing wires are OK when a default value is set
 					if (!nodefaults && parent_wire == nullptr && defaults_db.count(cell->type) && defaults_db.at(cell->type).count(wire->name))

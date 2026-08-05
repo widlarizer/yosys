@@ -143,7 +143,7 @@ struct EquivMiterWorker
 		for (auto w :  miter_wires)
 			miter_module->addWire(w->name, w->width);
 		for (auto c :  miter_cells) {
-			auto mc = miter_module->addCell(c->name.str(), c);
+			auto mc = miter_module->addCell(c->name, c);
 			for (auto &conn : mc->connections())
 				mc->setPort(conn.first, sigmap(conn.second));
 		}
@@ -154,20 +154,17 @@ struct EquivMiterWorker
 
 		struct RewriteSigSpecWorker {
 			RTLIL::Module * mod;
-			TwineSearch *search;
 			void operator()(SigSpec &sig) {
 				vector<SigChunk> chunks = sig.chunks();
 				for (auto &c : chunks)
 					if (c.wire != NULL)
-						c.wire = mod->wire(search->find(c.wire->name.unescape()));
+						c.wire = mod->wires_.at(c.wire->name);
 				sig = chunks;
 			}
 		};
 
 		RewriteSigSpecWorker rewriteSigSpecWorker;
-		TwineSearch rewrite_search(&miter_module->design->twines);
 		rewriteSigSpecWorker.mod = miter_module;
-		rewriteSigSpecWorker.search = &rewrite_search;
 		miter_module->rewrite_sigspecs(rewriteSigSpecWorker);
 
 		// find undriven or unused wires

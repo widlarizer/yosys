@@ -14,7 +14,7 @@ ${YOSYS} -p "read_rtlil suffix-chain.il; design -push; design -pop; write_rtlil 
 tail -n +2 temp/suffix-chain-push.il > temp/suffix-chain-push-nogen.il
 diff suffix-chain.il temp/suffix-chain-push-nogen.il
 
-${YOSYS} -p "read_rtlil suffix-chain.il; gc_twines; write_rtlil -resolve-src temp/suffix-chain-gc-resolved.il"
+${YOSYS} -p "read_rtlil suffix-chain.il; opt_clean; write_rtlil -resolve-src temp/suffix-chain-gc-resolved.il"
 grep '\\src' temp/suffix-chain-gc-resolved.il | sort > temp/suffix-chain-gc-resolved.srcs
 cat > temp/suffix-chain-expected.srcs <<EOF
   attribute \\src "/home/emil/repo/foo/bar.v:10.1-10.5"

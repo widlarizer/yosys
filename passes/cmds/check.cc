@@ -28,66 +28,6 @@
 USING_YOSYS_NAMESPACE
 PRIVATE_NAMESPACE_BEGIN
 
-int check_bufnorm_cell(RTLIL::Module *module, RTLIL::Cell *cell)
-{
-	bool bufnorm = module->design->flagBufferedNormalized;
-	if (!bufnorm)
-		return 0;
-
-	int counter = 0;
-	for (auto &conn : cell->connections()) {
-		if (cell->port_dir(conn.first) != RTLIL::PD_INPUT && !conn.second.empty()) {
-			if (!conn.second.is_wire()) {
-				log_warning("bufNorm: cell %s.%s port %s output is not a full wire: %s\n",
-					log_id(module), log_id(cell), module->design->twines.str(conn.first).c_str(), log_signal(conn.second));
-				counter++;
-			} else {
-				Wire *w = conn.second.as_wire();
-				if (!w->known_driver())
-					log_warning("bufNorm: cell %s.%s port %s drives wire %s but wire has no driverCell_ set\n",
-						log_id(module), log_id(cell), module->design->twines.str(conn.first).c_str(), log_id(w)), counter++;
-				else if (w->driverCell() != cell || w->driverPort() != conn.first)
-					log_warning("bufNorm: wire %s.%s driverCell_/driverPort_ mismatch: recorded driver is cell %s port %s, but cell %s port %s also drives it\n",
-						log_id(module), log_id(w),
-						log_id(w->driverCell()), module->design->twines.str(w->driverPort()).c_str(),
-						log_id(cell), module->design->twines.str(conn.first).c_str()), counter++;
-			}
-		}
-	}
-	return counter;
-}
-
-int check_bufnorm_wire(RTLIL::Module *module, RTLIL::Wire *wire)
-{
-	bool bufnorm = module->design->flagBufferedNormalized;
-	if (!bufnorm)
-		return 0;
-
-	int counter = 0;
-	if (wire->known_driver()) {
-		Cell *driver = wire->driverCell();
-		IdString dport = wire->driverPort();
-		if (!driver->hasPort(dport)) {
-			log_warning("bufNorm: wire %s.%s driverPort_ %s does not exist on driverCell_ %s\n",
-				log_id(module), log_id(wire), module->design->twines.str(dport).c_str(), log_id(driver));
-			counter++;
-		} else {
-			const SigSpec &dsig = driver->getPort(dport);
-			if (!dsig.is_wire() || dsig.as_wire() != wire)
-				log_warning("bufNorm: wire %s.%s driverCell_ %s port %s does not connect back to this wire\n",
-					log_id(module), log_id(wire), log_id(driver), module->design->twines.str(dport).c_str()), counter++;
-			if (wire->port_input && !wire->port_output && driver->type != ID($input_port))
-				log_warning("bufNorm: module input wire %s.%s is driven by non-$input_port cell %s of type %s\n",
-					log_id(module), log_id(wire), log_id(driver), log_id(driver->type)), counter++;
-		}
-	} else if (wire->port_input && !wire->port_output) {
-		log_warning("bufNorm: module input wire %s.%s has no driverCell_ set\n",
-			log_id(module), log_id(wire));
-		counter++;
-	}
-	return counter;
-}
-
 struct CheckPass : public Pass {
 	CheckPass() : Pass("check", "check for obvious problems in the design") { }
 	bool formatted_help() override {
@@ -366,28 +306,6 @@ struct CheckPass : public Pass {
 					counter++;
 				}
 
-				if (cell->type == ID($connect)) {
-					auto sig_a = cell->getPort(ID::A);
-					auto sig_b = cell->getPort(ID::B);
-					for (int i = 0; i < sig_a.size(); i++) {
-						int count_a = wire_drivers_count[sig_a[i]];
-						int count_b = wire_drivers_count[sig_b[i]];
-						wire_drivers_count[sig_a[i]] += count_b;
-						wire_drivers_count[sig_b[i]] += count_a;
-						(void)wire_drivers[sig_a[i]];
-						(void)wire_drivers[sig_b[i]];
-						auto& drivers_a = wire_drivers[sig_a[i]];
-						auto& drivers_b = wire_drivers[sig_b[i]];
-						vector<string> drivers;
-						drivers.reserve(std::max(drivers_a.size(), drivers_b.size()));
-						for (auto driver : drivers_a)
-							drivers.push_back(driver);
-						for (auto driver : drivers_b)
-							drivers.push_back(driver);
-						drivers_a = drivers;
-						drivers_b = drivers;
-					}
-				}
 				for (auto &conn : cell->connections()) {
 					bool input = cell->input(conn.first);
 					bool output = cell->output(conn.first);
@@ -413,8 +331,6 @@ struct CheckPass : public Pass {
 					if (!edges_db.add_edges_from_cell(cell))
 						coarsened_cells.insert(cell);
 				}
-
-				counter += check_bufnorm_cell(module, cell);
 			}
 
 			pool<SigBit> init_bits;
@@ -442,8 +358,6 @@ struct CheckPass : public Pass {
 						counter++;
 					}
 				}
-
-				counter += check_bufnorm_wire(module, wire);
 			}
 
 			for (auto state : {State::S0, State::S1, State::Sx})

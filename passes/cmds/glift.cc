@@ -164,7 +164,7 @@ private:
 			std::vector<RTLIL::SigSpec> next_pmux_y_ports, pmux_y_ports(costs.begin(), costs.begin() + exp2(select_width));
 			for (auto i = 0; pmux_y_ports.size() > 1; ++i) {
 				for (auto j = 0; j+1 < GetSize(pmux_y_ports); j += 2) {
-					next_pmux_y_ports.emplace_back(module->Pmux(stringf("%s_mux_%d_%d", metamux_select.as_wire()->name.str().c_str(), i, j), pmux_y_ports[j], pmux_y_ports[j+1], metamux_select[GetSize(metamux_select) - 1 - i], metamux_select.as_wire()->src_ref()));
+					next_pmux_y_ports.emplace_back(module->Pmux(stringf("%s_mux_%d_%d", metamux_select.as_wire()->name, i, j), pmux_y_ports[j], pmux_y_ports[j+1], metamux_select[GetSize(metamux_select) - 1 - i], metamux_select.as_wire()->src_ref()));
 				}
 				if (GetSize(pmux_y_ports) % 2 == 1)
 					next_pmux_y_ports.push_back(pmux_y_ports[GetSize(pmux_y_ports) - 1]);
@@ -577,13 +577,7 @@ struct GliftPass : public Pass {
 		if (GetSize(design->selected_modules()) == 0)
 			log_cmd_error("Can't operate on an empty selection!\n");
 
-		struct ModuleNameCmp {
-			bool operator()(const RTLIL::Module *a, const RTLIL::Module *b) const {
-				if (a == nullptr || b == nullptr) return a < b;
-				return a->name.str() < b->name.str();
-			}
-		};
-		TopoSort<RTLIL::Module*, ModuleNameCmp> topo_modules; //cribbed from passes/techmap/flatten.cc
+		TopoSort<RTLIL::Module*, IdString::compare_ptr_by_name<RTLIL::Module>> topo_modules; //cribbed from passes/techmap/flatten.cc
 		auto worklist = design->selected_modules();
 		pool<RTLIL::IdString> non_top_modules;
 		while (!worklist.empty()) {

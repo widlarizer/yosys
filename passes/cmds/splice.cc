@@ -295,7 +295,6 @@ struct SplicePass : public Pass {
 		bool no_outputs = false;
 		bool do_wires = false;
 		std::set<RTLIL::IdString> ports, no_ports;
-		TwineSearch search(&design->twines);
 
 		size_t argidx;
 		for (argidx = 1; argidx < args.size(); argidx++) {
@@ -320,12 +319,12 @@ struct SplicePass : public Pass {
 				continue;
 			}
 			if (args[argidx] == "-port" && argidx+1 < args.size()) {
-				ports.insert(search.find(RTLIL::escape_id(args[++argidx])));
+				ports.insert(design->twines.add(RTLIL::escape_id(args[++argidx])));
 				no_outputs = true;
 				continue;
 			}
 			if (args[argidx] == "-no_port" && argidx+1 < args.size()) {
-				no_ports.insert(search.find(RTLIL::escape_id(args[++argidx])));
+				no_ports.insert(design->twines.add(RTLIL::escape_id(args[++argidx])));
 				continue;
 			}
 			break;
