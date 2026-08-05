@@ -53,18 +53,6 @@ RTLIL::SigSpec find_any_lvalue(const RTLIL::Process *proc)
 	return lvalue;
 }
 
-void transfer_wire_sources(const SigSpec& sig, Cell* cell)
-{
-	std::vector<SrcRef> refs;
-	refs.push_back(cell->src_id());
-	for (auto chunk : sig.chunks())
-		if (chunk.wire)
-			refs.push_back(chunk.wire->src_id());
-	SrcRef merged = cell->module->design->srcs.merge(std::span<const SrcRef>{refs});
-	if (merged != SrcRef::Null)
-		cell->set_src_attribute(merged);
-}
-
 void gen_dffsr_complex(RTLIL::Module *mod, RTLIL::SigSpec sig_d, RTLIL::SigSpec sig_q, RTLIL::SigSpec clk, bool clk_polarity,
 		std::vector<std::pair<RTLIL::SigSpec, RTLIL::SyncRule*>> &async_rules, RTLIL::Process *proc)
 {
@@ -95,8 +83,6 @@ void gen_dffsr_complex(RTLIL::Module *mod, RTLIL::SigSpec sig_d, RTLIL::SigSpec 
 
 	RTLIL::Cell *cell = mod->addDffsr(sstr.str(), clk, sig_sr_set, sig_sr_clr, sig_d, sig_q, clk_polarity);
 	cell->attributes = proc->attributes;
-	transfer_wire_sources(sig_q, cell);
-	cell->module->design->merge_src(cell, proc);
 
 	log("  created %s cell `%s' with %s edge clock and multiple level-sensitive resets.\n",
 			cell->type, cell->name, clk_polarity ? "positive" : "negative");
@@ -110,8 +96,6 @@ void gen_aldff(RTLIL::Module *mod, RTLIL::SigSpec sig_in, RTLIL::SigSpec sig_set
 
 	RTLIL::Cell *cell = mod->addCell(sstr.str(), ID($aldff));
 	cell->attributes = proc->attributes;
-	transfer_wire_sources(sig_out, cell);
-	cell->module->design->merge_src(cell, proc);
 
 	cell->parameters[ID::WIDTH] = RTLIL::Const(sig_in.size());
 	cell->parameters[ID::ALOAD_POLARITY] = RTLIL::Const(set_polarity, 1);
@@ -134,8 +118,6 @@ void gen_dff(RTLIL::Module *mod, RTLIL::SigSpec sig_in, RTLIL::Const val_rst, RT
 
 	RTLIL::Cell *cell = mod->addCell(sstr.str(), clk.empty() ? ID($ff) : arst ? ID($adff) : ID($dff));
 	cell->attributes = proc->attributes;
-	transfer_wire_sources(sig_out, cell);
-	cell->module->design->merge_src(cell, proc);
 
 	cell->parameters[ID::WIDTH] = RTLIL::Const(sig_in.size());
 	if (arst) {
@@ -161,7 +143,6 @@ void gen_dff(RTLIL::Module *mod, RTLIL::SigSpec sig_in, RTLIL::Const val_rst, RT
 		log(" and %s level reset", arst_polarity ? "positive" : "negative");
 	log(".\n");
 }
-
 
 void proc_dff(RTLIL::Module *mod, RTLIL::Process *proc, ConstEval &ce)
 {
@@ -242,7 +223,7 @@ void proc_dff(RTLIL::Module *mod, RTLIL::Process *proc, ConstEval &ce)
 			// as ones coming from the module
 			single_async_rule.type = RTLIL::SyncType::ST1;
 			single_async_rule.signal = mod->ReduceOr(NEW_ID, triggers);
-			single_async_rule.actions.push_back({sig, rstval});
+			single_async_rule.actions.push_back(RTLIL::SigSig(sig, rstval));
 
 			// Replace existing rules with this new rule
 			async_rules.clear();

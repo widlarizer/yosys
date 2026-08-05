@@ -18,7 +18,6 @@
  */
 
 #include "kernel/register.h"
-#include "kernel/rtlil.h"
 #include "kernel/sigtools.h"
 #include "kernel/log.h"
 #include <stdlib.h>
@@ -289,9 +288,8 @@ struct ProcArstPass : public Pass {
 		extra_args(args, argidx, design);
 		pool<Wire*> delete_initattr_wires;
 
-		TwineSearch search(&design->twines);
 		IdString global_arst_ref = global_arst.empty() ? IdString::Null
-				: search.find(global_arst);
+				: design->twines.find(global_arst);
 
 		for (auto mod : design->all_selected_modules()) {
 			SigMap assign_map(mod);
@@ -315,7 +313,7 @@ struct ProcArstPass : public Pass {
 							if (arst_sig.size()) {
 								log("Added global reset to process %s: %s <- %s\n",
 										proc->name, log_signal(arst_sig), log_signal(arst_val));
-								arst_actions.push_back({arst_sig, arst_val});
+								arst_actions.push_back(RTLIL::SigSig(arst_sig, arst_val));
 							}
 						}
 				if (!arst_actions.empty()) {
