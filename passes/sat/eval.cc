@@ -318,11 +318,10 @@ struct VlogHammerReporter
 		for (auto name : split(input_list, ",")) {
 			int width = -1;
 			IdString esc_name = design->twines.add(RTLIL::escape_id(name));
-			IdString esc_ref = esc_name;
 			for (auto mod : modules) {
-				if (mod->wire(esc_ref) == nullptr)
+				RTLIL::Wire *port = mod->wire(esc_name);
+				if (port == nullptr)
 					log_error("Can't find input %s in module %s!\n", name, mod->name.unescape());
-				RTLIL::Wire *port = mod->wire(esc_ref);
 				if (!port->port_input || port->port_output)
 					log_error("Wire %s in module %s is not an input!\n", name, mod->name.unescape());
 				if (width >= 0 && width != port->width)
@@ -416,9 +415,8 @@ struct EvalPass : public Pass {
 				/* this should only be used for regression testing of ConstEval -- see vloghammer */
 				std::string mod1_name = RTLIL::escape_id(args[++argidx]);
 				std::string mod2_name = RTLIL::escape_id(args[++argidx]);
-				TwineSearch search(&design->twines);
-				RTLIL::Module *mod1 = design->module(search.find(mod1_name));
-				RTLIL::Module *mod2 = design->module(search.find(mod2_name));
+				RTLIL::Module *mod1 = design->module(design->twines.find(mod1_name));
+				RTLIL::Module *mod2 = design->module(design->twines.find(mod2_name));
 				if (mod1 == nullptr)
 					log_error("Can't find module `%s'!\n", mod1_name);
 				if (mod2 == nullptr)

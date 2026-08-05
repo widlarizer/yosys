@@ -149,9 +149,8 @@ struct CutpointPass : public Pass {
 				}
 
 				RTLIL::Cell *scopeinfo = nullptr;
-				IdString cell_name_ref = cell->name;
-				bool cell_name_is_public = cell->name.isPublic();
-				if (flag_scopeinfo && cell_name_is_public) {
+				IdString cell_name = cell->name;
+				if (flag_scopeinfo && cell->name.isPublic()) {
 					auto scopeinfo = module->addCell(NEW_ID, ID($scopeinfo));
 					scopeinfo->setParam(ID::TYPE, RTLIL::Const("blackbox"));
 
@@ -167,7 +166,7 @@ struct CutpointPass : public Pass {
 				module->remove(cell);
 
 				if (scopeinfo != nullptr)
-					module->rename(scopeinfo, cell_name_ref);
+					module->rename(scopeinfo, cell_name);
 			}
 
 			for (auto wire : module->selected_wires()) {

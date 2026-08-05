@@ -169,11 +169,13 @@ struct Clk2fflogicPass : public Pass {
 
 			for (auto &mem : Mem::get_selected_memories(module))
 			{
+				std::string memid = module->design->twines.unescaped_str(mem.memid);
+
 				for (int i = 0; i < GetSize(mem.rd_ports); i++) {
 					auto &port = mem.rd_ports[i];
 					if (port.clk_enable)
 						log_error("Read port %d of memory %s.%s is clocked. This is not supported by \"clk2fflogic\"! "
-								"Call \"memory\" with -nordff to avoid this error.\n", i, log_id(module, mem.memid), module);
+								"Call \"memory\" with -nordff to avoid this error.\n", i, memid, module);
 				}
 
 				for (int i = 0; i < GetSize(mem.wr_ports); i++)
@@ -184,10 +186,10 @@ struct Clk2fflogicPass : public Pass {
 						continue;
 
 					log("Modifying write port %d on memory %s.%s: CLK=%s, A=%s, D=%s\n",
-							i, module, log_id(module, mem.memid), log_signal(port.clk),
+							i, module, memid, log_signal(port.clk),
 							log_signal(port.addr), log_signal(port.data));
 
-					Wire *past_clk = module->addWire(NEW_ID_SUFFIX(stringf("%s#%d#past_clk#%s", module->design->twines.unescaped_str(mem.memid), i, log_signal(port.clk))));
+					Wire *past_clk = module->addWire(NEW_ID_SUFFIX(stringf("%s#%d#past_clk#%s", memid, i, log_signal(port.clk))));
 					past_clk->attributes[ID::init] = port.clk_polarity ? State::S1 : State::S0;
 					module->addFf(NEW_ID, port.clk, past_clk);
 
@@ -203,13 +205,13 @@ struct Clk2fflogicPass : public Pass {
 
 					SigSpec clock_edge = module->Eqx(NEW_ID, SigSpec{port.clk, SigSpec(past_clk)}, clock_edge_pattern);
 
-					SigSpec en_q = module->addWire(NEW_ID_SUFFIX(stringf("%s#%d#en_q", module->design->twines.unescaped_str(mem.memid), i)), GetSize(port.en));
+					SigSpec en_q = module->addWire(NEW_ID_SUFFIX(stringf("%s#%d#en_q", memid, i)), GetSize(port.en));
 					module->addFf(NEW_ID, port.en, en_q);
 
-					SigSpec addr_q = module->addWire(NEW_ID_SUFFIX(stringf("%s#%d#addr_q", module->design->twines.unescaped_str(mem.memid), i)), GetSize(port.addr));
+					SigSpec addr_q = module->addWire(NEW_ID_SUFFIX(stringf("%s#%d#addr_q", memid, i)), GetSize(port.addr));
 					module->addFf(NEW_ID, port.addr, addr_q);
 
-					SigSpec data_q = module->addWire(NEW_ID_SUFFIX(stringf("%s#%d#data_q", module->design->twines.unescaped_str(mem.memid), i)), GetSize(port.data));
+					SigSpec data_q = module->addWire(NEW_ID_SUFFIX(stringf("%s#%d#data_q", memid, i)), GetSize(port.data));
 					module->addFf(NEW_ID, port.data, data_q);
 
 					port.clk = State::S0;
