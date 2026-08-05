@@ -413,6 +413,7 @@ namespace AST
 		RTLIL::Module *clone() const override;
 		RTLIL::Module *clone(RTLIL::Design *dst, bool src_id_verbatim = false) const override;
 		RTLIL::Module *clone(RTLIL::Design *dst, IdString target_name, bool src_id_verbatim = false) const override;
+		void copy_config_into(AstModule *new_mod) const;
 		void loadconfig() const;
 	};
 

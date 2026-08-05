@@ -419,23 +419,14 @@ struct AST_INTERNAL::ProcessGenerator
 				syncrule->signal = child->children[0]->genRTLIL();
 				if (GetSize(syncrule->signal) != 1)
 					always->input_error("Found posedge/negedge event on a signal that is not 1 bit wide!\n");
-				addChunkActions(syncrule->actions, subst_lvalue_from, subst_lvalue_to, child.get(), true);
-				syncrule->actions.erase(
-					std::remove_if(syncrule->actions.begin(), syncrule->actions.end(),
-						[](const RTLIL::SigSig &ss) {
-							for (auto &chunk : ss.first.chunks())
-								if (chunk.wire && chunk.wire->get_bool_attribute(ID::nosync))
-									return true;
-							return false;
-						}),
-					syncrule->actions.end());
+				addChunkActions(syncrule->actions, subst_lvalue_from, subst_lvalue_to, true);
 				proc->syncs.push_back(syncrule);
 			}
 		if (proc->syncs.empty()) {
 			RTLIL::SyncRule *syncrule = new RTLIL::SyncRule;
 			syncrule->type = found_global_syncs ? RTLIL::STg : RTLIL::STa;
 			syncrule->signal = RTLIL::SigSpec();
-			addChunkActions(syncrule->actions, subst_lvalue_from, subst_lvalue_to, always.get(), true);
+			addChunkActions(syncrule->actions, subst_lvalue_from, subst_lvalue_to, true);
 			proc->syncs.push_back(syncrule);
 		}
 
@@ -443,7 +434,7 @@ struct AST_INTERNAL::ProcessGenerator
 		if ((flag_nolatches || always->get_bool_attribute(ID::nolatches) || current_module->get_bool_attribute(ID::nolatches)) && !found_clocked_sync) {
 			subst_rvalue_map = subst_lvalue_from.to_sigbit_dict(RTLIL::SigSpec(RTLIL::State::Sx, GetSize(subst_lvalue_from)));
 		} else {
-			addChunkActions(current_case->actions, subst_lvalue_to, subst_lvalue_from, always.get());
+			addChunkActions(current_case->actions, subst_lvalue_to, subst_lvalue_from);
 			// Track initial assignments
 			for (auto &bit : subst_lvalue_to)
 				if (bit.wire != NULL)
@@ -615,7 +606,7 @@ struct AST_INTERNAL::ProcessGenerator
 
 	// add an assignment (aka "action") but split it up in chunks. this way huge assignments
 	// are avoided and the generated $mux cells have a more "natural" size.
-	void addChunkActions(std::vector<RTLIL::SigSig> &actions, RTLIL::SigSpec lvalue, RTLIL::SigSpec rvalue, AstNode* ast, bool inSyncRule = false)
+	void addChunkActions(std::vector<RTLIL::SigSig> &actions, RTLIL::SigSpec lvalue, RTLIL::SigSpec rvalue, bool inSyncRule = false)
 	{
 		if (inSyncRule && initSyncSignals.size() > 0) {
 			init_lvalue.append(lvalue.extract(initSyncSignals));
@@ -631,7 +622,7 @@ struct AST_INTERNAL::ProcessGenerator
 			if (inSyncRule && lvalue_c.wire && lvalue_c.wire->get_bool_attribute(ID::nosync))
 				rhs = RTLIL::SigSpec(RTLIL::State::Sx, rhs.size());
 			remove_unwanted_lvalue_bits(lhs, rhs);
-			actions.push_back({lhs, rhs});
+			actions.push_back(RTLIL::SigSig(lhs, rhs));
 			offset += lhs.size();
 		}
 	}
@@ -752,7 +743,7 @@ struct AST_INTERNAL::ProcessGenerator
 					}
 					log_assert(block.has_value());
 					set_src_attr(current_case, *block);
-					addChunkActions(current_case->actions, this_case_eq_ltemp, this_case_eq_rvalue, *block);
+					addChunkActions(current_case->actions, this_case_eq_ltemp, this_case_eq_rvalue);
 					// Track temp assignments
 					for (auto &bit : this_case_eq_ltemp)
 						if (bit.wire != NULL)
@@ -778,14 +769,14 @@ struct AST_INTERNAL::ProcessGenerator
 			#else
 					default_case = new RTLIL::CaseRule;
 					default_case->module = current_module;
-					addChunkActions(default_case->actions, this_case_eq_ltemp, SigSpec(State::Sx, GetSize(this_case_eq_rvalue)), ast);
+					addChunkActions(default_case->actions, this_case_eq_ltemp, SigSpec(State::Sx, GetSize(this_case_eq_rvalue)));
 					sw->cases.push_back(default_case);
 			#endif
 				} else {
 					if (default_case == nullptr) {
 						default_case = new RTLIL::CaseRule;
 						default_case->module = current_module;
-						addChunkActions(default_case->actions, this_case_eq_ltemp, this_case_eq_rvalue, ast);
+						addChunkActions(default_case->actions, this_case_eq_ltemp, this_case_eq_rvalue);
 					}
 					sw->cases.push_back(default_case);
 				}
@@ -807,7 +798,7 @@ struct AST_INTERNAL::ProcessGenerator
 				if (has_overlap)
 					removeSignalFromCaseTree(this_case_eq_lvalue, current_case);
 
-				addChunkActions(current_case->actions, this_case_eq_lvalue, this_case_eq_ltemp, ast);
+				addChunkActions(current_case->actions, this_case_eq_lvalue, this_case_eq_ltemp);
 				// Track newly assigned bits
 				for (auto &bit : this_case_eq_lvalue)
 					if (bit.wire != NULL)

@@ -1953,45 +1953,14 @@ RTLIL::Module *AstModule::clone() const
 	new_mod->design = design;
 	new_mod->name = name;
 	cloneInto(new_mod);
-
-	new_mod->ast = ast->clone();
-	new_mod->nolatches = nolatches;
-	new_mod->nomeminit = nomeminit;
-	new_mod->nomem2reg = nomem2reg;
-	new_mod->mem2reg = mem2reg;
-	new_mod->noblackbox = noblackbox;
-	new_mod->lib = lib;
-	new_mod->nowb = nowb;
-	new_mod->noopt = noopt;
-	new_mod->icells = icells;
-	new_mod->pwires = pwires;
-	new_mod->autowire = autowire;
+	copy_config_into(new_mod);
 
 	return new_mod;
 }
 
 RTLIL::Module *AstModule::clone(RTLIL::Design *dst, bool src_id_verbatim) const
 {
-	AstModule *new_mod = new AstModule;
-	new_mod->design = dst;
-	new_mod->name = dst->twines.copy_from(design->twines, name);
-	cloneInto(new_mod, src_id_verbatim);
-	dst->add(new_mod);
-
-	new_mod->ast = ast->clone();
-	new_mod->nolatches = nolatches;
-	new_mod->nomeminit = nomeminit;
-	new_mod->nomem2reg = nomem2reg;
-	new_mod->mem2reg = mem2reg;
-	new_mod->noblackbox = noblackbox;
-	new_mod->lib = lib;
-	new_mod->nowb = nowb;
-	new_mod->noopt = noopt;
-	new_mod->icells = icells;
-	new_mod->pwires = pwires;
-	new_mod->autowire = autowire;
-
-	return new_mod;
+	return clone(dst, dst->twines.copy_from(design->twines, name), src_id_verbatim);
 }
 
 RTLIL::Module *AstModule::clone(RTLIL::Design *dst, IdString target_name, bool src_id_verbatim) const
@@ -2001,7 +1970,13 @@ RTLIL::Module *AstModule::clone(RTLIL::Design *dst, IdString target_name, bool s
 	new_mod->name = target_name;
 	cloneInto(new_mod, src_id_verbatim);
 	dst->add(new_mod);
+	copy_config_into(new_mod);
 
+	return new_mod;
+}
+
+void AstModule::copy_config_into(AstModule *new_mod) const
+{
 	new_mod->ast = ast->clone();
 	new_mod->nolatches = nolatches;
 	new_mod->nomeminit = nomeminit;
@@ -2014,8 +1989,6 @@ RTLIL::Module *AstModule::clone(RTLIL::Design *dst, IdString target_name, bool s
 	new_mod->icells = icells;
 	new_mod->pwires = pwires;
 	new_mod->autowire = autowire;
-
-	return new_mod;
 }
 
 void AstModule::loadconfig() const
