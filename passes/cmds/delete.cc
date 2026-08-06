@@ -91,21 +91,23 @@ struct DeletePass : public Pass {
 			pool<RTLIL::Wire*> delete_wires;
 			pool<RTLIL::Cell*> delete_cells;
 			pool<RTLIL::Process*> delete_procs;
-			pool<RTLIL::IdString> delete_mems;
-			TwineSearch search(&design->twines);
+			// Keyed by the rendered name: a $memwr's MEMID parameter is the
+			// memory name as a string, and re-interning it need not give back
+			// the memory's own name handle.
+			dict<std::string, RTLIL::IdString> delete_mems;
 
 			for (auto wire : module->selected_wires())
 				delete_wires.insert(wire);
 
 			for (auto &it : module->memories)
 				if (design->selected(module, it.second))
-					delete_mems.insert(it.first);
+					delete_mems[design->twines.str(it.first)] = it.first;
 
 			for (auto cell : module->cells()) {
 				if (design->selected(module, cell))
 					delete_cells.insert(cell);
 				if (cell->has_memid() &&
-						delete_mems.count(search.find(cell->parameters.at(ID::MEMID).decode_string())) != 0)
+						delete_mems.count(cell->parameters.at(ID::MEMID).decode_string()) != 0)
 					delete_cells.insert(cell);
 			}
 
@@ -114,8 +116,8 @@ struct DeletePass : public Pass {
 					delete_procs.insert(it.second);
 
 			for (auto &it : delete_mems) {
-				delete module->memories.at(it);
-				module->memories.erase(it);
+				delete module->memories.at(it.second);
+				module->memories.erase(it.second);
 			}
 
 			for (auto &it : delete_cells)

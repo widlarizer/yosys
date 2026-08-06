@@ -44,6 +44,11 @@ struct MemoryMapWorker
 
 	SrcRef mem_src;
 
+	// Rendered names of the module's wires. The memory name can be a suffix
+	// handle, so the rendered "<memid>[addr]" candidate below has to be matched
+	// against wire names by content, not by handle.
+	pool<std::string> wire_names;
+
 	MemoryMapWorker(RTLIL::Design *design, RTLIL::Module *module) : design(design), module(module), sigmap(module), initvals(&sigmap, module) {}
 
 	std::string map_case(std::string value) const
@@ -209,7 +214,6 @@ struct MemoryMapWorker
 
 		int count_static = 0;
 
-		TwineSearch wire_search(&design->twines);
 		for (int i = 0; i < mem.size; i++)
 		{
 			int addr = i + mem.start_offset;
@@ -254,10 +258,11 @@ struct MemoryMapWorker
 				c->setPort(ID::D, w_in);
 
 				std::string w_out_name = stringf("%s[%d]", design->twines.str(mem.memid), addr);
-				if (module->wire(wire_search.find(w_out_name)) != nullptr)
+				if (wire_names.count(w_out_name))
 					w_out_name = genid(mem.memid, "", addr, "$q");
 
 				RTLIL::Wire *w_out = module->addWire(w_out_name, mem.width);
+				wire_names.insert(w_out->name.str());
 
 				if (formal && mem.packed && mem.cell->name.isPublic()) {
 					auto hdlname = mem.cell->get_hdlname_attribute();
@@ -401,6 +406,9 @@ struct MemoryMapWorker
 
 	void run()
 	{
+		for (auto wire : module->wires())
+			wire_names.insert(wire->name.str());
+
 		for (auto &mem : Mem::get_selected_memories(module))
 			handle_memory(mem);
 	}
