@@ -308,17 +308,6 @@ ShardedVector<RTLIL::SigBit> build_candidates(ExactCellWires& cell_wires, const 
 	return candidates;
 }
 
-void update_assign_map(SigMap& assign_map, ShardedVector<RTLIL::SigBit>& sigmap_canonical_candidates, ExactCellWires& cell_wires, const SigConnKinds& sig_analysis) {
-	for (RTLIL::SigBit candidate : sigmap_canonical_candidates) {
-		RTLIL::SigBit current_canonical = assign_map(candidate);
-		// Resolves if two threads in build_candidates found different candidates
-		// for the same set
-		// TODO adds effort for single-threaded?
-		if (compare_signals(current_canonical, candidate, sig_analysis.raw_registers, sig_analysis.raw_cell_connected, cell_wires))
-			assign_map.add(candidate);
-	}
-}
-
 struct DeferredUpdates {
 	// Deferred updates to the assign_map
 	ShardedVector<UpdateConnection> update_connections;
@@ -548,13 +537,13 @@ bool rmunused_module_signals(RTLIL::Module *module, ParallelDispatchThreadPool::
 
 	// Cache all the cell_wires results that we might possible need. This avoids the results
 	// changing when we update `assign_map` below.
-	cell_wires.cache_all(new_sigmap_rep_candidates);
+	// cell_wires.cache_all(new_sigmap_rep_candidates);
 	// Modify assign_map to reflect the connectivity we want, not the one we have
 	// this changes representative selection in assign_map
-	update_assign_map(actx.assign_map, new_sigmap_rep_candidates, cell_wires, conn_kinds);
+	// update_assign_map(actx.assign_map, new_sigmap_rep_candidates, cell_wires, conn_kinds);
 
 	// Remove all wire-wire connections
-	module->connections_.clear();
+	// module->connections_.clear();
 
 	UsedSignals used;
 	DeferredUpdates deferred = analyse_connectivity(used, conn_kinds, actx, clean_ctx);
