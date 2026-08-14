@@ -416,12 +416,12 @@ struct CellTableBuilder {
 
 };
 
-constexpr CellTableBuilder builder{};
+inline constexpr CellTableBuilder builder {};
 
 struct PortInfo {
 	struct PortLists {
 		std::array<CellTableBuilder::PortList, MAX_CELLS> data{};
-		constexpr CellTableBuilder::PortList operator()(IdString type) const {
+		constexpr const CellTableBuilder::PortList& operator()(IdString type) const {
 			return data[type.index_];
 		}
 		constexpr CellTableBuilder::PortList& operator[](size_t idx) {
@@ -515,23 +515,23 @@ struct Categories {
 };
 
 // Pure
-static constexpr PortInfo port_info;
-static constexpr Categories categories;
+inline constexpr PortInfo port_info;
+inline constexpr Categories categories;
 
 // Legacy
 namespace Compat {
-	static constexpr auto internals_all = Categories::meet(categories.is_known, Categories::complement(categories.is_stdcell));
-	static constexpr auto mem_ff = Categories::join(categories.is_ff, categories.is_mem_noff);
+	inline constexpr auto internals_all = Categories::meet(categories.is_known, Categories::complement(categories.is_stdcell));
+	inline constexpr auto mem_ff = Categories::join(categories.is_ff, categories.is_mem_noff);
 	// old setup_internals + setup_stdcells
-	static constexpr auto nomem_noff = Categories::meet(categories.is_known, Categories::complement(mem_ff));
-	static constexpr auto internals_mem_ff = Categories::meet(internals_all, mem_ff);
+	inline constexpr auto nomem_noff = Categories::meet(categories.is_known, Categories::complement(mem_ff));
+	inline constexpr auto internals_mem_ff = Categories::meet(internals_all, mem_ff);
 	// old setup_internals
-	static constexpr auto internals_nomem_noff = Categories::meet(internals_all, nomem_noff);
+	inline constexpr auto internals_nomem_noff = Categories::meet(internals_all, nomem_noff);
 	// old setup_stdcells
-	static constexpr auto stdcells_nomem_noff = Categories::meet(categories.is_stdcell, nomem_noff);
-	static constexpr auto stdcells_mem = Categories::meet(categories.is_stdcell, categories.is_mem_noff);
+	inline constexpr auto stdcells_nomem_noff = Categories::meet(categories.is_stdcell, nomem_noff);
+	inline constexpr auto stdcells_mem = Categories::meet(categories.is_stdcell, categories.is_mem_noff);
 	// old setup_internals_eval
-	// static constexpr auto internals_eval = Categories::meet(internals_all, categories.is_evaluable);
+	// inline constexpr auto internals_eval = Categories::meet(internals_all, categories.is_evaluable);
 };
 
 namespace {
