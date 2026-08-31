@@ -760,7 +760,7 @@ void AbcModuleState::handle_loops(AbcSigMap &assign_map, RTLIL::Module *module)
 			log_assert(signal_bits[id1].wire != nullptr);
 
 			std::stringstream sstr;
-			sstr << "$abcloop$" << (autoidx++);
+			sstr << "$abcloop$" << (module->design->twines.next_autoidx());
 			RTLIL::Wire *wire = module->addWire(sstr.str());
 
 			bool first_line = true;
@@ -940,7 +940,7 @@ struct abc_output_filter
 void AbcModuleState::prepare_module(RTLIL::Design *design, RTLIL::Module *module, AbcSigMap &assign_map, const std::vector<RTLIL::Cell*> &cells,
 	bool dff_mode, std::string clk_str)
 {
-	map_autoidx = autoidx++;
+	map_autoidx = design->twines.next_autoidx();
 
 	if (clk_str != "$")
 	{

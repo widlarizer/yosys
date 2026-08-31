@@ -292,23 +292,14 @@ struct Multithreading
 	Multithreading();
 	~Multithreading();
 	// Returns true when multiple threads are accessing RTLIL.
-	// autoidx cannot be used during such times.
-	// IdStrings cannot be created during such times.
+	// Each thread must confine itself to its own Design: a TwinePool,
+	// and the autoidx counter it holds, is not internally synchronized.
 	static bool active() { return active_; }
 private:
 	static bool active_;
 };
 
-struct Autoidx {
-	Autoidx(int value) : value(value) {}
-	operator int() const { return value; }
-	void ensure_at_least(int v);
-	int operator++(int);
-private:
-	int value;
-};
-
-extern Autoidx autoidx;
+extern int autoidx_seed;
 extern int yosys_xtrace;
 extern bool yosys_write_versions;
 
@@ -318,12 +309,12 @@ const std::string *create_id_prefix(std::string_view file, int line, std::string
 	YOSYS_NAMESPACE_PREFIX TwineSpec{YOSYS_NAMESPACE_PREFIX TwineSpec::AutoSuffix{[](std::string_view func) -> const std::string * { \
 		static std::unique_ptr<const std::string> prefix(YOSYS_NAMESPACE_PREFIX create_id_prefix(__FILE__, __LINE__, func)); \
 		return prefix.get(); \
-	}(__FUNCTION__), std::to_string(YOSYS_NAMESPACE_PREFIX autoidx++)}}
+	}(__FUNCTION__), std::string()}}
 #define NEW_ID_SUFFIX(suffix) \
 	YOSYS_NAMESPACE_PREFIX TwineSpec{YOSYS_NAMESPACE_PREFIX TwineSpec::AutoSuffix{[](std::string_view func) -> const std::string * { \
 		static std::unique_ptr<const std::string> prefix(YOSYS_NAMESPACE_PREFIX create_id_prefix(__FILE__, __LINE__, func)); \
 		return prefix.get(); \
-	}(__FUNCTION__), std::string(suffix) + "$" + std::to_string(YOSYS_NAMESPACE_PREFIX autoidx++)}}
+	}(__FUNCTION__), std::string(suffix) + "$"}}
 
 YOSYS_NAMESPACE_END
 

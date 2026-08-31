@@ -401,6 +401,10 @@ struct TwinePool : HashConsPool<TwinePool, TwineNode, IdString> {
 	IdString add(TwineSpec t);
 	IdString add(IdString prefix, std::string_view tail);
 	IdString auto_prefix(const std::string *prefix);
+	int next_autoidx();
+	int autoidx() const;
+	void ensure_autoidx(int v);
+	void reset();
 	// Infers publicity from first character
 	IdString add(std::string s);
 	IdString copy_from(const TwinePool& src, IdString ref);
@@ -421,6 +425,7 @@ private:
 	static size_t next_serial();
 	dict<const std::string *, IdString> auto_prefixes;
 	size_t serial_;
+	int autoidx_;
 };
 
 /**

@@ -126,11 +126,8 @@ TwineNode &TwineNode::operator=(TwineNode &&other) noexcept
 }
 
 std::string TwineSpec::content_str() const {
-	if (auto *leaf = std::get_if<Leaf>(&data))
-		return leaf->s;
-	log_assert(!holds_suffix());
-	auto &autosfx = std::get<AutoSuffix>(data);
-	return *autosfx.prefix + autosfx.tail;
+	auto &leaf = std::get<Leaf>(data);
+	return leaf.s;
 }
 
 std::pair<std::string, bool> twine_unescape(std::string s) {
@@ -140,11 +137,13 @@ std::pair<std::string, bool> twine_unescape(std::string s) {
 	return {std::move(s), is_public};
 }
 
-TwinePool::TwinePool() : serial_(next_serial()) {}
+TwinePool::TwinePool() : serial_(next_serial()), autoidx_(autoidx_seed) {}
 TwinePool::TwinePool(const TwinePool& other)
-	: HashConsPool(other), auto_prefixes(other.auto_prefixes), serial_(next_serial()) {}
+	: HashConsPool(other), auto_prefixes(other.auto_prefixes), serial_(next_serial()),
+	  autoidx_(other.autoidx_) {}
 TwinePool::TwinePool(TwinePool&& other)
-	: HashConsPool(std::move(other)), auto_prefixes(std::move(other.auto_prefixes)), serial_(next_serial()) {}
+	: HashConsPool(std::move(other)), auto_prefixes(std::move(other.auto_prefixes)), serial_(next_serial()),
+	  autoidx_(other.autoidx_) {}
 
 TwinePool& TwinePool::operator=(const TwinePool& other) {
 	if (this == &other)
@@ -152,6 +151,7 @@ TwinePool& TwinePool::operator=(const TwinePool& other) {
 	HashConsPool::operator=(other);
 	auto_prefixes = other.auto_prefixes;
 	serial_ = next_serial();
+	autoidx_ = other.autoidx_;
 	return *this;
 }
 
@@ -161,8 +161,24 @@ TwinePool& TwinePool::operator=(TwinePool&& other) {
 	HashConsPool::operator=(std::move(other));
 	auto_prefixes = std::move(other.auto_prefixes);
 	serial_ = next_serial();
+	autoidx_ = other.autoidx_;
 	return *this;
 }
+
+void TwinePool::reset() {
+	HashConsPool::reset();
+	auto_prefixes.clear();
+	serial_ = next_serial();
+	autoidx_ = autoidx_seed;
+}
+
+int TwinePool::next_autoidx() {
+	return autoidx_++;
+}
+
+int TwinePool::autoidx() const { return autoidx_; }
+
+void TwinePool::ensure_autoidx(int v) { autoidx_ = std::max(autoidx_, v); }
 
 size_t TwinePool::serial() const { return serial_; }
 
@@ -304,12 +320,7 @@ IdString TwinePool::find(const std::string &name) const {
 }
 
 IdString TwinePool::find(TwineSpec t) const {
-	if (auto *ap = std::get_if<TwineSpec::AutoSuffix>(&t.data)) {
-		IdString prefix = find_content(TwineNode::NO_PREFIX, *ap->prefix);
-		if (prefix == IdString::Null)
-			return IdString::Null;
-		return stamp(find_content((uint32_t)prefix.untag().raw(), ap->tail).tag(prefix.isPublic()));
-	}
+	log_assert(!std::holds_alternative<TwineSpec::AutoSuffix>(t.data));
 	if (auto *leaf = std::get_if<TwineSpec::Leaf>(&t.data))
 		return stamp(find_content(TwineNode::NO_PREFIX, leaf->s));
 	const TwineSpec::Suffix &sfx = std::get<TwineSpec::Suffix>(t.data);
@@ -319,7 +330,8 @@ IdString TwinePool::find(TwineSpec t) const {
 IdString TwinePool::add(TwineSpec t) {
 	if (auto *ap = std::get_if<TwineSpec::AutoSuffix>(&t.data)) {
 		IdString prefix = auto_prefix(ap->prefix);
-		return stamp(intern((uint32_t)prefix.untag().raw(), ap->tail).tag(prefix.isPublic()));
+		std::string tail = ap->tail + std::to_string(next_autoidx());
+		return stamp(intern((uint32_t)prefix.untag().raw(), tail).tag(prefix.isPublic()));
 	}
 	if (auto *leaf = std::get_if<TwineSpec::Leaf>(&t.data))
 		return stamp(intern(TwineNode::NO_PREFIX, leaf->s));
@@ -355,6 +367,7 @@ IdString TwinePool::copy_from(const TwinePool& src, IdString ref) {
 	IdString untagged = ref.untag();
 	if (ID::is_static(untagged))
 		return ref;
+	ensure_autoidx(src.autoidx());
 	const TwineNode& t = src[untagged];
 	switch (t.kind()) {
 	case TwineNode::Kind::Leaf:

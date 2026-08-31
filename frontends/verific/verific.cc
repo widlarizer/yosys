@@ -252,7 +252,7 @@ RTLIL::IdString VerificImporter::new_verific_id(Verific::DesignObj *obj)
 	std::string s = stringf("$verific$%s", obj->Name());
 	if (obj->Linefile())
 		s += stringf("$%s:%d", RTLIL::encode_filename(Verific::LineFile::GetFileName(obj->Linefile())), Verific::LineFile::GetLineNo(obj->Linefile()));
-	s += stringf("$%d", autoidx++);
+	s += stringf("$%d", module->design->twines.next_autoidx());
 	return s;
 }
 
@@ -1494,7 +1494,7 @@ void VerificImporter::recurse_mem_dimensions(RTLIL::Module *module, RTLIL::Memor
 				cell->parameters[ID::MEMID] = RTLIL::Const(memory->name.str());
 				cell->parameters[ID::ABITS] = 32;
 				cell->parameters[ID::WIDTH] = memory->width;
-				cell->parameters[ID::PRIORITY] = RTLIL::Const(autoidx-1);
+				cell->parameters[ID::PRIORITY] = RTLIL::Const(module->design->twines.autoidx()-1);
 			}
 			memory->start_offset = min(memory->start_offset, next_idx);
 			memory->size = max(memory->size, next_idx);
@@ -1545,7 +1545,7 @@ void VerificImporter::import_netlist(RTLIL::Design *design, Netlist *nl, std::ma
 		return;
 	}
 
-	module = new RTLIL::Module;
+	module = new RTLIL::Module(design);
 	module->name = module_name;
 	design->add(module);
 
@@ -1681,7 +1681,7 @@ void VerificImporter::import_netlist(RTLIL::Design *design, Netlist *nl, std::ma
 	{
 		if (net->IsRamNet())
 		{
-			RTLIL::Memory *memory = new RTLIL::Memory;
+			RTLIL::Memory *memory = new RTLIL::Memory(module);
 			memory->name = RTLIL::escape_id(net->Name());
 			log_assert(module->count_id(memory->name) == 0);
 			module->memories[memory->name] = memory;

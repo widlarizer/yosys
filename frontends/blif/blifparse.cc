@@ -166,8 +166,7 @@ void parse_blif(RTLIL::Design *design, std::istream &f, IdString dff_name, bool 
 			if (!strcmp(cmd, ".model")) {
 				if (module != nullptr)
 					goto error;
-				module = new RTLIL::Module;
-				module->design = design;
+				module = new RTLIL::Module(design);
 				lastcell = nullptr;
 				char *name = strtok(NULL, " \t\r\n");
 				if (name == nullptr)
@@ -247,7 +246,7 @@ void parse_blif(RTLIL::Design *design, std::istream &f, IdString dff_name, bool 
 					if (undef_wire != nullptr)
 						module->rename(undef_wire, stringf("$undef$%d", ++blif_maxnum));
 
-					autoidx.ensure_at_least(blif_maxnum+1);
+					design->twines.ensure_autoidx(blif_maxnum+1);
 					blif_maxnum = 0;
 				}
 

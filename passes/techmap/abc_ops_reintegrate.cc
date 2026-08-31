@@ -58,7 +58,7 @@ void reintegrate(RTLIL::Module *module, bool dff_mode, std::string map_filename)
 	auto design = module->design;
 	log_assert(design);
 
-	map_autoidx = autoidx++;
+	map_autoidx = design->twines.next_autoidx();
 
 	RTLIL::Module *mapped_mod = design->module(design->twines.find(stringf("%s$abc9", module->name)));
 	if (mapped_mod == NULL)
