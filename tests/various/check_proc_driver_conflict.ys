@@ -1,0 +1,63 @@
+# A variable initializer on a signal that is also driven by a submodule output
+# port leaves the signal with two drivers: the process holding the constant, and
+# the port. `check` has to report that, otherwise `opt_expr` folds the constant
+# onto the output port and `opt_clean` deletes the flop without a diagnostic.
+read_verilog -sv <<EOT
+module ff1 (input logic clk, input logic d, output logic q);
+	always_ff @(posedge clk) q <= d;
+endmodule
+
+module top (input logic clk, input logic d);
+	logic q_inst = 0;
+	ff1 u0 (clk, d, q_inst);
+endmodule
+EOT
+
+# before `hierarchy` the port directions are unknown, so nothing is reported yet
+logger -expect log "Found and reported 0 problems." 1
+check
+logger -check-expected
+
+hierarchy -top top -check
+
+logger -expect warning "multiple conflicting drivers for top" 1
+logger -expect log "Found and reported 1 problems." 1
+check
+logger -check-expected
+
+# an `init` sync carries a power-on value, not a driver: the ubiquitous
+# "initialized register" idiom must not be reported
+design -reset
+read_verilog -sv <<EOT
+module top (input logic clk, input logic d, output logic q);
+	logic q_inst = 0;
+	always_ff @(posedge clk) q_inst <= d;
+	assign q = q_inst;
+endmodule
+EOT
+
+hierarchy -top top -check
+
+logger -expect log "Found and reported 0 problems." 1
+check
+logger -check-expected
+
+# an initializer on a signal feeding a submodule *input* is a plain constant and
+# must not be reported either
+design -reset
+read_verilog -sv <<EOT
+module sub (input logic [7:0] i, output logic [7:0] o);
+	assign o = ~i;
+endmodule
+
+module top (output logic [7:0] o);
+	logic [7:0] c = 8'hAA;
+	sub u0 (c, o);
+endmodule
+EOT
+
+hierarchy -top top -check
+
+logger -expect log "Found and reported 0 problems." 1
+check
+logger -check-expected
