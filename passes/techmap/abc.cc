@@ -293,6 +293,68 @@ struct RunAbcState {
 	void run(ConcurrentStack<AbcProcess> &process_pool);
 };
 
+struct AbcClockDomain {
+	bool clk_polarity = false;
+	bool en_polarity = false;
+	bool arst_polarity = false;
+	bool srst_polarity = false;
+	RTLIL::SigSpec clk_sig, en_sig, arst_sig, srst_sig;
+
+	static AbcClockDomain from_ff(const FfData &ff, const AbcSigMap &assign_map)
+	{
+		AbcClockDomain domain;
+		domain.clk_polarity = ff.pol_clk;
+		domain.clk_sig = ff.sig_clk;
+		domain.en_polarity = ff.has_ce ? ff.pol_ce : true;
+		domain.en_sig = ff.has_ce ? assign_map(ff.sig_ce) : RTLIL::SigSpec();
+		domain.arst_polarity = ff.has_arst ? ff.pol_arst : true;
+		domain.arst_sig = ff.has_arst ? assign_map(ff.sig_arst) : RTLIL::SigSpec();
+		domain.srst_polarity = ff.has_srst ? ff.pol_srst : true;
+		domain.srst_sig = ff.has_srst ? assign_map(ff.sig_srst) : RTLIL::SigSpec();
+		return domain;
+	}
+
+	AbcClockDomain mapped(const AbcSigMap &assign_map) const
+	{
+		AbcClockDomain domain = *this;
+		domain.clk_sig = assign_map(clk_sig);
+		domain.en_sig = assign_map(en_sig);
+		domain.arst_sig = assign_map(arst_sig);
+		domain.srst_sig = assign_map(srst_sig);
+		return domain;
+	}
+
+	void log_cell_count(int num_cells) const
+	{
+		log("  %d cells in clk=%s%s, en=%s%s, arst=%s%s, srst=%s%s\n", num_cells,
+				clk_polarity ? "" : "!", log_signal(clk_sig),
+				en_polarity ? "" : "!", log_signal(en_sig),
+				arst_polarity ? "" : "!", log_signal(arst_sig),
+				srst_polarity ? "" : "!", log_signal(srst_sig));
+	}
+
+	bool operator==(const AbcClockDomain &other) const
+	{
+		return clk_polarity == other.clk_polarity && clk_sig == other.clk_sig &&
+				en_polarity == other.en_polarity && en_sig == other.en_sig &&
+				arst_polarity == other.arst_polarity && arst_sig == other.arst_sig &&
+				srst_polarity == other.srst_polarity && srst_sig == other.srst_sig;
+	}
+
+	Hasher hash_into(Hasher h) const
+	{
+		h.eat(clk_polarity);
+		h.eat(clk_sig);
+		h.eat(en_polarity);
+		h.eat(en_sig);
+		h.eat(arst_polarity);
+		h.eat(arst_sig);
+		h.eat(srst_polarity);
+		h.eat(srst_sig);
+		return h;
+	}
+};
+
 struct AbcModuleState {
 	RunAbcState run_abc;
 
@@ -303,11 +365,7 @@ struct AbcModuleState {
 	FfInitVals &initvals;
 	bool had_init = false;
 
-	bool clk_polarity = false;
-	bool en_polarity = false;
-	bool arst_polarity = false;
-	bool srst_polarity = false;
-	RTLIL::SigSpec clk_sig, en_sig, arst_sig, srst_sig;
+	AbcClockDomain domain;
 
 	int undef_bits_lost = 0;
 
@@ -390,17 +448,17 @@ bool AbcModuleState::extract_cell(const AbcSigMap &assign_map, RTLIL::Module *mo
 			return false;
 		if (!ff.is_fine)
 			return false;
-		if (clk_polarity != ff.pol_clk)
+		if (domain.clk_polarity != ff.pol_clk)
 			return false;
-		if (clk_sig != assign_map(ff.sig_clk))
+		if (domain.clk_sig != assign_map(ff.sig_clk))
 			return false;
 		if (ff.has_ce) {
-			if (en_polarity != ff.pol_ce)
+			if (domain.en_polarity != ff.pol_ce)
 				return false;
-			if (en_sig != assign_map(ff.sig_ce))
+			if (domain.en_sig != assign_map(ff.sig_ce))
 				return false;
 		} else {
-			if (GetSize(en_sig) != 0)
+			if (GetSize(domain.en_sig) != 0)
 				return false;
 		}
 		if (ff.val_init == State::S1) {
@@ -411,9 +469,9 @@ bool AbcModuleState::extract_cell(const AbcSigMap &assign_map, RTLIL::Module *mo
 			had_init = true;
 		}
 		if (ff.has_arst) {
-			if (arst_polarity != ff.pol_arst)
+			if (domain.arst_polarity != ff.pol_arst)
 				return false;
-			if (arst_sig != assign_map(ff.sig_arst))
+			if (domain.arst_sig != assign_map(ff.sig_arst))
 				return false;
 			if (ff.val_arst == State::S1) {
 				if (type == G(FF0))
@@ -425,13 +483,13 @@ bool AbcModuleState::extract_cell(const AbcSigMap &assign_map, RTLIL::Module *mo
 				type = G(FF0);
 			}
 		} else {
-			if (GetSize(arst_sig) != 0)
+			if (GetSize(domain.arst_sig) != 0)
 				return false;
 		}
 		if (ff.has_srst) {
-			if (srst_polarity != ff.pol_srst)
+			if (domain.srst_polarity != ff.pol_srst)
 				return false;
-			if (srst_sig != assign_map(ff.sig_srst))
+			if (domain.srst_sig != assign_map(ff.sig_srst))
 				return false;
 			if (ff.val_srst == State::S1) {
 				if (type == G(FF0))
@@ -443,7 +501,7 @@ bool AbcModuleState::extract_cell(const AbcSigMap &assign_map, RTLIL::Module *mo
 				type = G(FF0);
 			}
 		} else {
-			if (GetSize(srst_sig) != 0)
+			if (GetSize(domain.srst_sig) != 0)
 				return false;
 		}
 
@@ -934,17 +992,17 @@ void AbcModuleState::prepare_module(RTLIL::Design *design, RTLIL::Module *module
 
 	if (clk_str != "$")
 	{
-		clk_polarity = true;
-		clk_sig = RTLIL::SigSpec();
+		domain.clk_polarity = true;
+		domain.clk_sig = RTLIL::SigSpec();
 
-		en_polarity = true;
-		en_sig = RTLIL::SigSpec();
+		domain.en_polarity = true;
+		domain.en_sig = RTLIL::SigSpec();
 
-		arst_polarity = true;
-		arst_sig = RTLIL::SigSpec();
+		domain.arst_polarity = true;
+		domain.arst_sig = RTLIL::SigSpec();
 
-		srst_polarity = true;
-		srst_sig = RTLIL::SigSpec();
+		domain.srst_polarity = true;
+		domain.srst_sig = RTLIL::SigSpec();
 	}
 
 	if (!clk_str.empty() && clk_str != "$")
@@ -968,38 +1026,38 @@ void AbcModuleState::prepare_module(RTLIL::Design *design, RTLIL::Module *module
 			srst_str = arst_str.substr(0, pos);
 		}
 		if (clk_str[0] == '!') {
-			clk_polarity = false;
+			domain.clk_polarity = false;
 			clk_str = clk_str.substr(1);
 		}
 		if (module->wire(RTLIL::escape_id(clk_str)) != nullptr)
-			clk_sig = assign_map(module->wire(RTLIL::escape_id(clk_str)));
+			domain.clk_sig = assign_map(module->wire(RTLIL::escape_id(clk_str)));
 		if (en_str != "") {
 			if (en_str[0] == '!') {
-				en_polarity = false;
+				domain.en_polarity = false;
 				en_str = en_str.substr(1);
 			}
 			if (module->wire(RTLIL::escape_id(en_str)) != nullptr)
-				en_sig = assign_map(module->wire(RTLIL::escape_id(en_str)));
+				domain.en_sig = assign_map(module->wire(RTLIL::escape_id(en_str)));
 		}
 		if (arst_str != "") {
 			if (arst_str[0] == '!') {
-				arst_polarity = false;
+				domain.arst_polarity = false;
 				arst_str = arst_str.substr(1);
 			}
 			if (module->wire(RTLIL::escape_id(arst_str)) != nullptr)
-				arst_sig = assign_map(module->wire(RTLIL::escape_id(arst_str)));
+				domain.arst_sig = assign_map(module->wire(RTLIL::escape_id(arst_str)));
 		}
 		if (srst_str != "") {
 			if (srst_str[0] == '!') {
-				srst_polarity = false;
+				domain.srst_polarity = false;
 				srst_str = srst_str.substr(1);
 			}
 			if (module->wire(RTLIL::escape_id(srst_str)) != nullptr)
-				srst_sig = assign_map(module->wire(RTLIL::escape_id(srst_str)));
+				domain.srst_sig = assign_map(module->wire(RTLIL::escape_id(srst_str)));
 		}
 	}
 
-	if (dff_mode && clk_sig.empty())
+	if (dff_mode && domain.clk_sig.empty())
 		log_cmd_error("Clock domain %s not found.\n", clk_str);
 
 	const AbcConfig &config = run_abc.config;
@@ -1105,16 +1163,16 @@ void AbcModuleState::prepare_module(RTLIL::Design *design, RTLIL::Module *module
 
 	if (dff_mode || !clk_str.empty())
 	{
-		if (clk_sig.size() == 0)
+		if (domain.clk_sig.size() == 0)
 			log("No%s clock domain found. Not extracting any FF cells.\n", clk_str.empty() ? "" : " matching");
 		else {
-			log("Found%s %s clock domain: %s", clk_str.empty() ? "" : " matching", clk_polarity ? "posedge" : "negedge", log_signal(clk_sig));
-			if (en_sig.size() != 0)
-				log(", enabled by %s%s", en_polarity ? "" : "!", log_signal(en_sig));
-			if (arst_sig.size() != 0)
-				log(", asynchronously reset by %s%s", arst_polarity ? "" : "!", log_signal(arst_sig));
-			if (srst_sig.size() != 0)
-				log(", synchronously reset by %s%s", srst_polarity ? "" : "!", log_signal(srst_sig));
+			log("Found%s %s clock domain: %s", clk_str.empty() ? "" : " matching", domain.clk_polarity ? "posedge" : "negedge", log_signal(domain.clk_sig));
+			if (domain.en_sig.size() != 0)
+				log(", enabled by %s%s", domain.en_polarity ? "" : "!", log_signal(domain.en_sig));
+			if (domain.arst_sig.size() != 0)
+				log(", asynchronously reset by %s%s", domain.arst_polarity ? "" : "!", log_signal(domain.arst_sig));
+			if (domain.srst_sig.size() != 0)
+				log(", synchronously reset by %s%s", domain.srst_polarity ? "" : "!", log_signal(domain.srst_sig));
 			log("\n");
 		}
 	}
@@ -1137,17 +1195,17 @@ void AbcModuleState::prepare_module(RTLIL::Design *design, RTLIL::Module *module
 		for (auto &port_it : cell->connections())
 			mark_port(assign_map, port_it.second);
 
-	if (clk_sig.size() != 0)
-		mark_port(assign_map, clk_sig);
+	if (domain.clk_sig.size() != 0)
+		mark_port(assign_map, domain.clk_sig);
 
-	if (en_sig.size() != 0)
-		mark_port(assign_map, en_sig);
+	if (domain.en_sig.size() != 0)
+		mark_port(assign_map, domain.en_sig);
 
-	if (arst_sig.size() != 0)
-		mark_port(assign_map, arst_sig);
+	if (domain.arst_sig.size() != 0)
+		mark_port(assign_map, domain.arst_sig);
 
-	if (srst_sig.size() != 0)
-		mark_port(assign_map, srst_sig);
+	if (domain.srst_sig.size() != 0)
+		mark_port(assign_map, domain.srst_sig);
 
 	handle_loops(assign_map, module);
 }
@@ -1650,36 +1708,36 @@ void AbcModuleState::extract(AbcSigMap &assign_map, RTLIL::Design *design, RTLIL
 				continue;
 			}
 			if (c->type == ID(DFF)) {
-				log_assert(clk_sig.size() == 1);
+				log_assert(domain.clk_sig.size() == 1);
 				FfData ff(module, &initvals, remap_name(c->name));
 				ff.width = 1;
 				ff.is_fine = true;
 				ff.has_clk = true;
-				ff.pol_clk = clk_polarity;
-				ff.sig_clk = clk_sig;
-				if (en_sig.size() != 0) {
-					log_assert(en_sig.size() == 1);
+				ff.pol_clk = domain.clk_polarity;
+				ff.sig_clk = domain.clk_sig;
+				if (domain.en_sig.size() != 0) {
+					log_assert(domain.en_sig.size() == 1);
 					ff.has_ce = true;
-					ff.pol_ce = en_polarity;
-					ff.sig_ce = en_sig;
+					ff.pol_ce = domain.en_polarity;
+					ff.sig_ce = domain.en_sig;
 				}
 				RTLIL::Const init = mapped_initvals(c->getPort(ID::Q));
 				if (had_init)
 					ff.val_init = init;
 				else
 					ff.val_init = State::Sx;
-				if (arst_sig.size() != 0) {
-					log_assert(arst_sig.size() == 1);
+				if (domain.arst_sig.size() != 0) {
+					log_assert(domain.arst_sig.size() == 1);
 					ff.has_arst = true;
-					ff.pol_arst = arst_polarity;
-					ff.sig_arst = arst_sig;
+					ff.pol_arst = domain.arst_polarity;
+					ff.sig_arst = domain.arst_sig;
 					ff.val_arst = init;
 				}
-				if (srst_sig.size() != 0) {
-					log_assert(srst_sig.size() == 1);
+				if (domain.srst_sig.size() != 0) {
+					log_assert(domain.srst_sig.size() == 1);
 					ff.has_srst = true;
-					ff.pol_srst = srst_polarity;
-					ff.sig_srst = srst_sig;
+					ff.pol_srst = domain.srst_polarity;
+					ff.sig_srst = domain.srst_sig;
 					ff.val_srst = init;
 				}
 				ff.sig_d = module->wire(remap_name(c->getPort(ID::D).as_wire()->name));
@@ -1702,33 +1760,33 @@ void AbcModuleState::extract(AbcSigMap &assign_map, RTLIL::Design *design, RTLIL
 		}
 
 		if (c->type == ID(_dff_)) {
-			log_assert(clk_sig.size() == 1);
+			log_assert(domain.clk_sig.size() == 1);
 			FfData ff(module, &initvals, remap_name(c->name));
 			ff.width = 1;
 			ff.is_fine = true;
 			ff.has_clk = true;
-			ff.pol_clk = clk_polarity;
-			ff.sig_clk = clk_sig;
-			if (en_sig.size() != 0) {
-				log_assert(en_sig.size() == 1);
-				ff.pol_ce = en_polarity;
-				ff.sig_ce = en_sig;
+			ff.pol_clk = domain.clk_polarity;
+			ff.sig_clk = domain.clk_sig;
+			if (domain.en_sig.size() != 0) {
+				log_assert(domain.en_sig.size() == 1);
+				ff.pol_ce = domain.en_polarity;
+				ff.sig_ce = domain.en_sig;
 			}
 			RTLIL::Const init = mapped_initvals(c->getPort(ID::Q));
 			if (had_init)
 				ff.val_init = init;
 			else
 				ff.val_init = State::Sx;
-			if (arst_sig.size() != 0) {
-				log_assert(arst_sig.size() == 1);
-				ff.pol_arst = arst_polarity;
-				ff.sig_arst = arst_sig;
+			if (domain.arst_sig.size() != 0) {
+				log_assert(domain.arst_sig.size() == 1);
+				ff.pol_arst = domain.arst_polarity;
+				ff.sig_arst = domain.arst_sig;
 				ff.val_arst = init;
 			}
-			if (srst_sig.size() != 0) {
-				log_assert(srst_sig.size() == 1);
-				ff.pol_srst = srst_polarity;
-				ff.sig_srst = srst_sig;
+			if (domain.srst_sig.size() != 0) {
+				log_assert(domain.srst_sig.size() == 1);
+				ff.pol_srst = domain.srst_polarity;
+				ff.sig_srst = domain.srst_sig;
 				ff.val_srst = init;
 			}
 			ff.sig_d = module->wire(remap_name(c->getPort(ID::D).as_wire()->name));
@@ -2414,17 +2472,14 @@ struct AbcPass : public Pass {
 			pool<RTLIL::Cell*> expand_queue_up, next_expand_queue_up;
 			pool<RTLIL::Cell*> expand_queue_down, next_expand_queue_down;
 
-			typedef tuple<bool, RTLIL::SigSpec, bool, RTLIL::SigSpec, bool, RTLIL::SigSpec, bool, RTLIL::SigSpec> clkdomain_t;
-			dict<clkdomain_t, std::vector<RTLIL::Cell*>> assigned_cells;
-			dict<RTLIL::Cell*, clkdomain_t> assigned_cells_reverse;
+			dict<AbcClockDomain, std::vector<RTLIL::Cell*>> assigned_cells;
+			dict<RTLIL::Cell*, AbcClockDomain> assigned_cells_reverse;
 
 			dict<RTLIL::Cell*, pool<RTLIL::SigBit>> cell_to_bit, cell_to_bit_up, cell_to_bit_down;
 			dict<RTLIL::SigBit, pool<RTLIL::Cell*>> bit_to_cell, bit_to_cell_up, bit_to_cell_down;
 
 			for (auto cell : all_cells)
 			{
-				clkdomain_t key;
-
 				for (auto &conn : cell->connections())
 				for (auto bit : conn.second) {
 					bit = assign_map(bit);
@@ -2456,16 +2511,7 @@ struct AbcPass : public Pass {
 					continue;
 				if (!ff.is_fine)
 					continue;
-				key = clkdomain_t(
-					ff.pol_clk,
-					ff.sig_clk,
-					ff.has_ce ? ff.pol_ce : true,
-					ff.has_ce ? assign_map(ff.sig_ce) : RTLIL::SigSpec(),
-					ff.has_arst ? ff.pol_arst : true,
-					ff.has_arst ? assign_map(ff.sig_arst) : RTLIL::SigSpec(),
-					ff.has_srst ? ff.pol_srst : true,
-					ff.has_srst ? assign_map(ff.sig_srst) : RTLIL::SigSpec()
-				);
+				AbcClockDomain key = AbcClockDomain::from_ff(ff, assign_map);
 
 				unassigned_cells.erase(cell);
 				expand_queue.insert(cell);
@@ -2481,7 +2527,7 @@ struct AbcPass : public Pass {
 				if (!expand_queue_up.empty())
 				{
 					RTLIL::Cell *cell = *expand_queue_up.begin();
-					clkdomain_t key = assigned_cells_reverse.at(cell);
+					AbcClockDomain key = assigned_cells_reverse.at(cell);
 					expand_queue_up.erase(cell);
 
 					for (auto bit : cell_to_bit_up[cell])
@@ -2498,7 +2544,7 @@ struct AbcPass : public Pass {
 				if (!expand_queue_down.empty())
 				{
 					RTLIL::Cell *cell = *expand_queue_down.begin();
-					clkdomain_t key = assigned_cells_reverse.at(cell);
+					AbcClockDomain key = assigned_cells_reverse.at(cell);
 					expand_queue_down.erase(cell);
 
 					for (auto bit : cell_to_bit_down[cell])
@@ -2521,7 +2567,7 @@ struct AbcPass : public Pass {
 			while (!expand_queue.empty())
 			{
 				RTLIL::Cell *cell = *expand_queue.begin();
-				clkdomain_t key = assigned_cells_reverse.at(cell);
+				AbcClockDomain key = assigned_cells_reverse.at(cell);
 				expand_queue.erase(cell);
 
 				for (auto bit : cell_to_bit.at(cell)) {
@@ -2539,7 +2585,11 @@ struct AbcPass : public Pass {
 					expand_queue.swap(next_expand_queue);
 			}
 
-			clkdomain_t key(true, RTLIL::SigSpec(), true, RTLIL::SigSpec(), true, RTLIL::SigSpec(), true, RTLIL::SigSpec());
+			AbcClockDomain key;
+			key.clk_polarity = true;
+			key.en_polarity = true;
+			key.arst_polarity = true;
+			key.srst_polarity = true;
 			for (auto cell : unassigned_cells) {
 				assigned_cells[key].push_back(cell);
 				assigned_cells_reverse[cell] = key;
@@ -2549,11 +2599,7 @@ struct AbcPass : public Pass {
 			{
 				std::vector<std::vector<RTLIL::Cell*>*> cell_sets;
 				for (auto &it : assigned_cells) {
-					log("  %d cells in clk=%s%s, en=%s%s, arst=%s%s, srst=%s%s\n", GetSize(it.second),
-							std::get<0>(it.first) ? "" : "!", log_signal(std::get<1>(it.first)),
-							std::get<2>(it.first) ? "" : "!", log_signal(std::get<3>(it.first)),
-							std::get<4>(it.first) ? "" : "!", log_signal(std::get<5>(it.first)),
-							std::get<6>(it.first) ? "" : "!", log_signal(std::get<7>(it.first)));
+					it.first.log_cell_count(GetSize(it.second));
 					cell_sets.push_back(&it.second);
 				}
 				assign_cell_connection_ports(mod, cell_sets, assign_map);
@@ -2604,15 +2650,8 @@ struct AbcPass : public Pass {
 				auto &it = *next_to_prepare;
 				++next_to_prepare;
 				std::unique_ptr<AbcModuleState> state = std::make_unique<AbcModuleState>(config, initvals, i);
-				state->clk_polarity = std::get<0>(it.first);
-				state->clk_sig = assign_map(std::get<1>(it.first));
-				state->en_polarity = std::get<2>(it.first);
-				state->en_sig = assign_map(std::get<3>(it.first));
-				state->arst_polarity = std::get<4>(it.first);
-				state->arst_sig = assign_map(std::get<5>(it.first));
-				state->srst_polarity = std::get<6>(it.first);
-				state->srst_sig = assign_map(std::get<7>(it.first));
-				state->prepare_module(design, mod, assign_map, it.second, !state->clk_sig.empty(), "$");
+				state->domain = it.first.mapped(assign_map);
+				state->prepare_module(design, mod, assign_map, it.second, !state->domain.clk_sig.empty(), "$");
 				if (num_worker_threads > 0) {
 					work_queue.push_back(std::move(state));
 				} else {
