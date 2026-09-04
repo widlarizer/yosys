@@ -304,6 +304,7 @@ struct AbcClockDomain {
 	{
 		AbcClockDomain domain;
 		domain.clk_polarity = ff.pol_clk;
+		// TODO: Not sure why no map for clk, but it was like that already
 		domain.clk_sig = ff.sig_clk;
 		domain.en_polarity = ff.has_ce ? ff.pol_ce : true;
 		domain.en_sig = ff.has_ce ? assign_map(ff.sig_ce) : RTLIL::SigSpec();
@@ -2628,39 +2629,46 @@ struct AbcPass : public Pass {
 						work_finished_queue.push_back(std::move(*work));
 					}
 				});
-			std::vector<std::unique_ptr<AbcModuleState>> work_finished_by_index;
-			work_finished_by_index.resize(assigned_cells.size());
 			// Make sure we process the results in the order we expect. Process each result
 			// a fixed number of ABC runs after it was prepared, to keep memory usage low(er)
 			// without letting the order the runs finish in affect the result.
 			const int extract_lookahead = 256;
+			const int num_runs = GetSize(assigned_cells);
+			std::vector<std::unique_ptr<AbcModuleState>> work_finished_by_index(num_runs);
+
 			auto next_to_prepare = assigned_cells.begin();
-			for (int i = 0; i < GetSize(assigned_cells) + extract_lookahead; i++) {
-				if (i >= extract_lookahead) {
-					int extract_index = i - extract_lookahead;
-					while (work_finished_by_index[extract_index] == nullptr) {
+			int prepared = 0, extracted = 0;
+			while (extracted < num_runs) {
+				// There's things still left to prepare,
+				// and we have fewer than extract_lookahead things in flight 
+				if (prepared < num_runs && prepared - extracted < extract_lookahead) {
+					const AbcClockDomain &domain = next_to_prepare->first;
+					const std::vector<RTLIL::Cell*> &cells = next_to_prepare->second;
+					++next_to_prepare;
+					std::unique_ptr<AbcModuleState> state =
+							std::make_unique<AbcModuleState>(config, initvals, prepared);
+					state->domain = domain.mapped(assign_map);
+					state->prepare_module(design, mod, assign_map, cells,
+							!state->domain.clk_sig.empty(), "$");
+					if (num_worker_threads > 0) {
+						work_queue.push_back(std::move(state));
+					} else {
+						// Just run everything on the main thread.
+						state->run_abc.run(process_pool);
+						work_finished_queue.push_back(std::move(state));
+					}
+					prepared++;
+					if (prepared == num_runs)
+						work_queue.close();
+				} else {
+					while (work_finished_by_index[extracted] == nullptr) {
 						std::unique_ptr<AbcModuleState> work = *work_finished_queue.pop_front();
 						work_finished_by_index[work->state_index] = std::move(work);
 					}
-					work_finished_by_index[extract_index]->extract(assign_map, design, mod);
-					work_finished_by_index[extract_index] = nullptr;
+					work_finished_by_index[extracted]->extract(assign_map, design, mod);
+					work_finished_by_index[extracted] = nullptr;
+					extracted++;
 				}
-				if (i >= GetSize(assigned_cells))
-					continue;
-				auto &it = *next_to_prepare;
-				++next_to_prepare;
-				std::unique_ptr<AbcModuleState> state = std::make_unique<AbcModuleState>(config, initvals, i);
-				state->domain = it.first.mapped(assign_map);
-				state->prepare_module(design, mod, assign_map, it.second, !state->domain.clk_sig.empty(), "$");
-				if (num_worker_threads > 0) {
-					work_queue.push_back(std::move(state));
-				} else {
-					// Just run everything on the main thread.
-					state->run_abc.run(process_pool);
-					work_finished_queue.push_back(std::move(state));
-				}
-				if (i + 1 == GetSize(assigned_cells))
-					work_queue.close();
 			}
 		}
 
