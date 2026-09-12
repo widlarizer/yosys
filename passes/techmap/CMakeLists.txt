@@ -104,6 +104,15 @@ yosys_pass(abc_new
 		box_derive
 		write_xaiger2
 )
+yosys_pass(mockturtle
+	mockturtle.cc
+	LIBRARIES
+		mockturtle
+	REQUIRES
+		libparse
+	ENABLE_IF
+		YOSYS_ENABLE_MOCKTURTLE
+)
 
 yosys_pass(iopadmap
 	iopadmap.cc

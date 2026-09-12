@@ -162,6 +162,12 @@ struct Abc9Pass : public ScriptPass
 		log("    -box <file>\n");
 		log("        pass this file with box library to ABC.\n");
 		log("\n");
+		log("    -mockturtle\n");
+		log("        optimize and map in-process with the 'mockturtle' command instead of\n");
+		log("        running ABC. this can also be enabled with the 'abc9.mockturtle'\n");
+		log("        scratchpad variable. '-dff', '-script', '-exe', '-W' and '-box' do not\n");
+		log("        apply, and box timing is not modelled during mapping.\n");
+		log("\n");
 		log("Note that this is a logic optimization pass within Yosys that is calling ABC\n");
 		log("internally. This is not going to \"run ABC on your design\". It will instead run\n");
 		log("ABC on logic snippets extracted from your design. You will not get any useful\n");
@@ -177,9 +183,9 @@ struct Abc9Pass : public ScriptPass
 
 	std::stringstream exe_cmd;
 	bool dff_mode, cleanup;
-	bool lut_mode;
+	bool lut_mode, mockturtle_mode;
 	int maxlut, xaiger;
-	std::string box_file;
+	std::string box_file, mockturtle_args;
 
 	void clear_flags() override
 	{
@@ -188,9 +194,11 @@ struct Abc9Pass : public ScriptPass
 		dff_mode = false;
 		cleanup = true;
 		lut_mode = false;
+		mockturtle_mode = false;
 		maxlut = 0;
 		xaiger = 2;
 		box_file = "";
+		mockturtle_args = "";
 	}
 
 	void execute(std::vector<std::string> args, RTLIL::Design *design) override
@@ -202,6 +210,7 @@ struct Abc9Pass : public ScriptPass
 		dff_mode = design->scratchpad_get_bool("abc9.dff", dff_mode);
 		cleanup = !design->scratchpad_get_bool("abc9.nocleanup", !cleanup);
 		xaiger = design->scratchpad_get_int("abc9.xaiger", 2);
+		mockturtle_mode = design->scratchpad_get_bool("abc9.mockturtle", mockturtle_mode);
 
 		if (design->scratchpad_get_bool("abc9.debug")) {
 			cleanup = false;
@@ -216,7 +225,13 @@ struct Abc9Pass : public ScriptPass
 					argidx+1 < args.size()) {
 				if (arg == "-lut" || arg == "-luts")
 					lut_mode = true;
+				if (arg == "-lut" || arg == "-luts" || arg == "-D")
+					mockturtle_args += " " + arg + " " + args[argidx+1];
 				exe_cmd << " " << arg << " " << args[++argidx];
+				continue;
+			}
+			if (arg == "-mockturtle") {
+				mockturtle_mode = true;
 				continue;
 			}
 			if (arg == "-showtmp") {
@@ -254,6 +269,12 @@ struct Abc9Pass : public ScriptPass
 
 		if (maxlut && lut_mode)
 			log_cmd_error("abc9 '-maxlut' option only applicable without '-lut' nor '-luts'.\n");
+		if (mockturtle_mode && !pass_register.count("mockturtle"))
+			log_cmd_error("abc9 '-mockturtle' requires a Yosys build with mockturtle support.\n");
+		if (mockturtle_mode && dff_mode)
+			log_cmd_error("abc9 '-mockturtle' does not support '-dff'.\n");
+		if (mockturtle_mode && !box_file.empty())
+			log_warning("abc9 '-box' is ignored with '-mockturtle'.\n");
 
 		// write_xaiger2 doesn't yet support `-dff`.
 		if (dff_mode)
@@ -350,7 +371,9 @@ struct Abc9Pass : public ScriptPass
 		if (check_label("pre")) {
 			run("read_verilog -icells -lib -specify +/abc9_model.v");
 			if (help_mode)
-				run("abc9_ops -break_scc -prep_delays -prep_xaiger [-dff]", "(option for -dff)");
+				run("abc9_ops -break_scc -prep_delays -prep_xaiger [-dff]", "(option for -dff; -prep_delays -prep_xaiger skipped if -mockturtle)");
+			else if (mockturtle_mode)
+				run("abc9_ops -break_scc");
 			else
 				run("abc9_ops -break_scc -prep_delays -prep_xaiger" + std::string(dff_mode ? " -dff" : ""));
 			if (help_mode)
@@ -358,8 +381,8 @@ struct Abc9Pass : public ScriptPass
 			else if (!lut_mode)
 				run(stringf("abc9_ops -prep_lut %d", maxlut));
 			if (help_mode)
-				run("abc9_ops -prep_box", "(skip if -box)");
-			else if (box_file.empty())
+				run("abc9_ops -prep_box", "(skip if -box or -mockturtle)");
+			else if (box_file.empty() && !mockturtle_mode)
 				run("abc9_ops -prep_box");
 			if (saved_designs.count("$abc9_holes") || help_mode) {
 				run("design -stash $abc9");
@@ -381,6 +404,7 @@ struct Abc9Pass : public ScriptPass
 			if (help_mode) {
 				run("foreach module in selection");
 				run("    abc9_ops -write_lut <abc-temp-dir>/input.lut", "(skip if '-lut' or '-luts')");
+				run("    mockturtle -lut [<abc-temp-dir>/input.lut] [-D <delay>]", "(only if -mockturtle; the following are skipped)");
 				run("    abc9_ops -write_box <abc-temp-dir>/input.box", "(skip if '-box')");
 				run("    write_xaiger -map <abc-temp-dir>/input.sym [-dff] <abc-temp-dir>/input.xaig");
 				run("    abc9_exe [options] -cwd <abc-temp-dir> -lut [<abc-temp-dir>/input.lut] -box [<abc-temp-dir>/input.box]");
@@ -414,6 +438,20 @@ struct Abc9Pass : public ScriptPass
 
 					if (!lut_mode)
 						run_nocheck(stringf("abc9_ops -write_lut %s/input.lut", tempdir_name));
+					if (mockturtle_mode) {
+						std::string cmd = "mockturtle" + mockturtle_args;
+						if (!lut_mode)
+							cmd += stringf(" -lut %s/input.lut", tempdir_name);
+						run_nocheck(cmd);
+						if (cleanup) {
+							log("Removing temp directory.\n");
+							remove_directory(tempdir_name);
+						}
+						mod->check();
+						active_design->selection().selected_modules.clear();
+						log_pop();
+						continue;
+					}
 					if (box_file.empty())
 						run_nocheck(stringf("abc9_ops -write_box %s/input.box", tempdir_name));
 					if (xaiger == 1)

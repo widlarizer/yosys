@@ -86,27 +86,40 @@ struct AbcNewPass : public ScriptPass {
 		log("        the ABC tool on individual modules of the design. please see\n");
 		log("        'help abc9_exe' for more details\n");
 		log("\n");
+		log("    -mockturtle\n");
+		log("        optimize and map in-process with the 'mockturtle' command instead of\n");
+		log("        running ABC. this can also be enabled with the 'abc_new.mockturtle'\n");
+		log("        scratchpad variable. only '-liberty', '-genlib', '-dont_use' and '-D'\n");
+		log("        are passed on; box timing is not modelled during mapping.\n");
+		log("\n");
 		log("[1] http://www.eecs.berkeley.edu/~alanmi/abc/\n");
 		log("\n");
 		help_script();
 		log("\n");
 	}
 
-	bool cleanup;
-	std::string abc_exe_options;
+	bool cleanup, mockturtle_mode;
+	std::string abc_exe_options, mockturtle_options;
 
 	void execute(std::vector<std::string> args, RTLIL::Design *d) override
 	{
 		std::string run_from, run_to;
 		cleanup = true;
+		mockturtle_mode = d->scratchpad_get_bool("abc_new.mockturtle", false);
+		mockturtle_options.clear();
 		size_t argidx;
 		for (argidx = 1; argidx < args.size(); argidx++) {
 			if (args[argidx] == "-exe" || args[argidx] == "-script" ||
 					args[argidx] == "-D" ||
 					args[argidx] == "-constr" || args[argidx] == "-dont_use" ||
 					args[argidx] == "-liberty" || args[argidx] == "-genlib") {
+				if (args[argidx] == "-D" || args[argidx] == "-dont_use" ||
+						args[argidx] == "-liberty" || args[argidx] == "-genlib")
+					mockturtle_options += " " + args[argidx] + " " + args[argidx + 1];
 				abc_exe_options += " " + args[argidx] + " " + args[argidx + 1];
 				argidx++;
+			} else if (args[argidx] == "-mockturtle") {
+				mockturtle_mode = true;
 			} else if (args[argidx] == "-run" && argidx + 1 < args.size()) {
 				size_t pos = args[++argidx].find(':');
 				if (pos == std::string::npos)
@@ -121,8 +134,11 @@ struct AbcNewPass : public ScriptPass {
 		}
 		extra_args(args, argidx, d);
 
+		if (mockturtle_mode && !pass_register.count("mockturtle"))
+			log_cmd_error("abc_new '-mockturtle' requires a Yosys build with mockturtle support.\n");
+
 		// If no script provided, use a default.
-		if (abc_exe_options.find("-script") == std::string::npos) {
+		if (!mockturtle_mode && abc_exe_options.find("-script") == std::string::npos) {
 			d->scratchpad_set_string("abc9.script", RTLIL::constpad["abc_new.script.speed"]);
 		}
 
@@ -190,12 +206,16 @@ struct AbcNewPass : public ScriptPass {
 						mod->get_string_attribute(ID(abc9_script)));
 				}
 
-				run(stringf("  abc9_ops -write_box %s/input.box", tmpdir));
-				run(stringf("  write_xaiger2 -mapping_prep -map2 %s/input.map2 %s/input.xaig", tmpdir, tmpdir));
-				run(stringf("  abc9_exe %s -cwd %s -box %s/input.box", exe_options, tmpdir, tmpdir));
-				run(stringf("  read_aiger -xaiger -module_name %s$abc9 %s/output.aig",
-							modname, tmpdir));
-				run(stringf("  abc_ops_reintegrate -map %s/input.map2", tmpdir));
+				if (mockturtle_mode || help_mode)
+					run(stringf("  mockturtle %s", help_mode ? "[options]" : mockturtle_options), "(only if -mockturtle; the following are skipped)");
+				if (!mockturtle_mode || help_mode) {
+					run(stringf("  abc9_ops -write_box %s/input.box", tmpdir));
+					run(stringf("  write_xaiger2 -mapping_prep -map2 %s/input.map2 %s/input.xaig", tmpdir, tmpdir));
+					run(stringf("  abc9_exe %s -cwd %s -box %s/input.box", exe_options, tmpdir, tmpdir));
+					run(stringf("  read_aiger -xaiger -module_name %s$abc9 %s/output.aig",
+								modname, tmpdir));
+					run(stringf("  abc_ops_reintegrate -map %s/input.map2", tmpdir));
+				}
 				if (!help_mode && mod->has_attribute(ID(abc9_script))) {
 					if (script_save.empty())
 						active_design->scratchpad_unset("abc9.script");

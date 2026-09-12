@@ -1,0 +1,199 @@
+# LUT mapping of an AND chain
+read_verilog <<EOT
+`define N 256
+module top(input [`N-1:0] a, output o);
+wire [`N-2:0] w;
+assign w[0] = a[0] & a[1];
+genvar i;
+generate for (i = 1; i < `N-1; i++)
+assign w[i] = w[i-1] & a[i+1];
+endgenerate
+assign o = w[`N-2];
+endmodule
+EOT
+simplemap
+design -save gold
+
+equiv_opt -assert mockturtle -lut 4
+design -load postopt
+select -assert-none t:$lut t:* %D
+select -assert-max 100 t:$lut
+
+design -load gold
+equiv_opt -assert mockturtle -lut 4 -area
+
+design -load gold
+equiv_opt -assert mockturtle -lut 2:6 -opt none
+
+design -load gold
+equiv_opt -assert mockturtle -luts 1,1,2,4
+
+design -load gold
+equiv_opt -assert abc9 -mockturtle -lut 4
+design -load postopt
+select -assert-none t:$lut t:* %D
+
+# keep wires and cells delimit the mapped logic
+design -reset
+read_verilog <<EOT
+module top(input a, b, output o);
+(* keep *) wire w = a & b;
+assign o = ~w;
+endmodule
+EOT
+simplemap
+equiv_opt -assert mockturtle -lut 4
+design -load postopt
+select -assert-count 2 t:$lut
+select -assert-count 1 w:w
+
+design -reset
+read_verilog -icells <<EOT
+module top(input a, b, output o);
+wire w;
+(* keep *) $_AND_ gate (.Y(w), .A(a), .B(b));
+assign o = ~w;
+endmodule
+EOT
+simplemap
+equiv_opt -assert mockturtle -lut 4
+design -load postopt
+select -assert-count 1 t:$lut
+select -assert-count 1 t:$_AND_
+
+# inverted outputs fold into LUTs
+design -reset
+read_verilog <<EOT
+module top(input a, b, output o);
+assign o = ~(a & b);
+endmodule
+EOT
+simplemap
+mockturtle -lut 4
+clean
+select -assert-count 1 t:$lut
+select -assert-none t:$lut t:* %D
+
+# abc9 -mockturtle still runs aigmap on coarse cells
+design -reset
+read_verilog <<EOT
+module top(input a, b, output o);
+assign o = ~(a & b);
+endmodule
+EOT
+abc9 -mockturtle -lut 4
+clean
+select -assert-count 1 t:$lut
+select -assert-none t:$lut t:* %D
+
+# a signal used both as-is and inverted at outputs, plus a pass-through and a constant
+design -reset
+read_verilog <<EOT
+module top(input a, b, c, output o1, o2, o3, o4, o5);
+wire x = (a ^ b) | c;
+assign o1 = x;
+assign o2 = ~x;
+assign o3 = a;
+assign o4 = ~a;
+assign o5 = 1'b1;
+endmodule
+EOT
+simplemap
+equiv_opt -assert mockturtle -lut 4
+design -load postopt
+clean
+select -assert-none t:$lut t:* %D
+
+# mapped names survive through flops and public wires with -keep_names
+design -reset
+read_verilog <<EOT
+module top(input clk, a, b, c, output reg q, output y);
+wire mid = a & b;
+wire d = mid | c;
+always @(posedge clk) q <= d;
+assign y = mid ^ q;
+endmodule
+EOT
+proc
+simplemap
+equiv_opt -assert -async2sync mockturtle -lut 4 -keep_names
+design -load postopt
+select -assert-count 1 w:mid
+select -assert-count 1 w:d
+select -assert-count 1 t:$_DFF_P_
+select -assert-min 1 w:mid %ci* t:$lut %i
+
+# all simple gate types
+design -reset
+read_verilog -icells <<EOT
+module top(input a, b, c, d, s, output [15:0] y);
+$_BUF_ g0 (.A(a), .Y(y[0]));
+$_NOT_ g1 (.A(a), .Y(y[1]));
+$_AND_ g2 (.A(a), .B(b), .Y(y[2]));
+$_NAND_ g3 (.A(a), .B(b), .Y(y[3]));
+$_OR_ g4 (.A(a), .B(b), .Y(y[4]));
+$_NOR_ g5 (.A(a), .B(b), .Y(y[5]));
+$_XOR_ g6 (.A(a), .B(b), .Y(y[6]));
+$_XNOR_ g7 (.A(a), .B(b), .Y(y[7]));
+$_ANDNOT_ g8 (.A(a), .B(b), .Y(y[8]));
+$_ORNOT_ g9 (.A(a), .B(b), .Y(y[9]));
+$_MUX_ g10 (.A(a), .B(b), .S(s), .Y(y[10]));
+$_NMUX_ g11 (.A(a), .B(b), .S(s), .Y(y[11]));
+$_AOI3_ g12 (.A(a), .B(b), .C(c), .Y(y[12]));
+$_OAI3_ g13 (.A(a), .B(b), .C(c), .Y(y[13]));
+$_AOI4_ g14 (.A(a), .B(b), .C(c), .D(d), .Y(y[14]));
+$_OAI4_ g15 (.A(a), .B(b), .C(c), .D(d), .Y(y[15]));
+endmodule
+EOT
+equiv_opt -assert mockturtle -lut 4
+design -load postopt
+select -assert-none t:$lut t:* %D
+
+# standard cell mapping from Liberty and genlib
+design -reset
+read_verilog <<EOT
+module sub(input a, b, c, output y);
+  assign y = (a & b) | c;
+endmodule
+module top(input clk, a, b, c, d, output y, z, output reg q);
+  assign z = (a ^ b) & d;
+  sub s_i (.a(a), .b(b), .c(c), .y(y));
+  always @(posedge clk) q <= z;
+endmodule
+EOT
+read_verilog -lib ../liberty/normal.lib.verilogsim.ok
+read_verilog -lib ../liberty/dff.lib.verilogsim.ok
+hierarchy -top top
+proc
+techmap
+design -save gold_hier
+
+mockturtle -liberty ../liberty/normal.lib -liberty ../liberty/dff.lib
+check -assert
+select -assert-none t:$_AND_ t:$_OR_ t:$_XOR_ t:$_NOT_
+select -assert-count 1 t:$_DFF_P_
+select -assert-min 1 sub/t:aoi211
+
+design -load gold_hier
+flatten
+design -save gold_sc
+
+equiv_opt -assert -map ../liberty/normal.lib.verilogsim.ok -async2sync mockturtle -liberty ../liberty/normal.lib -liberty ../liberty/dff.lib
+design -load postopt
+select -assert-none t:$_AND_ t:$_OR_ t:$_XOR_ t:$_NOT_
+select -assert-count 1 t:$_DFF_P_
+
+design -load gold_sc
+equiv_opt -assert -map ../liberty/normal.lib.verilogsim.ok -async2sync mockturtle -liberty ../liberty/normal.lib -dont_use nand3 -area
+design -load postopt
+select -assert-none t:nand3
+
+design -load gold_sc
+equiv_opt -assert -map ../liberty/normal.lib.verilogsim.ok -async2sync abc_new -mockturtle -liberty ../liberty/normal.lib -liberty ../liberty/dff.lib
+design -load postopt
+select -assert-none t:$_AND_ t:$_OR_ t:$_XOR_ t:$_NOT_
+
+design -load gold_sc
+equiv_opt -assert -nocheck -map +/gatemate/lut_tree_map.v -map +/gatemate/cells_sim.v -async2sync mockturtle -genlib +/gatemate/lut_tree_cells.genlib
+design -load postopt
+select -assert-none t:$_AND_ t:$_OR_ t:$_XOR_ t:$_NOT_
