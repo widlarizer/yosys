@@ -153,6 +153,17 @@ void eliminate_const(RTLIL::Module *mod, RTLIL::CaseRule *cs, RTLIL::SigSpec con
 	}
 }
 
+std::string switch_src_prefix(RTLIL::SwitchRule *sw)
+{
+	std::string src = sw->get_src_attribute();
+	for (auto cs : sw->cases)
+		if (!cs->compare.empty()) {
+			src = cs->get_src_attribute();
+			break;
+		}
+	return src.empty() ? "" : src + ": ";
+}
+
 RTLIL::SigSpec apply_reset(RTLIL::Module *mod, RTLIL::Process *proc, RTLIL::SyncRule *sync, SigMap &assign_map, RTLIL::SigSpec root_sig, bool polarity, RTLIL::SigSpec sig, RTLIL::SigSpec log_sig) {
 	RTLIL::SigSpec rspec = assign_map(sig);
 	RTLIL::SigSpec rval = RTLIL::SigSpec(RTLIL::State::Sm, rspec.size());
@@ -171,9 +182,20 @@ RTLIL::SigSpec apply_reset(RTLIL::Module *mod, RTLIL::Process *proc, RTLIL::Sync
 					log_signal(sync->signal), log_signal(rval), log_signal(log_sig));
 		rspec = rval;
 	}
-	if (rval.has_marked_bits())
-		log_error("Async reset %s yields non-constant value %s for signal %s.\n",
-				log_signal(sync->signal), log_signal(rval), log_signal(log_sig));
+	if (rval.has_marked_bits()) {
+		RTLIL::SwitchRule *sw = proc->root_case.switches[0];
+		bool active_high = sync->type == RTLIL::SyncType::ST1;
+		bool tested = false;
+		for (auto cs : sw->cases)
+			for (auto &comp : cs->compare)
+				tested |= comp == RTLIL::SigSpec(polarity, 1);
+		if (!tested)
+			log_error("%sasync reset %s resets is %s, branch condition may be incorrect.\n",
+					switch_src_prefix(sw), log_signal(sync->signal), active_high ? "posedge" : "negedge");
+		log_error("%sAsync reset %s (%s) doesn't determine the value of %s.\n",
+				switch_src_prefix(sw), log_signal(sync->signal),
+				active_high ? "posedge" : "negedge", log_signal(log_sig));
+	}
 	return rval;
 }
 
