@@ -193,7 +193,74 @@ equiv_opt -assert -map ../liberty/normal.lib.verilogsim.ok -async2sync abc_new -
 design -load postopt
 select -assert-none t:$_AND_ t:$_OR_ t:$_XOR_ t:$_NOT_
 
+# multi-output cells: an adder maps onto the fulladder/halfadder cells
+design -reset
+read_verilog <<EOT
+module top(input [7:0] a, b, input ci, output [8:0] y);
+assign y = a + b + ci;
+endmodule
+EOT
+read_verilog -lib ../liberty/normal.lib.verilogsim.ok
+hierarchy -top top
+synth -run :fine
+techmap
+design -save gold_add
+
+equiv_opt -assert -map ../liberty/normal.lib.verilogsim.ok mockturtle -liberty ../liberty/normal.lib -multioutput
+design -load postopt
+select -assert-min 1 t:fulladder t:halfadder
+select -assert-none t:$_AND_ t:$_OR_ t:$_XOR_ t:$_NOT_
+
+design -load gold_add
+equiv_opt -assert -map ../liberty/normal.lib.verilogsim.ok mockturtle -liberty ../liberty/normal.lib -multioutput -area -D 1000
+design -load postopt
+select -assert-min 1 t:fulladder t:halfadder
+
+design -load gold_add
+equiv_opt -assert -map ../liberty/normal.lib.verilogsim.ok abc_new -mockturtle -liberty ../liberty/normal.lib -multioutput -D 1000 -io_delay 100
+design -load postopt
+select -assert-none t:$_AND_ t:$_OR_ t:$_XOR_ t:$_NOT_
+
+# a genlib multi-output gate given as repeated GATE lines
+design -load gold_add
+equiv_opt -assert -nocheck -map ../liberty/normal.lib.verilogsim.ok mockturtle -genlib mockturtle_fa.genlib -multioutput
+design -load postopt
+select -assert-min 1 t:fulladder
+
 design -load gold_sc
 equiv_opt -assert -nocheck -map +/gatemate/lut_tree_map.v -map +/gatemate/cells_sim.v -async2sync mockturtle -genlib +/gatemate/lut_tree_cells.genlib
+design -load postopt
+select -assert-none t:$_AND_ t:$_OR_ t:$_XOR_ t:$_NOT_
+
+# structural choices: the mapper picks between differently optimized variants
+design -load gold_sc
+equiv_opt -assert -map ../liberty/normal.lib.verilogsim.ok -async2sync mockturtle -liberty ../liberty/normal.lib -liberty ../liberty/dff.lib -choices
+design -load postopt
+select -assert-none t:$_AND_ t:$_OR_ t:$_XOR_ t:$_NOT_
+
+design -load gold_sc
+equiv_opt -assert -map ../liberty/normal.lib.verilogsim.ok -async2sync mockturtle -liberty ../liberty/normal.lib -liberty ../liberty/dff.lib -choices 1 -area
+design -load postopt
+select -assert-none t:$_AND_ t:$_OR_ t:$_XOR_ t:$_NOT_
+
+design -load gold_sc
+equiv_opt -assert -map ../liberty/normal.lib.verilogsim.ok -async2sync abc_new -mockturtle -liberty ../liberty/normal.lib -liberty ../liberty/dff.lib -choices 4 -D 1000
+design -load postopt
+select -assert-none t:$_AND_ t:$_OR_ t:$_XOR_ t:$_NOT_
+
+# a node equivalent only to a constant is substituted, not offered as a choice
+design -reset
+read_verilog <<EOT
+module top(input a, b, c, output y, z);
+wire x = a & b;
+wire w = a & ~b;
+assign y = (x & w) ^ c;
+assign z = x | c;
+endmodule
+EOT
+read_verilog -lib ../liberty/normal.lib.verilogsim.ok
+hierarchy -top top
+simplemap
+equiv_opt -assert -map ../liberty/normal.lib.verilogsim.ok mockturtle -liberty ../liberty/normal.lib -opt none -choices
 design -load postopt
 select -assert-none t:$_AND_ t:$_OR_ t:$_XOR_ t:$_NOT_

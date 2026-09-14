@@ -92,6 +92,16 @@ struct AbcNewPass : public ScriptPass {
 		log("        scratchpad variable. only '-liberty', '-genlib', '-dont_use' and '-D'\n");
 		log("        are passed on; box timing is not modelled during mapping.\n");
 		log("\n");
+		log("    -io_delay <picoseconds>\n");
+		log("    -wire_load <femtofarads>\n");
+		log("    -fanout_load <femtofarads>\n");
+		log("    -fanout_limit <n>\n");
+		log("    -multioutput\n");
+		log("    -noload\n");
+		log("    -choices [<n>]\n");
+		log("        these options are passed on to the 'mockturtle' command (only with\n");
+		log("        -mockturtle). please see 'help mockturtle' for more details.\n");
+		log("\n");
 		log("[1] http://www.eecs.berkeley.edu/~alanmi/abc/\n");
 		log("\n");
 		help_script();
@@ -120,6 +130,15 @@ struct AbcNewPass : public ScriptPass {
 				argidx++;
 			} else if (args[argidx] == "-mockturtle") {
 				mockturtle_mode = true;
+			} else if ((args[argidx] == "-io_delay" || args[argidx] == "-wire_load" || args[argidx] == "-fanout_load" || args[argidx] == "-fanout_limit") && argidx + 1 < args.size()) {
+				mockturtle_options += " " + args[argidx] + " " + args[argidx + 1];
+				argidx++;
+			} else if (args[argidx] == "-multioutput" || args[argidx] == "-noload") {
+				mockturtle_options += " " + args[argidx];
+			} else if (args[argidx] == "-choices") {
+				mockturtle_options += " " + args[argidx];
+				if (argidx + 1 < args.size() && !args[argidx + 1].empty() && args[argidx + 1].find_first_not_of("0123456789") == std::string::npos)
+					mockturtle_options += " " + args[++argidx];
 			} else if (args[argidx] == "-run" && argidx + 1 < args.size()) {
 				size_t pos = args[++argidx].find(':');
 				if (pos == std::string::npos)
